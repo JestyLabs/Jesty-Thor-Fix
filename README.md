@@ -1,129 +1,161 @@
 <p align="center">
-  <img src="assets/branding/jesty_wordmark_header.png" alt="Jesty" width="430">
+  <img src="assets/branding/jesty_wordmark_header.png" alt="Jesty" width="390">
 </p>
 
-# Jesty Thor Fix
+<h1 align="center">Jesty Thor Fix</h1>
 
-**True lower-display power-off and a live system dashboard for the AYN Thor.**
+<p align="center">
+  <strong>Real lower-display power-off for the AYN Thor.</strong><br>
+  Keeps TOP mode responsive, repairs the display after wake, and shows live CPU/display telemetry.
+</p>
 
-Jesty Thor Fix exists because the stock TOP-only mode does not consistently leave the lower display in a true hardware-off state. The app runs a small root-side daemon that reconciles the lower display after mode changes and wake events, while keeping normal TOP/BOTH changes responsive.
+<p align="center">
+  <img alt="AYN Thor" src="https://img.shields.io/badge/device-AYN%20Thor-7C3AED?style=for-the-badge">
+  <img alt="Android 13" src="https://img.shields.io/badge/Android-13-3DDC84?style=for-the-badge&amp;logo=android&amp;logoColor=white">
+  <img alt="Root bridge required" src="https://img.shields.io/badge/requires-PServerBinder-F59E0B?style=for-the-badge">
+  <img alt="GPL 3" src="https://img.shields.io/badge/code-GPL--3.0-8B5CF6?style=for-the-badge">
+</p>
+
+<p align="center">
+  <a href="https://github.com/SirJesty/Jesty-Thor-Fix/releases/tag/v0.32"><strong>Download the signed 0.32 pre-release</strong></a>
+  · <a href="docs/DEVICE-VALIDATION.md">Validation checklist</a>
+  · <a href="docs/BENCHMARKS.md">Measurements and raw data</a>
+</p>
+
+<p align="center">
+  <img src="docs/images/dashboard-fix-active.png" alt="Jesty Thor Fix dashboard showing true-off active" width="100%">
+</p>
 
 > [!IMPORTANT]
-> This is an independent community project. It is not made, supported, or endorsed by AYN Technologies. It targets one specific device and uses privileged, firmware-dependent Android APIs. Read the requirements and limitations before installing it.
+> **Made specifically for the AYN Thor.** This is an independent community
+> project and is not made, supported, or endorsed by AYN Technologies. It uses
+> privileged, firmware-dependent Android APIs and should not be installed on
+> unrelated devices.
 
-> [!NOTE]
-> This project was developed with AI assistance. Parts of the code, documentation, UI artwork, and branding were generated or refined with generative AI under the maintainer's direction. The behavior described here was reviewed and tested on real hardware; AI output was not treated as proof of correctness. See [AI_DISCLOSURE.md](AI_DISCLOSURE.md).
+## The Thor problem, in plain English
 
-## Dashboard preview
+AYN's stock **TOP-only** mode makes the lower screen look disabled, but on the
+tested firmware Android can continue driving its scanout hardware. The lower
+display also wakes again during every normal system wake. That can leave extra
+display work active and, in the captured low-load case, keep CPU clusters at
+high frequencies.
 
-| True-off active | Native Thor behavior |
+Jesty Thor Fix changes the final hardware state instead of merely showing a
+black lower screen:
+
+| | Stock TOP-only | Jesty true-off |
+| --- | --- | --- |
+| What you see | Lower screen looks black | Lower screen is black |
+| Bottom scanout | Still active | **Inactive** |
+| Display property | `power=1` | **`power=0`** |
+| Bottom CRTC 243 | active | **inactive** |
+| After wake | Android wakes the lower display | App repairs true-off after Android finishes waking |
+
+### See the difference
+
+| Native Thor mode | Jesty fix active |
 | --- | --- |
-| ![Jesty Thor Fix active dashboard](docs/images/dashboard-fix-active.png) | ![Native Thor mode dashboard](docs/images/dashboard-native-mode.png) |
+| ![Native Thor mode with bottom display and pinned clocks](docs/images/dashboard-native-mode.png) | ![True-off active with lower screen off](docs/images/dashboard-fix-active.png) |
 
-## What the bug looks like
+## Why it is useful
 
-On the tested Thor firmware, Android's wake pipeline powers both physical displays as a group. Even when TOP-only is selected, Display 4 can be switched on during wake, which activates the lower viewport and related framework state before a userland callback can react.
+- **True lower-display off:** verified through DRM CRTC state, not just a black
+  overlay or a setting value.
+- **Fast normal switching:** manual TOP/BOTH transitions remain immediate.
+- **Stable wake repair:** waits for Android's wake pipeline instead of fighting
+  SurfaceFlinger at the worst possible moment.
+- **No CPU modification:** reads clock telemetry but never changes governors,
+  limits, frequencies, composer settings, or SystemLoadFix.
+- **Works without the dashboard open:** the root daemon is independent from the
+  Activity and survives removing the app from recents.
+- **Remembers your choice:** `BootReceiver` reconciles the saved ON/OFF state
+  after a normal reboot.
 
-The stock mode and the fix therefore differ:
+## Measured on real hardware
 
-| State | Thor mode | Power property | Top CRTC 181 | Bottom CRTC 243 |
-| --- | ---: | ---: | ---: | ---: |
-| TOP with Jesty fix | `1` | `0` | active | inactive |
-| TOP using native behavior | `1` | `1` | active | active |
-| BOTH | `2` | `1` | active | active |
+A controlled A/B/A capture compared native TOP mode with true-off under the
+same low-load, USB-powered conditions:
 
-The CRTC mapping above is specific to the tested firmware. The dashboard's **Verify bottom scanout** action performs a one-shot DRM read instead of continuously polling debugfs.
-
-## Measured behavior
-
-A short A/B/A capture on the tested Thor compared native TOP mode with the
-true-off fix under the same low-load, USB-powered conditions:
-
-| Metric | Native TOP | True-off | Observed change |
+| Metric | Native TOP | True-off | Result in this capture |
 | --- | ---: | ---: | ---: |
 | LITTLE average | 2.016 GHz | 1.616 GHz | -19.8% |
 | BIG average | 2.707 GHz | 1.654 GHz | -38.9% |
 | LITTLE at >=95% maximum | 75/75 samples | 22/45 samples | no longer continuous |
-| BIG at >=95% maximum | 75/75 samples | 0/45 samples | eliminated in this run |
-| System-power proxy | 2.030 W | 1.239 W | -0.792 W / -39.0% |
+| BIG at >=95% maximum | 75/75 samples | 0/45 samples | lock eliminated |
+| System-power proxy | 2.030 W | 1.239 W | **-0.792 W / -39.0%** |
 | 1-minute load average | 0.465 | 0.425 | comparable low load |
 
-The power figure is a directional proxy calculated from USB input minus battery
-charging power, not a laboratory battery-life claim. Results can vary with
-firmware, brightness, battery state, charger, workload, and ambient conditions.
-See [docs/BENCHMARKS.md](docs/BENCHMARKS.md) for methodology, limitations, and
-the sanitized raw samples.
+> [!NOTE]
+> The power number is a short-run directional proxy calculated from USB input
+> minus battery charging power. It is **not** a promise of 39% more battery
+> life. Firmware, brightness, workload, battery state, charger, and temperature
+> can change the result. The full method and sanitized CSV samples are in
+> [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
-## How the fix works
+The exact downloadable APK was installed on the tested Thor. Manual native/fix
+transitions succeeded, a sleep/wake repair ended `OFF_OK`, and a one-shot DRM
+verification returned:
 
-- Manual TOP/BOTH transitions are handled immediately.
-- After a wake in TOP-only mode, the daemon waits **700 ms** before repairing the final state.
-- If Android reports Display 4 ON later in the wake, the repair is held until at least **400 ms after that event**.
-- A generation token cancels stale repairs across rapid sleep/wake or mode changes.
-- Disabling the fix cancels pending work, restores native display power, and reasserts ON after an in-flight OFF so the requested state wins.
+```text
+top CRTC 181    active
+bottom CRTC 243 inactive
+```
 
-This deliberately does not race Android at the start of wake. Earlier versions tried to switch the panel off immediately and could collide with SurfaceFlinger, producing severe jank. The delayed repair gives Android time to finish screen-on first.
+## Installation
 
-### Userland limitation
+1. Download `Jesty-Thor-Fix-0.32.apk` from the
+   [GitHub release](https://github.com/SirJesty/Jesty-Thor-Fix/releases/tag/v0.32).
+2. Install it as an update if an earlier build with the same package is present.
+3. Open **Jesty Thor Fix** once and confirm `FIX ACTIVE`.
+4. Select TOP mode and press **Verify bottom scanout**. Bottom CRTC 243 should
+   report inactive.
 
-The fix guarantees the final hardware state; it cannot prevent the framework from briefly waking Display 4 and rebuilding lower-display topology. Eliminating that churn would require a framework or `system_server` policy change.
-
-## Dashboard
-
-- Persistent **True Bottom Display Fix** toggle.
-- FIX ACTIVE, NATIVE THOR MODE, APPLYING, and DAEMON UNAVAILABLE states.
-- Read-only LITTLE, BIG, and PRIME clock telemetry.
-- Sustained low-load clock-lock warning after ten qualifying samples.
-- Display mode, power property, daemon uptime, and last wake-repair result.
-- One-shot DRM scanout verification.
-- Animated background while the dashboard is visible; playback pauses when the Activity loses focus.
-
-The app never changes CPU governors, CPU frequencies, composer settings, or the old SystemLoadFix behavior.
-
-## Requirements
+Requirements:
 
 - AYN Thor.
-- Tested on Android 13 firmware `TKQ1.231222.001`, build dated 2026-02-06.
+- Tested Android 13 firmware `TKQ1.231222.001`, build dated 2026-02-06.
 - The Thor firmware's privileged `PServerBinder` command bridge.
-- The official APK for update-in-place installation. Self-built APKs use a different signing identity unless you possess the official private key.
 
-Compatibility with other firmware versions is not guaranteed. Do not install this on unrelated Android devices.
+Self-built APKs will not update the official build unless they are signed with
+the same private key.
 
-## Installation and persistence
+## Everyday behavior
 
-1. Download the APK from the GitHub Release, not from an issue attachment or mirror.
-2. Install it as an update if an earlier Jesty Thor Fix build is present.
-3. Open **Jesty Thor Fix** once and confirm that the dashboard reports `FIX ACTIVE`.
-4. In TOP mode, use **Verify bottom scanout** and confirm that bottom CRTC 243 is inactive.
+- Closing the dashboard or removing it from recents does not normally stop the fix.
+- A normal reboot restores the saved ON/OFF choice.
+- Turning the master toggle OFF cancels pending work and restores native behavior.
+- The app respects Android's normal display timeout.
 
-The root daemon is independent of the dashboard Activity. Closing the app, removing it from recents, or clearing ordinary background apps does not stop the fix. `BootReceiver` reconciles the saved ON/OFF choice after a normal reboot.
+**Android Settings -> Force stop is different.** Force stop may prevent the app
+from restarting automatically until it is opened again.
 
-**Android Settings → Force stop is different.** Force stop may prevent the app from restarting automatically until it is opened again.
+<details>
+<summary><strong>How the wake repair works</strong></summary>
 
-## Local daemon protocol
+Manual TOP/BOTH transitions are handled immediately. During a wake in TOP
+mode, Android can reactivate Display 4 as part of its shared display power
+pipeline. Trying to switch it off immediately caused collisions and severe
+jank in earlier builds.
 
-The daemon listens only on `127.0.0.1:3804`:
+The current strategy waits 700 ms from wake and never repairs earlier than
+400 ms after a late Display 4 ON callback. A generation token cancels stale
+work across fast mode or sleep changes. This gives Android time to complete
+screen-on before one final true-off operation.
 
-| Command | Action |
-| --- | --- |
-| `0` / `1` | Legacy bottom OFF / ON |
-| `E` | Enable the fix and reconcile the current mode |
-| `N` | Disable the fix and restore native behavior |
-| `Q` | Return daemon, display, CPU, load, and last-repair state |
-| `V` | Perform one DRM CRTC verification |
+This userland fix guarantees the final state. It cannot stop Android from
+briefly rebuilding lower-display topology during wake; eliminating that churn
+would require a framework or `system_server` policy change.
 
-## Building
+The daemon listens only on `127.0.0.1:3804`. See
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the protocol and architecture.
 
-The source intentionally contains no keystore, password, token, device log, or maintainer-specific path.
+</details>
 
-Required tools:
+<details>
+<summary><strong>Building from source</strong></summary>
 
-- Windows PowerShell 5.1 or PowerShell 7
-- JDK 17
-- Android SDK platform 34
-- Android Build Tools 35.0.0
-- apktool 3.0.3 or compatible
-- ffmpeg only when regenerating the animated background
+Required tools: PowerShell 5.1/7, JDK 17, Android SDK platform 34, Android Build
+Tools 35.0.0, and apktool 3.0.3 or compatible.
 
 Place `apktool.jar` at `tools/apktool.jar`, or set `APKTOOL_JAR`, then run:
 
@@ -131,29 +163,40 @@ Place `apktool.jar` at `tools/apktool.jar`, or set `APKTOOL_JAR`, then run:
 .\build.ps1
 ```
 
-That produces `dist/Jesty-Thor-Fix-0.32-unsigned.apk`. To sign a personal build, pass `-Sign -KeystorePath <path>`; the script asks for the password interactively and never stores it in the repository.
+The source contains no keystore, password, token, device log, or
+maintainer-specific path. Signing is opt-in and reads the password interactively.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the split Java/smali build, [docs/DEVICE-VALIDATION.md](docs/DEVICE-VALIDATION.md) for the hardware validation gate, and [docs/RELEASE-INTEGRITY.md](docs/RELEASE-INTEGRITY.md) for APK hashes and the signing certificate.
+</details>
 
-## Safety and known limitations
+## Support the project
 
-- The app performs privileged display operations and can leave display state wrong if used on unsupported firmware.
-- The scanout check reads `/sys/kernel/debug/dri/0/state` only when requested.
-- Clock telemetry is diagnostic only and is not evidence of a performance problem by itself.
-- The wake repair is intentionally conservative; reducing its timing without device traces can reintroduce jank.
-- Only the final state can be repaired from userland. Temporary wake-time topology churn remains possible.
+If the fix improves your Thor experience, a coffee helps fund testing, device
+work, documentation, and future updates.
 
-## Support
+<p align="center">
+  <a href="https://www.buymeacoffee.com/jesty">
+    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" width="217">
+  </a>
+</p>
 
-If the fix helped you, you can support future work at [Buy Me a Coffee](https://buymeacoffee.com/jesty).
+Bug reports and carefully redacted device evidence are welcome. Never upload a
+keystore, password, device serial, account email, or unreviewed log bundle.
 
-Bug reports and carefully redacted device evidence are welcome. Never upload a keystore, password, device serial, account email, or full unreviewed log bundle.
+## Documentation
 
-## Licensing and credits
+- [Architecture](docs/ARCHITECTURE.md)
+- [Hardware validation checklist](docs/DEVICE-VALIDATION.md)
+- [Live results](docs/LIVE-RESULTS.md)
+- [Benchmarks and raw samples](docs/BENCHMARKS.md)
+- [Release integrity](docs/RELEASE-INTEGRITY.md)
+- [AI assistance disclosure](AI_DISCLOSURE.md)
+
+## License and credits
 
 - Source code and scripts: [GPL-3.0-only](LICENSE).
-- Jesty mascot and wordmark: separate terms in [ASSETS-LICENSE.md](ASSETS-LICENSE.md).
-- AI assistance: [AI_DISCLOSURE.md](AI_DISCLOSURE.md).
+- Jesty mascot, wordmark, and application artwork: [ASSETS-LICENSE.md](ASSETS-LICENSE.md).
 - External references and trademarks: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-AYN and Thor are trademarks or product names of their respective owner. Their use here is descriptive only.
+AYN and Thor are trademarks or product names of their respective owner. Their
+use here is descriptive only. This project was developed with disclosed
+generative-AI assistance under the maintainer's direction.
