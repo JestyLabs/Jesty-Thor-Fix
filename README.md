@@ -2,8 +2,6 @@
   <img src="assets/branding/jesty_thor_header_lockup.png" alt="Jesty Thor Fix" width="620">
 </p>
 
-<h1 align="center">Jesty Thor Fix</h1>
-
 <p align="center">
   <strong>Actually turns the AYN Thor bottom screen off.</strong><br>
   Fixes the stock TOP-only mode so the lower screen is really powered down, helps stop the CPU from staying unnecessarily fast, and restores the fix automatically after wake.
@@ -23,8 +21,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v0.32"><strong>Download the signed 0.32 pre-release</strong></a>
-  · <a href="docs/DEVICE-VALIDATION.md">Validation checklist</a>
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v0.33"><strong>Download APK</strong></a>
+  · <a href="#what-does-it-fix">How it works</a>
   · <a href="docs/BENCHMARKS.md">Measurements and raw data</a>
   · <a href="https://www.buymeacoffee.com/jesty">☕ Support development</a>
 </p>
@@ -136,8 +134,8 @@ bottom CRTC 243 inactive
 
 ## Installation
 
-1. Download `Jesty-Thor-Fix-0.32.apk` from the
-   [GitHub release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v0.32).
+1. Download `Jesty-Thor-Fix-0.33.apk` from the
+   [GitHub release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v0.33).
 2. Install the APK.
 3. Open **Jesty Thor Fix** once and confirm `FIX ACTIVE`.
 4. Select TOP mode and use **Bottom screen check -> Check now**. The app should

@@ -20,7 +20,7 @@ public final class D {
         new DaemonWatchThread().start();
         DisplayEventManager.register();
         ServerSocket server = new ServerSocket(3804, 4, InetAddress.getByName("127.0.0.1"));
-        Log.d("ThorDisplayDaemon", "READY 0.32 enabled=" + enabled);
+        Log.d("ThorDisplayDaemon", "READY 0.33 enabled=" + enabled);
         while (true) {
             Socket socket = server.accept();
             try {

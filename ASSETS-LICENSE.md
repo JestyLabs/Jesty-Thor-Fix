@@ -22,6 +22,9 @@ The maintainer supplied the final ON/OFF application artwork:
 - `assets/jesty_thor_background_off.png`
 - `assets/jesty_thor_background_loop.mp4`
 
+The current 0.33 artwork is a maintainer-selected provisional visual and may be
+refined in a later release without changing the display-control implementation.
+
 These images, animation frames, screenshots, and promotional materials are not
 licensed under GPL-3.0. They remain copyright 2026 Jesty, all rights reserved,
 and may be displayed only when referring to the official project. Their status

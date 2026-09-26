@@ -10,6 +10,7 @@ import android.graphics.SurfaceTexture;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.Surface;
@@ -216,7 +217,43 @@ public final class MainActivity extends Activity {
         warningValue.setPadding(0, dp(5), 0, 0);
         detailPanel.addView(warningValue);
         content.addView(detailPanel);
+        content.addView(buildSupportFooter());
         return root;
+    }
+
+    private View buildSupportFooter() {
+        LinearLayout footer = panel();
+        TextView title = text("JESTY APPS ARE FREE & OPEN SOURCE", 10f, MUTED, true);
+        title.setLetterSpacing(0.07f);
+        footer.addView(title);
+        TextView copy = text("Support device testing or star the project.", 11f, Color.WHITE, false);
+        copy.setPadding(0, dp(3), 0, dp(4));
+        footer.addView(copy);
+
+        LinearLayout links = row();
+        TextView support = footerLink("☕  SUPPORT JESTY");
+        support.setOnClickListener(v -> openExternal("https://buymeacoffee.com/jesty"));
+        links.addView(support, new LinearLayout.LayoutParams(0, dp(34), 1f));
+        TextView github = footerLink("★  STAR ON GITHUB");
+        github.setOnClickListener(v -> openExternal("https://github.com/JestyLabs/Jesty-Thor-Fix"));
+        links.addView(github, new LinearLayout.LayoutParams(0, dp(34), 1f));
+        footer.addView(links);
+        return footer;
+    }
+
+    private TextView footerLink(String label) {
+        TextView link = text(label, 10f, AMBER, true);
+        link.setGravity(Gravity.CENTER_VERTICAL);
+        link.setPadding(dp(4), 0, dp(4), 0);
+        return link;
+    }
+
+    private void openExternal(String url) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        } catch (Throwable error) {
+            Toast.makeText(this, "No browser is available", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private View buildHeader() {

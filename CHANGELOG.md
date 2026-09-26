@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.33
 
 - Replaced the separately assembled header with the approved transparent
   Jesty Thor Fix project lockup in both the app and repository landing page.
@@ -10,6 +10,9 @@
   replaced scanout/CRTC-first wording with a user-friendly result.
 - Kept the underlying daemon protocol, wake-repair timing, and clock-lock
   detection unchanged.
+- Added the compact Support Jesty / Star on GitHub footer.
+- Updated the provisional ON/OFF dashboard artwork supplied by the maintainer.
+- Bumped the public update to versionCode 36 / versionName 0.33.
 
 ## 0.32
 
