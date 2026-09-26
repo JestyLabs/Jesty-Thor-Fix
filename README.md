@@ -5,8 +5,8 @@
 <h1 align="center">Jesty Thor Fix</h1>
 
 <p align="center">
-  <strong>Real lower-display power-off for the AYN Thor.</strong><br>
-  Keeps TOP mode responsive, repairs the display after wake, and shows live CPU/display telemetry.
+  <strong>True lower-display power-off for the AYN Thor.</strong><br>
+  Replaces the stock TOP-only black-screen behavior with a real scanout shutdown, fixes the high CPU-frequency state seen on tested firmware, repairs the display after wake, and shows live CPU/display telemetry.
 </p>
 
 <p align="center">
@@ -17,9 +17,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/SirJesty/Jesty-Thor-Fix/releases/tag/v0.32"><strong>Download the signed 0.32 pre-release</strong></a>
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v0.32"><strong>Download the signed 0.32 pre-release</strong></a>
   · <a href="docs/DEVICE-VALIDATION.md">Validation checklist</a>
   · <a href="docs/BENCHMARKS.md">Measurements and raw data</a>
+  · <a href="https://www.buymeacoffee.com/jesty">☕ Support development</a>
 </p>
 
 <p align="center">
@@ -34,22 +35,30 @@
 
 ## The Thor problem, in plain English
 
-AYN's stock **TOP-only** mode makes the lower screen look disabled, but on the
-tested firmware Android can continue driving its scanout hardware. The lower
-display also wakes again during every normal system wake. That can leave extra
-display work active and, in the captured low-load case, keep CPU clusters at
-high frequencies.
+AYN's stock **TOP-only** mode can make the lower screen *look* disabled without
+actually shutting down its display pipeline. On the tested firmware, the lower
+display scanout remains active even though the panel appears black.
 
-Jesty Thor Fix changes the final hardware state instead of merely showing a
-black lower screen:
+That is not just a cosmetic difference. In the captured low-load case, native
+TOP-only also left the Thor's CPU clusters running at unusually high
+frequencies, increasing unnecessary power draw and heat.
+
+The lower display is also brought back during a normal system wake, so simply
+forcing it off once is not enough.
+
+**Jesty Thor Fix changes the real hardware state instead of relying on a black
+screen workaround.** It disables the lower scanout, then automatically restores
+the correct true-off state after Android finishes waking.
 
 | | Stock TOP-only | Jesty true-off |
 | --- | --- | --- |
 | What you see | Lower screen looks black | Lower screen is black |
+| Actual lower-display state | Still being driven | **Truly disabled** |
 | Bottom scanout | Still active | **Inactive** |
 | Display property | `power=1` | **`power=0`** |
 | Bottom CRTC 243 | active | **inactive** |
-| After wake | Android wakes the lower display | App repairs true-off after Android finishes waking |
+| CPU behavior in captured low-load test | Clusters stayed at unusually high frequencies | **High-frequency lock removed** |
+| After wake | Android wakes the lower display | **App repairs true-off after Android finishes waking** |
 
 ### See the difference
 
@@ -60,7 +69,13 @@ black lower screen:
 ## Why it is useful
 
 - **True lower-display off:** verified through DRM CRTC state, not just a black
-  overlay or a setting value.
+  image, overlay, or setting value.
+- **Fixes the TOP-only high-frequency behavior seen on tested firmware:** in the
+  captured low-load comparison, the CPU clusters stopped being continuously
+  pinned near their maximum frequencies.
+- **Reduces unnecessary power draw and heat in tested conditions:** the same
+  controlled capture showed substantially lower system-power proxy values after
+  the lower display was truly disabled.
 - **Fast normal switching:** manual TOP/BOTH transitions remain immediate.
 - **Stable wake repair:** waits for Android's wake pipeline instead of fighting
   SurfaceFlinger at the worst possible moment.
@@ -104,7 +119,7 @@ bottom CRTC 243 inactive
 ## Installation
 
 1. Download `Jesty-Thor-Fix-0.32.apk` from the
-   [GitHub release](https://github.com/SirJesty/Jesty-Thor-Fix/releases/tag/v0.32).
+   [GitHub release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v0.32).
 2. Install it as an update if an earlier build with the same package is present.
 3. Open **Jesty Thor Fix** once and confirm `FIX ACTIVE`.
 4. Select TOP mode and press **Verify bottom scanout**. Bottom CRTC 243 should
@@ -168,10 +183,20 @@ maintainer-specific path. Signing is opt-in and reads the password interactively
 
 </details>
 
-## Support the project
+## Support and contribute
 
-If the fix improves your Thor experience, a coffee helps fund testing, device
-work, documentation, and future updates.
+**Jesty Thor Fix is free and open source.**
+
+If the project improves your Thor, there are several ways you can help:
+
+- ⭐ **Star the repository** so other Thor owners can find it.
+- 🧪 **Test another firmware version** and share carefully redacted results.
+- 🐛 **Report bugs** or unexpected behavior.
+- 💡 **Suggest improvements** or contribute code/documentation.
+- ☕ **[Buy me a coffee](https://www.buymeacoffee.com/jesty)** to help fund
+  hardware testing, firmware compatibility work, documentation, and future updates.
+
+Testing and useful reports are just as valuable as financial support.
 
 <p align="center">
   <a href="https://www.buymeacoffee.com/jesty">
