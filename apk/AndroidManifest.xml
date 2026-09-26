@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.thor.displaypowertest"
+    android:versionCode="35"
+    android:versionName="0.32">
+    <uses-sdk android:targetSdkVersion="25"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <application
+        android:label="Jesty Thor Fix"
+        android:icon="@drawable/jesty_thor_icon"
+        android:roundIcon="@drawable/jesty_thor_icon"
+        android:theme="@android:style/Theme.Material.NoActionBar"
+        android:allowBackup="false">
+        <activity
+            android:name="com.thor.displaypowertest.MainActivity"
+            android:exported="true"
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <service
+            android:name="com.thor.displaypowertest.AutoService"
+            android:exported="false"/>
+        <receiver
+            android:name="com.thor.displaypowertest.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name="com.thor.displaypowertest.ApplyReceiver"
+            android:exported="true"/>
+        <receiver
+            android:name="com.thor.displaypowertest.OffReceiver"
+            android:exported="true"/>
+        <receiver
+            android:name="com.thor.displaypowertest.OnReceiver"
+            android:exported="true"/>
+    </application>
+</manifest>

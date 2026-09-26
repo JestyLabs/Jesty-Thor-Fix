@@ -1,0 +1,41 @@
+# Build output
+/build/
+/dist/
+/.apktool-framework/
+/apk/build/
+
+# Locally supplied tools and signing material
+/tools/apktool.jar
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+*.idsig
+signing-password*
+
+# Logs, captures, and device-specific evidence
+*.log
+*.logcat
+*.trace
+*.bugreport
+*.pcap
+*device-serial*
+rapid-reschedule-validation.txt
+stress-20-wakes.txt
+screen-timeout-wake.txt
+
+# Archives and installable artifacts belong in GitHub Releases
+*.apk
+*.aab
+*.apks
+*.zip
+
+# Editor and OS files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+desktop.ini

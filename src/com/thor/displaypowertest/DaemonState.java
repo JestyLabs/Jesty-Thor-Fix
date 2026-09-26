@@ -1,0 +1,78 @@
+package com.thor.displaypowertest;
+
+import android.os.SystemClock;
+
+public final class DaemonState {
+    private static volatile boolean enabled = true;
+    private static volatile String mode = "?";
+    private static volatile String lastAction = "STARTING";
+    private static volatile String lastRepairResult = "NONE";
+    private static volatile long wakeId;
+    private static volatile long wakeAt = -1L;
+    private static volatile long displayOnAt = -1L;
+    private static volatile long repairBeginAt = -1L;
+    private static volatile long repairEndAt = -1L;
+    private static final long startedAt = SystemClock.elapsedRealtime();
+
+    private DaemonState() {}
+
+    public static boolean isEnabled() { return enabled; }
+    public static void setEnabled(boolean value) {
+        enabled = value;
+        lastAction = value ? "FIX_ENABLED" : "NATIVE_MODE";
+    }
+    public static void setMode(String value) { mode = value == null ? "?" : value; }
+    public static String getMode() { return mode; }
+    public static void setLastAction(String value) { lastAction = value; }
+
+    public static synchronized void onWake(boolean rescheduled) {
+        wakeId++;
+        wakeAt = SystemClock.elapsedRealtime();
+        displayOnAt = repairBeginAt = repairEndAt = -1L;
+        lastRepairResult = rescheduled ? "RESCHEDULED" : "SCHEDULED";
+    }
+    public static synchronized void onDisplayOn() {
+        displayOnAt = SystemClock.elapsedRealtime();
+    }
+    public static synchronized void onRepairBegin() {
+        repairBeginAt = SystemClock.elapsedRealtime();
+        lastRepairResult = "RUNNING";
+    }
+    public static synchronized void onRepairEnd(String result) {
+        repairEndAt = SystemClock.elapsedRealtime();
+        lastRepairResult = result;
+    }
+    public static synchronized void onRepairCancelled() {
+        if ("SCHEDULED".equals(lastRepairResult) || "RESCHEDULED".equals(lastRepairResult)) {
+            lastRepairResult = "CANCELLED";
+        }
+    }
+
+    public static synchronized String snapshot() {
+        long now = SystemClock.elapsedRealtime();
+        Telemetry.CpuSnapshot cpu = Telemetry.readCpu();
+        return "ok=1"
+                + ";fix=" + (enabled ? "1" : "0")
+                + ";mode=" + clean(mode)
+                + ";power=" + clean(DisplayHardware.getProperty())
+                + ";uptime_ms=" + (now - startedAt)
+                + ";little_cur=" + cpu.littleCurrent
+                + ";little_max=" + cpu.littleMax
+                + ";big_cur=" + cpu.bigCurrent
+                + ";big_max=" + cpu.bigMax
+                + ";prime_cur=" + cpu.primeCurrent
+                + ";prime_max=" + cpu.primeMax
+                + ";cpu_pct=" + cpu.utilization
+                + ";wake_id=" + wakeId
+                + ";wake_at=" + wakeAt
+                + ";display_on_at=" + displayOnAt
+                + ";repair_begin=" + repairBeginAt
+                + ";repair_end=" + repairEndAt
+                + ";repair_result=" + clean(lastRepairResult)
+                + ";action=" + clean(lastAction);
+    }
+
+    private static String clean(String value) {
+        return value == null ? "?" : value.replace(';', '_').replace('\n', '_');
+    }
+}

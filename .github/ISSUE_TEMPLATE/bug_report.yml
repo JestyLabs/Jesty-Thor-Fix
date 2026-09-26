@@ -1,0 +1,72 @@
+name: Bug report
+description: Report a reproducible Jesty Thor Fix problem
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve the fix. Remove device serials, account details, email addresses, local paths, tokens, and unrelated log content before posting.
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      placeholder: "0.32"
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Thor firmware
+      description: Build identifier only. Do not include a device serial.
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Display mode
+      options:
+        - TOP
+        - BOTH
+        - BOTTOM
+        - Unknown
+    validations:
+      required: true
+  - type: dropdown
+    id: fix-state
+    attributes:
+      label: Fix state
+      options:
+        - ON
+        - OFF / native
+        - Daemon unavailable
+        - Unknown
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Include the exact steps and the final visible state.
+    validations:
+      required: true
+  - type: textarea
+    id: state
+    attributes:
+      label: Redacted Q / V output
+      description: Paste only the relevant daemon snapshot and one-shot scanout result.
+      render: text
+  - type: textarea
+    id: logs
+    attributes:
+      label: Short redacted log excerpt
+      description: Keep this time-bounded and remove unrelated Android activity.
+      render: text
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed serials, emails, usernames, local paths, tokens, and unrelated personal data.
+          required: true

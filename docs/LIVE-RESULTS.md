@@ -1,0 +1,29 @@
+# Jesty Thor Fix 0.32 live results
+
+## Identity and migration
+
+- Update-in-place succeeded with package `com.thor.displaypowertest`.
+- Installed identity: `versionCode=35`, `versionName=0.32`.
+- Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`.
+- Existing installations migrated to fix ON without uninstalling or clearing data.
+
+## Functional results
+
+- TOP with fix ON: `power=0`, `crtc181=1`, `crtc243=0`.
+- TOP with fix OFF/native: `power=1`, `crtc181=1`, `crtc243=1`.
+- Sleep/wake while OFF produced no wake repair.
+- Reboot while OFF returned to native mode.
+- Re-enable reconciled TOP to true bottom-off.
+- A disable command issued at the 650 ms wake boundary won after an in-flight OFF; final state was native ON.
+- A normal fix-ON wake began repair after the preserved 700 ms window and ended `OFF_OK` after Android screen-on.
+- Removing the app from recents left the independent root daemon active.
+- A final reboot with fix ON returned `fix=1`, `mode=1`, `power=0`, `crtc181=1`, `crtc243=0`.
+
+## Telemetry and presentation
+
+- LITTLE, BIG, and PRIME current/max readings updated once per second while visible.
+- The sustained low-load warning appeared only after ten qualifying samples and cleared when frequencies dropped.
+- No governor, frequency, composer, or SystemLoadFix write path exists in the source.
+- The dashboard mirrors confirmed bottom-display power: lower glass black/paused for `power=0`, artwork active for `power=1`.
+
+Device identifiers and raw logs have been removed from this public summary.
