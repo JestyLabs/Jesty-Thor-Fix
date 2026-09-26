@@ -14,6 +14,12 @@ Jesty Thor Fix exists because the stock TOP-only mode does not consistently leav
 > [!NOTE]
 > This project was developed with AI assistance. Parts of the code, documentation, UI artwork, and branding were generated or refined with generative AI under the maintainer's direction. The behavior described here was reviewed and tested on real hardware; AI output was not treated as proof of correctness. See [AI_DISCLOSURE.md](AI_DISCLOSURE.md).
 
+## Dashboard preview
+
+| True-off active | Native Thor behavior |
+| --- | --- |
+| ![Jesty Thor Fix active dashboard](docs/images/dashboard-fix-active.png) | ![Native Thor mode dashboard](docs/images/dashboard-native-mode.png) |
+
 ## What the bug looks like
 
 On the tested Thor firmware, Android's wake pipeline powers both physical displays as a group. Even when TOP-only is selected, Display 4 can be switched on during wake, which activates the lower viewport and related framework state before a userland callback can react.
@@ -27,6 +33,26 @@ The stock mode and the fix therefore differ:
 | BOTH | `2` | `1` | active | active |
 
 The CRTC mapping above is specific to the tested firmware. The dashboard's **Verify bottom scanout** action performs a one-shot DRM read instead of continuously polling debugfs.
+
+## Measured behavior
+
+A short A/B/A capture on the tested Thor compared native TOP mode with the
+true-off fix under the same low-load, USB-powered conditions:
+
+| Metric | Native TOP | True-off | Observed change |
+| --- | ---: | ---: | ---: |
+| LITTLE average | 2.016 GHz | 1.616 GHz | -19.8% |
+| BIG average | 2.707 GHz | 1.654 GHz | -38.9% |
+| LITTLE at >=95% maximum | 75/75 samples | 22/45 samples | no longer continuous |
+| BIG at >=95% maximum | 75/75 samples | 0/45 samples | eliminated in this run |
+| System-power proxy | 2.030 W | 1.239 W | -0.792 W / -39.0% |
+| 1-minute load average | 0.465 | 0.425 | comparable low load |
+
+The power figure is a directional proxy calculated from USB input minus battery
+charging power, not a laboratory battery-life claim. Results can vary with
+firmware, brightness, battery state, charger, workload, and ambient conditions.
+See [docs/BENCHMARKS.md](docs/BENCHMARKS.md) for methodology, limitations, and
+the sanitized raw samples.
 
 ## How the fix works
 

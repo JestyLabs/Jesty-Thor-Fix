@@ -26,4 +26,15 @@
 - No governor, frequency, composer, or SystemLoadFix write path exists in the source.
 - The dashboard mirrors confirmed bottom-display power: lower glass black/paused for `power=0`, artwork active for `power=1`.
 
+## Public final-art APK verification
+
+- The exact signed GitHub pre-release APK installed in place as version code
+  `35` / version `0.32`.
+- Manual native mode returned `power=1`; re-enabling reconciled to `power=0`.
+- A sleep/wake cycle ended `OFF_OK` with the preserved timing and a one-shot DRM
+  check returned `crtc181=1`, `crtc243=0`.
+- An A/B/A low-load capture reproduced LITTLE/BIG frequency locking in native
+  TOP mode and its release under true-off; methodology and raw samples are in
+  [BENCHMARKS.md](BENCHMARKS.md).
+
 Device identifiers and raw logs have been removed from this public summary.
