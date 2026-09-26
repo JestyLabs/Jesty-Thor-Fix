@@ -5,8 +5,8 @@
 <h1 align="center">Jesty Thor Fix</h1>
 
 <p align="center">
-  <strong>True lower-display power-off for the AYN Thor.</strong><br>
-  Replaces the stock TOP-only black-screen behavior with a real scanout shutdown, fixes the high CPU-frequency state seen on tested firmware, repairs the display after wake, and shows live CPU/display telemetry.
+  <strong>Actually turns the AYN Thor bottom screen off.</strong><br>
+  Fixes the stock TOP-only mode so the lower screen is really powered down, helps stop the CPU from staying unnecessarily fast, and restores the fix automatically after wake.
 </p>
 
 <p align="center">
@@ -33,32 +33,27 @@
 > privileged, firmware-dependent Android APIs and should not be installed on
 > unrelated devices.
 
-## The Thor problem, in plain English
+## What does it fix?
 
-AYN's stock **TOP-only** mode can make the lower screen *look* disabled without
-actually shutting down its display pipeline. On the tested firmware, the lower
-display scanout remains active even though the panel appears black.
+The Thor's stock **TOP-only** mode makes the bottom screen look off, but on the
+firmware I tested it is not fully shut down in the background.
 
-That is not just a cosmetic difference. In the captured low-load case, native
-TOP-only also left the Thor's CPU clusters running at unusually high
-frequencies, increasing unnecessary power draw and heat.
+That matters because the Thor can keep doing unnecessary display work and, in
+my low-load tests, the CPU also stayed at unusually high speeds. The result is
+extra power use and heat while you are only using the top screen.
 
-The lower display is also brought back during a normal system wake, so simply
-forcing it off once is not enough.
+**Jesty Thor Fix makes TOP-only behave the way you would expect: the bottom
+screen is actually turned off.**
 
-**Jesty Thor Fix changes the real hardware state instead of relying on a black
-screen workaround.** It disables the lower scanout, then automatically restores
-the correct true-off state after Android finishes waking.
+It also fixes the state again automatically after the Thor wakes from sleep.
 
-| | Stock TOP-only | Jesty true-off |
+| | Stock TOP-only | Jesty Thor Fix |
 | --- | --- | --- |
-| What you see | Lower screen looks black | Lower screen is black |
-| Actual lower-display state | Still being driven | **Truly disabled** |
-| Bottom scanout | Still active | **Inactive** |
-| Display property | `power=1` | **`power=0`** |
-| Bottom CRTC 243 | active | **inactive** |
-| CPU behavior in captured low-load test | Clusters stayed at unusually high frequencies | **High-frequency lock removed** |
-| After wake | Android wakes the lower display | **App repairs true-off after Android finishes waking** |
+| Bottom screen | Looks off | **Actually off** |
+| Background display activity | Still active on tested firmware | **Disabled** |
+| CPU behavior in my low-load test | Stayed unusually fast | **High-frequency lock removed** |
+| Power use in my test | Higher | **Lower** |
+| After waking from sleep | Bottom display becomes active again | **Fix is restored automatically** |
 
 ### See the difference
 
@@ -66,32 +61,24 @@ the correct true-off state after Android finishes waking.
 | --- | --- |
 | ![Native Thor mode with bottom display and pinned clocks](docs/images/dashboard-native-mode.png) | ![True-off active with lower screen off](docs/images/dashboard-fix-active.png) |
 
-## Why it is useful
+## Why use it?
 
-- **True lower-display off:** verified through DRM CRTC state, not just a black
-  image, overlay, or setting value.
-- **Fixes the TOP-only high-frequency behavior seen on tested firmware:** in the
-  captured low-load comparison, the CPU clusters stopped being continuously
-  pinned near their maximum frequencies.
-- **Reduces unnecessary power draw and heat in tested conditions:** the same
-  controlled capture showed substantially lower system-power proxy values after
-  the lower display was truly disabled.
-- **Fast normal switching:** manual TOP/BOTH transitions remain immediate.
-- **Stable wake repair:** waits for Android's wake pipeline instead of fighting
-  SurfaceFlinger at the worst possible moment.
-- **No CPU modification:** reads clock telemetry but never changes governors,
-  limits, frequencies, composer settings, or SystemLoadFix.
-- **Works without the dashboard open:** the root daemon is independent from the
-  Activity and survives removing the app from recents.
-- **Remembers your choice:** `BootReceiver` reconciles the saved ON/OFF state
-  after a normal reboot.
+- **Actually turns the bottom display off** instead of only making it appear black.
+- **Helps avoid the high CPU-frequency behavior** I measured in stock TOP-only mode.
+- **Reduced unnecessary power use and heat in my testing.**
+- **Automatically restores the fix after sleep/wake.**
+- **TOP/BOTH switching still works normally.**
+- **Does not change CPU governors, limits or frequencies.**
+- **Keeps working without the dashboard open.**
+- **Remembers whether you left the fix enabled after a reboot.**
+- **Shows live CPU and display information** if you want to verify what the Thor is doing.
 
 ## Measured on real hardware
 
-A controlled A/B/A capture compared native TOP mode with true-off under the
-same low-load, USB-powered conditions:
+A controlled A/B/A capture compared native TOP mode with Jesty true-off under
+the same low-load, USB-powered conditions:
 
-| Metric | Native TOP | True-off | Result in this capture |
+| Metric | Native TOP | Jesty true-off | Result in this capture |
 | --- | ---: | ---: | ---: |
 | LITTLE average | 2.016 GHz | 1.616 GHz | -19.8% |
 | BIG average | 2.707 GHz | 1.654 GHz | -38.9% |
@@ -107,9 +94,9 @@ same low-load, USB-powered conditions:
 > can change the result. The full method and sanitized CSV samples are in
 > [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
-The exact downloadable APK was installed on the tested Thor. Manual native/fix
-transitions succeeded, a sleep/wake repair ended `OFF_OK`, and a one-shot DRM
-verification returned:
+For anyone who wants the technical verification, the exact downloadable APK was
+installed on the tested Thor. Manual native/fix transitions succeeded, a
+sleep/wake repair ended `OFF_OK`, and a one-shot DRM check returned:
 
 ```text
 top CRTC 181    active
@@ -145,7 +132,7 @@ the same private key.
 from restarting automatically until it is opened again.
 
 <details>
-<summary><strong>How the wake repair works</strong></summary>
+<summary><strong>Technical details: how the wake repair works</strong></summary>
 
 Manual TOP/BOTH transitions are handled immediately. During a wake in TOP
 mode, Android can reactivate Display 4 as part of its shared display power
