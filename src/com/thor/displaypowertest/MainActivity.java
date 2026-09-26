@@ -36,8 +36,6 @@ import java.util.concurrent.TimeUnit;
 public final class MainActivity extends Activity {
     private static final int PURPLE = Color.rgb(196, 92, 255);
     private static final int VIOLET = Color.rgb(139, 74, 226);
-    private static final int LAVENDER = Color.rgb(225, 195, 255);
-    private static final int GREEN = Color.rgb(112, 255, 190);
     private static final int AMBER = Color.rgb(255, 211, 102);
     private static final int RED = Color.rgb(255, 112, 126);
     private static final int MUTED = Color.rgb(168, 185, 204);
@@ -65,6 +63,7 @@ public final class MainActivity extends Activity {
     private TextView repairValue;
     private TextView daemonValue;
     private TextView warningValue;
+    private TextView verifyResult;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -137,32 +136,77 @@ public final class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         content.addView(buildHeader());
-        TextView subtitle = text("True bottom-display control for AYN Thor", 12f, MUTED, false);
+        TextView subtitle = text("True bottom-display control for AYN Thor", 13f, MUTED, false);
         subtitle.setPadding(dp(2), 0, 0, dp(8));
         content.addView(subtitle);
 
-        stateText = text("CONNECTING\u2026", 20f, AMBER, true);
+        stateText = text("CONNECTING\u2026", 19f, AMBER, true);
         stateText.setLetterSpacing(0.06f);
         content.addView(stateText);
-        stateDetail = text("Starting local daemon", 12f, MUTED, false);
+        stateDetail = text("Starting local daemon", 13f, MUTED, false);
         stateDetail.setPadding(0, dp(2), 0, dp(9));
         content.addView(stateDetail);
 
         LinearLayout controls = panel();
         fixToggle = makeSwitch("True Bottom Display Fix", Color.WHITE, 17f);
         controls.addView(fixToggle, new LinearLayout.LayoutParams(-1, dp(46)));
+
+        View divider = new View(this);
+        divider.setBackgroundColor(0x338B4AE2);
+        controls.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
+
+        LinearLayout verifyRow = new LinearLayout(this);
+        verifyRow.setOrientation(LinearLayout.HORIZONTAL);
+        verifyRow.setGravity(Gravity.CENTER_VERTICAL);
+        verifyRow.setPadding(0, dp(6), 0, dp(3));
+
+        LinearLayout verifyCopy = new LinearLayout(this);
+        verifyCopy.setOrientation(LinearLayout.VERTICAL);
+        TextView verifyTitle = text("Bottom screen check", 12f, Color.WHITE, true);
+        verifyCopy.addView(verifyTitle);
+        TextView verifyHelp = text("Confirms the lower screen hardware is really off", 10f, MUTED, false);
+        verifyHelp.setPadding(0, dp(1), dp(8), 0);
+        verifyCopy.addView(verifyHelp);
+        verifyRow.addView(verifyCopy, new LinearLayout.LayoutParams(0, -2, 1f));
+
+        Button verify = new Button(this);
+        verify.setText("CHECK NOW");
+        verify.setTextColor(Color.WHITE);
+        verify.setTextSize(11f);
+        verify.setTypeface(Typeface.DEFAULT_BOLD);
+        verify.setMinHeight(0);
+        verify.setMinWidth(0);
+        GradientDrawable buttonBackground = new GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT, new int[]{0xDD32164A, 0xDD67235D});
+        buttonBackground.setCornerRadius(dp(10));
+        buttonBackground.setStroke(dp(1), PURPLE);
+        verify.setBackground(buttonBackground);
+        verify.setOnClickListener(v -> verifyDrm());
+        verifyRow.addView(verify, new LinearLayout.LayoutParams(dp(104), dp(36)));
+        controls.addView(verifyRow);
+
+        verifyResult = text("", 10f, MUTED, true);
+        controls.addView(verifyResult);
         content.addView(controls);
 
-        LinearLayout row1 = row();
-        littleValue = addCard(row1, "LITTLE", "\u2014");
-        bigValue = addCard(row1, "BIG", "\u2014");
-        content.addView(row1);
-        LinearLayout row2 = row();
-        primeValue = addCard(row2, "PRIME", "\u2014");
-        displayValue = addCard(row2, "DISPLAY", "\u2014");
-        content.addView(row2);
+        LinearLayout cpuPanel = panel();
+        TextView cpuHeading = text("CPU SPEEDS", 10f, MUTED, true);
+        cpuHeading.setLetterSpacing(0.09f);
+        cpuPanel.addView(cpuHeading);
+        LinearLayout cpuRow = row();
+        littleValue = addMetric(cpuRow, "LITTLE", "\u2014");
+        bigValue = addMetric(cpuRow, "BIG", "\u2014");
+        primeValue = addMetric(cpuRow, "PRIME", "\u2014");
+        cpuPanel.addView(cpuRow, new LinearLayout.LayoutParams(-1, dp(50)));
+        content.addView(cpuPanel);
 
         LinearLayout detailPanel = panel();
+        TextView displayHeading = text("DISPLAY & SERVICE", 10f, MUTED, true);
+        displayHeading.setLetterSpacing(0.09f);
+        detailPanel.addView(displayHeading);
+        displayValue = text("\u2014", 15f, Color.WHITE, true);
+        displayValue.setPadding(0, dp(3), 0, dp(5));
+        detailPanel.addView(displayValue);
         repairValue = text("LAST WAKE REPAIR  \u2022  \u2014", 11f, Color.WHITE, true);
         detailPanel.addView(repairValue);
         daemonValue = text("DAEMON  \u2022  \u2014", 11f, MUTED, false);
@@ -172,20 +216,6 @@ public final class MainActivity extends Activity {
         warningValue.setPadding(0, dp(5), 0, 0);
         detailPanel.addView(warningValue);
         content.addView(detailPanel);
-
-        Button verify = new Button(this);
-        verify.setText("VERIFY BOTTOM SCANOUT");
-        verify.setTextColor(Color.WHITE);
-        verify.setTextSize(12f);
-        GradientDrawable buttonBackground = new GradientDrawable(
-                GradientDrawable.Orientation.LEFT_RIGHT, new int[]{0xDD32164A, 0xDD67235D});
-        buttonBackground.setCornerRadius(dp(12));
-        buttonBackground.setStroke(dp(1), PURPLE);
-        verify.setBackground(buttonBackground);
-        verify.setOnClickListener(v -> verifyDrm());
-        LinearLayout.LayoutParams verifyParams = new LinearLayout.LayoutParams(-1, dp(43));
-        verifyParams.setMargins(0, 0, 0, dp(8));
-        content.addView(verify, verifyParams);
         return root;
     }
 
@@ -248,21 +278,34 @@ public final class MainActivity extends Activity {
             Toast.makeText(this, "Command not confirmed; setting restored", Toast.LENGTH_LONG).show();
         } else {
             stateText.setText(actual ? "FIX ACTIVE" : "NATIVE THOR MODE");
-            stateText.setTextColor(actual ? GREEN : LAVENDER);
+            stateText.setTextColor(actual ? AMBER : Color.WHITE);
         }
     }
 
     private void verifyDrm() {
-        Toast.makeText(this, "Reading DRM state once\u2026", Toast.LENGTH_SHORT).show();
+        verifyResult.setTextColor(MUTED);
+        verifyResult.setText("Checking lower-screen hardware\u2026");
         new Thread(() -> {
             try {
                 final Map<String, String> values = parse(SocketClient.request('V', 1800));
-                final String message = "CRTC 181: " + value(values, "crtc181")
-                        + "   \u2022   CRTC 243: " + value(values, "crtc243");
-                runOnUiThread(() -> Toast.makeText(this, message, Toast.LENGTH_LONG).show());
+                final boolean topOn = "1".equals(values.get("crtc181"));
+                final boolean bottomOff = "0".equals(values.get("crtc243"));
+                final String friendly = topOn && bottomOff
+                        ? "Last check: bottom screen fully off \u2713"
+                        : "Last check: bottom screen hardware still active";
+                final String detail = "Top hardware " + (topOn ? "on" : "off")
+                        + "  \u2022  Bottom hardware " + (bottomOff ? "off" : "on");
+                runOnUiThread(() -> {
+                    verifyResult.setTextColor(topOn && bottomOff ? AMBER : RED);
+                    verifyResult.setText(friendly);
+                    Toast.makeText(this, detail, Toast.LENGTH_LONG).show();
+                });
             } catch (Throwable error) {
-                runOnUiThread(() -> Toast.makeText(this,
-                        "DRM verification failed: " + error.getMessage(), Toast.LENGTH_LONG).show());
+                runOnUiThread(() -> {
+                    verifyResult.setTextColor(RED);
+                    verifyResult.setText("Could not check the bottom screen");
+                    Toast.makeText(this, error.getMessage(), Toast.LENGTH_LONG).show();
+                });
             }
         }, "drm-verify").start();
     }
@@ -291,9 +334,10 @@ public final class MainActivity extends Activity {
         fixToggle.setChecked(enabled);
         suppressToggle = false;
         stateText.setText(enabled ? "FIX ACTIVE" : "NATIVE THOR MODE");
-        stateText.setTextColor(enabled ? GREEN : LAVENDER);
-        String mode = modeName(values.get("mode"));
-        stateDetail.setText(mode + "  \u2022  power=" + value(values, "power"));
+        stateText.setTextColor(enabled ? AMBER : Color.WHITE);
+        boolean bottomPowered = "1".equals(values.get("power"));
+        stateDetail.setText(modeDescription(values.get("mode")) + "  \u2022  "
+                + (bottomPowered ? "bottom hardware active" : "bottom hardware off"));
 
         long littleCur = number(values, "little_cur"), littleMax = number(values, "little_max");
         long bigCur = number(values, "big_cur"), bigMax = number(values, "big_max");
@@ -302,8 +346,8 @@ public final class MainActivity extends Activity {
         littleValue.setText(clock(littleCur, littleMax));
         bigValue.setText(clock(bigCur, bigMax));
         primeValue.setText(clock(primeCur, primeMax));
-        displayValue.setText(mode + "\npower " + value(values, "power"));
-        setBottomVisual("1".equals(values.get("power")));
+        displayValue.setText(displayDescription(values.get("mode"), bottomPowered));
+        setBottomVisual(bottomPowered);
 
         repairValue.setText("LAST WAKE REPAIR  \u2022  #" + value(values, "wake_id")
                 + "  " + value(values, "repair_result"));
@@ -417,11 +461,11 @@ public final class MainActivity extends Activity {
     private LinearLayout panel() {
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
-        panel.setPadding(dp(14), dp(6), dp(14), dp(6));
+        panel.setPadding(dp(14), dp(5), dp(14), dp(5));
         GradientDrawable background = new GradientDrawable();
-        background.setColor(0xC7231431);
+        background.setColor(0xCF151021);
         background.setCornerRadius(dp(14));
-        background.setStroke(dp(1), 0x66C45CFF);
+        background.setStroke(dp(1), 0x88C45CFF);
         panel.setBackground(background);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
         params.setMargins(0, 0, 0, dp(8));
@@ -432,28 +476,23 @@ public final class MainActivity extends Activity {
     private LinearLayout row() {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setWeightSum(2f);
+        row.setWeightSum(3f);
         return row;
     }
 
-    private TextView addCard(LinearLayout row, String label, String initial) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(13), dp(8), dp(13), dp(8));
-        GradientDrawable background = new GradientDrawable();
-        background.setColor(0xC31B1028);
-        background.setCornerRadius(dp(13));
-        background.setStroke(dp(1), 0x668B4AE2);
-        card.setBackground(background);
+    private TextView addMetric(LinearLayout row, String label, String initial) {
+        LinearLayout metric = new LinearLayout(this);
+        metric.setOrientation(LinearLayout.VERTICAL);
+        metric.setGravity(Gravity.CENTER_VERTICAL);
+        metric.setPadding(dp(2), 0, dp(5), 0);
         TextView heading = text(label, 10f, MUTED, true);
         heading.setLetterSpacing(0.09f);
-        card.addView(heading);
-        TextView value = text(initial, 17f, Color.WHITE, true);
-        value.setPadding(0, dp(3), 0, 0);
-        card.addView(value);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(78), 1f);
-        params.setMargins(dp(3), dp(3), dp(3), dp(3));
-        row.addView(card, params);
+        metric.addView(heading);
+        TextView value = text(initial, 13f, Color.WHITE, true);
+        value.setPadding(0, dp(2), 0, 0);
+        metric.addView(value);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, -1, 1f);
+        row.addView(metric, params);
         return value;
     }
 
@@ -522,10 +561,18 @@ public final class MainActivity extends Activity {
         return (minutes / 60) + "h " + (minutes % 60) + "m";
     }
 
-    private static String modeName(String mode) {
-        if ("1".equals(mode)) return "TOP";
-        if ("0".equals(mode)) return "BOTH";
-        if ("2".equals(mode)) return "BOTTOM";
-        return "MODE ?";
+    private static String modeDescription(String mode) {
+        if ("1".equals(mode)) return "Top screen only";
+        if ("0".equals(mode)) return "Both screens";
+        if ("2".equals(mode)) return "Bottom screen only";
+        return "Display mode unknown";
+    }
+
+    private static String displayDescription(String mode, boolean bottomPowered) {
+        if ("1".equals(mode) && !bottomPowered) return "Top only  \u2022  Bottom fully off";
+        if ("0".equals(mode)) return "Both screens available";
+        if ("2".equals(mode)) return "Bottom screen only";
+        if ("1".equals(mode)) return "Top only  \u2022  Bottom still active";
+        return "Display state unavailable";
     }
 }

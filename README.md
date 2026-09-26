@@ -140,11 +140,9 @@ bottom CRTC 243 inactive
    [GitHub release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v0.32).
 2. Install the APK.
 3. Open **Jesty Thor Fix** once and confirm `FIX ACTIVE`.
-4. Select TOP mode.
-5. That's it.
-
-If you want to verify the hardware state yourself, press **Verify bottom
-scanout**. Bottom CRTC 243 should report inactive.
+4. Select TOP mode and use **Bottom screen check -> Check now**. The app should
+   report that the bottom screen is fully off. Technical DRM details remain in
+   the validation documentation.
 
 ### You do not need to
 

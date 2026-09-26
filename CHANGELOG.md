@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Consolidated LITTLE, BIG, and PRIME readings into one CPU speeds panel.
+- Aligned dashboard panels and active-state colors with the Retroid app.
+- Moved the lower-screen hardware check beside the main fix control and
+  replaced scanout/CRTC-first wording with a user-friendly result.
+- Kept the underlying daemon protocol, wake-repair timing, and clock-lock
+  detection unchanged.
+
 ## 0.32
 
 - Integrated final maintainer-supplied ON/OFF backgrounds and the new Jesty
