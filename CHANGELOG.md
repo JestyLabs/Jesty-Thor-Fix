@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Replaced the separately assembled header with the approved transparent
+  Jesty Thor Fix project lockup in both the app and repository landing page.
 - Consolidated LITTLE, BIG, and PRIME readings into one CPU speeds panel.
 - Aligned dashboard panels and active-state colors with the Retroid app.
 - Moved the lower-screen hardware check beside the main fix control and

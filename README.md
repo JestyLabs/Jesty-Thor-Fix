@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/branding/jesty_wordmark_header.png" alt="Jesty" width="390">
+  <img src="assets/branding/jesty_thor_header_lockup.png" alt="Jesty Thor Fix" width="620">
 </p>
 
 <h1 align="center">Jesty Thor Fix</h1>

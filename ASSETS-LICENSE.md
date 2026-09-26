@@ -8,6 +8,7 @@ The following files are part of the Jesty visual identity:
 
 - `assets/branding/jesty_mascot_final.png`
 - `assets/branding/jesty_wordmark_header.png`
+- `assets/branding/jesty_thor_header_lockup.png`
 
 Copyright © 2026 Jesty. All rights reserved.
 

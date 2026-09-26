@@ -224,26 +224,14 @@ public final class MainActivity extends Activity {
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
 
-        ImageView wordmark = new ImageView(this);
-        wordmark.setImageResource(resource("drawable", "jesty_thor_wordmark"));
-        wordmark.setScaleType(ImageView.ScaleType.FIT_START);
-        wordmark.setAdjustViewBounds(true);
-        wordmark.setContentDescription("Jesty");
-        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(126), dp(62));
-        logoParams.setMargins(0, 0, dp(12), 0);
-        header.addView(wordmark, logoParams);
+        ImageView lockup = new ImageView(this);
+        lockup.setImageResource(resource("drawable", "jesty_thor_header_lockup"));
+        lockup.setScaleType(ImageView.ScaleType.FIT_START);
+        lockup.setAdjustViewBounds(true);
+        lockup.setContentDescription("Jesty Thor Fix");
+        header.addView(lockup, new LinearLayout.LayoutParams(dp(242), dp(78)));
 
-        LinearLayout name = new LinearLayout(this);
-        name.setOrientation(LinearLayout.VERTICAL);
-        TextView thor = text("THOR", 18f, AMBER, true);
-        thor.setLetterSpacing(0.11f);
-        name.addView(thor);
-        TextView fix = text("FIX", 18f, PURPLE, true);
-        fix.setLetterSpacing(0.16f);
-        name.addView(fix);
-        header.addView(name, new LinearLayout.LayoutParams(0, -2, 1f));
-
-        header.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(64)));
+        header.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(80)));
         return header;
     }
 
