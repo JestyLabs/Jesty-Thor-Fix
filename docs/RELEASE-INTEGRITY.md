@@ -29,13 +29,18 @@ signed 0.32 APK byte for byte by SHA-256:
 
 The unsigned container itself has a different overall hash because it has no official signature block.
 
-## Final-art unsigned candidate
+## Final-art signed pre-release
 
 - Package: `com.thor.displaypowertest`
 - Version code: `35`
 - Version name: `0.32`
-- SHA-256: `6FB2E93B0B8BC4815EA8CBE20E6B774FC26400AB95DDBB9D69D30AFEA7689DD6`
+- APK: `Jesty-Thor-Fix-0.32.apk`
+- SHA-256: `C2106996537469FBF850C4F2100AE93B89AB00F1667036FC8BDE2DA9793710B7`
+- Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`
+- Verified signing schemes: APK Signature Scheme v1, v2, and v3.
 
-This candidate preserves the display-control implementation and replaces the
-public UI artwork/header. It must be signed with the certificate above and
-revalidated on a connected Thor before release.
+This build preserves the display-control implementation and replaces the public
+UI artwork/header. It was rebuilt from the public source and signed with the
+same certificate as the previously validated 0.31/0.32 line. No Thor was
+connected for this final-art build, so the GitHub release remains marked as a
+pre-release until this exact APK is revalidated on-device.
