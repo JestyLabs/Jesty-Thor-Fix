@@ -10,9 +10,15 @@
 </p>
 
 <p align="center">
+  <strong>No rooting the device. No Magisk. No terminal. No need to keep the app open.</strong><br>
+  Install it, enable the fix, and forget about it.
+</p>
+
+<p align="center">
   <img alt="AYN Thor" src="https://img.shields.io/badge/device-AYN%20Thor-7C3AED?style=for-the-badge">
   <img alt="Android 13" src="https://img.shields.io/badge/Android-13-3DDC84?style=for-the-badge&amp;logo=android&amp;logoColor=white">
-  <img alt="Root bridge required" src="https://img.shields.io/badge/requires-PServerBinder-F59E0B?style=for-the-badge">
+  <img alt="No Magisk or rooting" src="https://img.shields.io/badge/setup-no%20Magisk%20%2F%20rooting-16A34A?style=for-the-badge">
+  <img alt="Uses PServerBinder" src="https://img.shields.io/badge/uses-PServerBinder-F59E0B?style=for-the-badge">
   <img alt="GPL 3" src="https://img.shields.io/badge/code-GPL--3.0-8B5CF6?style=for-the-badge">
 </p>
 
@@ -30,10 +36,11 @@
 > [!IMPORTANT]
 > **Made specifically for the AYN Thor.** This is an independent community
 > project and is not made, supported, or endorsed by AYN Technologies. It uses
-> privileged, firmware-dependent Android APIs and should not be installed on
-> unrelated devices.
+> the Thor firmware's own privileged `PServerBinder` service, so you do **not**
+> need to root the device yourself or install Magisk. It should not be installed
+> on unrelated devices.
 
-## What does it fix?
+## The simple version
 
 The Thor's stock **TOP-only** mode makes the bottom screen look off, but on the
 firmware I tested it is not fully shut down in the background.
@@ -45,7 +52,27 @@ extra power use and heat while you are only using the top screen.
 **Jesty Thor Fix makes TOP-only behave the way you would expect: the bottom
 screen is actually turned off.**
 
-It also fixes the state again automatically after the Thor wakes from sleep.
+And for normal use, it is designed to be almost completely hands-off:
+
+- **No rooting the device**
+- **No Magisk**
+- **No terminal commands**
+- Install the APK and enable the fix
+- You do **not** need to leave the dashboard open
+- You can **swipe the app away from Recents**
+- The background fix keeps working
+- It automatically repairs the state after sleep/wake
+- It remembers whether you left the fix enabled after a normal reboot
+- Designed for **negligible background CPU and battery overhead**
+- It does **not** force CPU frequencies or change CPU governors
+
+Basically:
+
+**install → enable → forget about it**
+
+## What does it fix?
+
+The stock behavior and Jesty Thor Fix differ like this:
 
 | | Stock TOP-only | Jesty Thor Fix |
 | --- | --- | --- |
@@ -54,6 +81,9 @@ It also fixes the state again automatically after the Thor wakes from sleep.
 | CPU behavior in my low-load test | Stayed unusually fast | **High-frequency lock removed** |
 | Power use in my test | Higher | **Lower** |
 | After waking from sleep | Bottom display becomes active again | **Fix is restored automatically** |
+| App needs to stay open | — | **No** |
+| Can be removed from Recents | — | **Yes** |
+| Magisk / rooting required | — | **No** |
 
 ### See the difference
 
@@ -70,7 +100,8 @@ It also fixes the state again automatically after the Thor wakes from sleep.
 - **TOP/BOTH switching still works normally.**
 - **Does not change CPU governors, limits or frequencies.**
 - **Keeps working without the dashboard open.**
-- **Remembers whether you left the fix enabled after a reboot.**
+- **Keeps working after being swiped away from Recents.**
+- **Remembers whether you left the fix enabled after a normal reboot.**
 - **Shows live CPU and display information** if you want to verify what the Thor is doing.
 
 ## Measured on real hardware
@@ -107,29 +138,49 @@ bottom CRTC 243 inactive
 
 1. Download `Jesty-Thor-Fix-0.32.apk` from the
    [GitHub release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v0.32).
-2. Install it as an update if an earlier build with the same package is present.
+2. Install the APK.
 3. Open **Jesty Thor Fix** once and confirm `FIX ACTIVE`.
-4. Select TOP mode and press **Verify bottom scanout**. Bottom CRTC 243 should
-   report inactive.
+4. Select TOP mode.
+5. That's it.
+
+If you want to verify the hardware state yourself, press **Verify bottom
+scanout**. Bottom CRTC 243 should report inactive.
+
+### You do not need to
+
+- root the Thor yourself;
+- install Magisk;
+- run ADB or terminal commands;
+- leave the app open;
+- leave the app in Recents;
+- manually re-enable the fix after every sleep/wake.
 
 Requirements:
 
 - AYN Thor.
 - Tested Android 13 firmware `TKQ1.231222.001`, build dated 2026-02-06.
-- The Thor firmware's privileged `PServerBinder` command bridge.
+- The Thor firmware's built-in privileged `PServerBinder` command bridge.
 
 Self-built APKs will not update the official build unless they are signed with
 the same private key.
 
 ## Everyday behavior
 
-- Closing the dashboard or removing it from recents does not normally stop the fix.
+Once enabled, the intended normal experience is **install and forget**.
+
+- Closing the dashboard does not normally stop the fix.
+- Swiping the app away from Recents does not normally stop the fix.
+- The background component continues handling TOP-only state.
+- Sleep/wake is repaired automatically.
 - A normal reboot restores the saved ON/OFF choice.
 - Turning the master toggle OFF cancels pending work and restores native behavior.
 - The app respects Android's normal display timeout.
+- Background monitoring is deliberately lightweight and designed for negligible overhead.
 
-**Android Settings -> Force stop is different.** Force stop may prevent the app
-from restarting automatically until it is opened again.
+**Android Settings -> Force stop is different.** Force stop explicitly tells
+Android to stop the app and may prevent it from restarting automatically until
+you open it again. Swiping it away from Recents is fine; Force stop is not the
+same thing.
 
 <details>
 <summary><strong>Technical details: how the wake repair works</strong></summary>
@@ -182,6 +233,9 @@ If the project improves your Thor, there are several ways you can help:
 - 💡 **Suggest improvements** or contribute code/documentation.
 - ☕ **[Buy me a coffee](https://www.buymeacoffee.com/jesty)** to help fund
   hardware testing, firmware compatibility work, documentation, and future updates.
+
+I only have access to my own Thor, so results from other units and firmware
+versions are especially useful.
 
 Testing and useful reports are just as valuable as financial support.
 
