@@ -49,3 +49,20 @@ The 0.32 final-art APK was initially published before its exact artifact had
 been exercised on a connected Thor. It was installed and tested afterwards.
 That chronology is why the project continues to use pre-release labels until a
 new candidate completes the current validation checklist.
+
+## Stable 1.0.0 release
+
+- Package: `com.thor.displaypowertest`
+- Version code: `37`
+- Version name: `1.0.0`
+- APK: `Jesty-Thor-Fix-1.0.0.apk`
+- SHA-256: `1585BAEC43DD899270F522276D8F4752F5DE45E1B58D3B52EB632CD82652A840`
+- Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`
+- Verified signing schemes: APK Signature Scheme v1, v2, and v3.
+
+The exact signed APK was installed in place on the tested physical AYN Thor.
+TOP with the fix enabled ended at `power=0`, CRTC 181 active, and CRTC 243
+inactive. BOTH restored `power=1` and both CRTCs. Removing the app from Recents
+did not change the true-off state; the following sleep/wake cycle repaired to
+`OFF_OK`. A normal reboot with the fix enabled restored TOP true-off before the
+dashboard was opened.

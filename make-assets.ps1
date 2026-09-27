@@ -32,7 +32,7 @@ Copy-Item -LiteralPath $backgroundOff -Destination $staticOff -Force
 
 & $FfmpegPath -loglevel error -y -loop 1 -framerate 30 -i $background `
     -loop 1 -framerate 30 -i $backgroundOff `
-    -filter_complex "[0:v][1:v]blend=all_expr='if(between(T,2.85,2.94)+between(T,3.03,3.10)+between(T,6.25,6.48),B,A)',format=yuv420p[out]" `
+    -filter_complex "[0:v]crop=trunc(iw/2)*2:trunc(ih/2)*2[on];[1:v]crop=trunc(iw/2)*2:trunc(ih/2)*2[off];[on][off]blend=all_expr='if(between(T,2.85,2.94)+between(T,3.03,3.10)+between(T,6.25,6.48),B,A)',format=yuv420p[out]" `
     -map '[out]' -t 8 -r 30 -an `
     -c:v libx264 -preset medium -crf 23 -pix_fmt yuv420p -movflags +faststart $video
 if ($LASTEXITCODE -ne 0) { throw 'Animated background generation failed' }

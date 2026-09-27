@@ -38,3 +38,17 @@
   [BENCHMARKS.md](BENCHMARKS.md).
 
 Device identifiers and raw logs have been removed from this public summary.
+
+## 1.0.0 stable artifact
+
+- Installed in place as `versionCode=37`, `versionName=1.0.0`.
+- Exact APK SHA-256: `1585BAEC43DD899270F522276D8F4752F5DE45E1B58D3B52EB632CD82652A840`.
+- TOP native: `power=1`, `crtc181=1`, `crtc243=1`.
+- TOP with fix: `power=0`, `crtc181=1`, `crtc243=0`.
+- BOTH with the fix armed: `power=1`, `crtc181=1`, `crtc243=1`.
+- Clearing Recents did not change true-off; the following wake ended `OFF_OK`.
+- Reboot with the fix enabled restored `mode=1`, `power=0`, `crtc181=1`,
+  `crtc243=0` before the UI was opened.
+
+The refreshed dashboard screenshots in the README were captured from this
+installed artifact. Device identifiers and raw system logs are not published.

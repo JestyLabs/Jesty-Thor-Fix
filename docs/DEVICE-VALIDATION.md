@@ -25,3 +25,22 @@ The final 0.32 candidate was exercised on a physical AYN Thor running Android 13
 The final palette/wordmark build did not repeat the entire earlier rapid-wake, 700/750 ms, long-suspension, and Octopi regression matrix. Those paths use the unchanged 0.31.1 wake scheduler. The 0.32-specific close, toggle, 650 ms race, OFF reboot, ON reboot, telemetry, and DRM paths were exercised live.
 
 Raw device logs are deliberately not stored in this public-source candidate because they may contain serials, installed-package names, accounts, network details, and unrelated system activity.
+
+## 1.0.0 stable release smoke test
+
+The exact signed `1.0.0` APK was installed in place on the same physical Thor.
+
+- [x] Package identity was `versionCode=37`, `versionName=1.0.0`.
+- [x] Signing certificate matched the 0.31/0.32/0.33 update line.
+- [x] TOP with fix OFF/native returned `power=1` with both CRTCs active.
+- [x] TOP with fix ON returned `power=0`, CRTC 181 active, CRTC 243 inactive.
+- [x] The in-app bottom-screen check reported the lower screen fully off.
+- [x] BOTH mode restored `power=1` and both CRTCs while leaving the master fix enabled.
+- [x] Clearing the app from Recents left the true-off state intact.
+- [x] A subsequent sleep/wake restored true-off and ended `OFF_OK`.
+- [x] A normal reboot with the fix enabled restored `mode=1`, `power=0`, CRTC 181 active, and CRTC 243 inactive before opening the dashboard.
+- [x] The final lockup, ON/OFF artwork, amber toggle, status copy, and ASCII support links rendered correctly.
+
+This is a focused stable-release smoke test. The complete rapid-wake and timing
+regression matrix remains documented above for 0.32; the 1.0.0 refresh does not
+change that display-control implementation or its timing.

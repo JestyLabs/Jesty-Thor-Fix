@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.0
+
+- Promoted the tested Thor fix to the first stable public release.
+- Added the final transparent Jesty Thor Fix lockup to the app and README.
+- Replaced both dashboard states with the approved AYN Thor ON/OFF artwork.
+- Regenerated the transition loop from those exact states.
+- Kept the display-control, wake-repair, daemon, clock monitoring, and
+  privileged bridge behavior unchanged from the validated 0.33 line.
+- Bumped the public update to versionCode 37 / versionName 1.0.0.
+
 ## 0.33
 
 - Replaced the separately assembled header with the approved transparent

@@ -231,10 +231,10 @@ public final class MainActivity extends Activity {
         footer.addView(copy);
 
         LinearLayout links = row();
-        TextView support = footerLink("☕  SUPPORT JESTY");
+        TextView support = footerLink("SUPPORT JESTY");
         support.setOnClickListener(v -> openExternal("https://buymeacoffee.com/jesty"));
         links.addView(support, new LinearLayout.LayoutParams(0, dp(34), 1f));
-        TextView github = footerLink("★  STAR ON GITHUB");
+        TextView github = footerLink("STAR ON GITHUB");
         github.setOnClickListener(v -> openExternal("https://github.com/JestyLabs/Jesty-Thor-Fix"));
         links.addView(github, new LinearLayout.LayoutParams(0, dp(34), 1f));
         footer.addView(links);

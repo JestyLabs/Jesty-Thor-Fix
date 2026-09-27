@@ -22,8 +22,9 @@ The maintainer supplied the final ON/OFF application artwork:
 - `assets/jesty_thor_background_off.png`
 - `assets/jesty_thor_background_loop.mp4`
 
-The current 0.33 artwork is a maintainer-selected provisional visual and may be
-refined in a later release without changing the display-control implementation.
+The 1.0.0 artwork is the maintainer-approved Thor ON/OFF visual set. The two
+static PNGs are preserved exactly as supplied; the in-app H.264 transition loop
+uses the same frames with a one-pixel height crop required by YUV420 encoding.
 
 These images, animation frames, screenshots, and promotional materials are not
 licensed under GPL-3.0. They remain copyright 2026 Jesty, all rights reserved,
