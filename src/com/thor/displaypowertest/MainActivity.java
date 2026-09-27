@@ -130,6 +130,12 @@ public final class MainActivity extends Activity {
         root.addView(scroll, new FrameLayout.LayoutParams(panelWidth,
                 ViewGroup.LayoutParams.MATCH_PARENT, Gravity.START));
 
+        LinearLayout topActions = buildTopActions();
+        FrameLayout.LayoutParams actionParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(42), Gravity.TOP | Gravity.END);
+        actionParams.setMargins(0, dp(16), dp(18), 0);
+        root.addView(topActions, actionParams);
+
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(dp(24), dp(14), dp(24), dp(14));
@@ -163,9 +169,9 @@ public final class MainActivity extends Activity {
 
         LinearLayout verifyCopy = new LinearLayout(this);
         verifyCopy.setOrientation(LinearLayout.VERTICAL);
-        TextView verifyTitle = text("Bottom screen check", 12f, Color.WHITE, true);
+        TextView verifyTitle = text("Bottom screen & CPU check", 12f, Color.WHITE, true);
         verifyCopy.addView(verifyTitle);
-        TextView verifyHelp = text("Confirms the lower screen hardware is really off", 10f, MUTED, false);
+        TextView verifyHelp = text("Checks true hardware-off and LITTLE/BIG clock pinning", 10f, MUTED, false);
         verifyHelp.setPadding(0, dp(1), dp(8), 0);
         verifyCopy.addView(verifyHelp);
         verifyRow.addView(verifyCopy, new LinearLayout.LayoutParams(0, -2, 1f));
@@ -217,35 +223,40 @@ public final class MainActivity extends Activity {
         warningValue.setPadding(0, dp(5), 0, 0);
         detailPanel.addView(warningValue);
         content.addView(detailPanel);
-        content.addView(buildSupportFooter());
         return root;
     }
 
-    private View buildSupportFooter() {
-        LinearLayout footer = panel();
-        TextView title = text("JESTY APPS ARE FREE & OPEN SOURCE", 10f, MUTED, true);
-        title.setLetterSpacing(0.07f);
-        footer.addView(title);
-        TextView copy = text("Support device testing or star the project.", 11f, Color.WHITE, false);
-        copy.setPadding(0, dp(3), 0, dp(4));
-        footer.addView(copy);
+    private LinearLayout buildTopActions() {
+        LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        actions.setGravity(Gravity.CENTER_VERTICAL);
 
-        LinearLayout links = row();
-        TextView support = footerLink("SUPPORT JESTY");
+        TextView support = topAction("\u2615  SUPPORT");
         support.setOnClickListener(v -> openExternal("https://buymeacoffee.com/jesty"));
-        links.addView(support, new LinearLayout.LayoutParams(0, dp(34), 1f));
-        TextView github = footerLink("STAR ON GITHUB");
+        actions.addView(support);
+
+        TextView github = topAction("\u2605  GITHUB");
         github.setOnClickListener(v -> openExternal("https://github.com/JestyLabs/Jesty-Thor-Fix"));
-        links.addView(github, new LinearLayout.LayoutParams(0, dp(34), 1f));
-        footer.addView(links);
-        return footer;
+        LinearLayout.LayoutParams githubParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(38));
+        githubParams.setMargins(dp(8), 0, 0, 0);
+        actions.addView(github, githubParams);
+        return actions;
     }
 
-    private TextView footerLink(String label) {
-        TextView link = text(label, 10f, AMBER, true);
-        link.setGravity(Gravity.CENTER_VERTICAL);
-        link.setPadding(dp(4), 0, dp(4), 0);
-        return link;
+    private TextView topAction(String label) {
+        TextView action = text(label, 10f, AMBER, true);
+        action.setGravity(Gravity.CENTER);
+        action.setPadding(dp(14), 0, dp(14), 0);
+        GradientDrawable bubble = new GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{0xE0241338, 0xE0441B55});
+        bubble.setCornerRadius(dp(21));
+        bubble.setStroke(dp(1), 0xCCC45CFF);
+        action.setBackground(bubble);
+        action.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(38)));
+        return action;
     }
 
     private void openExternal(String url) {
@@ -309,17 +320,32 @@ public final class MainActivity extends Activity {
 
     private void verifyDrm() {
         verifyResult.setTextColor(MUTED);
-        verifyResult.setText("Checking lower-screen hardware\u2026");
+        verifyResult.setText("Checking lower-screen hardware and CPU clocks\u2026");
         new Thread(() -> {
             try {
                 final Map<String, String> values = parse(SocketClient.request('V', 1800));
+                final Map<String, String> telemetry = parse(SocketClient.request('Q', 1800));
                 final boolean topOn = "1".equals(values.get("crtc181"));
                 final boolean bottomOff = "0".equals(values.get("crtc243"));
-                final String friendly = topOn && bottomOff
-                        ? "Last check: bottom screen fully off \u2713"
-                        : "Last check: bottom screen hardware still active";
+                final long littleCur = number(telemetry, "little_cur");
+                final long littleMax = number(telemetry, "little_max");
+                final long bigCur = number(telemetry, "big_cur");
+                final long bigMax = number(telemetry, "big_max");
+                final boolean coresPinned = ratio(littleCur, littleMax) >= 0.95
+                        && ratio(bigCur, bigMax) >= 0.95;
+                final String friendly;
+                if (topOn && bottomOff) {
+                    friendly = "Bottom hardware fully off \u2713"
+                            + (coresPinned ? " \u2022 CPU clocks currently high" : " \u2022 CPU clocks released");
+                } else if (coresPinned) {
+                    friendly = "STOCK BUG CONFIRMED \u2022 LITTLE/BIG PINNED AT MAX";
+                } else {
+                    friendly = "Bottom hardware active \u2022 LITTLE/BIG can stay pinned";
+                }
                 final String detail = "Top hardware " + (topOn ? "on" : "off")
-                        + "  \u2022  Bottom hardware " + (bottomOff ? "off" : "on");
+                        + "  \u2022  Bottom hardware " + (bottomOff ? "off" : "on")
+                        + "  \u2022  LITTLE " + clock(littleCur, littleMax)
+                        + "  \u2022  BIG " + clock(bigCur, bigMax);
                 runOnUiThread(() -> {
                     verifyResult.setTextColor(topOn && bottomOff ? AMBER : RED);
                     verifyResult.setText(friendly);
@@ -362,7 +388,9 @@ public final class MainActivity extends Activity {
         stateText.setTextColor(enabled ? AMBER : Color.WHITE);
         boolean bottomPowered = "1".equals(values.get("power"));
         stateDetail.setText(modeDescription(values.get("mode")) + "  \u2022  "
-                + (bottomPowered ? "bottom hardware active" : "bottom hardware off"));
+                + (bottomPowered
+                ? "bottom hardware active \u2022 LITTLE/BIG can stay pinned"
+                : "bottom hardware off"));
 
         long littleCur = number(values, "little_cur"), littleMax = number(values, "little_max");
         long bigCur = number(values, "big_cur"), bigMax = number(values, "big_max");
@@ -383,7 +411,9 @@ public final class MainActivity extends Activity {
                 && ratio(littleCur, littleMax) >= 0.95
                 && ratio(bigCur, bigMax) >= 0.95;
         possibleLockSamples = suspicious ? possibleLockSamples + 1 : 0;
-        warningValue.setText(possibleLockSamples >= 10 ? "\u26A0 POSSIBLE CLOCK LOCK" : "");
+        warningValue.setText(possibleLockSamples >= 10
+                ? "STOCK BUG CONFIRMED \u2022 LITTLE/BIG PINNED AT MAX"
+                : "");
     }
 
     private void startTelemetry() {
@@ -597,7 +627,9 @@ public final class MainActivity extends Activity {
         if ("1".equals(mode) && !bottomPowered) return "Top only  \u2022  Bottom fully off";
         if ("0".equals(mode)) return "Both screens available";
         if ("2".equals(mode)) return "Bottom screen only";
-        if ("1".equals(mode)) return "Top only  \u2022  Bottom still active";
+        if ("1".equals(mode)) {
+            return "Top only  \u2022  Bottom still active  \u2022  LITTLE/BIG may stay pinned";
+        }
         return "Display state unavailable";
     }
 }

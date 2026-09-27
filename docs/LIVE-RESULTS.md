@@ -52,3 +52,15 @@ Device identifiers and raw logs have been removed from this public summary.
 
 The refreshed dashboard screenshots in the README were captured from this
 installed artifact. Device identifiers and raw system logs are not published.
+
+## 1.0.1 CPU-check patch
+
+- Installed in place as `versionCode=38`, `versionName=1.0.1` with the same
+  signing certificate as the stable update line.
+- With the fix disabled in TOP mode, the exact APK reported `power=1`,
+  `crtc181=1`, `crtc243=1`, LITTLE `2.02/2.02 GHz`, and BIG
+  `2.71/2.71 GHz`; the one-tap check displayed `STOCK BUG CONFIRMED`.
+- With the fix enabled, the exact APK reported `power=0`, `crtc181=1`,
+  `crtc243=0`, and the one-tap check displayed that the lower hardware was
+  fully off and CPU clocks were released.
+- A full app stop and relaunch preserved and rendered each selected state.

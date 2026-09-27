@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.1
+
+- Made the stock TOP-only warning explicit: a black lower panel can still have
+  active display hardware and keep LITTLE/BIG cores pinned.
+- Extended **Bottom screen & CPU check** to verify both DRM state and current
+  LITTLE/BIG frequencies in one tap.
+- Preserved the continuous low-load clock-lock detector and made its confirmed
+  warning visible as `STOCK BUG CONFIRMED`.
+- Kept display control, wake repair, timing, and privileged bridge behavior
+  unchanged from 1.0.0.
+- Bumped the patch update to versionCode 38 / versionName 1.0.1.
+
 ## 1.0.0
 
 - Promoted the tested Thor fix to the first stable public release.

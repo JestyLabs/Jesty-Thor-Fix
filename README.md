@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.0.0"><strong>Download APK</strong></a>
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.0.1"><strong>Download APK</strong></a>
   · <a href="#what-does-it-fix">How it works</a>
   · <a href="docs/BENCHMARKS.md">Measurements and raw data</a>
   · <a href="https://www.buymeacoffee.com/jesty">☕ Support development</a>
@@ -66,7 +66,8 @@ screen is actually turned off.**
 
 In this real-device capture, stock TOP-only still reports the bottom hardware
 active while LITTLE is pinned at **2.02 / 2.02 GHz** and BIG at
-**2.71 / 2.71 GHz**, despite only a low dashboard load.
+**2.71 / 2.71 GHz**, despite only a low dashboard load. The one-tap
+**Bottom screen & CPU check** now verifies both conditions together.
 
 And for normal use, it is designed to be almost completely hands-off:
 
@@ -152,12 +153,13 @@ bottom CRTC 243 inactive
 
 ## Installation
 
-1. Download `Jesty-Thor-Fix-1.0.0.apk` from the
-   [GitHub release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.0.0).
+1. Download `Jesty-Thor-Fix-1.0.1.apk` from the
+   [GitHub release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.0.1).
 2. Install the APK.
 3. Open **Jesty Thor Fix** once and confirm `FIX ACTIVE`.
-4. Select TOP mode and use **Bottom screen check -> Check now**. The app should
-   report that the bottom screen is fully off. Technical DRM details remain in
+4. Select TOP mode and use **Bottom screen & CPU check -> Check now**. The app
+   should report that the bottom hardware is fully off and show whether
+   LITTLE/BIG clocks are released or pinned. Technical DRM details remain in
    the validation documentation.
 
 ### You do not need to

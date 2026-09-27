@@ -66,3 +66,17 @@ inactive. BOTH restored `power=1` and both CRTCs. Removing the app from Recents
 did not change the true-off state; the following sleep/wake cycle repaired to
 `OFF_OK`. A normal reboot with the fix enabled restored TOP true-off before the
 dashboard was opened.
+
+## Stable 1.0.1 patch
+
+- Package: `com.thor.displaypowertest`
+- Version code: `38`
+- Version name: `1.0.1`
+- APK: `Jesty-Thor-Fix-1.0.1.apk`
+- SHA-256: `445704EC32E864D617CC6594AC4CC4A3DDF54E1D03EC81454990CED884838913`
+- Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`
+- Verified signing schemes: APK Signature Scheme v1, v2, and v3.
+
+The signed patch was installed in place and checked in native TOP and Jesty
+true-off states. It changes only user-facing status/check behavior and top
+action placement; display transitions and wake-repair timing are unchanged.

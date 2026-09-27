@@ -44,3 +44,19 @@ The exact signed `1.0.0` APK was installed in place on the same physical Thor.
 This is a focused stable-release smoke test. The complete rapid-wake and timing
 regression matrix remains documented above for 0.32; the 1.0.0 refresh does not
 change that display-control implementation or its timing.
+
+## 1.0.1 focused UI and telemetry check
+
+The signed `1.0.1` patch was installed in place on the same physical Thor.
+
+- [x] Package identity was `versionCode=38`, `versionName=1.0.1`.
+- [x] Signing certificate matched the stable update line.
+- [x] TOP with fix OFF/native returned `power=1` with both CRTCs active.
+- [x] The manual check identified LITTLE and BIG pinned at their maximums.
+- [x] TOP with fix ON returned `power=0`, CRTC 181 active, CRTC 243 inactive.
+- [x] The manual check reported the bottom hardware fully off and clocks
+  released.
+- [x] A full app stop and relaunch preserved and rendered each selected state.
+
+This patch changes dashboard copy and combines existing DRM/CPU telemetry in
+one manual check. Display control, wake repair, and timing code are unchanged.
