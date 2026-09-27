@@ -80,3 +80,18 @@ dashboard was opened.
 The signed patch was installed in place and checked in native TOP and Jesty
 true-off states. It changes only user-facing status/check behavior and top
 action placement; display transitions and wake-repair timing are unchanged.
+
+## Stable 1.0.2 visual patch
+
+- Package: `com.thor.displaypowertest`
+- Version code: `39`
+- Version name: `1.0.2`
+- APK: `Jesty-Thor-Fix-1.0.2.apk`
+- SHA-256: `2B646A4F2310A9016DB3D9BFBDBAED753D02726950ED637FA018938276585BA2`
+- Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`
+- Verified signing schemes: APK Signature Scheme v1, v2, and v3.
+
+This visual-only patch was installed in place and its package identity was
+confirmed on the physical AYN Thor. The full hardware regression matrix was
+not repeated for this layout-only update. Display control, CPU/DRM checks, and
+wake-repair behavior are unchanged from 1.0.1.

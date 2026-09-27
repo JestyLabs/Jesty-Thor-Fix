@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.2
+
+- Restored the full `JESTY APPS ARE FREE & OPEN SOURCE` message in amber at
+  the top-right, with Support and GitHub actions grouped at the bottom-right.
+- Centered the Jesty Thor Fix lockup within the left control panel, tightened
+  the telemetry layout, and removed the duplicated top-screen status line.
+- Kept the 1.0.1 CPU/DRM check and all display-control behavior unchanged.
+- Bumped the visual-only patch to versionCode 39 / versionName 1.0.2.
+
 ## 1.0.1
 
 - Made the stock TOP-only warning explicit: a black lower panel can still have

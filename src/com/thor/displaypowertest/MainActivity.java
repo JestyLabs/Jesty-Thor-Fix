@@ -130,15 +130,21 @@ public final class MainActivity extends Activity {
         root.addView(scroll, new FrameLayout.LayoutParams(panelWidth,
                 ViewGroup.LayoutParams.MATCH_PARENT, Gravity.START));
 
+        LinearLayout openSourceBadge = buildOpenSourceBadge();
+        FrameLayout.LayoutParams badgeParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(50), Gravity.TOP | Gravity.END);
+        badgeParams.setMargins(0, dp(16), dp(18), 0);
+        root.addView(openSourceBadge, badgeParams);
+
         LinearLayout topActions = buildTopActions();
         FrameLayout.LayoutParams actionParams = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, dp(42), Gravity.TOP | Gravity.END);
-        actionParams.setMargins(0, dp(16), dp(18), 0);
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(42), Gravity.BOTTOM | Gravity.END);
+        actionParams.setMargins(0, 0, dp(18), dp(16));
         root.addView(topActions, actionParams);
 
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(24), dp(14), dp(24), dp(14));
+        content.setPadding(dp(24), dp(10), dp(24), dp(10));
         scroll.addView(content, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -150,8 +156,9 @@ public final class MainActivity extends Activity {
         stateText = text("CONNECTING\u2026", 19f, AMBER, true);
         stateText.setLetterSpacing(0.06f);
         content.addView(stateText);
-        stateDetail = text("Starting local daemon", 13f, MUTED, false);
-        stateDetail.setPadding(0, dp(2), 0, dp(9));
+        stateDetail = text("", 12f, MUTED, false);
+        stateDetail.setPadding(0, dp(2), 0, dp(5));
+        stateDetail.setVisibility(View.GONE);
         content.addView(stateDetail);
 
         LinearLayout controls = panel();
@@ -197,31 +204,35 @@ public final class MainActivity extends Activity {
         content.addView(controls);
 
         LinearLayout cpuPanel = panel();
-        TextView cpuHeading = text("CPU SPEEDS", 10f, MUTED, true);
+        TextView cpuHeading = text("CPU SPEEDS", 11f, Color.WHITE, true);
         cpuHeading.setLetterSpacing(0.09f);
         cpuPanel.addView(cpuHeading);
         LinearLayout cpuRow = row();
         littleValue = addMetric(cpuRow, "LITTLE", "\u2014");
         bigValue = addMetric(cpuRow, "BIG", "\u2014");
         primeValue = addMetric(cpuRow, "PRIME", "\u2014");
-        cpuPanel.addView(cpuRow, new LinearLayout.LayoutParams(-1, dp(50)));
+        cpuPanel.addView(cpuRow, new LinearLayout.LayoutParams(-1, dp(46)));
+        warningValue = text("", 10f, RED, true);
+        warningValue.setPadding(0, dp(2), 0, 0);
+        cpuPanel.addView(warningValue);
         content.addView(cpuPanel);
 
         LinearLayout detailPanel = panel();
         TextView displayHeading = text("DISPLAY & SERVICE", 10f, MUTED, true);
         displayHeading.setLetterSpacing(0.09f);
         detailPanel.addView(displayHeading);
-        displayValue = text("\u2014", 15f, Color.WHITE, true);
-        displayValue.setPadding(0, dp(3), 0, dp(5));
-        detailPanel.addView(displayValue);
-        repairValue = text("LAST WAKE REPAIR  \u2022  \u2014", 11f, Color.WHITE, true);
-        detailPanel.addView(repairValue);
-        daemonValue = text("DAEMON  \u2022  \u2014", 11f, MUTED, false);
-        daemonValue.setPadding(0, dp(5), 0, 0);
+        LinearLayout displayRow = row();
+        displayValue = text("\u2014", 13f, Color.WHITE, true);
+        displayValue.setGravity(Gravity.CENTER_VERTICAL);
+        displayRow.addView(displayValue, new LinearLayout.LayoutParams(0, dp(27), 1f));
+        repairValue = text("LAST WAKE  \u2022  \u2014", 10f, Color.WHITE, true);
+        repairValue.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
+        displayRow.addView(repairValue, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(27)));
+        detailPanel.addView(displayRow);
+        daemonValue = text("DAEMON  \u2022  \u2014", 10f, MUTED, false);
+        daemonValue.setPadding(0, dp(1), 0, 0);
         detailPanel.addView(daemonValue);
-        warningValue = text("", 11f, RED, true);
-        warningValue.setPadding(0, dp(5), 0, 0);
-        detailPanel.addView(warningValue);
         content.addView(detailPanel);
         return root;
     }
@@ -259,6 +270,27 @@ public final class MainActivity extends Activity {
         return action;
     }
 
+    private LinearLayout buildOpenSourceBadge() {
+        LinearLayout badge = new LinearLayout(this);
+        badge.setOrientation(LinearLayout.VERTICAL);
+        badge.setGravity(Gravity.CENTER);
+        badge.setPadding(dp(16), dp(5), dp(16), dp(5));
+        TextView title = text("JESTY APPS ARE FREE & OPEN SOURCE", 9f, AMBER, true);
+        title.setGravity(Gravity.CENTER);
+        title.setLetterSpacing(0.05f);
+        badge.addView(title);
+        TextView copy = text("Support device testing or star the project.", 8f,
+                Color.rgb(205, 196, 218), false);
+        copy.setGravity(Gravity.CENTER);
+        badge.addView(copy);
+        GradientDrawable bubble = new GradientDrawable();
+        bubble.setColor(0xB5100B19);
+        bubble.setCornerRadius(dp(25));
+        bubble.setStroke(dp(1), 0x668B4AE2);
+        badge.setBackground(bubble);
+        return badge;
+    }
+
     private void openExternal(String url) {
         try {
             startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
@@ -270,11 +302,11 @@ public final class MainActivity extends Activity {
     private View buildHeader() {
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setGravity(Gravity.CENTER);
 
         ImageView lockup = new ImageView(this);
         lockup.setImageResource(resource("drawable", "jesty_thor_header_lockup"));
-        lockup.setScaleType(ImageView.ScaleType.FIT_START);
+        lockup.setScaleType(ImageView.ScaleType.FIT_CENTER);
         lockup.setAdjustViewBounds(true);
         lockup.setContentDescription("Jesty Thor Fix");
         header.addView(lockup, new LinearLayout.LayoutParams(dp(242), dp(78)));
@@ -311,10 +343,12 @@ public final class MainActivity extends Activity {
             stateText.setText("DAEMON UNAVAILABLE");
             stateText.setTextColor(RED);
             stateDetail.setText(error);
+            stateDetail.setVisibility(View.VISIBLE);
             Toast.makeText(this, "Command not confirmed; setting restored", Toast.LENGTH_LONG).show();
         } else {
             stateText.setText(actual ? "FIX ACTIVE" : "NATIVE THOR MODE");
             stateText.setTextColor(actual ? AMBER : Color.WHITE);
+            stateDetail.setVisibility(View.GONE);
         }
     }
 
@@ -371,6 +405,7 @@ public final class MainActivity extends Activity {
                     stateText.setText("DAEMON UNAVAILABLE");
                     stateText.setTextColor(RED);
                     stateDetail.setText("No telemetry response");
+                    stateDetail.setVisibility(View.VISIBLE);
                 }
                 possibleLockSamples = 0;
                 warningValue.setText("");
@@ -387,10 +422,7 @@ public final class MainActivity extends Activity {
         stateText.setText(enabled ? "FIX ACTIVE" : "NATIVE THOR MODE");
         stateText.setTextColor(enabled ? AMBER : Color.WHITE);
         boolean bottomPowered = "1".equals(values.get("power"));
-        stateDetail.setText(modeDescription(values.get("mode")) + "  \u2022  "
-                + (bottomPowered
-                ? "bottom hardware active \u2022 LITTLE/BIG can stay pinned"
-                : "bottom hardware off"));
+        stateDetail.setVisibility(View.GONE);
 
         long littleCur = number(values, "little_cur"), littleMax = number(values, "little_max");
         long bigCur = number(values, "big_cur"), bigMax = number(values, "big_max");
@@ -402,7 +434,7 @@ public final class MainActivity extends Activity {
         displayValue.setText(displayDescription(values.get("mode"), bottomPowered));
         setBottomVisual(bottomPowered);
 
-        repairValue.setText("LAST WAKE REPAIR  \u2022  #" + value(values, "wake_id")
+        repairValue.setText("LAST WAKE  \u2022  #" + value(values, "wake_id")
                 + "  " + value(values, "repair_result"));
         daemonValue.setText("DAEMON  \u2022  up " + duration(number(values, "uptime_ms"))
                 + "  \u2022  CPU " + utilization + "%  \u2022  " + value(values, "action"));
@@ -627,9 +659,7 @@ public final class MainActivity extends Activity {
         if ("1".equals(mode) && !bottomPowered) return "Top only  \u2022  Bottom fully off";
         if ("0".equals(mode)) return "Both screens available";
         if ("2".equals(mode)) return "Bottom screen only";
-        if ("1".equals(mode)) {
-            return "Top only  \u2022  Bottom still active  \u2022  LITTLE/BIG may stay pinned";
-        }
+        if ("1".equals(mode)) return "Top only  \u2022  Bottom still active";
         return "Display state unavailable";
     }
 }
