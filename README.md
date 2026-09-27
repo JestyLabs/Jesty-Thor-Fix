@@ -33,6 +33,14 @@
 | --- | --- |
 | ![Native Thor TOP-only mode showing the bottom hardware active and LITTLE/BIG cores pinned at maximum](docs/images/dashboard-native-mode.png) | ![Jesty Thor Fix active with the lower display fully powered off and CPU clocks released](docs/images/dashboard-fix-active.png) |
 
+> [!TIP]
+> **Potential battery benefit:** in one controlled low-load capture, truly
+> powering off the lower display and releasing the pinned LITTLE/BIG cores
+> reduced the measured system-power proxy from **2.030 W to 1.239 W**
+> (**-0.792 W / -39.0%**). This is a directional device measurement, not a
+> promise of 39% more battery life. See the
+> [method and sanitized samples](docs/BENCHMARKS.md).
+
 > [!IMPORTANT]
 > **Made specifically for the AYN Thor.** This is an independent community
 > project and is not made, supported, or endorsed by AYN Technologies. It uses
