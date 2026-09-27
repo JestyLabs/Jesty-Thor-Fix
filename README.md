@@ -27,9 +27,11 @@
   · <a href="https://www.buymeacoffee.com/jesty">☕ Support development</a>
 </p>
 
-<p align="center">
-  <img src="docs/images/dashboard-fix-active.png" alt="Jesty Thor Fix dashboard showing true-off active" width="100%">
-</p>
+### See the fix in action
+
+| Stock TOP-only — bottom hardware active, LITTLE/BIG pinned | Jesty true-off — bottom hardware off, clocks released |
+| --- | --- |
+| ![Native Thor TOP-only mode showing the bottom hardware active and LITTLE/BIG cores pinned at maximum](docs/images/dashboard-native-mode.png) | ![Jesty Thor Fix active with the lower display fully powered off and CPU clocks released](docs/images/dashboard-fix-active.png) |
 
 > [!IMPORTANT]
 > **Made specifically for the AYN Thor.** This is an independent community
@@ -82,12 +84,6 @@ The stock behavior and Jesty Thor Fix differ like this:
 | App needs to stay open | — | **No** |
 | Can be removed from Recents | — | **Yes** |
 | Magisk / rooting required | — | **No** |
-
-### See the difference
-
-| Native Thor mode | Jesty fix active |
-| --- | --- |
-| ![Native Thor mode with bottom display and pinned clocks](docs/images/dashboard-native-mode.png) | ![True-off active with lower screen off](docs/images/dashboard-fix-active.png) |
 
 ## Why use it?
 
