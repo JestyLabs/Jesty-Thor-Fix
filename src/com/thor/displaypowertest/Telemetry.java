@@ -14,6 +14,7 @@ public final class Telemetry {
 
     public static final class CpuSnapshot {
         public long littleCurrent, littleMax, bigCurrent, bigMax, primeCurrent, primeMax;
+        public long littleMaxTicks, littleTotalTicks, bigMaxTicks, bigTotalTicks;
         public int utilization;
     }
 
@@ -21,6 +22,8 @@ public final class Telemetry {
         public double usbWatts = Double.NaN;
         public double batteryChargeWatts = Double.NaN;
         public double systemProxyWatts = Double.NaN;
+        public double batteryWatts = Double.NaN;
+        public String source = "unknown";
     }
 
     public static synchronized CpuSnapshot readCpu() {
@@ -31,6 +34,12 @@ public final class Telemetry {
         result.bigMax = maxFrequency(3);
         result.primeCurrent = frequency(7, "scaling_cur_freq");
         result.primeMax = maxFrequency(7);
+        Residency littleResidency = residency(0, result.littleMax);
+        Residency bigResidency = residency(3, result.bigMax);
+        result.littleMaxTicks = littleResidency.maxTicks;
+        result.littleTotalTicks = littleResidency.totalTicks;
+        result.bigMaxTicks = bigResidency.maxTicks;
+        result.bigTotalTicks = bigResidency.totalTicks;
         result.utilization = readUtilization();
         return result;
     }
@@ -40,13 +49,23 @@ public final class Telemetry {
         long usbOnline = readLong("/sys/class/power_supply/usb/online");
         long usbCurrent = readLong("/sys/class/power_supply/usb/current_now");
         long usbVoltage = readLong("/sys/class/power_supply/usb/voltage_now");
-        long batteryCurrent = readLong("/sys/class/power_supply/battery/current_now");
+        long batteryCurrent = readLongOrMin("/sys/class/power_supply/battery/current_now");
         long batteryVoltage = readLong("/sys/class/power_supply/battery/voltage_now");
-        if (usbOnline != 1L || usbCurrent < 0L || usbVoltage <= 0L
-                || batteryCurrent == -1L || batteryVoltage <= 0L) return result;
-        result.usbWatts = watts(usbCurrent, usbVoltage);
-        result.batteryChargeWatts = watts(batteryCurrent, batteryVoltage);
-        result.systemProxyWatts = result.usbWatts - result.batteryChargeWatts;
+        String batteryStatus = readText("/sys/class/power_supply/battery/status");
+        boolean external = usbOnline == 1L;
+        if (external) {
+            result.source = "external";
+            if (usbCurrent >= 0L && usbVoltage > 0L
+                    && batteryCurrent != -1L && batteryVoltage > 0L) {
+                result.usbWatts = watts(usbCurrent, usbVoltage);
+                result.batteryChargeWatts = watts(batteryCurrent, batteryVoltage);
+                result.systemProxyWatts = result.usbWatts - result.batteryChargeWatts;
+            }
+        } else if (usbOnline == 0L) {
+            result.batteryWatts = DashboardStateModel.batteryWatts(
+                    batteryCurrent, batteryVoltage, false, batteryStatus);
+            result.source = Double.isNaN(result.batteryWatts) ? "unknown" : "battery";
+        }
         return result;
     }
 
@@ -81,6 +100,14 @@ public final class Telemetry {
     }
 
     public static String bottomCrtcActive() {
+        return crtcActive("243");
+    }
+
+    public static String topCrtcActive() {
+        return crtcActive("181");
+    }
+
+    private static String crtcActive(String target) {
         File state = new File("/sys/kernel/debug/dri/0/state");
         if (!state.canRead()) return "?";
         try {
@@ -90,7 +117,7 @@ public final class Telemetry {
             int remaining = 0;
             while ((line = reader.readLine()) != null) {
                 String trimmed = line.trim();
-                if (trimmed.startsWith("crtc[243]")) {
+                if (trimmed.startsWith("crtc[" + target + "]")) {
                     bottom = true;
                     remaining = 14;
                 } else if (bottom && trimmed.startsWith("active=")) {
@@ -140,6 +167,50 @@ public final class Telemetry {
         } catch (Throwable ignored) {
             return -1L;
         }
+    }
+
+    private static long readLongOrMin(String path) {
+        String value = readText(path);
+        try { return Long.parseLong(value); }
+        catch (Throwable ignored) { return Long.MIN_VALUE; }
+    }
+
+    private static String readText(String path) {
+        try {
+            BufferedReader reader = new BufferedReader(new FileReader(path));
+            String value = reader.readLine();
+            reader.close();
+            return value == null ? "" : value.trim();
+        } catch (Throwable ignored) {
+            return "";
+        }
+    }
+
+    private static final class Residency {
+        long maxTicks;
+        long totalTicks;
+    }
+
+    private static Residency residency(int policy, long maximum) {
+        Residency result = new Residency();
+        String path = "/sys/devices/system/cpu/cpufreq/policy" + policy
+                + "/stats/time_in_state";
+        try {
+            BufferedReader reader = new BufferedReader(new FileReader(path));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] fields = line.trim().split("\\s+");
+                if (fields.length < 2) continue;
+                long frequency = Long.parseLong(fields[0]);
+                long ticks = Long.parseLong(fields[1]);
+                result.totalTicks += ticks;
+                if (frequency == maximum) result.maxTicks = ticks;
+            }
+            reader.close();
+        } catch (Throwable ignored) {
+            result.maxTicks = result.totalTicks = -1L;
+        }
+        return result;
     }
 
     private static double watts(long microAmps, long microVolts) {

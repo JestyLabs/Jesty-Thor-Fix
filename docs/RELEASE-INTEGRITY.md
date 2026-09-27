@@ -172,3 +172,19 @@ The exact signed APK was installed in place on the physical Thor. It correctly
 rendered BOTH, AYN fake-off, and Jesty true-off from live display hardware
 state; prevented red stock-bug verdicts while the CPU Fix was active; and
 restored both fixes after a real reboot and its expected framework restart.
+
+## Stable 1.3.0 dashboard telemetry update
+
+- Package: `com.thor.displaypowertest`
+- Version code: `45`
+- Version name: `1.3.0`
+- APK: `Jesty-Thor-Fix-1.3.0.apk`
+- SHA-256: `2D75A7018C9A9D967BEFC1CD0B8FA92933EB835BFF67E13438049E727463BBEF`
+- Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`
+- Verified signing schemes: APK Signature Scheme v1, v2, and v3.
+
+The exact signed APK was installed in place on the physical Thor. Focused live
+checks confirmed stable BOTH, AYN black-screen, and Jesty true-off display
+states, automatic CPU-clock diagnosis, and the external-power prompt. The
+release keeps both fixes unchanged and replaces the old manual snapshot check
+with a rolling kernel `time_in_state` diagnostic.

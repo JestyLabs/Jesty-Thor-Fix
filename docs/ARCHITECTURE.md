@@ -58,11 +58,22 @@ Before applying OFF it rechecks the current generation, fix state, and display m
 
 ## Telemetry
 
-`Q` returns true-off state, physical lower-CRTC state, Dashboard CPU Fix state,
-daemon uptime, cluster current/max frequencies, aggregate CPU utilization, wake
-ID, timing markers, repair result, and last action.
+`Q` returns true-off state, both physical CRTC states, Dashboard CPU Fix state,
+daemon uptime, cluster current/max frequencies, cumulative LITTLE/BIG
+`time_in_state` counters, aggregate CPU utilization, battery/external power
+source, wake ID, timing markers, repair result, and last action.
 
-Clock values come from `policy0`, `policy3`, and `policy7`. Maximum frequency uses `scaling_max_freq` with `cpuinfo_max_freq` as fallback. No governor or frequency file is written.
+Clock values come from `policy0`, `policy3`, and `policy7`. Maximum frequency
+uses `scaling_max_freq` with `cpuinfo_max_freq` as fallback. The visible app
+compares cumulative `time_in_state` deltas over a 12-second window and only
+reports pinning when LITTLE and BIG each spend at least 85% of a settled,
+low-load window at maximum. No governor or frequency file is written.
+
+Battery draw is reported only when USB is offline and the battery status is
+`Discharging`. It is calculated from the absolute battery current multiplied
+by battery voltage. The UI presents the median of its five latest valid
+samples. The older USB/system-proxy fields remain in `Q` for diagnostics and
+protocol compatibility but are no longer displayed.
 
 `V` reads `/sys/kernel/debug/dri/0/state` once and reports the tested top/bottom CRTCs. Debugfs is not continuously polled.
 

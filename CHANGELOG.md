@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3.0
+
+- Reworked the dashboard around one automatic display/CPU status panel and
+  removed the redundant manual `Check now` action.
+- Replaced instantaneous clock snapshots with a 12-second LITTLE/BIG
+  `time_in_state` diagnosis so brief frequency spikes are not reported as
+  pinning.
+- Added stable physical-display transitions and explicit BOTH, AYN black
+  screen, true-off, BOTTOM, transition, and mismatch states.
+- Replaced the charging-only system-power proxy with smoothed battery draw,
+  shown only while the Thor is actually discharging.
+- Simplified the two fix labels, centered the header over the dashboard column,
+  and reduced the open-source badge to its essential message.
+- Added an automatic daemon protocol migration for upgrades from 1.2.0.
+
 ## 1.2.0
 
 - Added a three-state display model: BOTH, AYN fake-off, and Jesty true-off.

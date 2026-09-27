@@ -20,7 +20,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -43,16 +42,8 @@ public final class MainActivity extends Activity {
     private static final int GREEN = Color.rgb(111, 224, 163);
     private static final int RED = Color.rgb(255, 112, 126);
     private static final int MUTED = Color.rgb(168, 185, 204);
-    private static final int STATE_SETTLE_SAMPLES = 5;
-    private static final int PIN_CONFIRM_SAMPLES = 10;
-
-    private enum DisplayVisual {
-        BOTH_ON,
-        AYN_FAKE_OFF,
-        JESTY_TRUE_OFF
-    }
-
     private SharedPreferences preferences;
+    private final DashboardStateModel dashboardModel = new DashboardStateModel();
     private ScheduledExecutorService telemetryWorker;
     private ImageView backgroundImage;
     private TextureView videoTexture;
@@ -65,11 +56,7 @@ public final class MainActivity extends Activity {
     private boolean suppressDashboardToggle;
     private boolean commandInFlight;
     private boolean dashboardCommandInFlight;
-    private int possibleLockSamples;
-    private int stableStateSamples;
-    private String lastStabilityKey = "";
-    private DisplayVisual displayVisual = DisplayVisual.BOTH_ON;
-    private double smoothedSystemWatts = -1d;
+    private DashboardStateModel.Visual displayVisual = DashboardStateModel.Visual.BOTH_ON;
 
     private Switch fixToggle;
     private Switch dashboardFixToggle;
@@ -80,9 +67,9 @@ public final class MainActivity extends Activity {
     private TextView bigValue;
     private TextView primeValue;
     private TextView displayValue;
+    private TextView displayDetail;
     private TextView powerValue;
     private TextView warningValue;
-    private TextView verifyResult;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -157,7 +144,7 @@ public final class MainActivity extends Activity {
 
         LinearLayout openSourceBadge = buildOpenSourceBadge();
         FrameLayout.LayoutParams badgeParams = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, dp(50), Gravity.BOTTOM | Gravity.END);
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(38), Gravity.BOTTOM | Gravity.END);
         badgeParams.setMargins(0, 0, dp(18), dp(16));
         root.addView(openSourceBadge, badgeParams);
 
@@ -175,7 +162,8 @@ public final class MainActivity extends Activity {
 
         content.addView(buildHeader());
         TextView subtitle = text("Display and CPU fixes for AYN Thor", 13f, MUTED, false);
-        subtitle.setPadding(dp(2), 0, 0, dp(8));
+        subtitle.setGravity(Gravity.CENTER);
+        subtitle.setPadding(0, 0, 0, dp(8));
         content.addView(subtitle);
 
         stateDetail = text("", 12f, MUTED, false);
@@ -189,9 +177,9 @@ public final class MainActivity extends Activity {
 
         LinearLayout controls = panel();
         fixToggle = makeSwitch("", Color.WHITE, 14f);
-        controls.addView(featureToggleRow("TRUE BOTTOM DISPLAY FIX",
-                "Powers the lower screen hardware fully off", fixToggle),
-                new LinearLayout.LayoutParams(-1, dp(46)));
+        controls.addView(featureToggleRow("TRUE BOTTOM SCREEN OFF",
+                "Actually powers off the lower screen in Top Only mode", fixToggle),
+                new LinearLayout.LayoutParams(-1, dp(54)));
 
         View divider = new View(this);
         divider.setBackgroundColor(0x338B4AE2);
@@ -199,38 +187,8 @@ public final class MainActivity extends Activity {
 
         dashboardFixToggle = makeSwitch("", Color.WHITE, 14f);
         controls.addView(featureToggleRow("AYN DASHBOARD CPU FIX",
-                "Releases LITTLE/BIG clocks in dual-screen mode", dashboardFixToggle),
-                new LinearLayout.LayoutParams(-1, dp(46)));
-
-        LinearLayout verifyRow = new LinearLayout(this);
-        verifyRow.setOrientation(LinearLayout.HORIZONTAL);
-        verifyRow.setGravity(Gravity.CENTER_VERTICAL);
-        verifyRow.setPadding(0, dp(6), 0, dp(3));
-
-        LinearLayout verifyCopy = new LinearLayout(this);
-        verifyCopy.setOrientation(LinearLayout.VERTICAL);
-        TextView verifyTitle = text("Bottom screen & CPU check", 12f, Color.WHITE, true);
-        verifyCopy.addView(verifyTitle);
-        TextView verifyHelp = text("Checks true hardware-off and LITTLE/BIG clock pinning", 10f, MUTED, false);
-        verifyHelp.setPadding(0, dp(1), dp(8), 0);
-        verifyCopy.addView(verifyHelp);
-        verifyRow.addView(verifyCopy, new LinearLayout.LayoutParams(0, -2, 1f));
-
-        Button verify = new Button(this);
-        verify.setText("CHECK NOW");
-        verify.setTextColor(Color.WHITE);
-        verify.setTextSize(11f);
-        verify.setTypeface(Typeface.DEFAULT_BOLD);
-        verify.setMinHeight(0);
-        verify.setMinWidth(0);
-        GradientDrawable buttonBackground = new GradientDrawable(
-                GradientDrawable.Orientation.LEFT_RIGHT, new int[]{0xDD32164A, 0xDD67235D});
-        buttonBackground.setCornerRadius(dp(10));
-        buttonBackground.setStroke(dp(1), PURPLE);
-        verify.setBackground(buttonBackground);
-        verify.setOnClickListener(v -> verifyDrm());
-        verifyRow.addView(verify, new LinearLayout.LayoutParams(dp(104), dp(36)));
-        verifyResult = text("", 10f, MUTED, true);
+                "Lets LITTLE and BIG clocks slow down normally", dashboardFixToggle),
+                new LinearLayout.LayoutParams(-1, dp(54)));
         content.addView(controls);
 
         LinearLayout cpuPanel = panel();
@@ -239,11 +197,14 @@ public final class MainActivity extends Activity {
         cpuPanel.addView(displayHeading);
         displayValue = text("\u2014", 18f, Color.WHITE, true);
         displayValue.setGravity(Gravity.CENTER_VERTICAL);
-        displayValue.setPadding(0, dp(2), 0, dp(4));
+        displayValue.setPadding(0, dp(2), 0, 0);
         cpuPanel.addView(displayValue, new LinearLayout.LayoutParams(-1, dp(30)));
-        powerValue = text("EST. SYSTEM POWER  \u2014", 10f, GREEN, true);
-        powerValue.setPadding(0, 0, 0, dp(4));
-        cpuPanel.addView(powerValue, new LinearLayout.LayoutParams(-1, dp(20)));
+        displayDetail = text("Waiting for hardware\u2026", 10f, MUTED, false);
+        displayDetail.setPadding(0, 0, 0, dp(3));
+        cpuPanel.addView(displayDetail, new LinearLayout.LayoutParams(-1, dp(18)));
+        powerValue = text("BATTERY DRAW  \u2014  \u00B7  UNPLUG USB", 10f, MUTED, true);
+        powerValue.setPadding(0, 0, 0, dp(5));
+        cpuPanel.addView(powerValue, new LinearLayout.LayoutParams(-1, dp(21)));
 
         View statusDivider = new View(this);
         statusDivider.setBackgroundColor(0x338B4AE2);
@@ -259,14 +220,8 @@ public final class MainActivity extends Activity {
         primeValue = addMetric(cpuRow, "PRIME", "\u2014");
         cpuPanel.addView(cpuRow, new LinearLayout.LayoutParams(-1, dp(46)));
         warningValue = text("", 10f, RED, true);
-        warningValue.setPadding(0, dp(2), 0, 0);
-        cpuPanel.addView(warningValue, new LinearLayout.LayoutParams(-1, dp(28)));
-
-        View checkDivider = new View(this);
-        checkDivider.setBackgroundColor(0x338B4AE2);
-        cpuPanel.addView(checkDivider, new LinearLayout.LayoutParams(-1, dp(1)));
-        cpuPanel.addView(verifyRow);
-        cpuPanel.addView(verifyResult);
+        warningValue.setPadding(0, dp(4), 0, dp(2));
+        cpuPanel.addView(warningValue, new LinearLayout.LayoutParams(-1, dp(26)));
 
         content.addView(cpuPanel);
         return root;
@@ -329,7 +284,7 @@ public final class MainActivity extends Activity {
     private void setDashboardCpuFixEnabled(boolean requested) {
         if (dashboardCommandInFlight) return;
         dashboardCommandInFlight = true;
-        resetClockDiagnosis();
+        dashboardModel.resetClocks();
         dashboardFixToggle.setEnabled(false);
         warningValue.setTextColor(MUTED);
         warningValue.setText("AYN DASHBOARD CPU FIX • APPLYING…");
@@ -360,11 +315,7 @@ public final class MainActivity extends Activity {
         LinearLayout badge = new LinearLayout(this);
         badge.setOrientation(LinearLayout.VERTICAL);
         badge.setGravity(Gravity.CENTER);
-        badge.setPadding(dp(16), dp(5), dp(16), dp(5));
-        TextView copy = text("Support device testing or star the project.", 8f,
-                Color.rgb(205, 196, 218), false);
-        copy.setGravity(Gravity.CENTER);
-        badge.addView(copy);
+        badge.setPadding(dp(16), dp(4), dp(16), dp(4));
         TextView title = text("JESTY APPS ARE FREE & OPEN SOURCE", 9f, AMBER, true);
         title.setGravity(Gravity.CENTER);
         title.setLetterSpacing(0.05f);
@@ -388,11 +339,11 @@ public final class MainActivity extends Activity {
     private View buildHeader() {
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        header.setGravity(Gravity.CENTER);
 
         ImageView lockup = new ImageView(this);
         lockup.setImageResource(resource("drawable", "jesty_thor_header_lockup"));
-        lockup.setScaleType(ImageView.ScaleType.FIT_START);
+        lockup.setScaleType(ImageView.ScaleType.FIT_CENTER);
         lockup.setAdjustViewBounds(true);
         lockup.setContentDescription("Jesty Thor Fix");
         header.addView(lockup, new LinearLayout.LayoutParams(dp(242), dp(78)));
@@ -438,71 +389,6 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private void verifyDrm() {
-        verifyResult.setTextColor(MUTED);
-        verifyResult.setText("Checking lower-screen hardware and CPU clocks\u2026");
-        new Thread(() -> {
-            try {
-                final Map<String, String> values = parse(SocketClient.request('V', 1800));
-                final Map<String, String> telemetry = parse(SocketClient.request('Q', 1800));
-                final boolean topOn = "1".equals(values.get("crtc181"));
-                final boolean bottomOff = "0".equals(values.get("crtc243"));
-                final long littleCur = number(telemetry, "little_cur");
-                final long littleMax = number(telemetry, "little_max");
-                final long bigCur = number(telemetry, "big_cur");
-                final long bigMax = number(telemetry, "big_max");
-                final boolean coresPinnedNow = ratio(littleCur, littleMax) >= 0.95
-                        && ratio(bigCur, bigMax) >= 0.95;
-                final boolean dashboardFixActive = "1".equals(telemetry.get("system_load_fix"));
-                final boolean dashboardFixDesired = preferences.getBoolean(
-                        "dashboard_cpu_fix_enabled", false);
-                final boolean diagnosisSettled = stableStateSamples >= STATE_SETTLE_SAMPLES;
-                final boolean pinningConfirmed = possibleLockSamples >= PIN_CONFIRM_SAMPLES;
-                final String friendly;
-                final int resultColor;
-                if (dashboardFixDesired != dashboardFixActive) {
-                    friendly = "CPU fix transition in progress \u2022 check again shortly";
-                    resultColor = MUTED;
-                } else if (dashboardFixActive) {
-                    friendly = coresPinnedNow
-                            ? "CPU fix active \u2022 CPU currently busy, no stock-bug verdict"
-                            : "CPU fix active \u2022 no dual-screen pinning \u2713";
-                    resultColor = coresPinnedNow ? MUTED : GREEN;
-                } else if (!diagnosisSettled) {
-                    friendly = "State is still settling \u2022 check again shortly";
-                    resultColor = MUTED;
-                } else if (pinningConfirmed) {
-                    friendly = "STOCK BUG CONFIRMED \u2022 LITTLE/BIG PINNED AT MAX";
-                    resultColor = RED;
-                } else if (coresPinnedNow) {
-                    friendly = "CPU clocks currently high \u2022 sampling before verdict";
-                    resultColor = MUTED;
-                } else if (topOn && bottomOff) {
-                    friendly = "Bottom hardware fully off \u2713 \u2022 CPU clocks released";
-                    resultColor = GREEN;
-                } else {
-                    friendly = "Bottom hardware active \u2022 no sustained pinning detected";
-                    resultColor = MUTED;
-                }
-                final String detail = "Top hardware " + (topOn ? "on" : "off")
-                        + "  \u2022  Bottom hardware " + (bottomOff ? "off" : "on")
-                        + "  \u2022  LITTLE " + clock(littleCur, littleMax)
-                        + "  \u2022  BIG " + clock(bigCur, bigMax);
-                runOnUiThread(() -> {
-                    verifyResult.setTextColor(resultColor);
-                    verifyResult.setText(friendly);
-                    Toast.makeText(this, detail, Toast.LENGTH_LONG).show();
-                });
-            } catch (Throwable error) {
-                runOnUiThread(() -> {
-                    verifyResult.setTextColor(RED);
-                    verifyResult.setText("Could not check the bottom screen");
-                    Toast.makeText(this, error.getMessage(), Toast.LENGTH_LONG).show();
-                });
-            }
-        }, "drm-verify").start();
-    }
-
     private void pollTelemetry() {
         try {
             final Map<String, String> values = parse(SocketClient.request('Q', 900));
@@ -515,7 +401,8 @@ public final class MainActivity extends Activity {
                     stateDetail.setText("No telemetry response");
                     stateDetail.setVisibility(View.VISIBLE);
                 }
-                resetClockDiagnosis();
+                dashboardModel.resetClocks();
+                dashboardModel.resetBattery();
                 warningValue.setText("");
             });
         }
@@ -529,9 +416,8 @@ public final class MainActivity extends Activity {
         suppressToggle = false;
         stateText.setText(enabled ? "ACTIVE" : "STOCK");
         stateText.setTextColor(enabled ? AMBER : Color.WHITE);
+        String topCrtc = values.get("top_crtc");
         String bottomCrtc = values.get("bottom_crtc");
-        boolean bottomPowered = "1".equals(bottomCrtc)
-                || (!"0".equals(bottomCrtc) && "1".equals(values.get("power")));
         stateDetail.setVisibility(View.GONE);
 
         long littleCur = number(values, "little_cur"), littleMax = number(values, "little_max");
@@ -542,75 +428,49 @@ public final class MainActivity extends Activity {
         bigValue.setText(clock(bigCur, bigMax));
         primeValue.setText(clock(primeCur, primeMax));
         String mode = values.get("mode");
-        displayValue.setText(displayDescription(mode, bottomCrtc, enabled));
-        setDisplayVisual(displayVisual(mode, bottomCrtc, bottomPowered));
-        double systemWatts = decimalNumber(values, "system_proxy_w");
-        double usbWatts = decimalNumber(values, "usb_w");
-        if (systemWatts >= 0d && usbWatts >= 0d) {
-            smoothedSystemWatts = smoothedSystemWatts < 0d ? systemWatts
-                    : (smoothedSystemWatts * 0.75d + systemWatts * 0.25d);
+        DashboardStateModel.DisplayStatus display = dashboardModel.updateDisplay(
+                mode, topCrtc, bottomCrtc, enabled);
+        displayValue.setText(display.title);
+        displayValue.setTextColor(color(display.tone));
+        displayDetail.setText(display.detail);
+        displayDetail.setTextColor(color(display.tone));
+        if (display.confirmed) setDisplayVisual(display.confirmedVisual);
+
+        double batteryWatts = decimalNumber(values, "battery_w");
+        if ("battery".equals(values.get("power_source")) && batteryWatts >= 0d) {
+            double smoothedBatteryWatts = dashboardModel.smoothBattery(batteryWatts);
             powerValue.setText(String.format(Locale.US,
-                    "EST. SYSTEM POWER  ~%.2f W  \u00B7  USB %.2f W", smoothedSystemWatts, usbWatts));
+                    "BATTERY DRAW  ~%.2f W", smoothedBatteryWatts));
             powerValue.setTextColor(GREEN);
         } else {
-            smoothedSystemWatts = -1d;
-            powerValue.setText("EST. SYSTEM POWER  \u2014  \u00B7  CONNECT USB FOR ESTIMATE");
+            dashboardModel.resetBattery();
+            powerValue.setText("external".equals(values.get("power_source"))
+                    ? "BATTERY DRAW  \u2014  \u00B7  UNPLUG USB"
+                    : "BATTERY DRAW  \u2014  \u00B7  WAITING FOR BATTERY");
             powerValue.setTextColor(MUTED);
         }
-
-        boolean lowLoadBottomActive = bottomPowered && utilization >= 0 && utilization < 40;
-        boolean littlePinned = ratio(littleCur, littleMax) >= 0.95;
-        boolean bigPinned = ratio(bigCur, bigMax) >= 0.95;
         boolean dashboardFixActive = "1".equals(values.get("system_load_fix"));
         boolean dashboardFixDesired = preferences.getBoolean("dashboard_cpu_fix_enabled", false);
+        String clockStateKey = value(values, "mode") + ":" + value(values, "top_crtc")
+                + ":" + value(values, "bottom_crtc") + ":" + dashboardFixActive
+                + ":" + dashboardFixDesired + ":" + display.confirmed;
+        DashboardStateModel.ClockStatus clocks = dashboardModel.updateClocks(clockStateKey,
+                number(values, "little_max_ticks"), number(values, "little_total_ticks"),
+                number(values, "big_max_ticks"), number(values, "big_total_ticks"), utilization,
+                dashboardFixDesired, dashboardFixActive);
 
-        String stabilityKey = value(values, "mode") + ":" + value(values, "bottom_crtc")
-                + ":" + dashboardFixActive + ":" + dashboardFixDesired;
-        if (!stabilityKey.equals(lastStabilityKey)) {
-            lastStabilityKey = stabilityKey;
-            stableStateSamples = 1;
-            possibleLockSamples = 0;
-        } else {
-            stableStateSamples++;
-        }
-
-        boolean diagnosisEligible = stableStateSamples >= STATE_SETTLE_SAMPLES
-                && !dashboardFixActive && !dashboardFixDesired;
-        boolean suspicious = diagnosisEligible && lowLoadBottomActive && littlePinned && bigPinned;
-        possibleLockSamples = suspicious ? possibleLockSamples + 1 : 0;
-        boolean pinningConfirmed = possibleLockSamples >= PIN_CONFIRM_SAMPLES;
-
-        littleValue.setTextColor(pinningConfirmed && littlePinned ? RED : Color.WHITE);
-        bigValue.setTextColor(pinningConfirmed && bigPinned ? RED : Color.WHITE);
+        littleValue.setTextColor(clocks.pinned ? RED : Color.WHITE);
+        bigValue.setTextColor(clocks.pinned ? RED : Color.WHITE);
         primeValue.setTextColor(Color.WHITE);
-
-        if (dashboardFixActive && dashboardFixDesired) {
-            warningValue.setTextColor(GREEN);
-            warningValue.setText(lowLoadBottomActive && littlePinned && bigPinned
-                    ? "CPU FIX ACTIVE \u2022 CLOCKS BUSY, MONITORING"
-                    : "CPU FIX ACTIVE \u2022 NO DUAL PINNING");
-        } else if (dashboardFixActive) {
-            warningValue.setTextColor(MUTED);
-            warningValue.setText("CPU FIX ACTIVE \u2022 ENABLE TO KEEP AFTER REBOOT");
-        } else if (dashboardFixDesired) {
-            warningValue.setTextColor(MUTED);
-            warningValue.setText("CPU FIX ENABLED \u2022 WAITING FOR RESTART");
-        } else if (pinningConfirmed) {
-            warningValue.setTextColor(RED);
-            warningValue.setText("1".equals(mode)
-                    ? "STOCK BUG CONFIRMED \u2022 LITTLE/BIG PINNED AT MAX"
-                    : "CLOCK PINNING DETECTED \u2022 LITTLE/BIG AT MAX");
-        } else if (stableStateSamples < STATE_SETTLE_SAMPLES) {
-            warningValue.setTextColor(MUTED);
-            warningValue.setText("CPU STATE SETTLING \u2022 MONITORING CLOCKS");
-        } else {
-            warningValue.setTextColor(MUTED);
-            warningValue.setText("CPU FIX OFF \u2022 NO SUSTAINED PINNING DETECTED");
-        }
+        warningValue.setTextColor(color(clocks.tone));
+        warningValue.setText(clocks.text);
     }
 
     private void startTelemetry() {
         if (telemetryWorker != null) return;
+        dashboardModel.resetDisplay();
+        dashboardModel.resetClocks();
+        dashboardModel.resetBattery();
         telemetryWorker = Executors.newSingleThreadScheduledExecutor();
         telemetryWorker.scheduleAtFixedRate(this::pollTelemetry, 1L, 1L, TimeUnit.SECONDS);
     }
@@ -618,7 +478,8 @@ public final class MainActivity extends Activity {
     private void stopTelemetry() {
         if (telemetryWorker != null) telemetryWorker.shutdownNow();
         telemetryWorker = null;
-        resetClockDiagnosis();
+        dashboardModel.resetClocks();
+        dashboardModel.resetBattery();
     }
 
     private void startBackgroundVideo(SurfaceTexture texture) {
@@ -663,14 +524,14 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private void setDisplayVisual(DisplayVisual visual) {
+    private void setDisplayVisual(DashboardStateModel.Visual visual) {
         if (displayVisual == visual) return;
         displayVisual = visual;
-        visualBottomOn = visual == DisplayVisual.BOTH_ON;
+        visualBottomOn = visual == DashboardStateModel.Visual.BOTH_ON;
         String resourceName;
-        if (visual == DisplayVisual.BOTH_ON) {
+        if (visual == DashboardStateModel.Visual.BOTH_ON) {
             resourceName = "jesty_thor_background";
-        } else if (visual == DisplayVisual.AYN_FAKE_OFF) {
+        } else if (visual == DashboardStateModel.Visual.AYN_FAKE_OFF) {
             resourceName = "jesty_thor_background_fake_off";
         } else {
             resourceName = "jesty_thor_background_true_off";
@@ -760,10 +621,10 @@ public final class MainActivity extends Activity {
         LinearLayout copy = new LinearLayout(this);
         copy.setOrientation(LinearLayout.VERTICAL);
         copy.setGravity(Gravity.CENTER_VERTICAL);
-        TextView heading = text(title, 13f, Color.WHITE, true);
+        TextView heading = text(title, 14f, Color.WHITE, true);
         heading.setLetterSpacing(0.025f);
         copy.addView(heading);
-        TextView help = text(description, 9f, MUTED, false);
+        TextView help = text(description, 10f, MUTED, false);
         help.setPadding(0, dp(1), dp(8), 0);
         if (toggle == dashboardFixToggle) dashboardFixHelp = help;
         copy.addView(help);
@@ -776,7 +637,7 @@ public final class MainActivity extends Activity {
         if (dashboardFixHelp == null) return;
         dashboardFixHelp.setText(enabled
                 ? "ON \u2022 Android restarts once while applying this at boot"
-                : "Releases LITTLE/BIG clocks in dual-screen mode");
+                : "Lets LITTLE and BIG clocks slow down normally");
         dashboardFixHelp.setTextColor(enabled ? AMBER : MUTED);
     }
 
@@ -836,42 +697,10 @@ public final class MainActivity extends Activity {
         return String.format(Locale.US, "%.2f / %.2f GHz", current / 1_000_000d, maximum / 1_000_000d);
     }
 
-    private static double ratio(long current, long maximum) {
-        return current > 0 && maximum > 0 ? (double) current / maximum : 0d;
-    }
-
-    private void resetClockDiagnosis() {
-        possibleLockSamples = 0;
-        stableStateSamples = 0;
-        lastStabilityKey = "";
-    }
-
-    private static DisplayVisual displayVisual(String mode, String bottomCrtc,
-            boolean bottomPowered) {
-        if ("1".equals(mode)) {
-            return "0".equals(bottomCrtc) ? DisplayVisual.JESTY_TRUE_OFF
-                    : DisplayVisual.AYN_FAKE_OFF;
-        }
-        return bottomPowered ? DisplayVisual.BOTH_ON : DisplayVisual.JESTY_TRUE_OFF;
-    }
-
-    private static String displayDescription(String mode, String bottomCrtc, boolean fixEnabled) {
-        if ("1".equals(mode)) {
-            if ("0".equals(bottomCrtc)) {
-                return fixEnabled ? "TOP ONLY \u00B7 JESTY TRUE OFF"
-                        : "TOP ONLY \u00B7 BOTTOM HARDWARE OFF";
-            }
-            if ("1".equals(bottomCrtc)) return "TOP ONLY \u00B7 AYN FAKE OFF";
-            return "TOP ONLY \u00B7 CHECKING HARDWARE";
-        }
-        if ("0".equals(mode)) {
-            return "0".equals(bottomCrtc) ? "BOTH REQUESTED \u00B7 BOTTOM OFF"
-                    : "BOTH SCREENS";
-        }
-        if ("2".equals(mode)) {
-            return "0".equals(bottomCrtc) ? "BOTTOM REQUESTED \u00B7 HARDWARE OFF"
-                    : "BOTTOM ONLY";
-        }
-        return "DISPLAY STATE UNAVAILABLE";
+    private static int color(DashboardStateModel.Tone tone) {
+        if (tone == DashboardStateModel.Tone.GREEN) return GREEN;
+        if (tone == DashboardStateModel.Tone.AMBER) return AMBER;
+        if (tone == DashboardStateModel.Tone.RED) return RED;
+        return MUTED;
     }
 }

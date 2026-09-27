@@ -56,6 +56,7 @@ public final class DaemonState {
                 + ";fix=" + (enabled ? "1" : "0")
                 + ";mode=" + clean(mode)
                 + ";power=" + clean(DisplayHardware.getProperty())
+                + ";top_crtc=" + clean(Telemetry.topCrtcActive())
                 + ";bottom_crtc=" + clean(Telemetry.bottomCrtcActive())
                 + ";uptime_ms=" + (now - startedAt)
                 + ";little_cur=" + cpu.littleCurrent
@@ -64,10 +65,16 @@ public final class DaemonState {
                 + ";big_max=" + cpu.bigMax
                 + ";prime_cur=" + cpu.primeCurrent
                 + ";prime_max=" + cpu.primeMax
+                + ";little_max_ticks=" + cpu.littleMaxTicks
+                + ";little_total_ticks=" + cpu.littleTotalTicks
+                + ";big_max_ticks=" + cpu.bigMaxTicks
+                + ";big_total_ticks=" + cpu.bigTotalTicks
                 + ";cpu_pct=" + cpu.utilization
                 + ";usb_w=" + decimal(power.usbWatts)
                 + ";battery_charge_w=" + decimal(power.batteryChargeWatts)
                 + ";system_proxy_w=" + decimal(power.systemProxyWatts)
+                + ";power_source=" + clean(power.source)
+                + ";battery_w=" + decimal(power.batteryWatts)
                 + ";system_load_fix=" + Telemetry.systemLoadFixState()
                 + ";wake_id=" + wakeId
                 + ";wake_at=" + wakeAt
