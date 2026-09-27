@@ -27,11 +27,9 @@
   · <a href="https://www.buymeacoffee.com/jesty">☕ Support development</a>
 </p>
 
-### See the fix in action
-
-| Stock TOP-only — bottom hardware active, LITTLE/BIG pinned | Jesty true-off — bottom hardware off, clocks released |
-| --- | --- |
-| ![Native Thor TOP-only mode showing the bottom hardware active and LITTLE/BIG cores pinned at maximum](docs/images/dashboard-native-mode.png) | ![Jesty Thor Fix active with the lower display fully powered off and CPU clocks released](docs/images/dashboard-fix-active.png) |
+<p align="center">
+  <img src="docs/images/dashboard-fix-active.png" alt="Jesty Thor Fix dashboard showing true-off active" width="100%">
+</p>
 
 > [!TIP]
 > **Potential battery benefit:** in one controlled low-load capture, truly
@@ -59,6 +57,16 @@ extra power use and heat while you are only using the top screen.
 
 **Jesty Thor Fix makes TOP-only behave the way you would expect: the bottom
 screen is actually turned off.**
+
+### The stock bug, live
+
+<p align="center">
+  <img src="docs/images/dashboard-native-mode.png" alt="Native Thor TOP-only mode showing bottom hardware still active with LITTLE and BIG cores pinned at maximum" width="100%">
+</p>
+
+In this real-device capture, stock TOP-only still reports the bottom hardware
+active while LITTLE is pinned at **2.02 / 2.02 GHz** and BIG at
+**2.71 / 2.71 GHz**, despite only a low dashboard load.
 
 And for normal use, it is designed to be almost completely hands-off:
 
@@ -92,6 +100,12 @@ The stock behavior and Jesty Thor Fix differ like this:
 | App needs to stay open | — | **No** |
 | Can be removed from Recents | — | **Yes** |
 | Magisk / rooting required | — | **No** |
+
+### See the difference
+
+| Stock TOP-only — bottom hardware active, LITTLE/BIG pinned | Jesty true-off — bottom hardware off, clocks released |
+| --- | --- |
+| ![Native Thor TOP-only mode showing the bottom hardware active and LITTLE/BIG cores pinned at maximum](docs/images/dashboard-native-mode.png) | ![Jesty Thor Fix active with the lower display fully powered off and CPU clocks released](docs/images/dashboard-fix-active.png) |
 
 ## Why use it?
 
