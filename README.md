@@ -3,225 +3,162 @@
 </p>
 
 <p align="center">
-  <strong>Actually turns the AYN Thor bottom screen off.</strong><br>
-  Fixes the stock TOP-only mode so the lower screen is really powered down, helps stop the CPU from staying unnecessarily fast, and restores the fix automatically after wake.
+  <strong>True bottom-screen OFF for the AYN Thor.</strong><br>
+  Fixes stock TOP-only mode, releases the CPU clock pinning seen with the stock behavior, and restores the fix automatically after wake.
 </p>
 
 <p align="center">
-  <strong>No rooting the device. No Magisk. No terminal. No need to keep the app open.</strong><br>
-  Install it, enable the fix, and forget about it.
+  <strong>No Magisk. No terminal. No need to keep the app open.</strong><br>
+  Install it, enable it, and forget about it.
+</p>
+
+<p align="center">
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.0.3"><strong>Download APK</strong></a>
+  · <a href="#stock-top-only-vs-jesty-true-off">How it works</a>
+  · <a href="docs/BENCHMARKS.md">Measurements</a>
+  · <a href="https://www.buymeacoffee.com/jesty">☕ Support development</a>
 </p>
 
 <p align="center">
   <img alt="AYN Thor" src="https://img.shields.io/badge/device-AYN%20Thor-7C3AED?style=for-the-badge">
   <img alt="Android 13" src="https://img.shields.io/badge/Android-13-3DDC84?style=for-the-badge&amp;logo=android&amp;logoColor=white">
   <img alt="No Magisk or rooting" src="https://img.shields.io/badge/setup-no%20Magisk%20%2F%20rooting-16A34A?style=for-the-badge">
-  <img alt="Uses PServerBinder" src="https://img.shields.io/badge/uses-PServerBinder-F59E0B?style=for-the-badge">
   <img alt="GPL 3" src="https://img.shields.io/badge/code-GPL--3.0-8B5CF6?style=for-the-badge">
 </p>
 
 <p align="center">
-  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.0.3"><strong>Download APK</strong></a>
-  · <a href="#what-does-it-fix">How it works</a>
-  · <a href="docs/BENCHMARKS.md">Measurements and raw data</a>
-  · <a href="https://www.buymeacoffee.com/jesty">☕ Support development</a>
+  <img src="docs/images/dashboard-fix-active.png" alt="Jesty Thor Fix dashboard with true bottom-screen off and CPU clocks released" width="100%">
 </p>
 
-<p align="center">
-  <img src="docs/images/dashboard-fix-active.png" alt="Jesty Thor Fix dashboard showing true-off active" width="100%">
-</p>
+## What the app does
 
-> [!TIP]
-> **Potential battery benefit:** in one controlled low-load capture, truly
-> powering off the lower display and releasing the pinned LITTLE/BIG cores
-> reduced the measured system-power proxy from **2.030 W to 1.239 W**
-> (**-0.792 W / -39.0%**). This is a directional device measurement, not a
-> promise of 39% more battery life. See the
-> [method and sanitized samples](docs/BENCHMARKS.md).
+On the tested Thor firmware, stock **TOP-only** makes the lower panel look black
+without fully disabling its display hardware. Under low load, that state also
+left the LITTLE and BIG CPU clusters pinned near their maximum clocks.
 
-> [!IMPORTANT]
-> **Made specifically for the AYN Thor.** This is an independent community
-> project and is not made, supported, or endorsed by AYN Technologies. It uses
-> the Thor firmware's own privileged `PServerBinder` service, so you do **not**
-> need to root the device yourself or install Magisk. It should not be installed
-> on unrelated devices.
+Jesty Thor Fix makes TOP-only behave as expected:
 
-## The simple version
+- powers down the lower display hardware;
+- releases the continuous LITTLE/BIG clock pinning observed in stock TOP-only;
+- repairs true-off automatically after sleep/wake;
+- remembers whether the fix was enabled after a normal reboot;
+- leaves TOP/BOTH switching available;
+- does **not** set CPU governors, frequency limits, or forced clocks.
 
-The Thor's stock **TOP-only** mode makes the bottom screen look off, but on the
-firmware I tested it is not fully shut down in the background.
+The app uses the privileged `PServerBinder` bridge already included in the Thor
+firmware. You do **not** need to root the device yourself, install Magisk, use
+Termux, or run ADB commands.
 
-That matters because the Thor can keep doing unnecessary display work and, in
-my low-load tests, the CPU also stayed at unusually high speeds. The result is
-extra power use and heat while you are only using the top screen.
-
-**Jesty Thor Fix makes TOP-only behave the way you would expect: the bottom
-screen is actually turned off.**
-
-### The stock bug, live
-
-<p align="center">
-  <img src="docs/images/dashboard-native-mode.png" alt="Native Thor TOP-only mode showing bottom hardware still active with LITTLE and BIG cores pinned at maximum" width="100%">
-</p>
-
-In this real-device capture, stock TOP-only still reports the bottom hardware
-active while LITTLE is pinned at **2.02 / 2.02 GHz** and BIG at
-**2.71 / 2.71 GHz**, despite only a low dashboard load. The one-tap
-**Bottom screen & CPU check** now verifies both conditions together.
-
-And for normal use, it is designed to be almost completely hands-off:
-
-- **No rooting the device**
-- **No Magisk**
-- **No terminal commands**
-- Install the APK and enable the fix
-- You do **not** need to leave the dashboard open
-- You can **swipe the app away from Recents**
-- The background fix keeps working
-- It automatically repairs the state after sleep/wake
-- It remembers whether you left the fix enabled after a normal reboot
-- Designed for **negligible background CPU and battery overhead**
-- It does **not** force CPU frequencies or change CPU governors
-
-Basically:
-
-**install → enable → forget about it**
-
-## What does it fix?
-
-The stock behavior and Jesty Thor Fix differ like this:
+## Stock TOP-only vs Jesty true-off
 
 | | Stock TOP-only | Jesty Thor Fix |
 | --- | --- | --- |
-| Bottom screen | Looks off | **Actually off** |
-| Background display activity | Still active on tested firmware | **Disabled** |
-| CPU behavior in my low-load test | Stayed unusually fast | **High-frequency lock removed** |
-| Power use in my test | Higher | **Lower** |
-| After waking from sleep | Bottom display becomes active again | **Fix is restored automatically** |
-| App needs to stay open | — | **No** |
-| Can be removed from Recents | — | **Yes** |
-| Magisk / rooting required | — | **No** |
+| Lower panel | Looks black | Looks black |
+| Lower display hardware | **Still active** on tested firmware | **Powered off** |
+| Low-load CPU behavior | LITTLE/BIG remained pinned | Continuous pinning released |
+| Sleep/wake | Lower hardware can return | True-off restored automatically |
+| App must stay open | — | **No** |
+| Root/Magisk setup | — | **No** |
 
-### See the difference
+### The stock clock-pinning bug
 
-| Stock TOP-only — bottom hardware active, LITTLE/BIG pinned | Jesty true-off — bottom hardware off, clocks released |
-| --- | --- |
-| ![Native Thor TOP-only mode showing the bottom hardware active and LITTLE/BIG cores pinned at maximum](docs/images/dashboard-native-mode.png) | ![Jesty Thor Fix active with the lower display fully powered off and CPU clocks released](docs/images/dashboard-fix-active.png) |
+<p align="center">
+  <img src="docs/images/dashboard-native-mode.png" alt="Stock AYN Thor TOP-only mode with bottom hardware active and LITTLE and BIG clusters pinned" width="100%">
+</p>
 
-## Why use it?
+This real-device capture shows stock TOP-only with the bottom hardware still
+active, LITTLE at **2.02 / 2.02 GHz**, and BIG at **2.71 / 2.71 GHz** during a
+light dashboard workload. The app's **Bottom screen & CPU check** reads both the
+display state and current CPU clocks in one tap.
 
-- **Actually turns the bottom display off** instead of only making it appear black.
-- **Helps avoid the high CPU-frequency behavior** I measured in stock TOP-only mode.
-- **Reduced unnecessary power use and heat in my testing.**
-- **Automatically restores the fix after sleep/wake.**
-- **TOP/BOTH switching still works normally.**
-- **Does not change CPU governors, limits or frequencies.**
-- **Keeps working without the dashboard open.**
-- **Keeps working after being swiped away from Recents.**
-- **Remembers whether you left the fix enabled after a normal reboot.**
-- **Shows live CPU and display information** if you want to verify what the Thor is doing.
+> [!IMPORTANT]
+> A black lower panel does not prove that the hardware is off. Use **Check now**
+> to confirm true-off and inspect the current LITTLE/BIG state.
 
-## Measured on real hardware
+## Potential battery benefit
 
-A controlled A/B/A capture compared native TOP mode with Jesty true-off under
-the same low-load, USB-powered conditions:
+In one controlled A/B/A low-load capture, true-off reduced the measured
+system-power proxy from **2.030 W to 1.239 W**:
 
-| Metric | Native TOP | Jesty true-off | Result in this capture |
+| Metric | Native TOP | Jesty true-off | Difference in this capture |
 | --- | ---: | ---: | ---: |
 | LITTLE average | 2.016 GHz | 1.616 GHz | -19.8% |
 | BIG average | 2.707 GHz | 1.654 GHz | -38.9% |
-| LITTLE at >=95% maximum | 75/75 samples | 22/45 samples | no longer continuous |
-| BIG at >=95% maximum | 75/75 samples | 0/45 samples | lock eliminated |
+| BIG at >=95% maximum | 75/75 samples | 0/45 samples | continuous lock removed |
 | System-power proxy | 2.030 W | 1.239 W | **-0.792 W / -39.0%** |
-| 1-minute load average | 0.465 | 0.425 | comparable low load |
 
 > [!NOTE]
-> The power number is a short-run directional proxy calculated from USB input
-> minus battery charging power. It is **not** a promise of 39% more battery
-> life. Firmware, brightness, workload, battery state, charger, and temperature
-> can change the result. The full method and sanitized CSV samples are in
-> [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+> This is a short-run directional measurement, **not a promise of 39% more
+> battery life**. Firmware, brightness, workload, battery state, charger, and
+> temperature can all change the result. See the
+> [method and sanitized samples](docs/BENCHMARKS.md).
 
-For anyone who wants the technical verification, the exact downloadable APK was
-installed on the tested Thor. Manual native/fix transitions succeeded, a
-sleep/wake repair ended `OFF_OK`, and a one-shot DRM check returned:
+## Install and forget
+
+1. Download `Jesty-Thor-Fix-1.0.3.apk` from the
+   [latest release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.0.3).
+2. Install and open **Jesty Thor Fix** once.
+3. Enable **True Bottom Display Fix**.
+4. Select TOP mode and tap **Bottom screen & CPU check → Check now**.
+
+After that:
+
+- the dashboard can be closed;
+- the app can be swiped away from Recents;
+- the background service continues applying the fix;
+- sleep/wake repair happens automatically;
+- a normal reboot restores the saved enabled/disabled choice.
+
+**Android Settings → Force stop is different.** Force stop explicitly blocks
+the app until it is opened again. Swiping it away from Recents is fine; Force
+stop is not the same action.
+
+The background component is event-driven with lightweight periodic telemetry;
+it does not use a busy loop. The dashboard is optional once setup is complete.
+
+### Compatibility
+
+- Built specifically for the **AYN Thor**.
+- Tested on Android 13 firmware `TKQ1.231222.001`, build dated 2026-02-06.
+- Requires the Thor firmware's built-in privileged `PServerBinder` bridge.
+- Do not install it on unrelated Android devices.
+
+The fix does not write CPU governors or frequency limits. It is designed not to
+take ownership of tuning-app settings, but individual Pulse/Cluster Tune
+combinations should only be described as confirmed after device testing.
+
+## Verification
+
+The downloadable APK was installed on the tested Thor. Manual TOP/BOTH
+transitions succeeded, sleep/wake repair ended `OFF_OK`, and the final DRM state
+for TOP true-off was:
 
 ```text
 top CRTC 181    active
 bottom CRTC 243 inactive
 ```
 
-## Installation
-
-1. Download `Jesty-Thor-Fix-1.0.3.apk` from the
-   [GitHub release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.0.3).
-2. Install the APK.
-3. Open **Jesty Thor Fix** once and confirm `FIX ACTIVE`.
-4. Select TOP mode and use **Bottom screen & CPU check -> Check now**. The app
-   should report that the bottom hardware is fully off and show whether
-   LITTLE/BIG clocks are released or pinned. Technical DRM details remain in
-   the validation documentation.
-
-### You do not need to
-
-- root the Thor yourself;
-- install Magisk;
-- run ADB or terminal commands;
-- leave the app open;
-- leave the app in Recents;
-- manually re-enable the fix after every sleep/wake.
-
-Requirements:
-
-- AYN Thor.
-- Tested Android 13 firmware `TKQ1.231222.001`, build dated 2026-02-06.
-- The Thor firmware's built-in privileged `PServerBinder` command bridge.
-
-Self-built APKs will not update the official build unless they are signed with
-the same private key.
-
-## Everyday behavior
-
-Once enabled, the intended normal experience is **install and forget**.
-
-- Closing the dashboard does not normally stop the fix.
-- Swiping the app away from Recents does not normally stop the fix.
-- The background component continues handling TOP-only state.
-- Sleep/wake is repaired automatically.
-- A normal reboot restores the saved ON/OFF choice.
-- Turning the master toggle OFF cancels pending work and restores native behavior.
-- The app respects Android's normal display timeout.
-- Background monitoring is deliberately lightweight and designed for negligible overhead.
-
-**Android Settings -> Force stop is different.** Force stop explicitly tells
-Android to stop the app and may prevent it from restarting automatically until
-you open it again. Swiping it away from Recents is fine; Force stop is not the
-same thing.
+The current `1.0.3` update only changes presentation. Display control, the
+CPU/DRM check, and wake-repair behavior are unchanged from the validated line.
 
 <details>
-<summary><strong>Technical details: how the wake repair works</strong></summary>
+<summary><strong>How wake repair works</strong></summary>
 
-Manual TOP/BOTH transitions are handled immediately. During a wake in TOP
-mode, Android can reactivate Display 4 as part of its shared display power
-pipeline. Trying to switch it off immediately caused collisions and severe
-jank in earlier builds.
+During wake in TOP mode, Android can reactivate Display 4 through its shared
+display-power pipeline. Immediate shutdown attempts caused collisions and jank
+in earlier builds, so the service waits for Android to finish waking before one
+final true-off operation. A generation token cancels stale work during rapid
+mode or sleep changes.
 
-The current strategy waits 700 ms from wake and never repairs earlier than
-400 ms after a late Display 4 ON callback. A generation token cancels stale
-work across fast mode or sleep changes. This gives Android time to complete
-screen-on before one final true-off operation.
-
-This userland fix guarantees the final state. It cannot stop Android from
-briefly rebuilding lower-display topology during wake; eliminating that churn
-would require a framework or `system_server` policy change.
-
-The daemon listens only on `127.0.0.1:3804`. See
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the protocol and architecture.
+This userland fix guarantees the final state. Avoiding the brief topology churn
+entirely would require a framework or `system_server` policy change. The local
+daemon listens only on `127.0.0.1:3804`; see
+[Architecture](docs/ARCHITECTURE.md) for details.
 
 </details>
 
 <details>
-<summary><strong>Building from source</strong></summary>
+<summary><strong>Build from source</strong></summary>
 
 Required tools: PowerShell 5.1/7, JDK 17, Android SDK platform 34, Android Build
 Tools 35.0.0, and apktool 3.0.3 or compatible.
@@ -232,54 +169,37 @@ Place `apktool.jar` at `tools/apktool.jar`, or set `APKTOOL_JAR`, then run:
 .\build.ps1
 ```
 
-The source contains no keystore, password, token, device log, or
-maintainer-specific path. Signing is opt-in and reads the password interactively.
+The repository contains no signing key or password. Self-built APKs will not
+update the official build unless signed with the same private key.
 
 </details>
 
-## Support and contribute
+## Support and documentation
 
-**Jesty Thor Fix is free and open source.**
+Jesty Thor Fix is free and open source. No feature is locked behind donations.
 
-If the project improves your Thor, there are several ways you can help:
+- ⭐ Star the repository so other Thor owners can find it.
+- 🧪 Share carefully redacted results from another firmware version.
+- 🐛 Report bugs or compatibility issues.
+- ☕ [Buy me a coffee](https://www.buymeacoffee.com/jesty) to support device
+  testing, documentation, and future updates.
 
-- ⭐ **Star the repository** so other Thor owners can find it.
-- 🧪 **Test another firmware version** and share carefully redacted results.
-- 🐛 **Report bugs** or unexpected behavior.
-- 💡 **Suggest improvements** or contribute code/documentation.
-- ☕ **[Buy me a coffee](https://www.buymeacoffee.com/jesty)** to help fund
-  hardware testing, firmware compatibility work, documentation, and future updates.
+Documentation: [architecture](docs/ARCHITECTURE.md) ·
+[device validation](docs/DEVICE-VALIDATION.md) ·
+[live results](docs/LIVE-RESULTS.md) ·
+[benchmarks](docs/BENCHMARKS.md) ·
+[release integrity](docs/RELEASE-INTEGRITY.md)
 
-I only have access to my own Thor, so results from other units and firmware
-versions are especially useful.
-
-Testing and useful reports are just as valuable as financial support.
-
-<p align="center">
-  <a href="https://www.buymeacoffee.com/jesty">
-    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" width="217">
-  </a>
-</p>
-
-Bug reports and carefully redacted device evidence are welcome. Never upload a
-keystore, password, device serial, account email, or unreviewed log bundle.
-
-## Documentation
-
-- [Architecture](docs/ARCHITECTURE.md)
-- [Hardware validation checklist](docs/DEVICE-VALIDATION.md)
-- [Live results](docs/LIVE-RESULTS.md)
-- [Benchmarks and raw samples](docs/BENCHMARKS.md)
-- [Release integrity](docs/RELEASE-INTEGRITY.md)
-- [AI assistance disclosure](AI_DISCLOSURE.md)
-
-## License and credits
+## License, provenance, and independence
 
 - Source code and scripts: [GPL-3.0-only](LICENSE).
-- Jesty mascot, wordmark, and application artwork: [ASSETS-LICENSE.md](ASSETS-LICENSE.md).
+- Jesty branding and application artwork: [ASSETS-LICENSE.md](ASSETS-LICENSE.md).
 - External references and trademarks: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- AI assistance: [full disclosure](AI_DISCLOSURE.md).
 
-AYN and Thor are trademarks or product names of their respective owner. Their
-use here is descriptive only. Code, documentation, and visual assets were
-developed with disclosed generative-AI assistance under the maintainer's
-direction, supervision, review, and final approval.
+AYN and Thor are trademarks or product names of their respective owner. This is
+an independent community project and is not affiliated with or endorsed by AYN
+Technologies. Code, documentation, and visual assets were developed with
+disclosed generative-AI assistance under the maintainer's direction,
+supervision, review, and final approval. Runtime claims are based on physical
+device evidence, not AI output alone.
