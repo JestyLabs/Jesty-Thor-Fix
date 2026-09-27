@@ -3,18 +3,19 @@
 </p>
 
 <p align="center">
-  <strong>True bottom-screen OFF for the AYN Thor.</strong><br>
-  Fixes stock TOP-only mode, releases the CPU clock pinning seen with the stock behavior, and restores the fix automatically after wake.
+  <strong>Two fixes for AYN Thor display and CPU behavior.</strong><br>
+  True lower-screen hardware OFF in TOP mode, plus a separate fix for
+  LITTLE/BIG clock pinning caused by AYN Dashboard.
 </p>
 
 <p align="center">
   <strong>No Magisk. No terminal. No need to keep the app open.</strong><br>
-  Install it, enable it, and forget about it.
+  Install it, choose the fixes you want, and forget about it.
 </p>
 
 <p align="center">
-  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.0.4"><strong>Download APK</strong></a>
-  · <a href="#stock-top-only-vs-jesty-true-off">How it works</a>
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.1.0"><strong>Download APK</strong></a>
+  · <a href="#the-two-fixes">How it works</a>
   · <a href="docs/BENCHMARKS.md">Measurements</a>
   · <a href="https://www.buymeacoffee.com/jesty">☕ Support development</a>
 </p>
@@ -27,53 +28,66 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/dashboard-fix-active.png" alt="Jesty Thor Fix dashboard with true bottom-screen off and CPU clocks released" width="100%">
+  <img src="docs/images/dashboard-two-fixes-both-v1.1.0.png" alt="Jesty Thor Fix with both independent fixes enabled" width="100%">
 </p>
 
-## What the app does
+## The two fixes
 
-On the tested Thor firmware, stock **TOP-only** makes the lower panel look black
-without fully disabling its display hardware. Under low load, that state also
-left the LITTLE and BIG CPU clusters pinned near their maximum clocks.
+The two toggles solve related but independent Thor firmware behaviors:
 
-Jesty Thor Fix makes TOP-only behave as expected:
+| Fix | What it changes | When it helps |
+| --- | --- | --- |
+| **True Bottom Display Fix** | Powers down the lower display hardware in TOP mode and restores true-off after wake | When you want to use only the top screen |
+| **AYN Dashboard CPU Fix** | Releases LITTLE/BIG clocks that can remain pinned in dual-screen mode | When AYN Dashboard or the dual-screen workflow triggers the clock bug |
 
-- powers down the lower display hardware;
-- releases the continuous LITTLE/BIG clock pinning observed in stock TOP-only;
-- repairs true-off automatically after sleep/wake;
-- remembers whether the fix was enabled after a normal reboot;
-- leaves TOP/BOTH switching available;
-- does **not** set CPU governors, frequency limits, or forced clocks.
+Both choices are saved. The app can be closed or removed from Recents after
+setup; its privileged background daemon keeps working without the dashboard UI.
 
-The app uses the privileged `PServerBinder` bridge already included in the Thor
-firmware. You do **not** need to root the device yourself, install Magisk, use
-Termux, or run ADB commands.
+> [!WARNING]
+> Enabling or disabling **AYN Dashboard CPU Fix** briefly restarts the displays
+> and USB. It can look like a reboot, but Android and open apps keep running.
+> When this fix is enabled, the same brief display restart happens once during
+> each normal boot and may look like a second reboot.
+
+## The AYN Dashboard clock bug
+
+<p align="center">
+  <img src="docs/images/ayn-dashboard-cpu-pinning.png" alt="AYN Dashboard open with LITTLE and BIG CPU clusters pinned at maximum" width="100%">
+</p>
+
+This real-device capture was taken with AYN Dashboard genuinely open on the
+lower display, the Dashboard CPU Fix disabled, and both screens active. Under
+low load, LITTLE remained at **2.02 / 2.02 GHz** and BIG at
+**2.71 / 2.71 GHz**. Jesty Thor Fix detected the sustained condition in red.
+
+With the Dashboard CPU Fix active in BOTH mode, the focused validation run
+produced **0/25 simultaneous LITTLE+BIG maximum samples**. The app does not
+force clocks, governors, or frequency limits; it disables the vendor display
+system-load check responsible for the reproduced behavior.
 
 ## Stock TOP-only vs Jesty true-off
 
-| | Stock TOP-only | Jesty Thor Fix |
+AYN's stock TOP-only mode can make the lower panel look black while its display
+hardware remains active. Jesty true-off verifies the physical DRM state and
+powers that hardware down.
+
+| | Stock TOP-only | Jesty true-off |
 | --- | --- | --- |
 | Lower panel | Looks black | Looks black |
 | Lower display hardware | **Still active** on tested firmware | **Powered off** |
-| Low-load CPU behavior | LITTLE/BIG remained pinned | Continuous pinning released |
+| Low-load CPU behavior observed | LITTLE/BIG can remain pinned | Continuous pinning released |
 | Sleep/wake | Lower hardware can return | True-off restored automatically |
 | App must stay open | — | **No** |
-| Root/Magisk setup | — | **No** |
-
-### The stock clock-pinning bug
+| User root/Magisk setup | — | **No** |
 
 <p align="center">
-  <img src="docs/images/dashboard-native-mode.png" alt="Stock AYN Thor TOP-only mode with bottom hardware active and LITTLE and BIG clusters pinned" width="100%">
+  <img src="docs/images/dashboard-two-fixes-v1.1.0.png" alt="TOP-only with true lower-screen hardware off and both fixes enabled" width="100%">
 </p>
 
-This real-device capture shows stock TOP-only with the bottom hardware still
-active, LITTLE at **2.02 / 2.02 GHz**, and BIG at **2.71 / 2.71 GHz** during a
-light dashboard workload. The app's **Bottom screen & CPU check** reads both the
-display state and current CPU clocks in one tap.
-
 > [!IMPORTANT]
-> A black lower panel does not prove that the hardware is off. Use **Check now**
-> to confirm true-off and inspect the current LITTLE/BIG state.
+> A black lower panel does not prove that its hardware is off. Tap
+> **Bottom screen & CPU check → Check now** to inspect the physical lower CRTC
+> and current LITTLE/BIG state.
 
 ## Potential battery benefit
 
@@ -87,74 +101,77 @@ system-power proxy from **2.030 W to 1.239 W**:
 | BIG at >=95% maximum | 75/75 samples | 0/45 samples | continuous lock removed |
 | System-power proxy | 2.030 W | 1.239 W | **-0.792 W / -39.0%** |
 
-> [!NOTE]
-> This is a short-run directional measurement, **not a promise of 39% more
-> battery life**. Firmware, brightness, workload, battery state, charger, and
-> temperature can all change the result. See the
-> [method and sanitized samples](docs/BENCHMARKS.md).
+This is a short, directional measurement—not a promise of 39% more battery
+life. Firmware, workload, brightness, temperature, charger, and battery state
+all affect the result. No battery percentage is claimed for the separate
+Dashboard CPU Fix. See the [method and sanitized samples](docs/BENCHMARKS.md).
 
-## Install and forget
+## Install, enable, forget
 
-1. Download `Jesty-Thor-Fix-1.0.4.apk` from the
-   [latest release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.0.4).
+1. Download `Jesty-Thor-Fix-1.1.0.apk` from the
+   [v1.1.0 release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.1.0).
 2. Install and open **Jesty Thor Fix** once.
-3. Enable **True Bottom Display Fix**.
-4. Select TOP mode and tap **Bottom screen & CPU check → Check now**.
+3. Enable **True Bottom Display Fix** for physical lower-screen OFF in TOP mode.
+4. Optionally enable **AYN Dashboard CPU Fix** and accept the clearly labelled
+   brief display/USB restart.
+5. Use **Check now** to verify the current hardware and CPU state.
 
-After that:
+You do **not** need to root the Thor yourself, install Magisk, use Termux, or
+run commands. The app uses the privileged `PServerBinder` bridge supplied by
+the Thor firmware.
 
-- the dashboard can be closed;
-- the app can be swiped away from Recents;
-- the background service continues applying the fix;
-- sleep/wake repair happens automatically;
-- a normal reboot restores the saved enabled/disabled choice.
+After setup:
+
+- close the dashboard whenever you want;
+- swipe the app away from Recents;
+- switch normally between TOP and BOTH;
+- reboot normally and both saved choices are restored.
 
 **Android Settings → Force stop is different.** Force stop explicitly blocks
-the app until it is opened again. Swiping it away from Recents is fine; Force
-stop is not the same action.
+the app until it is opened again. Swiping it from Recents does not.
 
-The background component is event-driven with lightweight periodic telemetry;
-it does not use a busy loop. The dashboard is optional once setup is complete.
+The service is event-driven with lightweight periodic state checks and no busy
+loop. The UI is optional once setup is complete.
 
-### Compatibility
+## Compatibility and coexistence
 
 - Built specifically for the **AYN Thor**.
 - Tested on Android 13 firmware `TKQ1.231222.001`, build dated 2026-02-06.
-- Requires the Thor firmware's built-in privileged `PServerBinder` bridge.
+- Requires the Thor firmware's built-in privileged bridge.
 - Do not install it on unrelated Android devices.
 
-The fix does not write CPU governors or frequency limits. It is designed not to
-take ownership of tuning-app settings, but individual Pulse/Cluster Tune
-combinations should only be described as confirmed after device testing.
+Jesty Thor Fix does not write CPU governors, clock limits, or tuning profiles.
+It is designed not to take ownership of Pulse or Cluster Tune settings, but a
+specific combination should only be called confirmed after that exact setup is
+tested on-device.
 
-## Verification
+## v1.1.0 verification
 
-The downloadable APK was installed on the tested Thor. Manual TOP/BOTH
-transitions succeeded, sleep/wake repair ended `OFF_OK`, and the final DRM state
-for TOP true-off was:
+The exact signed APK was installed in place on a physical AYN Thor:
+
+- package `com.thor.displaypowertest`, version code `42`, version `1.1.0`;
+- signing certificate unchanged from the existing update line;
+- TOP true-off: `crtc181=1`, `crtc243=0`, `OFF_OK` after sleep/wake;
+- BOTH: both CRTCs active and the Dashboard fix produced 0/25 simultaneous
+  LITTLE+BIG maximum samples in the focused run;
+- enabling the Dashboard fix restarted display/USB without rebooting Android;
+- the privileged daemon restarted cleanly after that display reset;
+- a real Android reboot restored both saved fixes and TOP true-off;
+- Back/closing the UI left the daemon and fixes active.
+
+APK SHA-256:
 
 ```text
-top CRTC 181    active
-bottom CRTC 243 inactive
+10240A143C2B3C73333F089ACD45D563D476E571FA93EDEA9F765DA421D0EE77
 ```
-
-The current `1.0.4` update only changes presentation and immediate visual
-highlighting. Display control, the
-CPU/DRM check, and wake-repair behavior are unchanged from the validated line.
 
 <details>
 <summary><strong>How wake repair works</strong></summary>
 
 During wake in TOP mode, Android can reactivate Display 4 through its shared
-display-power pipeline. Immediate shutdown attempts caused collisions and jank
-in earlier builds, so the service waits for Android to finish waking before one
-final true-off operation. A generation token cancels stale work during rapid
-mode or sleep changes.
-
-This userland fix guarantees the final state. Avoiding the brief topology churn
-entirely would require a framework or `system_server` policy change. The local
-daemon listens only on `127.0.0.1:3804`; see
-[Architecture](docs/ARCHITECTURE.md) for details.
+display-power pipeline. The service lets Android finish waking, then performs
+one final true-off operation. A generation token cancels stale work during
+rapid mode or sleep changes. See [Architecture](docs/ARCHITECTURE.md).
 
 </details>
 
@@ -196,11 +213,10 @@ Documentation: [architecture](docs/ARCHITECTURE.md) ·
 - Source code and scripts: [GPL-3.0-only](LICENSE).
 - Jesty branding and application artwork: [ASSETS-LICENSE.md](ASSETS-LICENSE.md).
 - External references and trademarks: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-- AI assistance: [full disclosure](AI_DISCLOSURE.md).
+- Generative-AI assistance to code, investigation, documentation, and visual
+  work: [full disclosure](AI_DISCLOSURE.md).
 
 AYN and Thor are trademarks or product names of their respective owner. This is
 an independent community project and is not affiliated with or endorsed by AYN
-Technologies. Code, documentation, and visual assets were developed with
-disclosed generative-AI assistance under the maintainer's direction,
-supervision, review, and final approval. Runtime claims are based on physical
-device evidence, not AI output alone.
+Technologies. AI-assisted work was directed, supervised, reviewed, and tested
+by the maintainer; runtime claims above come from physical-device evidence.

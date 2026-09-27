@@ -4,8 +4,10 @@ Jesty Thor Fix is split between a normal Android dashboard and a privileged root
 
 ## Android side
 
-- `MainActivity` renders the dashboard, controls the persistent fix setting, and polls telemetry once per second only while visible.
-- `AutoService` starts or reconnects to the daemon, migrates the old protocol once, and reconciles the saved setting.
+- `MainActivity` renders the dashboard, controls both persistent fix settings,
+  and polls telemetry once per second only while visible.
+- `AutoService` starts or reconnects to the daemon, migrates the old protocol
+  once, and reconciles saved settings after a normal boot.
 - `BootReceiver` starts that service after a normal boot.
 - `SocketClient` sends one-byte commands to the loopback daemon and requires an explicit `ok=1` acknowledgement.
 
@@ -21,6 +23,10 @@ The dashboard does not need to remain open for the fix to stay active.
 - applies lower-display power through hidden `SurfaceControl` APIs;
 - updates the Thor-specific `display.power.state` property;
 - exposes status and one-shot verification over `127.0.0.1:3804`.
+- applies the optional vendor system-load-check property for the AYN Dashboard
+  CPU Fix and performs the required one-shot display-compositor restart;
+- schedules a clean daemon relaunch after that display reset so the watcher
+  receives fresh Android service binders and true-off remains independent.
 
 The socket binds to loopback, not to an external network interface.
 
@@ -49,8 +55,15 @@ Before applying OFF it rechecks the current generation, fix state, and display m
 
 ## Telemetry
 
-`Q` returns fix/mode/power state, daemon uptime, cluster current/max frequencies, aggregate CPU utilization, wake ID, timing markers, repair result, and last action.
+`Q` returns true-off state, physical lower-CRTC state, Dashboard CPU Fix state,
+daemon uptime, cluster current/max frequencies, aggregate CPU utilization, wake
+ID, timing markers, repair result, and last action.
 
 Clock values come from `policy0`, `policy3`, and `policy7`. Maximum frequency uses `scaling_max_freq` with `cpuinfo_max_freq` as fallback. No governor or frequency file is written.
 
 `V` reads `/sys/kernel/debug/dri/0/state` once and reports the tested top/bottom CRTCs. Debugfs is not continuously polled.
+
+`R` and `L` enable or disable the Dashboard CPU Fix. They update
+`vendor.display.disable_system_load_check`, restart the display compositor once,
+and arrange the daemon relaunch described above. Opening the UI does not issue
+either command.

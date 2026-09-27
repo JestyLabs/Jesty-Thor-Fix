@@ -124,3 +124,20 @@ TOP-only showed the bottom artwork active, LITTLE/BIG at their maximum values
 in red, and the confirmed pinned-core warning. Re-enabling the fix restored
 `fix=1`, `mode=1`, `power=0`, and `OFF_OK`. This patch changes dashboard
 presentation and highlighting only.
+
+## Stable 1.1.0 two-fix release
+
+- Package: `com.thor.displaypowertest`
+- Version code: `42`
+- Version name: `1.1.0`
+- APK: `Jesty-Thor-Fix-1.1.0.apk`
+- SHA-256: `10240A143C2B3C73333F089ACD45D563D476E571FA93EDEA9F765DA421D0EE77`
+- Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`
+- Verified signing schemes: APK Signature Scheme v1, v2, and v3.
+
+The exact signed APK was installed in place and exercised on the physical Thor.
+It adds the independent AYN Dashboard CPU Fix while preserving the existing
+true-off path. The display/USB reset used to change the new property did not
+change the Android boot ID, and the privileged daemon restarted itself after
+the reset so TOP/BOTH observation and wake repair remained live. A subsequent
+real Android reboot changed the boot ID and restored both saved fixes.

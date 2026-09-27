@@ -60,3 +60,28 @@ The signed `1.0.1` patch was installed in place on the same physical Thor.
 
 This patch changes dashboard copy and combines existing DRM/CPU telemetry in
 one manual check. Display control, wake repair, and timing code are unchanged.
+
+## 1.1.0 two-fix validation
+
+The exact signed `1.1.0` APK was installed in place on the same physical Thor.
+
+- [x] Package identity was `versionCode=42`, `versionName=1.1.0`.
+- [x] Signing certificate matched the stable update line.
+- [x] Dashboard-open/BOTH/fix-OFF reproduced LITTLE `2.02/2.02 GHz` and BIG
+  `2.71/2.71 GHz` and produced the sustained red warning.
+- [x] Enabling Dashboard CPU Fix set the vendor property and restarted display
+  and USB without changing the Android boot ID.
+- [x] The privileged daemon restarted after the display reset and continued to
+  observe subsequent TOP/BOTH changes.
+- [x] With Dashboard CPU Fix enabled, BOTH produced 0/25 simultaneous
+  LITTLE+BIG maximum samples in the focused low-load run.
+- [x] TOP true-off ended at `power=0`, CRTC 181 active, CRTC 243 inactive.
+- [x] Sleep/wake in TOP ended `OFF_OK` with CRTC 243 inactive.
+- [x] Closing the UI with Back left the daemon and both fixes active.
+- [x] A real Android reboot restored Dashboard CPU Fix, True Bottom Display
+  Fix, TOP mode, and physical lower CRTC off.
+- [x] UI mode/background followed physical `bottom_crtc`, avoiding the stale
+  logical BOTH/TOP presentation seen during diagnosis.
+
+Pulse/Cluster Tune coexistence was not claimed as confirmed because that exact
+combination was not part of this focused release run.

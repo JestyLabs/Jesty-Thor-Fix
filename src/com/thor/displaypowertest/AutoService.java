@@ -6,18 +6,30 @@ import android.os.IBinder;
 import android.util.Log;
 
 public final class AutoService extends Service {
+    private volatile boolean workerRunning;
+
     @Override public IBinder onBind(Intent intent) { return null; }
 
     @Override public void onCreate() {
         super.onCreate();
+    }
+
+    @Override public int onStartCommand(Intent intent, int flags, int startId) {
+        final boolean fromBoot = intent != null && intent.getBooleanExtra("from_boot", false);
+        if (workerRunning) return START_NOT_STICKY;
+        workerRunning = true;
         final android.content.SharedPreferences state = getSharedPreferences("state", MODE_PRIVATE);
         final boolean enabled = state.getBoolean("fix_enabled", true);
+        final boolean dashboardFixEnabled = state.getBoolean("dashboard_cpu_fix_enabled", false);
         new Thread(new Runnable() {
             @Override public void run() {
-                if (!state.getBoolean("daemon_protocol_32", false)) {
+                boolean protocolMigration = !state.getBoolean("daemon_protocol_41", false);
+                if (fromBoot || protocolMigration) {
                     if (PServer.stopLegacyDaemon()) {
                         try { Thread.sleep(500L); } catch (InterruptedException ignored) {}
-                        state.edit().putBoolean("daemon_protocol_32", true).commit();
+                    }
+                    if (protocolMigration) {
+                        state.edit().putBoolean("daemon_protocol_41", true).commit();
                     }
                 }
                 boolean started = PServer.startDaemon(enabled);
@@ -33,13 +45,24 @@ public final class AutoService extends Service {
                         try { Thread.sleep(100L); } catch (InterruptedException interrupted) { break; }
                     }
                 }
-                Log.d("ThorDisplayAuto", "boot reconcile enabled=" + enabled);
+                if (fromBoot) {
+                    for (int attempt = 0; attempt < 8; attempt++) {
+                        try {
+                            String result = SocketClient.request(dashboardFixEnabled ? 'R' : 'L', 1800);
+                            if (result != null && result.startsWith("ok=1")) {
+                                Log.d("ThorDisplayAuto", "boot dashboard CPU reconcile=" + result);
+                                break;
+                            }
+                        } catch (Throwable ignored) {
+                            try { Thread.sleep(500L); } catch (InterruptedException interrupted) { break; }
+                        }
+                    }
+                }
+                Log.d("ThorDisplayAuto", "reconcile enabled=" + enabled + " fromBoot=" + fromBoot);
+                workerRunning = false;
                 stopSelf();
             }
         }, "thor-start").start();
-    }
-
-    @Override public int onStartCommand(Intent intent, int flags, int startId) {
         return START_NOT_STICKY;
     }
 }

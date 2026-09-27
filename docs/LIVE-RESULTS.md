@@ -64,3 +64,25 @@ installed artifact. Device identifiers and raw system logs are not published.
   `crtc243=0`, and the one-tap check displayed that the lower hardware was
   fully off and CPU clocks were released.
 - A full app stop and relaunch preserved and rendered each selected state.
+
+## 1.1.0 Dashboard CPU Fix
+
+- Installed in place as `versionCode=42`, `versionName=1.1.0`, signed by the
+  established update certificate.
+- With AYN Dashboard genuinely open on Display 4, both displays active, and the
+  new fix disabled, the app observed LITTLE `2.02/2.02 GHz` and BIG
+  `2.71/2.71 GHz` and confirmed sustained clock pinning.
+- Enabling the fix set `vendor.display.disable_system_load_check=1` and briefly
+  restarted display/USB without changing the Android boot ID.
+- The release daemon restarted itself after the display reset; subsequent mode
+  changes updated correctly and the true-off watcher remained functional.
+- With the Dashboard CPU Fix enabled, the focused BOTH-mode run recorded 0/25
+  simultaneous LITTLE+BIG maximum samples.
+- TOP true-off returned `crtc181=1`, `crtc243=0`; a sleep/wake repair ended
+  `OFF_OK`.
+- A real reboot restored `system_load_fix=1`, `fix=1`, `mode=1`, `power=0`, and
+  `bottom_crtc=0`. After settling, another 25-sample run recorded 0/25
+  simultaneous LITTLE+BIG maximum samples.
+
+These are focused device results, not a battery-life percentage claim for the
+new Dashboard CPU Fix.

@@ -1,6 +1,7 @@
 package com.thor.displaypowertest;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
@@ -18,6 +19,7 @@ import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -51,10 +53,14 @@ public final class MainActivity extends Activity {
     private boolean activityResumed;
     private boolean visualBottomOn = true;
     private boolean suppressToggle;
+    private boolean suppressDashboardToggle;
     private boolean commandInFlight;
+    private boolean dashboardCommandInFlight;
     private int possibleLockSamples;
 
     private Switch fixToggle;
+    private Switch dashboardFixToggle;
+    private TextView dashboardFixHelp;
     private TextView stateText;
     private TextView stateDetail;
     private TextView littleValue;
@@ -77,6 +83,13 @@ public final class MainActivity extends Activity {
         fixToggle.setOnCheckedChangeListener((button, checked) -> {
             if (!suppressToggle) setFixEnabled(checked);
         });
+        suppressDashboardToggle = true;
+        dashboardFixToggle.setChecked(preferences.getBoolean("dashboard_cpu_fix_enabled", false));
+        updateDashboardFixHelp(dashboardFixToggle.isChecked());
+        suppressDashboardToggle = false;
+        dashboardFixToggle.setOnCheckedChangeListener((button, checked) -> {
+            if (!suppressDashboardToggle) confirmDashboardCpuFix(checked);
+        });
         startService(new Intent(this, AutoService.class));
     }
 
@@ -90,7 +103,7 @@ public final class MainActivity extends Activity {
                         | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                         | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                         | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
-        // Deliberately no FLAG_KEEP_SCREEN_ON: normal Android timeout is respected.
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 
     private View buildUi() {
@@ -147,7 +160,7 @@ public final class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         content.addView(buildHeader());
-        TextView subtitle = text("True bottom-display control for AYN Thor", 13f, MUTED, false);
+        TextView subtitle = text("Display and CPU fixes for AYN Thor", 13f, MUTED, false);
         subtitle.setPadding(dp(2), 0, 0, dp(8));
         content.addView(subtitle);
 
@@ -156,13 +169,24 @@ public final class MainActivity extends Activity {
         stateDetail.setVisibility(View.GONE);
         content.addView(stateDetail);
 
+        stateText = text("", 1f, Color.TRANSPARENT, false);
+        stateText.setVisibility(View.GONE);
+        content.addView(stateText, new LinearLayout.LayoutParams(0, 0));
+
         LinearLayout controls = panel();
-        fixToggle = makeSwitch("True Bottom Display Fix", Color.WHITE, 17f);
-        controls.addView(fixToggle, new LinearLayout.LayoutParams(-1, dp(46)));
+        fixToggle = makeSwitch("", Color.WHITE, 14f);
+        controls.addView(featureToggleRow("TRUE BOTTOM DISPLAY FIX",
+                "Powers the lower screen hardware fully off", fixToggle),
+                new LinearLayout.LayoutParams(-1, dp(46)));
 
         View divider = new View(this);
         divider.setBackgroundColor(0x338B4AE2);
         controls.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
+
+        dashboardFixToggle = makeSwitch("", Color.WHITE, 14f);
+        controls.addView(featureToggleRow("AYN DASHBOARD CPU FIX",
+                "Releases LITTLE/BIG clocks in dual-screen mode", dashboardFixToggle),
+                new LinearLayout.LayoutParams(-1, dp(46)));
 
         LinearLayout verifyRow = new LinearLayout(this);
         verifyRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -192,15 +216,25 @@ public final class MainActivity extends Activity {
         verify.setBackground(buttonBackground);
         verify.setOnClickListener(v -> verifyDrm());
         verifyRow.addView(verify, new LinearLayout.LayoutParams(dp(104), dp(36)));
-        controls.addView(verifyRow);
-
         verifyResult = text("", 10f, MUTED, true);
-        controls.addView(verifyResult);
         content.addView(controls);
 
         LinearLayout cpuPanel = panel();
+        TextView displayHeading = text("DISPLAY MODE", 10f, MUTED, true);
+        displayHeading.setLetterSpacing(0.09f);
+        cpuPanel.addView(displayHeading);
+        displayValue = text("\u2014", 18f, Color.WHITE, true);
+        displayValue.setGravity(Gravity.CENTER_VERTICAL);
+        displayValue.setPadding(0, dp(2), 0, dp(4));
+        cpuPanel.addView(displayValue, new LinearLayout.LayoutParams(-1, dp(34)));
+
+        View statusDivider = new View(this);
+        statusDivider.setBackgroundColor(0x338B4AE2);
+        cpuPanel.addView(statusDivider, new LinearLayout.LayoutParams(-1, dp(1)));
+
         TextView cpuHeading = text("CPU SPEEDS", 11f, Color.WHITE, true);
         cpuHeading.setLetterSpacing(0.09f);
+        cpuHeading.setPadding(0, dp(5), 0, 0);
         cpuPanel.addView(cpuHeading);
         LinearLayout cpuRow = row();
         littleValue = addMetric(cpuRow, "LITTLE", "\u2014");
@@ -209,17 +243,15 @@ public final class MainActivity extends Activity {
         cpuPanel.addView(cpuRow, new LinearLayout.LayoutParams(-1, dp(46)));
         warningValue = text("", 10f, RED, true);
         warningValue.setPadding(0, dp(2), 0, 0);
-        cpuPanel.addView(warningValue);
-        content.addView(cpuPanel);
+        cpuPanel.addView(warningValue, new LinearLayout.LayoutParams(-1, dp(28)));
 
-        LinearLayout detailPanel = panel();
-        TextView displayHeading = text("DISPLAY MODE", 10f, MUTED, true);
-        displayHeading.setLetterSpacing(0.09f);
-        detailPanel.addView(displayHeading);
-        displayValue = text("\u2014", 16f, Color.WHITE, true);
-        displayValue.setGravity(Gravity.CENTER_VERTICAL);
-        detailPanel.addView(displayValue, new LinearLayout.LayoutParams(-1, dp(30)));
-        content.addView(detailPanel);
+        View checkDivider = new View(this);
+        checkDivider.setBackgroundColor(0x338B4AE2);
+        cpuPanel.addView(checkDivider, new LinearLayout.LayoutParams(-1, dp(1)));
+        cpuPanel.addView(verifyRow);
+        cpuPanel.addView(verifyResult);
+
+        content.addView(cpuPanel);
         return root;
     }
 
@@ -254,6 +286,56 @@ public final class MainActivity extends Activity {
         action.setLayoutParams(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, dp(38)));
         return action;
+    }
+
+    private void confirmDashboardCpuFix(boolean requested) {
+        String message = requested
+                ? "Display and USB restart briefly now and at each boot. It may look like a second reboot; Android and apps stay running."
+                : "Display and USB restart briefly. It may look like a reboot; Android and apps stay running.";
+        new AlertDialog.Builder(this)
+                .setTitle(requested ? "Enable Dashboard CPU Fix?" : "Disable Dashboard CPU Fix?")
+                .setMessage(message)
+                .setNegativeButton("CANCEL", (dialog, which) -> restoreDashboardToggle())
+                .setOnCancelListener(dialog -> restoreDashboardToggle())
+                .setPositiveButton(requested ? "RESTART DISPLAY & ENABLE" : "RESTART DISPLAY & DISABLE",
+                        (dialog, which) -> setDashboardCpuFixEnabled(requested))
+                .show();
+    }
+
+    private void restoreDashboardToggle() {
+        suppressDashboardToggle = true;
+        dashboardFixToggle.setChecked(preferences.getBoolean("dashboard_cpu_fix_enabled", false));
+        suppressDashboardToggle = false;
+        updateDashboardFixHelp(dashboardFixToggle.isChecked());
+    }
+
+    private void setDashboardCpuFixEnabled(boolean requested) {
+        if (dashboardCommandInFlight) return;
+        dashboardCommandInFlight = true;
+        dashboardFixToggle.setEnabled(false);
+        warningValue.setTextColor(MUTED);
+        warningValue.setText("AYN DASHBOARD CPU FIX • APPLYING…");
+        new Thread(() -> {
+            try {
+                Map<String, String> result = parse(SocketClient.request(requested ? 'R' : 'L', 1800));
+                if (!"1".equals(result.get("ok"))) throw new IllegalStateException("Composer restart was not scheduled");
+                preferences.edit().putBoolean("dashboard_cpu_fix_enabled", requested).commit();
+                runOnUiThread(() -> {
+                    dashboardCommandInFlight = false;
+                    dashboardFixToggle.setEnabled(true);
+                    updateDashboardFixHelp(requested);
+                    Toast.makeText(this, "Display restart scheduled • not an Android reboot",
+                            Toast.LENGTH_LONG).show();
+                });
+            } catch (Throwable error) {
+                runOnUiThread(() -> {
+                    dashboardCommandInFlight = false;
+                    dashboardFixToggle.setEnabled(true);
+                    restoreDashboardToggle();
+                    Toast.makeText(this, "Could not change Dashboard CPU Fix", Toast.LENGTH_LONG).show();
+                });
+            }
+        }, "dashboard-cpu-fix").start();
     }
 
     private LinearLayout buildOpenSourceBadge() {
@@ -297,13 +379,6 @@ public final class MainActivity extends Activity {
         lockup.setContentDescription("Jesty Thor Fix");
         header.addView(lockup, new LinearLayout.LayoutParams(dp(242), dp(78)));
 
-        stateText = text("CONNECTING\u2026", 16f, AMBER, true);
-        stateText.setLetterSpacing(0.05f);
-        stateText.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
-        stateText.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_END);
-        stateText.setMaxLines(2);
-        header.addView(stateText, new LinearLayout.LayoutParams(0, dp(78), 1f));
-
         header.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(80)));
         return header;
     }
@@ -339,7 +414,7 @@ public final class MainActivity extends Activity {
             stateDetail.setVisibility(View.VISIBLE);
             Toast.makeText(this, "Command not confirmed; setting restored", Toast.LENGTH_LONG).show();
         } else {
-            stateText.setText(actual ? "FIX ACTIVE" : "NATIVE THOR MODE");
+            stateText.setText(actual ? "ACTIVE" : "STOCK");
             stateText.setTextColor(actual ? AMBER : Color.WHITE);
             stateDetail.setVisibility(View.GONE);
         }
@@ -412,9 +487,11 @@ public final class MainActivity extends Activity {
         suppressToggle = true;
         fixToggle.setChecked(enabled);
         suppressToggle = false;
-        stateText.setText(enabled ? "FIX ACTIVE" : "NATIVE THOR MODE");
+        stateText.setText(enabled ? "ACTIVE" : "STOCK");
         stateText.setTextColor(enabled ? AMBER : Color.WHITE);
-        boolean bottomPowered = "1".equals(values.get("power"));
+        String bottomCrtc = values.get("bottom_crtc");
+        boolean bottomPowered = "1".equals(bottomCrtc)
+                || (!"0".equals(bottomCrtc) && "1".equals(values.get("power")));
         stateDetail.setVisibility(View.GONE);
 
         long littleCur = number(values, "little_cur"), littleMax = number(values, "little_max");
@@ -424,22 +501,38 @@ public final class MainActivity extends Activity {
         littleValue.setText(clock(littleCur, littleMax));
         bigValue.setText(clock(bigCur, bigMax));
         primeValue.setText(clock(primeCur, primeMax));
-        displayValue.setText(displayDescription(values.get("mode")));
+        displayValue.setText(displayDescription(values.get("mode"), bottomPowered));
         setBottomVisual(bottomPowered);
 
-        boolean stockTopHardwareActive = "1".equals(values.get("mode"))
-                && bottomPowered && utilization >= 0 && utilization < 40;
+        boolean lowLoadBottomActive = bottomPowered && utilization >= 0 && utilization < 40;
         boolean littlePinned = ratio(littleCur, littleMax) >= 0.95;
         boolean bigPinned = ratio(bigCur, bigMax) >= 0.95;
-        littleValue.setTextColor(stockTopHardwareActive && littlePinned ? RED : Color.WHITE);
-        bigValue.setTextColor(stockTopHardwareActive && bigPinned ? RED : Color.WHITE);
+        littleValue.setTextColor(lowLoadBottomActive && littlePinned ? RED : Color.WHITE);
+        bigValue.setTextColor(lowLoadBottomActive && bigPinned ? RED : Color.WHITE);
         primeValue.setTextColor(Color.WHITE);
 
-        boolean suspicious = stockTopHardwareActive && littlePinned && bigPinned;
+        boolean suspicious = lowLoadBottomActive && littlePinned && bigPinned;
         possibleLockSamples = suspicious ? possibleLockSamples + 1 : 0;
-        warningValue.setText(possibleLockSamples >= 10
-                ? "STOCK BUG CONFIRMED \u2022 LITTLE/BIG PINNED AT MAX"
-                : "");
+        boolean dashboardFixActive = "1".equals(values.get("system_load_fix"));
+        boolean dashboardFixDesired = preferences.getBoolean("dashboard_cpu_fix_enabled", false);
+        if (possibleLockSamples >= 10) {
+            warningValue.setTextColor(RED);
+            warningValue.setText("1".equals(values.get("mode"))
+                    ? "STOCK BUG CONFIRMED \u2022 LITTLE/BIG PINNED AT MAX"
+                    : "CLOCK PINNING DETECTED \u2022 LITTLE/BIG AT MAX");
+        } else if (dashboardFixActive && dashboardFixDesired) {
+            warningValue.setTextColor(AMBER);
+            warningValue.setText("AYN DASHBOARD CPU FIX \u2022 ACTIVE");
+        } else if (dashboardFixActive) {
+            warningValue.setTextColor(MUTED);
+            warningValue.setText("DASHBOARD FIX ACTIVE \u2022 ENABLE TO KEEP AFTER REBOOT");
+        } else if (dashboardFixDesired) {
+            warningValue.setTextColor(MUTED);
+            warningValue.setText("DASHBOARD FIX ENABLED \u2022 WAITING FOR DISPLAY RESTART");
+        } else {
+            warningValue.setTextColor(MUTED);
+            warningValue.setText("AYN DASHBOARD CPU FIX \u2022 STOCK BEHAVIOUR");
+        }
     }
 
     private void startTelemetry() {
@@ -569,12 +662,40 @@ public final class MainActivity extends Activity {
         TextView heading = text(label, 10f, MUTED, true);
         heading.setLetterSpacing(0.09f);
         metric.addView(heading);
-        TextView value = text(initial, 13f, Color.WHITE, true);
+        TextView value = text(initial, 15f, Color.WHITE, true);
         value.setPadding(0, dp(2), 0, 0);
         metric.addView(value);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, -1, 1f);
         row.addView(metric, params);
         return value;
+    }
+
+    private LinearLayout featureToggleRow(String title, String description, Switch toggle) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+
+        LinearLayout copy = new LinearLayout(this);
+        copy.setOrientation(LinearLayout.VERTICAL);
+        copy.setGravity(Gravity.CENTER_VERTICAL);
+        TextView heading = text(title, 13f, Color.WHITE, true);
+        heading.setLetterSpacing(0.025f);
+        copy.addView(heading);
+        TextView help = text(description, 9f, MUTED, false);
+        help.setPadding(0, dp(1), dp(8), 0);
+        if (toggle == dashboardFixToggle) dashboardFixHelp = help;
+        copy.addView(help);
+        row.addView(copy, new LinearLayout.LayoutParams(0, -1, 1f));
+        row.addView(toggle, new LinearLayout.LayoutParams(dp(58), dp(40)));
+        return row;
+    }
+
+    private void updateDashboardFixHelp(boolean enabled) {
+        if (dashboardFixHelp == null) return;
+        dashboardFixHelp.setText(enabled
+                ? "ON \u2022 Each boot briefly restarts the display (may look like a second reboot)"
+                : "Releases LITTLE/BIG clocks in dual-screen mode");
+        dashboardFixHelp.setTextColor(enabled ? AMBER : MUTED);
     }
 
     private Switch makeSwitch(String label, int color, float size) {
@@ -633,8 +754,8 @@ public final class MainActivity extends Activity {
         return current > 0 && maximum > 0 ? (double) current / maximum : 0d;
     }
 
-    private static String displayDescription(String mode) {
-        if ("1".equals(mode)) return "TOP ONLY";
+    private static String displayDescription(String mode, boolean bottomPowered) {
+        if (!bottomPowered || "1".equals(mode)) return "TOP ONLY";
         if ("0".equals(mode)) return "BOTH SCREENS";
         if ("2".equals(mode)) return "BOTTOM ONLY";
         return "DISPLAY STATE UNAVAILABLE";

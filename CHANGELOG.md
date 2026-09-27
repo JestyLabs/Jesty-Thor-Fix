@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.1.0
+
+- Added a separate, persistent **AYN Dashboard CPU Fix** for the dual-screen
+  clock-pinning behavior reproduced with AYN Dashboard open.
+- Added an explicit confirmation before the one-time display-compositor restart
+  used to enable or disable that fix. The warning explains that both displays
+  and USB can briefly reset and that the effect may look like a second reboot.
+- Reapplies the saved Dashboard CPU Fix choice once during a normal boot; merely
+  opening Jesty Thor Fix never restarts the display.
+- Restarts the privileged daemon after the display reset so mode observation
+  and true-off wake repair remain active when Android's display services return.
+- Added DRM-backed lower-display telemetry so the displayed mode and background
+  follow the physical CRTC state instead of relying only on AYN's logical mode.
+- Redesigned the UI around two equal feature toggles and one consolidated live
+  status/check panel with larger CPU readings.
+- Expanded clock-pinning detection to BOTH/dual-screen mode while keeping all
+  existing true-off wake repair and display-control timing unchanged.
+
 ## 1.0.4
 
 - Moved the live fix/native status beside the header lockup and aligned it to

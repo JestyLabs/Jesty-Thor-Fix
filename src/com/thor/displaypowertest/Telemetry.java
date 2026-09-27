@@ -3,6 +3,7 @@ package com.thor.displaypowertest;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.InputStreamReader;
 import java.util.Locale;
 
 public final class Telemetry {
@@ -55,6 +56,48 @@ public final class Telemetry {
             return out.toString();
         } catch (Throwable error) {
             return "ok=0;error=" + error.getClass().getSimpleName().toUpperCase(Locale.US);
+        }
+    }
+
+    public static String bottomCrtcActive() {
+        File state = new File("/sys/kernel/debug/dri/0/state");
+        if (!state.canRead()) return "?";
+        try {
+            BufferedReader reader = new BufferedReader(new FileReader(state));
+            String line;
+            boolean bottom = false;
+            int remaining = 0;
+            while ((line = reader.readLine()) != null) {
+                String trimmed = line.trim();
+                if (trimmed.startsWith("crtc[243]")) {
+                    bottom = true;
+                    remaining = 14;
+                } else if (bottom && trimmed.startsWith("active=")) {
+                    reader.close();
+                    return trimmed.substring(7);
+                } else if (bottom && --remaining <= 0) {
+                    break;
+                }
+            }
+            reader.close();
+        } catch (Throwable ignored) {}
+        return "?";
+    }
+
+    public static String systemLoadFixState() {
+        Process process = null;
+        try {
+            process = new ProcessBuilder("getprop",
+                    "vendor.display.disable_system_load_check").start();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String value = reader.readLine();
+            reader.close();
+            process.waitFor();
+            return "1".equals(value == null ? "" : value.trim()) ? "1" : "0";
+        } catch (Throwable ignored) {
+            return "?";
+        } finally {
+            if (process != null) process.destroy();
         }
     }
 

@@ -55,6 +55,7 @@ public final class DaemonState {
                 + ";fix=" + (enabled ? "1" : "0")
                 + ";mode=" + clean(mode)
                 + ";power=" + clean(DisplayHardware.getProperty())
+                + ";bottom_crtc=" + clean(Telemetry.bottomCrtcActive())
                 + ";uptime_ms=" + (now - startedAt)
                 + ";little_cur=" + cpu.littleCurrent
                 + ";little_max=" + cpu.littleMax
@@ -63,6 +64,7 @@ public final class DaemonState {
                 + ";prime_cur=" + cpu.primeCurrent
                 + ";prime_max=" + cpu.primeMax
                 + ";cpu_pct=" + cpu.utilization
+                + ";system_load_fix=" + Telemetry.systemLoadFixState()
                 + ";wake_id=" + wakeId
                 + ";wake_at=" + wakeAt
                 + ";display_on_at=" + displayOnAt
