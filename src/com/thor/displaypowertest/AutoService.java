@@ -23,13 +23,13 @@ public final class AutoService extends Service {
         final boolean dashboardFixEnabled = state.getBoolean("dashboard_cpu_fix_enabled", false);
         new Thread(new Runnable() {
             @Override public void run() {
-                boolean protocolMigration = !state.getBoolean("daemon_protocol_41", false);
+                boolean protocolMigration = !state.getBoolean("daemon_protocol_45", false);
                 if (fromBoot || protocolMigration) {
                     if (PServer.stopLegacyDaemon()) {
                         try { Thread.sleep(500L); } catch (InterruptedException ignored) {}
                     }
                     if (protocolMigration) {
-                        state.edit().putBoolean("daemon_protocol_41", true).commit();
+                        state.edit().putBoolean("daemon_protocol_45", true).commit();
                     }
                 }
                 boolean started = PServer.startDaemon(enabled);

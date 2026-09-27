@@ -20,11 +20,16 @@ The maintainer supplied the final ON/OFF application artwork:
 
 - `assets/jesty_thor_background.png`
 - `assets/jesty_thor_background_off.png`
+- `assets/jesty_thor_background_fake_off.png`
+- `assets/jesty_thor_background_true_off.png`
 - `assets/jesty_thor_background_loop.mp4`
 
-The 1.0.0 artwork is the maintainer-approved Thor ON/OFF visual set. The two
-static PNGs are preserved exactly as supplied; the in-app H.264 transition loop
-uses the same frames with a one-pixel height crop required by YUV420 encoding.
+The original 1.0.0 artwork is the maintainer-approved Thor ON/OFF visual set.
+Version 1.2.0 adds maintainer-directed, AI-assisted fake-off and true-off
+variants derived from that approved composition. They change the lower-screen
+message so the dashboard can illustrate the hardware state. The in-app H.264
+transition loop uses the original frames with a one-pixel height crop required
+by YUV420 encoding.
 
 These images, animation frames, screenshots, and promotional materials are not
 licensed under GPL-3.0. They remain copyright 2026 Jesty, all rights reserved,

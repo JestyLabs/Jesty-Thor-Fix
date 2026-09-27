@@ -106,3 +106,25 @@ new Dashboard CPU Fix.
 
 These timings describe one tested Thor and are context, not a universal boot
 time guarantee.
+
+## 1.2.0 display-state and live-power update
+
+- Installed in place as `versionCode=44`, `versionName=1.2.0`, signed by the
+  established update certificate.
+- BOTH selected the normal two-screen artwork and live hardware reported
+  `power=1`, `bottom_crtc=1`.
+- TOP native selected **AYN FAKE OFF** while live hardware still reported
+  `power=1`, `bottom_crtc=1`.
+- TOP with True Bottom Display Fix selected **JESTY TRUE OFF** while live
+  hardware reported `power=0`, `bottom_crtc=0`.
+- CPU Fix OFF and ON returned after approximately 28 and 26 seconds; neither
+  changed the Android boot ID.
+- A normal reboot changed the boot ID and completed the saved CPU Fix's expected
+  framework restart, with app and daemon restored after about 60 seconds.
+- With CPU Fix active, settled BOTH-mode sampling remained green and showed no
+  dual-screen pinning verdict.
+- A TOP sleep/wake cycle restored true-off and ended `OFF_OK`; closing the
+  visible UI afterward left the privileged daemon active.
+- Live estimated system power was roughly 0.9-1.2 W in the sampled true-off
+  states and roughly 1.4-1.8 W in nearby BOTH samples. These short observations
+  are diagnostic context, not a controlled battery-life claim.

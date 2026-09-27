@@ -51,6 +51,7 @@ public final class DaemonState {
     public static synchronized String snapshot() {
         long now = SystemClock.elapsedRealtime();
         Telemetry.CpuSnapshot cpu = Telemetry.readCpu();
+        Telemetry.PowerSnapshot power = Telemetry.readPower();
         return "ok=1"
                 + ";fix=" + (enabled ? "1" : "0")
                 + ";mode=" + clean(mode)
@@ -64,6 +65,9 @@ public final class DaemonState {
                 + ";prime_cur=" + cpu.primeCurrent
                 + ";prime_max=" + cpu.primeMax
                 + ";cpu_pct=" + cpu.utilization
+                + ";usb_w=" + decimal(power.usbWatts)
+                + ";battery_charge_w=" + decimal(power.batteryChargeWatts)
+                + ";system_proxy_w=" + decimal(power.systemProxyWatts)
                 + ";system_load_fix=" + Telemetry.systemLoadFixState()
                 + ";wake_id=" + wakeId
                 + ";wake_at=" + wakeAt
@@ -76,5 +80,9 @@ public final class DaemonState {
 
     private static String clean(String value) {
         return value == null ? "?" : value.replace(';', '_').replace('\n', '_');
+    }
+
+    private static String decimal(double value) {
+        return Double.isNaN(value) ? "?" : String.format(java.util.Locale.US, "%.3f", value);
     }
 }

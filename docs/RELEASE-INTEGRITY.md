@@ -157,3 +157,18 @@ OFF and ON completed their required Android framework restart without the
 device entering suspend. A subsequent normal reboot restored the saved CPU Fix
 setting and completed its expected framework restart without a suspend delay.
 The timed transition wake-lock was inactive after recovery.
+
+## Stable 1.2.0 state and telemetry update
+
+- Package: `com.thor.displaypowertest`
+- Version code: `44`
+- Version name: `1.2.0`
+- APK: `Jesty-Thor-Fix-1.2.0.apk`
+- SHA-256: `11CC0973965B344B216C7C8509564139BF3030C97CC9F6ADA9797A2DCD44DFD5`
+- Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`
+- Verified signing schemes: APK Signature Scheme v1, v2, and v3.
+
+The exact signed APK was installed in place on the physical Thor. It correctly
+rendered BOTH, AYN fake-off, and Jesty true-off from live display hardware
+state; prevented red stock-bug verdicts while the CPU Fix was active; and
+restored both fixes after a real reboot and its expected framework restart.

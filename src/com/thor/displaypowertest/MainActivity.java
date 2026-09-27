@@ -40,8 +40,17 @@ public final class MainActivity extends Activity {
     private static final int PURPLE = Color.rgb(196, 92, 255);
     private static final int VIOLET = Color.rgb(139, 74, 226);
     private static final int AMBER = Color.rgb(255, 211, 102);
+    private static final int GREEN = Color.rgb(111, 224, 163);
     private static final int RED = Color.rgb(255, 112, 126);
     private static final int MUTED = Color.rgb(168, 185, 204);
+    private static final int STATE_SETTLE_SAMPLES = 5;
+    private static final int PIN_CONFIRM_SAMPLES = 10;
+
+    private enum DisplayVisual {
+        BOTH_ON,
+        AYN_FAKE_OFF,
+        JESTY_TRUE_OFF
+    }
 
     private SharedPreferences preferences;
     private ScheduledExecutorService telemetryWorker;
@@ -57,6 +66,10 @@ public final class MainActivity extends Activity {
     private boolean commandInFlight;
     private boolean dashboardCommandInFlight;
     private int possibleLockSamples;
+    private int stableStateSamples;
+    private String lastStabilityKey = "";
+    private DisplayVisual displayVisual = DisplayVisual.BOTH_ON;
+    private double smoothedSystemWatts = -1d;
 
     private Switch fixToggle;
     private Switch dashboardFixToggle;
@@ -67,6 +80,7 @@ public final class MainActivity extends Activity {
     private TextView bigValue;
     private TextView primeValue;
     private TextView displayValue;
+    private TextView powerValue;
     private TextView warningValue;
     private TextView verifyResult;
 
@@ -226,7 +240,10 @@ public final class MainActivity extends Activity {
         displayValue = text("\u2014", 18f, Color.WHITE, true);
         displayValue.setGravity(Gravity.CENTER_VERTICAL);
         displayValue.setPadding(0, dp(2), 0, dp(4));
-        cpuPanel.addView(displayValue, new LinearLayout.LayoutParams(-1, dp(34)));
+        cpuPanel.addView(displayValue, new LinearLayout.LayoutParams(-1, dp(30)));
+        powerValue = text("EST. SYSTEM POWER  \u2014", 10f, GREEN, true);
+        powerValue.setPadding(0, 0, 0, dp(4));
+        cpuPanel.addView(powerValue, new LinearLayout.LayoutParams(-1, dp(20)));
 
         View statusDivider = new View(this);
         statusDivider.setBackgroundColor(0x338B4AE2);
@@ -290,8 +307,8 @@ public final class MainActivity extends Activity {
 
     private void confirmDashboardCpuFix(boolean requested) {
         String message = requested
-                ? "Android restarts once now and once during each normal boot. Open apps will close."
-                : "Android restarts once now. Open apps will close.";
+                ? "Android restarts now and once per boot. Open apps will close."
+                : "Android restarts now. Open apps will close.";
         new AlertDialog.Builder(this)
                 .setTitle(requested ? "Enable Dashboard CPU Fix?" : "Disable Dashboard CPU Fix?")
                 .setMessage(message)
@@ -312,6 +329,7 @@ public final class MainActivity extends Activity {
     private void setDashboardCpuFixEnabled(boolean requested) {
         if (dashboardCommandInFlight) return;
         dashboardCommandInFlight = true;
+        resetClockDiagnosis();
         dashboardFixToggle.setEnabled(false);
         warningValue.setTextColor(MUTED);
         warningValue.setText("AYN DASHBOARD CPU FIX • APPLYING…");
@@ -433,23 +451,45 @@ public final class MainActivity extends Activity {
                 final long littleMax = number(telemetry, "little_max");
                 final long bigCur = number(telemetry, "big_cur");
                 final long bigMax = number(telemetry, "big_max");
-                final boolean coresPinned = ratio(littleCur, littleMax) >= 0.95
+                final boolean coresPinnedNow = ratio(littleCur, littleMax) >= 0.95
                         && ratio(bigCur, bigMax) >= 0.95;
+                final boolean dashboardFixActive = "1".equals(telemetry.get("system_load_fix"));
+                final boolean dashboardFixDesired = preferences.getBoolean(
+                        "dashboard_cpu_fix_enabled", false);
+                final boolean diagnosisSettled = stableStateSamples >= STATE_SETTLE_SAMPLES;
+                final boolean pinningConfirmed = possibleLockSamples >= PIN_CONFIRM_SAMPLES;
                 final String friendly;
-                if (topOn && bottomOff) {
-                    friendly = "Bottom hardware fully off \u2713"
-                            + (coresPinned ? " \u2022 CPU clocks currently high" : " \u2022 CPU clocks released");
-                } else if (coresPinned) {
+                final int resultColor;
+                if (dashboardFixDesired != dashboardFixActive) {
+                    friendly = "CPU fix transition in progress \u2022 check again shortly";
+                    resultColor = MUTED;
+                } else if (dashboardFixActive) {
+                    friendly = coresPinnedNow
+                            ? "CPU fix active \u2022 CPU currently busy, no stock-bug verdict"
+                            : "CPU fix active \u2022 no dual-screen pinning \u2713";
+                    resultColor = coresPinnedNow ? MUTED : GREEN;
+                } else if (!diagnosisSettled) {
+                    friendly = "State is still settling \u2022 check again shortly";
+                    resultColor = MUTED;
+                } else if (pinningConfirmed) {
                     friendly = "STOCK BUG CONFIRMED \u2022 LITTLE/BIG PINNED AT MAX";
+                    resultColor = RED;
+                } else if (coresPinnedNow) {
+                    friendly = "CPU clocks currently high \u2022 sampling before verdict";
+                    resultColor = MUTED;
+                } else if (topOn && bottomOff) {
+                    friendly = "Bottom hardware fully off \u2713 \u2022 CPU clocks released";
+                    resultColor = GREEN;
                 } else {
-                    friendly = "Bottom hardware active \u2022 LITTLE/BIG can stay pinned";
+                    friendly = "Bottom hardware active \u2022 no sustained pinning detected";
+                    resultColor = MUTED;
                 }
                 final String detail = "Top hardware " + (topOn ? "on" : "off")
                         + "  \u2022  Bottom hardware " + (bottomOff ? "off" : "on")
                         + "  \u2022  LITTLE " + clock(littleCur, littleMax)
                         + "  \u2022  BIG " + clock(bigCur, bigMax);
                 runOnUiThread(() -> {
-                    verifyResult.setTextColor(topOn && bottomOff ? AMBER : RED);
+                    verifyResult.setTextColor(resultColor);
                     verifyResult.setText(friendly);
                     Toast.makeText(this, detail, Toast.LENGTH_LONG).show();
                 });
@@ -475,7 +515,7 @@ public final class MainActivity extends Activity {
                     stateDetail.setText("No telemetry response");
                     stateDetail.setVisibility(View.VISIBLE);
                 }
-                possibleLockSamples = 0;
+                resetClockDiagnosis();
                 warningValue.setText("");
             });
         }
@@ -501,37 +541,71 @@ public final class MainActivity extends Activity {
         littleValue.setText(clock(littleCur, littleMax));
         bigValue.setText(clock(bigCur, bigMax));
         primeValue.setText(clock(primeCur, primeMax));
-        displayValue.setText(displayDescription(values.get("mode"), bottomPowered));
-        setBottomVisual(bottomPowered);
+        String mode = values.get("mode");
+        displayValue.setText(displayDescription(mode, bottomCrtc, enabled));
+        setDisplayVisual(displayVisual(mode, bottomCrtc, bottomPowered));
+        double systemWatts = decimalNumber(values, "system_proxy_w");
+        double usbWatts = decimalNumber(values, "usb_w");
+        if (systemWatts >= 0d && usbWatts >= 0d) {
+            smoothedSystemWatts = smoothedSystemWatts < 0d ? systemWatts
+                    : (smoothedSystemWatts * 0.75d + systemWatts * 0.25d);
+            powerValue.setText(String.format(Locale.US,
+                    "EST. SYSTEM POWER  ~%.2f W  \u00B7  USB %.2f W", smoothedSystemWatts, usbWatts));
+            powerValue.setTextColor(GREEN);
+        } else {
+            smoothedSystemWatts = -1d;
+            powerValue.setText("EST. SYSTEM POWER  \u2014  \u00B7  CONNECT USB FOR ESTIMATE");
+            powerValue.setTextColor(MUTED);
+        }
 
         boolean lowLoadBottomActive = bottomPowered && utilization >= 0 && utilization < 40;
         boolean littlePinned = ratio(littleCur, littleMax) >= 0.95;
         boolean bigPinned = ratio(bigCur, bigMax) >= 0.95;
-        littleValue.setTextColor(lowLoadBottomActive && littlePinned ? RED : Color.WHITE);
-        bigValue.setTextColor(lowLoadBottomActive && bigPinned ? RED : Color.WHITE);
-        primeValue.setTextColor(Color.WHITE);
-
-        boolean suspicious = lowLoadBottomActive && littlePinned && bigPinned;
-        possibleLockSamples = suspicious ? possibleLockSamples + 1 : 0;
         boolean dashboardFixActive = "1".equals(values.get("system_load_fix"));
         boolean dashboardFixDesired = preferences.getBoolean("dashboard_cpu_fix_enabled", false);
-        if (possibleLockSamples >= 10) {
-            warningValue.setTextColor(RED);
-            warningValue.setText("1".equals(values.get("mode"))
-                    ? "STOCK BUG CONFIRMED \u2022 LITTLE/BIG PINNED AT MAX"
-                    : "CLOCK PINNING DETECTED \u2022 LITTLE/BIG AT MAX");
-        } else if (dashboardFixActive && dashboardFixDesired) {
-            warningValue.setTextColor(AMBER);
-            warningValue.setText("AYN DASHBOARD CPU FIX \u2022 ACTIVE");
+
+        String stabilityKey = value(values, "mode") + ":" + value(values, "bottom_crtc")
+                + ":" + dashboardFixActive + ":" + dashboardFixDesired;
+        if (!stabilityKey.equals(lastStabilityKey)) {
+            lastStabilityKey = stabilityKey;
+            stableStateSamples = 1;
+            possibleLockSamples = 0;
+        } else {
+            stableStateSamples++;
+        }
+
+        boolean diagnosisEligible = stableStateSamples >= STATE_SETTLE_SAMPLES
+                && !dashboardFixActive && !dashboardFixDesired;
+        boolean suspicious = diagnosisEligible && lowLoadBottomActive && littlePinned && bigPinned;
+        possibleLockSamples = suspicious ? possibleLockSamples + 1 : 0;
+        boolean pinningConfirmed = possibleLockSamples >= PIN_CONFIRM_SAMPLES;
+
+        littleValue.setTextColor(pinningConfirmed && littlePinned ? RED : Color.WHITE);
+        bigValue.setTextColor(pinningConfirmed && bigPinned ? RED : Color.WHITE);
+        primeValue.setTextColor(Color.WHITE);
+
+        if (dashboardFixActive && dashboardFixDesired) {
+            warningValue.setTextColor(GREEN);
+            warningValue.setText(lowLoadBottomActive && littlePinned && bigPinned
+                    ? "CPU FIX ACTIVE \u2022 CLOCKS BUSY, MONITORING"
+                    : "CPU FIX ACTIVE \u2022 NO DUAL PINNING");
         } else if (dashboardFixActive) {
             warningValue.setTextColor(MUTED);
-            warningValue.setText("DASHBOARD FIX ACTIVE \u2022 ENABLE TO KEEP AFTER REBOOT");
+            warningValue.setText("CPU FIX ACTIVE \u2022 ENABLE TO KEEP AFTER REBOOT");
         } else if (dashboardFixDesired) {
             warningValue.setTextColor(MUTED);
-            warningValue.setText("DASHBOARD FIX ENABLED \u2022 WAITING FOR DISPLAY RESTART");
+            warningValue.setText("CPU FIX ENABLED \u2022 WAITING FOR RESTART");
+        } else if (pinningConfirmed) {
+            warningValue.setTextColor(RED);
+            warningValue.setText("1".equals(mode)
+                    ? "STOCK BUG CONFIRMED \u2022 LITTLE/BIG PINNED AT MAX"
+                    : "CLOCK PINNING DETECTED \u2022 LITTLE/BIG AT MAX");
+        } else if (stableStateSamples < STATE_SETTLE_SAMPLES) {
+            warningValue.setTextColor(MUTED);
+            warningValue.setText("CPU STATE SETTLING \u2022 MONITORING CLOCKS");
         } else {
             warningValue.setTextColor(MUTED);
-            warningValue.setText("AYN DASHBOARD CPU FIX \u2022 STOCK BEHAVIOUR");
+            warningValue.setText("CPU FIX OFF \u2022 NO SUSTAINED PINNING DETECTED");
         }
     }
 
@@ -544,7 +618,7 @@ public final class MainActivity extends Activity {
     private void stopTelemetry() {
         if (telemetryWorker != null) telemetryWorker.shutdownNow();
         telemetryWorker = null;
-        possibleLockSamples = 0;
+        resetClockDiagnosis();
     }
 
     private void startBackgroundVideo(SurfaceTexture texture) {
@@ -589,12 +663,20 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private void setBottomVisual(boolean bottomOn) {
-        if (visualBottomOn == bottomOn) return;
-        visualBottomOn = bottomOn;
-        backgroundImage.setImageResource(resource("drawable",
-                bottomOn ? "jesty_thor_background" : "jesty_thor_background_off"));
-        if (bottomOn) {
+    private void setDisplayVisual(DisplayVisual visual) {
+        if (displayVisual == visual) return;
+        displayVisual = visual;
+        visualBottomOn = visual == DisplayVisual.BOTH_ON;
+        String resourceName;
+        if (visual == DisplayVisual.BOTH_ON) {
+            resourceName = "jesty_thor_background";
+        } else if (visual == DisplayVisual.AYN_FAKE_OFF) {
+            resourceName = "jesty_thor_background_fake_off";
+        } else {
+            resourceName = "jesty_thor_background_true_off";
+        }
+        backgroundImage.setImageResource(resource("drawable", resourceName));
+        if (visualBottomOn) {
             resumeBackgroundVideo();
         } else {
             videoTexture.setVisibility(View.GONE);
@@ -745,6 +827,10 @@ public final class MainActivity extends Activity {
         try { return Long.parseLong(values.get(key)); } catch (Throwable ignored) { return -1L; }
     }
 
+    private static double decimalNumber(Map<String, String> values, String key) {
+        try { return Double.parseDouble(values.get(key)); } catch (Throwable ignored) { return -1d; }
+    }
+
     private static String clock(long current, long maximum) {
         if (current <= 0 || maximum <= 0) return "\u2014";
         return String.format(Locale.US, "%.2f / %.2f GHz", current / 1_000_000d, maximum / 1_000_000d);
@@ -754,10 +840,38 @@ public final class MainActivity extends Activity {
         return current > 0 && maximum > 0 ? (double) current / maximum : 0d;
     }
 
-    private static String displayDescription(String mode, boolean bottomPowered) {
-        if (!bottomPowered || "1".equals(mode)) return "TOP ONLY";
-        if ("0".equals(mode)) return "BOTH SCREENS";
-        if ("2".equals(mode)) return "BOTTOM ONLY";
+    private void resetClockDiagnosis() {
+        possibleLockSamples = 0;
+        stableStateSamples = 0;
+        lastStabilityKey = "";
+    }
+
+    private static DisplayVisual displayVisual(String mode, String bottomCrtc,
+            boolean bottomPowered) {
+        if ("1".equals(mode)) {
+            return "0".equals(bottomCrtc) ? DisplayVisual.JESTY_TRUE_OFF
+                    : DisplayVisual.AYN_FAKE_OFF;
+        }
+        return bottomPowered ? DisplayVisual.BOTH_ON : DisplayVisual.JESTY_TRUE_OFF;
+    }
+
+    private static String displayDescription(String mode, String bottomCrtc, boolean fixEnabled) {
+        if ("1".equals(mode)) {
+            if ("0".equals(bottomCrtc)) {
+                return fixEnabled ? "TOP ONLY \u00B7 JESTY TRUE OFF"
+                        : "TOP ONLY \u00B7 BOTTOM HARDWARE OFF";
+            }
+            if ("1".equals(bottomCrtc)) return "TOP ONLY \u00B7 AYN FAKE OFF";
+            return "TOP ONLY \u00B7 CHECKING HARDWARE";
+        }
+        if ("0".equals(mode)) {
+            return "0".equals(bottomCrtc) ? "BOTH REQUESTED \u00B7 BOTTOM OFF"
+                    : "BOTH SCREENS";
+        }
+        if ("2".equals(mode)) {
+            return "0".equals(bottomCrtc) ? "BOTTOM REQUESTED \u00B7 HARDWARE OFF"
+                    : "BOTTOM ONLY";
+        }
         return "DISPLAY STATE UNAVAILABLE";
     }
 }

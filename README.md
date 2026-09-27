@@ -14,10 +14,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.1.1"><strong>Download APK</strong></a>
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.2.0"><strong>Download APK</strong></a>
   · <a href="#what-does-it-fix">What it fixes</a>
   · <a href="#possible-battery-benefit">Measurements</a>
   · <a href="https://www.buymeacoffee.com/jesty">☕ Support development</a>
+</p>
+
+<p align="center">
+  <img src="docs/images/dashboard-both-v1.2.0.png" alt="Jesty Thor Fix showing both independent fixes, display mode, CPU clocks, and live power estimate" width="100%">
 </p>
 
 <p align="center">
@@ -48,10 +52,6 @@ after a normal reboot.
 | You use AYN Dashboard or regularly use both screens | Enable **AYN Dashboard CPU Fix** |
 | You switch between TOP and BOTH | Enable **both fixes** |
 
-<p align="center">
-  <img src="docs/images/dashboard-two-fixes-both-v1.1.0.png" alt="Jesty Thor Fix with both independent fixes enabled" width="100%">
-</p>
-
 ## Bug 1: black does not always mean off
 
 When you select **TOP** mode, the expected result is simple: the top screen
@@ -75,9 +75,9 @@ at the glass is therefore not enough to tell whether it is really off.
 | After sleep/wake | Lower hardware can become active again | True-off is restored automatically |
 | App must remain open | — | **No** |
 
-<p align="center">
-  <img src="docs/images/dashboard-two-fixes-v1.1.0.png" alt="TOP-only with the lower display hardware confirmed off" width="100%">
-</p>
+| AYN fake-off: black, hardware active | Jesty true-off: hardware powered down |
+| --- | --- |
+| <img src="docs/images/dashboard-ayn-fake-off-v1.2.0.png" alt="TOP-only with AYN fake-off and lower display hardware still active" width="100%"> | <img src="docs/images/dashboard-jesty-true-off-v1.2.0.png" alt="TOP-only with Jesty true-off and lower display hardware powered down" width="100%"> |
 
 Tap **Bottom screen & CPU check → Check now** if you want the app to verify
 the physical lower-display state. `Bottom hardware fully off` is stronger
@@ -118,14 +118,14 @@ where LITTLE and BIG were simultaneously stuck at maximum.
 > Changing **AYN Dashboard CPU Fix** restarts the Android framework once and
 > closes open apps. The displays stay black for a short period while Android
 > returns. When enabled, this restart also happens once during a normal boot,
-> which can look like a second boot phase. Version 1.1.1 prevents the Thor from
+> which can look like a second boot phase. Version 1.2.0 prevents the Thor from
 > suspending during this transition; the timed protection is released after
 > Android has recovered.
 
 ## Install once, then close the app
 
-1. Download `Jesty-Thor-Fix-1.1.1.apk` from the
-   [v1.1.1 release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.1.1).
+1. Download `Jesty-Thor-Fix-1.2.0.apk` from the
+   [v1.2.0 release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.2.0).
 2. Install and open **Jesty Thor Fix** once.
 3. Enable the switch for each problem you want to fix.
 4. Use **Check now** if you want to verify the current display and CPU state.
@@ -158,6 +158,12 @@ hardware active, while Bug 2 can prevent CPU clusters from downclocking
 normally. Fixing either behavior may reduce unnecessary power use. Actual
 battery life depends on brightness, games, performance mode, temperature,
 firmware, and background activity.
+
+Version 1.2.0 shows a live **estimated system power** value beside USB input.
+It is calculated from the Thor's own USB and battery telemetry and is useful
+for comparing nearby states after they settle. Short peaks during boot, load,
+or charging are normal; the value is not a laboratory meter or a battery-life
+promise.
 
 Only the **True Bottom Display Fix** has a published power comparison. In one
 controlled A/B/A low-load capture, its measured system-power proxy changed
@@ -194,25 +200,32 @@ tested on-device.
 <details>
 <summary><strong>What was verified on the physical Thor?</strong></summary>
 
-The exact signed v1.1.1 APK was installed in place and tested:
+The exact signed v1.2.0 APK was installed in place and tested:
 
-- package `com.thor.displaypowertest`, version code `43`, version `1.1.1`;
+- package `com.thor.displaypowertest`, version code `44`, version `1.2.0`;
 - signing certificate unchanged from earlier releases;
+- the dashboard distinguished BOTH, AYN fake-off, and Jesty true-off from live
+  display hardware state and selected matching artwork;
+- CPU pinning required sustained, settled samples and never produced a red
+  stock-bug verdict while the CPU Fix was active;
+- live USB input and estimated system power recovered after both framework
+  restarts and after a normal reboot;
 - TOP true-off ended with the top CRTC active and the lower CRTC inactive;
 - sleep/wake restored true-off and ended `OFF_OK`;
 - BOTH kept both displays active;
 - the Dashboard fix changed the reproduced result to 0/25 simultaneous
   LITTLE/BIG maximum samples in the focused run;
-- both CPU-fix ON and OFF completed one Android framework restart without the
-  device suspending behind the black screens;
+- CPU-fix OFF and ON completed one Android framework restart in roughly 28 and
+  26 seconds on the tested Thor, without changing the Android boot ID;
 - the privileged service recovered after each framework restart;
-- a real reboot restored both saved fixes;
+- a real reboot changed the boot ID, restored both saved fixes, and completed
+  the expected second Android-framework phase in about 60 seconds total;
 - closing the visible app left the fixes active.
 
 APK SHA-256:
 
 ```text
-C72019B4AD1C3AB0717AC5B963C206960754EDDC362D55D491EACAE8DA04B82F
+11CC0973965B344B216C7C8509564139BF3030C97CC9F6ADA9797A2DCD44DFD5
 ```
 
 </details>

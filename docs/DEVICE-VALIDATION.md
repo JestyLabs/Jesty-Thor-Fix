@@ -106,3 +106,32 @@ The exact signed `1.1.1` APK was installed in place on the same physical Thor.
 
 This focused hotfix run validates the restart path changed in 1.1.1. It does
 not repeat the unchanged display true-off and wake-repair matrix.
+
+## 1.2.0 state model, telemetry, and persistence validation
+
+The exact signed `1.2.0` APK was installed in place on the same physical Thor.
+
+- [x] Package identity was `versionCode=44`, `versionName=1.2.0`.
+- [x] Signing certificate matched the stable update line.
+- [x] BOTH, AYN fake-off, and Jesty true-off were derived from live mode, power,
+  and lower-CRTC state and selected their matching artwork.
+- [x] CPU Fix active stayed green through repeated low-load and transient-high
+  samples; no red stock-bug verdict was emitted while the fix was active.
+- [x] CPU Fix OFF and ON completed one framework restart each in approximately
+  28 and 26 seconds without changing the Android boot ID.
+- [x] CPU Fix OFF in BOTH mode produced no false sustained-pinning verdict when
+  LITTLE and BIG were not simultaneously pinned.
+- [x] Live USB and estimated system-power telemetry returned after each
+  framework restart.
+- [x] TOP sleep/wake restored true-off and ended `OFF_OK` with the lower CRTC
+  inactive.
+- [x] A normal reboot changed the Android boot ID, restored both saved fixes,
+  and completed the expected second framework phase in about 60 seconds.
+- [x] The privileged daemon returned after every transition.
+- [x] Closing the visible UI with Back left the privileged daemon and both
+  fixes active.
+- [x] Final state was BOTH with both fixes enabled and both displays active.
+
+The power value is a live device estimate intended for nearby state
+comparisons. Boot/load peaks and charging direction are expected and are not a
+battery-runtime claim.

@@ -17,6 +17,12 @@ public final class Telemetry {
         public int utilization;
     }
 
+    public static final class PowerSnapshot {
+        public double usbWatts = Double.NaN;
+        public double batteryChargeWatts = Double.NaN;
+        public double systemProxyWatts = Double.NaN;
+    }
+
     public static synchronized CpuSnapshot readCpu() {
         CpuSnapshot result = new CpuSnapshot();
         result.littleCurrent = frequency(0, "scaling_cur_freq");
@@ -26,6 +32,21 @@ public final class Telemetry {
         result.primeCurrent = frequency(7, "scaling_cur_freq");
         result.primeMax = maxFrequency(7);
         result.utilization = readUtilization();
+        return result;
+    }
+
+    public static PowerSnapshot readPower() {
+        PowerSnapshot result = new PowerSnapshot();
+        long usbOnline = readLong("/sys/class/power_supply/usb/online");
+        long usbCurrent = readLong("/sys/class/power_supply/usb/current_now");
+        long usbVoltage = readLong("/sys/class/power_supply/usb/voltage_now");
+        long batteryCurrent = readLong("/sys/class/power_supply/battery/current_now");
+        long batteryVoltage = readLong("/sys/class/power_supply/battery/voltage_now");
+        if (usbOnline != 1L || usbCurrent < 0L || usbVoltage <= 0L
+                || batteryCurrent == -1L || batteryVoltage <= 0L) return result;
+        result.usbWatts = watts(usbCurrent, usbVoltage);
+        result.batteryChargeWatts = watts(batteryCurrent, batteryVoltage);
+        result.systemProxyWatts = result.usbWatts - result.batteryChargeWatts;
         return result;
     }
 
@@ -119,6 +140,10 @@ public final class Telemetry {
         } catch (Throwable ignored) {
             return -1L;
         }
+    }
+
+    private static double watts(long microAmps, long microVolts) {
+        return ((double) microAmps * (double) microVolts) / 1_000_000_000_000d;
     }
 
     private static int readUtilization() {

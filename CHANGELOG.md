@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.0
+
+- Added a three-state display model: BOTH, AYN fake-off, and Jesty true-off.
+- Added separate background artwork for fake-off and true-off so the dashboard
+  reflects the lower display's real hardware state.
+- Added live USB input and estimated system-power telemetry to the dashboard.
+- Hardened CPU pinning detection with settling time and sustained sampling.
+- Prevented red stock-bug verdicts while the Dashboard CPU Fix is active.
+- Shortened and clarified the Android restart confirmation shown by the CPU
+  fix toggle.
+- Expanded physical-device validation for OFF/ON framework restarts and a full
+  reboot with both saved fixes restored.
+
 ## 1.1.1
 
 - Prevented the Thor from suspending while the Dashboard CPU Fix restarts the
