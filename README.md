@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.0.3"><strong>Download APK</strong></a>
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.0.4"><strong>Download APK</strong></a>
   · <a href="#stock-top-only-vs-jesty-true-off">How it works</a>
   · <a href="docs/BENCHMARKS.md">Measurements</a>
   · <a href="https://www.buymeacoffee.com/jesty">☕ Support development</a>
@@ -95,8 +95,8 @@ system-power proxy from **2.030 W to 1.239 W**:
 
 ## Install and forget
 
-1. Download `Jesty-Thor-Fix-1.0.3.apk` from the
-   [latest release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.0.3).
+1. Download `Jesty-Thor-Fix-1.0.4.apk` from the
+   [latest release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.0.4).
 2. Install and open **Jesty Thor Fix** once.
 3. Enable **True Bottom Display Fix**.
 4. Select TOP mode and tap **Bottom screen & CPU check → Check now**.
@@ -138,7 +138,8 @@ top CRTC 181    active
 bottom CRTC 243 inactive
 ```
 
-The current `1.0.3` update only changes presentation. Display control, the
+The current `1.0.4` update only changes presentation and immediate visual
+highlighting. Display control, the
 CPU/DRM check, and wake-repair behavior are unchanged from the validated line.
 
 <details>

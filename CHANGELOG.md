@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.4
+
+- Moved the live fix/native status beside the header lockup and aligned it to
+  the right edge of the control column.
+- Replaced the dense Display & Service block with a clear display-mode label:
+  TOP ONLY, BOTH SCREENS, or BOTTOM ONLY.
+- Highlighted LITTLE and BIG values immediately in red when stock TOP-only has
+  the bottom hardware active and a cluster is near maximum under low load.
+- Kept the multi-sample confirmed bug warning and all control/wake behavior
+  unchanged.
+
 ## 1.0.3
 
 - Returned the Support and GitHub actions to the top-right corner.

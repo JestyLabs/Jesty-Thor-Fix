@@ -108,3 +108,19 @@ wake-repair behavior are unchanged from 1.0.1.
 
 This patch only reorders the two optional corner elements. It does not change
 display control, CPU/DRM checks, wake repair, or service behavior.
+
+## Stable 1.0.4 dashboard patch
+
+- Package: `com.thor.displaypowertest`
+- Version code: `41`
+- Version name: `1.0.4`
+- APK: `Jesty-Thor-Fix-1.0.4.apk`
+- SHA-256: `215F7490722F0463653EE2DC4909932097BD93B4E61CA5502073AD9BD8A88A56`
+- Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`
+- Verified signing schemes: APK Signature Scheme v1, v2, and v3.
+
+The signed APK was installed in place on the physical AYN Thor. Native
+TOP-only showed the bottom artwork active, LITTLE/BIG at their maximum values
+in red, and the confirmed pinned-core warning. Re-enabling the fix restored
+`fix=1`, `mode=1`, `power=0`, and `OFF_OK`. This patch changes dashboard
+presentation and highlighting only.

@@ -61,8 +61,6 @@ public final class MainActivity extends Activity {
     private TextView bigValue;
     private TextView primeValue;
     private TextView displayValue;
-    private TextView repairValue;
-    private TextView daemonValue;
     private TextView warningValue;
     private TextView verifyResult;
 
@@ -153,9 +151,6 @@ public final class MainActivity extends Activity {
         subtitle.setPadding(dp(2), 0, 0, dp(8));
         content.addView(subtitle);
 
-        stateText = text("CONNECTING\u2026", 19f, AMBER, true);
-        stateText.setLetterSpacing(0.06f);
-        content.addView(stateText);
         stateDetail = text("", 12f, MUTED, false);
         stateDetail.setPadding(0, dp(2), 0, dp(5));
         stateDetail.setVisibility(View.GONE);
@@ -218,21 +213,12 @@ public final class MainActivity extends Activity {
         content.addView(cpuPanel);
 
         LinearLayout detailPanel = panel();
-        TextView displayHeading = text("DISPLAY & SERVICE", 10f, MUTED, true);
+        TextView displayHeading = text("DISPLAY MODE", 10f, MUTED, true);
         displayHeading.setLetterSpacing(0.09f);
         detailPanel.addView(displayHeading);
-        LinearLayout displayRow = row();
-        displayValue = text("\u2014", 13f, Color.WHITE, true);
+        displayValue = text("\u2014", 16f, Color.WHITE, true);
         displayValue.setGravity(Gravity.CENTER_VERTICAL);
-        displayRow.addView(displayValue, new LinearLayout.LayoutParams(0, dp(27), 1f));
-        repairValue = text("LAST WAKE  \u2022  \u2014", 10f, Color.WHITE, true);
-        repairValue.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
-        displayRow.addView(repairValue, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, dp(27)));
-        detailPanel.addView(displayRow);
-        daemonValue = text("DAEMON  \u2022  \u2014", 10f, MUTED, false);
-        daemonValue.setPadding(0, dp(1), 0, 0);
-        detailPanel.addView(daemonValue);
+        detailPanel.addView(displayValue, new LinearLayout.LayoutParams(-1, dp(30)));
         content.addView(detailPanel);
         return root;
     }
@@ -310,6 +296,13 @@ public final class MainActivity extends Activity {
         lockup.setAdjustViewBounds(true);
         lockup.setContentDescription("Jesty Thor Fix");
         header.addView(lockup, new LinearLayout.LayoutParams(dp(242), dp(78)));
+
+        stateText = text("CONNECTING\u2026", 16f, AMBER, true);
+        stateText.setLetterSpacing(0.05f);
+        stateText.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+        stateText.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_END);
+        stateText.setMaxLines(2);
+        header.addView(stateText, new LinearLayout.LayoutParams(0, dp(78), 1f));
 
         header.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(80)));
         return header;
@@ -431,17 +424,18 @@ public final class MainActivity extends Activity {
         littleValue.setText(clock(littleCur, littleMax));
         bigValue.setText(clock(bigCur, bigMax));
         primeValue.setText(clock(primeCur, primeMax));
-        displayValue.setText(displayDescription(values.get("mode"), bottomPowered));
+        displayValue.setText(displayDescription(values.get("mode")));
         setBottomVisual(bottomPowered);
 
-        repairValue.setText("LAST WAKE  \u2022  #" + value(values, "wake_id")
-                + "  " + value(values, "repair_result"));
-        daemonValue.setText("DAEMON  \u2022  up " + duration(number(values, "uptime_ms"))
-                + "  \u2022  CPU " + utilization + "%  \u2022  " + value(values, "action"));
+        boolean stockTopHardwareActive = "1".equals(values.get("mode"))
+                && bottomPowered && utilization >= 0 && utilization < 40;
+        boolean littlePinned = ratio(littleCur, littleMax) >= 0.95;
+        boolean bigPinned = ratio(bigCur, bigMax) >= 0.95;
+        littleValue.setTextColor(stockTopHardwareActive && littlePinned ? RED : Color.WHITE);
+        bigValue.setTextColor(stockTopHardwareActive && bigPinned ? RED : Color.WHITE);
+        primeValue.setTextColor(Color.WHITE);
 
-        boolean suspicious = utilization >= 0 && utilization < 40
-                && ratio(littleCur, littleMax) >= 0.95
-                && ratio(bigCur, bigMax) >= 0.95;
+        boolean suspicious = stockTopHardwareActive && littlePinned && bigPinned;
         possibleLockSamples = suspicious ? possibleLockSamples + 1 : 0;
         warningValue.setText(possibleLockSamples >= 10
                 ? "STOCK BUG CONFIRMED \u2022 LITTLE/BIG PINNED AT MAX"
@@ -639,27 +633,10 @@ public final class MainActivity extends Activity {
         return current > 0 && maximum > 0 ? (double) current / maximum : 0d;
     }
 
-    private static String duration(long milliseconds) {
-        if (milliseconds < 0) return "\u2014";
-        long seconds = milliseconds / 1000L;
-        if (seconds < 60) return seconds + "s";
-        long minutes = seconds / 60;
-        if (minutes < 60) return minutes + "m";
-        return (minutes / 60) + "h " + (minutes % 60) + "m";
-    }
-
-    private static String modeDescription(String mode) {
-        if ("1".equals(mode)) return "Top screen only";
-        if ("0".equals(mode)) return "Both screens";
-        if ("2".equals(mode)) return "Bottom screen only";
-        return "Display mode unknown";
-    }
-
-    private static String displayDescription(String mode, boolean bottomPowered) {
-        if ("1".equals(mode) && !bottomPowered) return "Top only  \u2022  Bottom fully off";
-        if ("0".equals(mode)) return "Both screens available";
-        if ("2".equals(mode)) return "Bottom screen only";
-        if ("1".equals(mode)) return "Top only  \u2022  Bottom still active";
-        return "Display state unavailable";
+    private static String displayDescription(String mode) {
+        if ("1".equals(mode)) return "TOP ONLY";
+        if ("0".equals(mode)) return "BOTH SCREENS";
+        if ("2".equals(mode)) return "BOTTOM ONLY";
+        return "DISPLAY STATE UNAVAILABLE";
     }
 }

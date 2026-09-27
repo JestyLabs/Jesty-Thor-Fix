@@ -99,7 +99,7 @@ if ($LASTEXITCODE -ne 0) { throw 'zipalign failed' }
 & $zipalign -c -v 4 $aligned
 if ($LASTEXITCODE -ne 0) { throw 'zipalign verification failed' }
 
-$output = Join-Path $dist 'Jesty-Thor-Fix-1.0.3-unsigned.apk'
+$output = Join-Path $dist 'Jesty-Thor-Fix-1.0.4-unsigned.apk'
 Copy-Item -LiteralPath $aligned -Destination $output -Force
 
 if ($Sign) {
@@ -110,7 +110,7 @@ if ($Sign) {
     $passwordPtr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
     try {
         $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPtr)
-        $signedOutput = Join-Path $dist 'Jesty-Thor-Fix-1.0.3.apk'
+        $signedOutput = Join-Path $dist 'Jesty-Thor-Fix-1.0.4.apk'
         $passwordInput = "$plainPassword`n$plainPassword"
         $passwordInput | & $apksigner sign `
             --ks $KeystorePath --ks-key-alias $KeyAlias `
