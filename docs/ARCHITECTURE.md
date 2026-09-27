@@ -24,7 +24,10 @@ The dashboard does not need to remain open for the fix to stay active.
 - updates the Thor-specific `display.power.state` property;
 - exposes status and one-shot verification over `127.0.0.1:3804`.
 - applies the optional vendor system-load-check property for the AYN Dashboard
-  CPU Fix and performs the required one-shot display-compositor restart;
+  CPU Fix and performs the required one-shot display-compositor restart, which
+  restarts Android's framework processes and closes open apps;
+- holds a named, timed kernel wake-lock across that transition so the Thor
+  cannot suspend behind the black displays, then releases it after recovery;
 - schedules a clean daemon relaunch after that display reset so the watcher
   receives fresh Android service binders and true-off remains independent.
 
@@ -65,5 +68,8 @@ Clock values come from `policy0`, `policy3`, and `policy7`. Maximum frequency us
 
 `R` and `L` enable or disable the Dashboard CPU Fix. They update
 `vendor.display.disable_system_load_check`, restart the display compositor once,
-and arrange the daemon relaunch described above. Opening the UI does not issue
-either command.
+and arrange the daemon relaunch described above. The composer dependency chain
+also restarts SurfaceFlinger and Android framework processes; this is why open
+apps close even though the kernel boot ID does not change. A timed kernel
+wake-lock covers the transition and a surviving helper releases it after
+recovery. Opening the UI does not issue either command.

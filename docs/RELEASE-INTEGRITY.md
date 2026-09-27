@@ -141,3 +141,19 @@ true-off path. The display/USB reset used to change the new property did not
 change the Android boot ID, and the privileged daemon restarted itself after
 the reset so TOP/BOTH observation and wake repair remained live. A subsequent
 real Android reboot changed the boot ID and restored both saved fixes.
+
+## Stable 1.1.1 restart hotfix
+
+- Package: `com.thor.displaypowertest`
+- Version code: `43`
+- Version name: `1.1.1`
+- APK: `Jesty-Thor-Fix-1.1.1.apk`
+- SHA-256: `C72019B4AD1C3AB0717AC5B963C206960754EDDC362D55D491EACAE8DA04B82F`
+- Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`
+- Verified signing schemes: APK Signature Scheme v1, v2, and v3.
+
+The exact signed APK was installed in place on the physical Thor. Both CPU Fix
+OFF and ON completed their required Android framework restart without the
+device entering suspend. A subsequent normal reboot restored the saved CPU Fix
+setting and completed its expected framework restart without a suspend delay.
+The timed transition wake-lock was inactive after recovery.

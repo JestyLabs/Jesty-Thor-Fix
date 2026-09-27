@@ -14,6 +14,7 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 
 public final class D {
+    private static final String TRANSITION_WAKE_LOCK = "jesty_dashboard_cpu_transition";
     private static boolean composerRestartScheduled;
     public static void main(String[] args) throws Exception {
         boolean enabled = args.length == 0 || !"0".equals(args[0]);
@@ -94,17 +95,23 @@ public final class D {
         }
         String propertyResult = setSystemLoadCheckDisabled(enabled);
         if (!propertyResult.startsWith("ok=1")) return propertyResult;
+        if (!acquireTransitionWakeLock()) {
+            setSystemLoadCheckDisabled(!enabled);
+            return "ok=0;error=WAKE_LOCK_FAILED";
+        }
         composerRestartScheduled = true;
         new Thread(new Runnable() {
             @Override public void run() {
                 try {
                     Thread.sleep(300L);
-                    scheduleDaemonRestartAfterDisplayReset();
-                    new ProcessBuilder("setprop", "ctl.restart",
+                    scheduleTransitionCleanupAndDaemonRestart();
+                    int exit = new ProcessBuilder("setprop", "ctl.restart",
                             "vendor.qti.hardware.display.composer").start().waitFor();
+                    if (exit != 0) throw new IllegalStateException("composer restart exit=" + exit);
                     Thread.sleep(3000L);
                 } catch (Throwable error) {
                     Log.e("ThorDisplayDaemon", "composer restart failed", error);
+                    releaseTransitionWakeLock();
                 } finally {
                     synchronized (D.class) { composerRestartScheduled = false; }
                 }
@@ -113,10 +120,34 @@ public final class D {
         return "ok=1;system_load_fix=" + desired + ";composer_restart=scheduled_once";
     }
 
-    private static void scheduleDaemonRestartAfterDisplayReset() throws Exception {
+    private static boolean acquireTransitionWakeLock() {
+        try {
+            // Kernel timeout is a safety net; the surviving helper releases it
+            // explicitly as soon as Android's display stack has recovered.
+            Process process = new ProcessBuilder("sh", "-c", "echo '"
+                    + TRANSITION_WAKE_LOCK + " 90000000000' > /sys/power/wake_lock").start();
+            return process.waitFor() == 0;
+        } catch (Throwable error) {
+            Log.e("ThorDisplayDaemon", "transition wake lock failed", error);
+            return false;
+        }
+    }
+
+    private static void releaseTransitionWakeLock() {
+        try {
+            new ProcessBuilder("sh", "-c", "echo '" + TRANSITION_WAKE_LOCK
+                    + "' > /sys/power/wake_unlock").start().waitFor();
+        } catch (Throwable error) {
+            Log.e("ThorDisplayDaemon", "transition wake unlock failed", error);
+        }
+    }
+
+    private static void scheduleTransitionCleanupAndDaemonRestart() throws Exception {
         String enabled = DaemonState.isEnabled() ? "1" : "0";
         int daemonPid = android.os.Process.myPid();
-        String command = "sleep 12; A=''; for I in $(seq 1 30); do "
+        String command = "sleep 18; echo '" + TRANSITION_WAKE_LOCK
+                + "' > /sys/power/wake_unlock 2>/dev/null; "
+                + "A=''; for I in $(seq 1 30); do "
                 + "A=$(pm path com.thor.displaypowertest 2>/dev/null); "
                 + "[ -n \"$A\" ] && break; sleep 1; done; "
                 + "A=${A#*:}; [ -n \"$A\" ] || exit 1; "

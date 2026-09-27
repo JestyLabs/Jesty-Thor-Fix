@@ -85,3 +85,24 @@ The exact signed `1.1.0` APK was installed in place on the same physical Thor.
 
 Pulse/Cluster Tune coexistence was not claimed as confirmed because that exact
 combination was not part of this focused release run.
+
+## 1.1.1 restart hotfix validation
+
+The exact signed `1.1.1` APK was installed in place on the same physical Thor.
+
+- [x] Package identity was `versionCode=43`, `versionName=1.1.1`.
+- [x] Signing certificate matched the stable update line.
+- [x] CPU Fix OFF performed one Android framework restart and returned without
+  the device entering suspend.
+- [x] CPU Fix ON performed one Android framework restart and returned without
+  the device entering suspend.
+- [x] The timed transition wake-lock was active only during recovery and was
+  released afterward.
+- [x] The privileged daemon recovered after both transitions.
+- [x] A normal reboot restored the saved CPU Fix choice and completed its one
+  expected framework restart without a suspend delay.
+- [x] The device remained stable after recovery with one app process and one
+  privileged daemon.
+
+This focused hotfix run validates the restart path changed in 1.1.1. It does
+not repeat the unchanged display true-off and wake-repair matrix.

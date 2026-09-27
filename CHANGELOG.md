@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.1
+
+- Prevented the Thor from suspending while the Dashboard CPU Fix restarts the
+  Qualcomm display stack. A timed kernel wake-lock now covers only the
+  transition and is explicitly released after Android returns.
+- Corrected the confirmation and status copy: changing this setting restarts
+  the Android framework and closes open apps; it is not merely a display/USB
+  flicker.
+- Kept the true bottom-display control and wake-repair timings unchanged.
+
 ## 1.1.0
 
 - Added a separate, persistent **AYN Dashboard CPU Fix** for the dual-screen

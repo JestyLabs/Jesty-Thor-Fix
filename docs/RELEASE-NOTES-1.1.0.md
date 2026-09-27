@@ -1,5 +1,9 @@
 # Jesty Thor Fix 1.1.0
 
+> **Correction:** the CPU-fix transition restarts Android framework processes
+> and closes open apps even though the kernel boot ID does not change. Version
+> 1.1.1 also prevents the Thor from suspending during this transition.
+
 This release gives Jesty Thor Fix two independent controls:
 
 - **True Bottom Display Fix** powers the lower display hardware fully off in
@@ -9,10 +13,9 @@ This release gives Jesty Thor Fix two independent controls:
 
 ## Important display-restart notice
 
-Changing AYN Dashboard CPU Fix briefly restarts both displays and USB. It can
-look like a reboot, but Android and open apps remain running. When enabled, the
-same brief reset runs once during a normal boot and can look like a second
-reboot.
+Changing AYN Dashboard CPU Fix restarts the Android framework, both displays,
+and USB, so open apps close. When enabled, the same transition runs once during
+a normal boot and can look like a second boot phase.
 
 ## Other changes
 

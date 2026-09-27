@@ -86,3 +86,23 @@ installed artifact. Device identifiers and raw system logs are not published.
 
 These are focused device results, not a battery-life percentage claim for the
 new Dashboard CPU Fix.
+
+## 1.1.1 transition wake-lock hotfix
+
+- Installed in place as `versionCode=43`, `versionName=1.1.1`, with the same
+  signing certificate as previous official builds.
+- Diagnosis showed that the unusually long second 1.1.0 transition was not
+  extra compositor work: the Thor suspended for roughly 49 seconds while the
+  displays were black.
+- In 1.1.1, both OFF and ON transitions advanced device uptime continuously;
+  neither entered suspend.
+- In both focused runs, Android's boot-animation recovery path completed in
+  about 12 seconds. Visual return can take a little longer while the app and
+  privileged daemon reconnect.
+- A normal reboot restored `system_load_fix=1`, then completed the expected
+  one-time Android framework restart without suspending during the transition.
+- The transition wake-lock reported inactive after recovery, and the daemon
+  was running normally.
+
+These timings describe one tested Thor and are context, not a universal boot
+time guarantee.

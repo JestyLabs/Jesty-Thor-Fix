@@ -290,14 +290,14 @@ public final class MainActivity extends Activity {
 
     private void confirmDashboardCpuFix(boolean requested) {
         String message = requested
-                ? "Display and USB restart briefly now and at each boot. It may look like a second reboot; Android and apps stay running."
-                : "Display and USB restart briefly. It may look like a reboot; Android and apps stay running.";
+                ? "Android restarts once now and once during each normal boot. Open apps will close."
+                : "Android restarts once now. Open apps will close.";
         new AlertDialog.Builder(this)
                 .setTitle(requested ? "Enable Dashboard CPU Fix?" : "Disable Dashboard CPU Fix?")
                 .setMessage(message)
                 .setNegativeButton("CANCEL", (dialog, which) -> restoreDashboardToggle())
                 .setOnCancelListener(dialog -> restoreDashboardToggle())
-                .setPositiveButton(requested ? "RESTART DISPLAY & ENABLE" : "RESTART DISPLAY & DISABLE",
+                .setPositiveButton(requested ? "RESTART & ENABLE" : "RESTART & DISABLE",
                         (dialog, which) -> setDashboardCpuFixEnabled(requested))
                 .show();
     }
@@ -324,7 +324,7 @@ public final class MainActivity extends Activity {
                     dashboardCommandInFlight = false;
                     dashboardFixToggle.setEnabled(true);
                     updateDashboardFixHelp(requested);
-                    Toast.makeText(this, "Display restart scheduled • not an Android reboot",
+                    Toast.makeText(this, "Android restart scheduled",
                             Toast.LENGTH_LONG).show();
                 });
             } catch (Throwable error) {
@@ -693,7 +693,7 @@ public final class MainActivity extends Activity {
     private void updateDashboardFixHelp(boolean enabled) {
         if (dashboardFixHelp == null) return;
         dashboardFixHelp.setText(enabled
-                ? "ON \u2022 Each boot briefly restarts the display (may look like a second reboot)"
+                ? "ON \u2022 Android restarts once while applying this at boot"
                 : "Releases LITTLE/BIG clocks in dual-screen mode");
         dashboardFixHelp.setTextColor(enabled ? AMBER : MUTED);
     }

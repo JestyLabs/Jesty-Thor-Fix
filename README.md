@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.1.0"><strong>Download APK</strong></a>
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.1.1"><strong>Download APK</strong></a>
   · <a href="#what-does-it-fix">What it fixes</a>
   · <a href="#possible-battery-benefit">Measurements</a>
   · <a href="https://www.buymeacoffee.com/jesty">☕ Support development</a>
@@ -115,15 +115,17 @@ With the fix enabled, a focused BOTH-mode validation recorded **0/25 samples**
 where LITTLE and BIG were simultaneously stuck at maximum.
 
 > [!WARNING]
-> Changing **AYN Dashboard CPU Fix** briefly restarts the displays and USB.
-> The screens may flicker and it can look like a reboot, but Android and open
-> apps remain running. When the fix is enabled, this brief display restart also
-> happens once during a normal boot and may look like a second reboot.
+> Changing **AYN Dashboard CPU Fix** restarts the Android framework once and
+> closes open apps. The displays stay black for a short period while Android
+> returns. When enabled, this restart also happens once during a normal boot,
+> which can look like a second boot phase. Version 1.1.1 prevents the Thor from
+> suspending during this transition; the timed protection is released after
+> Android has recovered.
 
 ## Install once, then close the app
 
-1. Download `Jesty-Thor-Fix-1.1.0.apk` from the
-   [v1.1.0 release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.1.0).
+1. Download `Jesty-Thor-Fix-1.1.1.apk` from the
+   [v1.1.1 release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.1.1).
 2. Install and open **Jesty Thor Fix** once.
 3. Enable the switch for each problem you want to fix.
 4. Use **Check now** if you want to verify the current display and CPU state.
@@ -192,24 +194,25 @@ tested on-device.
 <details>
 <summary><strong>What was verified on the physical Thor?</strong></summary>
 
-The exact signed v1.1.0 APK was installed in place and tested:
+The exact signed v1.1.1 APK was installed in place and tested:
 
-- package `com.thor.displaypowertest`, version code `42`, version `1.1.0`;
+- package `com.thor.displaypowertest`, version code `43`, version `1.1.1`;
 - signing certificate unchanged from earlier releases;
 - TOP true-off ended with the top CRTC active and the lower CRTC inactive;
 - sleep/wake restored true-off and ended `OFF_OK`;
 - BOTH kept both displays active;
 - the Dashboard fix changed the reproduced result to 0/25 simultaneous
   LITTLE/BIG maximum samples in the focused run;
-- the display/USB restart did not reboot Android;
-- the privileged service recovered after the display restart;
+- both CPU-fix ON and OFF completed one Android framework restart without the
+  device suspending behind the black screens;
+- the privileged service recovered after each framework restart;
 - a real reboot restored both saved fixes;
 - closing the visible app left the fixes active.
 
 APK SHA-256:
 
 ```text
-10240A143C2B3C73333F089ACD45D563D476E571FA93EDEA9F765DA421D0EE77
+C72019B4AD1C3AB0717AC5B963C206960754EDDC362D55D491EACAE8DA04B82F
 ```
 
 </details>

@@ -18,11 +18,13 @@
 - [x] Build script has no maintainer-specific path and supports unsigned reproducible builds.
 - [x] Complete a clean unsigned build from the staged repository.
 - [x] Confirm package/version and preserved true-off timing implementation.
-- [x] Install the exact signed 1.1.0 APK in place on the physical Thor.
+- [x] Install the exact signed 1.1.1 APK in place on the physical Thor.
 - [x] Test TOP native/fix, BOTH, bottom-screen check, Back/closed UI,
   sleep/wake, Dashboard CPU Fix display reset, daemon recovery, and reboot
   persistence.
 - [x] Confirm the official APK certificate and SHA-256 before publishing.
+- [x] Test the 1.1.1 CPU Fix ON/OFF framework-restart path, confirm no suspend
+  delay, confirm wake-lock release, and confirm normal-reboot persistence.
 - [x] Capture README screenshots from the exact signed 1.1.0 artifact and the
   directly preceding real Dashboard-open pinning reproduction.
 
