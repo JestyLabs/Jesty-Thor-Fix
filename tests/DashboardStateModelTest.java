@@ -40,7 +40,12 @@ public final class DashboardStateModelTest {
         DashboardStateModel model = new DashboardStateModel();
         DashboardStateModel.ClockStatus status = feed(model, "a", false, false,
                 10, 10, 10, 10, 5, 11);
-        equal("LITTLE + BIG PINNED AT MAX", status.text);
+        equal("LITTLE + BIG CLOCKS PINNED HIGH", status.text);
+        truth(status.pinned);
+
+        model.resetClocks();
+        status = feed(model, "high-band", false, false, 9, 10, 9, 10, 5, 11);
+        equal("LITTLE + BIG CLOCKS PINNED HIGH", status.text);
         truth(status.pinned);
 
         model.resetClocks();
@@ -50,7 +55,7 @@ public final class DashboardStateModelTest {
 
         model.resetClocks();
         status = feed(model, "c", true, true, 10, 10, 10, 10, 5, 11);
-        equal("UNEXPECTED PINNING \u00B7 FIX ACTIVE", status.text);
+        equal("UNEXPECTED HIGH CLOCK LOCK \u00B7 FIX ACTIVE", status.text);
     }
 
     private static void clockResetsAndBusyState() {

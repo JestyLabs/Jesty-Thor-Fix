@@ -49,14 +49,14 @@ public final class DashboardStateModel {
     }
 
     private static final class ClockDelta {
-        final long littleMax, littleTotal, bigMax, bigTotal;
+        final long littleHigh, littleTotal, bigHigh, bigTotal;
         final int utilization;
 
-        ClockDelta(long littleMax, long littleTotal, long bigMax, long bigTotal,
+        ClockDelta(long littleHigh, long littleTotal, long bigHigh, long bigTotal,
                 int utilization) {
-            this.littleMax = littleMax;
+            this.littleHigh = littleHigh;
             this.littleTotal = littleTotal;
-            this.bigMax = bigMax;
+            this.bigHigh = bigHigh;
             this.bigTotal = bigTotal;
             this.utilization = utilization;
         }
@@ -69,7 +69,7 @@ public final class DashboardStateModel {
     private Visual confirmedVisual = Visual.BOTH_ON;
     private String clockStateKey = "";
     private boolean haveClockBaseline;
-    private long previousLittleMax, previousLittleTotal, previousBigMax, previousBigTotal;
+    private long previousLittleHigh, previousLittleTotal, previousBigHigh, previousBigTotal;
 
     public DisplayStatus updateDisplay(String mode, String topCrtc, String bottomCrtc,
             boolean trueOffEnabled) {
@@ -131,39 +131,39 @@ public final class DashboardStateModel {
         displayCandidateSamples = 0;
     }
 
-    public ClockStatus updateClocks(String stateKey, long littleMaxTicks, long littleTotalTicks,
-            long bigMaxTicks, long bigTotalTicks, int utilization,
+    public ClockStatus updateClocks(String stateKey, long littleHighTicks, long littleTotalTicks,
+            long bigHighTicks, long bigTotalTicks, int utilization,
             boolean fixDesired, boolean fixActive) {
         if (!stateKey.equals(clockStateKey)) {
             resetClocks();
             clockStateKey = stateKey;
         }
         if (!haveClockBaseline) {
-            setClockBaseline(littleMaxTicks, littleTotalTicks, bigMaxTicks, bigTotalTicks);
+            setClockBaseline(littleHighTicks, littleTotalTicks, bigHighTicks, bigTotalTicks);
             return checking();
         }
 
-        long littleMaxDelta = littleMaxTicks - previousLittleMax;
+        long littleHighDelta = littleHighTicks - previousLittleHigh;
         long littleTotalDelta = littleTotalTicks - previousLittleTotal;
-        long bigMaxDelta = bigMaxTicks - previousBigMax;
+        long bigHighDelta = bigHighTicks - previousBigHigh;
         long bigTotalDelta = bigTotalTicks - previousBigTotal;
-        setClockBaseline(littleMaxTicks, littleTotalTicks, bigMaxTicks, bigTotalTicks);
-        if (littleMaxDelta < 0 || littleTotalDelta <= 0 || bigMaxDelta < 0 || bigTotalDelta <= 0
+        setClockBaseline(littleHighTicks, littleTotalTicks, bigHighTicks, bigTotalTicks);
+        if (littleHighDelta < 0 || littleTotalDelta <= 0 || bigHighDelta < 0 || bigTotalDelta <= 0
                 || utilization < 0) {
             clockWindow.clear();
             return checking();
         }
 
-        clockWindow.addLast(new ClockDelta(littleMaxDelta, littleTotalDelta,
-                bigMaxDelta, bigTotalDelta, utilization));
+        clockWindow.addLast(new ClockDelta(littleHighDelta, littleTotalDelta,
+                bigHighDelta, bigTotalDelta, utilization));
         while (clockWindow.size() > CLOCK_WINDOW_SAMPLES) clockWindow.removeFirst();
         if (fixDesired != fixActive || clockWindow.size() < CLOCK_MIN_SAMPLES) return checking();
 
-        long littleMax = 0, littleTotal = 0, bigMax = 0, bigTotal = 0, load = 0;
+        long littleHigh = 0, littleTotal = 0, bigHigh = 0, bigTotal = 0, load = 0;
         for (ClockDelta sample : clockWindow) {
-            littleMax += sample.littleMax;
+            littleHigh += sample.littleHigh;
             littleTotal += sample.littleTotal;
-            bigMax += sample.bigMax;
+            bigHigh += sample.bigHigh;
             bigTotal += sample.bigTotal;
             load += sample.utilization;
         }
@@ -172,12 +172,12 @@ public final class DashboardStateModel {
             return new ClockStatus("CPU BUSY \u00B7 MONITORING PAUSED", Tone.AMBER,
                     false, true);
         }
-        boolean pinned = ratio(littleMax, littleTotal) >= PINNED_RESIDENCY
-                && ratio(bigMax, bigTotal) >= PINNED_RESIDENCY;
+        boolean pinned = ratio(littleHigh, littleTotal) >= PINNED_RESIDENCY
+                && ratio(bigHigh, bigTotal) >= PINNED_RESIDENCY;
         if (pinned) {
             return fixActive
-                    ? new ClockStatus("UNEXPECTED PINNING \u00B7 FIX ACTIVE", Tone.RED, true, true)
-                    : new ClockStatus("LITTLE + BIG PINNED AT MAX", Tone.RED, true, true);
+                    ? new ClockStatus("UNEXPECTED HIGH CLOCK LOCK \u00B7 FIX ACTIVE", Tone.RED, true, true)
+                    : new ClockStatus("LITTLE + BIG CLOCKS PINNED HIGH", Tone.RED, true, true);
         }
         return new ClockStatus(fixActive ? "CPU FIX ACTIVE \u00B7 CLOCKS NORMAL"
                 : "CLOCKS SCALING NORMALLY", Tone.GREEN, false, true);
@@ -189,10 +189,10 @@ public final class DashboardStateModel {
         clockStateKey = "";
     }
 
-    private void setClockBaseline(long littleMax, long littleTotal, long bigMax, long bigTotal) {
-        previousLittleMax = littleMax;
+    private void setClockBaseline(long littleHigh, long littleTotal, long bigHigh, long bigTotal) {
+        previousLittleHigh = littleHigh;
         previousLittleTotal = littleTotal;
-        previousBigMax = bigMax;
+        previousBigHigh = bigHigh;
         previousBigTotal = bigTotal;
         haveClockBaseline = true;
     }

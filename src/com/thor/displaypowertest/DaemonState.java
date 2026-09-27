@@ -66,8 +66,10 @@ public final class DaemonState {
                 + ";prime_cur=" + cpu.primeCurrent
                 + ";prime_max=" + cpu.primeMax
                 + ";little_max_ticks=" + cpu.littleMaxTicks
+                + ";little_high_ticks=" + cpu.littleHighTicks
                 + ";little_total_ticks=" + cpu.littleTotalTicks
                 + ";big_max_ticks=" + cpu.bigMaxTicks
+                + ";big_high_ticks=" + cpu.bigHighTicks
                 + ";big_total_ticks=" + cpu.bigTotalTicks
                 + ";cpu_pct=" + cpu.utilization
                 + ";usb_w=" + decimal(power.usbWatts)

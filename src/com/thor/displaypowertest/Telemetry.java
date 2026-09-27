@@ -14,7 +14,8 @@ public final class Telemetry {
 
     public static final class CpuSnapshot {
         public long littleCurrent, littleMax, bigCurrent, bigMax, primeCurrent, primeMax;
-        public long littleMaxTicks, littleTotalTicks, bigMaxTicks, bigTotalTicks;
+        public long littleMaxTicks, littleHighTicks, littleTotalTicks;
+        public long bigMaxTicks, bigHighTicks, bigTotalTicks;
         public int utilization;
     }
 
@@ -37,8 +38,10 @@ public final class Telemetry {
         Residency littleResidency = residency(0, result.littleMax);
         Residency bigResidency = residency(3, result.bigMax);
         result.littleMaxTicks = littleResidency.maxTicks;
+        result.littleHighTicks = littleResidency.highTicks;
         result.littleTotalTicks = littleResidency.totalTicks;
         result.bigMaxTicks = bigResidency.maxTicks;
+        result.bigHighTicks = bigResidency.highTicks;
         result.bigTotalTicks = bigResidency.totalTicks;
         result.utilization = readUtilization();
         return result;
@@ -188,6 +191,7 @@ public final class Telemetry {
 
     private static final class Residency {
         long maxTicks;
+        long highTicks;
         long totalTicks;
     }
 
@@ -205,10 +209,16 @@ public final class Telemetry {
                 long ticks = Long.parseLong(fields[1]);
                 result.totalTicks += ticks;
                 if (frequency == maximum) result.maxTicks = ticks;
+                // The reproduced Thor lock holds BIG at 2.707 GHz while the
+                // policy advertises a 2.803 GHz ceiling. Treat the top 5% as
+                // the pinned band instead of requiring the exact last step.
+                if (maximum > 0L && frequency * 100L >= maximum * 95L) {
+                    result.highTicks += ticks;
+                }
             }
             reader.close();
         } catch (Throwable ignored) {
-            result.maxTicks = result.totalTicks = -1L;
+            result.maxTicks = result.highTicks = result.totalTicks = -1L;
         }
         return result;
     }

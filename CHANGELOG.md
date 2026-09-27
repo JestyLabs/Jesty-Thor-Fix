@@ -6,13 +6,16 @@
   removed the redundant manual `Check now` action.
 - Replaced instantaneous clock snapshots with a 12-second LITTLE/BIG
   `time_in_state` diagnosis so brief frequency spikes are not reported as
-  pinning.
+  pinning. The high-frequency band includes the Thor's reproduced 2.71 GHz BIG
+  lock even though that policy exposes a separate 2.80 GHz ceiling.
 - Added stable physical-display transitions and explicit BOTH, AYN black
   screen, true-off, BOTTOM, transition, and mismatch states.
 - Replaced the charging-only system-power proxy with smoothed battery draw,
   shown only while the Thor is actually discharging.
 - Simplified the two fix labels, centered the header over the dashboard column,
   and reduced the open-source badge to its essential message.
+- Kept the Android UI/display restart and open-app warning visible directly
+  under the Dashboard CPU Fix toggle in both OFF and ON states.
 - Added an automatic daemon protocol migration for upgrades from 1.2.0.
 
 ## 1.2.0

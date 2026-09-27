@@ -67,7 +67,11 @@ Clock values come from `policy0`, `policy3`, and `policy7`. Maximum frequency
 uses `scaling_max_freq` with `cpuinfo_max_freq` as fallback. The visible app
 compares cumulative `time_in_state` deltas over a 12-second window and only
 reports pinning when LITTLE and BIG each spend at least 85% of a settled,
-low-load window at maximum. No governor or frequency file is written.
+low-load window in the top 5% of the cluster's frequency range. This includes
+the reproduced BIG lock at 2.707 GHz even though its policy advertises a
+2.803 GHz ceiling. Exact-maximum counters remain in `Q`; additive
+`little_high_ticks` and `big_high_ticks` fields drive the dashboard. No
+governor or frequency file is written.
 
 Battery draw is reported only when USB is offline and the battery status is
 `Discharging`. It is calculated from the absolute battery current multiplied

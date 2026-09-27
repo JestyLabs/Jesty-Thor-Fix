@@ -179,7 +179,7 @@ restored both fixes after a real reboot and its expected framework restart.
 - Version code: `45`
 - Version name: `1.3.0`
 - APK: `Jesty-Thor-Fix-1.3.0.apk`
-- SHA-256: `2D75A7018C9A9D967BEFC1CD0B8FA92933EB835BFF67E13438049E727463BBEF`
+- SHA-256: `021AC43581E6999AABFB896B760834B4F1804EF43EFD63709058E36F5D9297AD`
 - Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`
 - Verified signing schemes: APK Signature Scheme v1, v2, and v3.
 

@@ -187,7 +187,7 @@ public final class MainActivity extends Activity {
 
         dashboardFixToggle = makeSwitch("", Color.WHITE, 14f);
         controls.addView(featureToggleRow("AYN DASHBOARD CPU FIX",
-                "Lets LITTLE and BIG clocks slow down normally", dashboardFixToggle),
+                "Restarts Android UI/display to apply \u00B7 closes open apps", dashboardFixToggle),
                 new LinearLayout.LayoutParams(-1, dp(54)));
         content.addView(controls);
 
@@ -455,8 +455,8 @@ public final class MainActivity extends Activity {
                 + ":" + value(values, "bottom_crtc") + ":" + dashboardFixActive
                 + ":" + dashboardFixDesired + ":" + display.confirmed;
         DashboardStateModel.ClockStatus clocks = dashboardModel.updateClocks(clockStateKey,
-                number(values, "little_max_ticks"), number(values, "little_total_ticks"),
-                number(values, "big_max_ticks"), number(values, "big_total_ticks"), utilization,
+                number(values, "little_high_ticks"), number(values, "little_total_ticks"),
+                number(values, "big_high_ticks"), number(values, "big_total_ticks"), utilization,
                 dashboardFixDesired, dashboardFixActive);
 
         littleValue.setTextColor(clocks.pinned ? RED : Color.WHITE);
@@ -636,8 +636,8 @@ public final class MainActivity extends Activity {
     private void updateDashboardFixHelp(boolean enabled) {
         if (dashboardFixHelp == null) return;
         dashboardFixHelp.setText(enabled
-                ? "ON \u2022 Android restarts once while applying this at boot"
-                : "Lets LITTLE and BIG clocks slow down normally");
+                ? "ON \u00B7 Restarts Android UI/display once at boot \u00B7 closes apps"
+                : "Restarts Android UI/display to apply \u00B7 closes open apps");
         dashboardFixHelp.setTextColor(enabled ? AMBER : MUTED);
     }
 
