@@ -95,3 +95,16 @@ This visual-only patch was installed in place and its package identity was
 confirmed on the physical AYN Thor. The full hardware regression matrix was
 not repeated for this layout-only update. Display control, CPU/DRM checks, and
 wake-repair behavior are unchanged from 1.0.1.
+
+## Stable 1.0.3 visual patch
+
+- Package: `com.thor.displaypowertest`
+- Version code: `40`
+- Version name: `1.0.3`
+- APK: `Jesty-Thor-Fix-1.0.3.apk`
+- SHA-256: `9566D549A743C0E2E18C958CD67C249B3C4F6835EE17D52BA454C1C3DDAAADA2`
+- Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`
+- Verified signing schemes: APK Signature Scheme v1, v2, and v3.
+
+This patch only reorders the two optional corner elements. It does not change
+display control, CPU/DRM checks, wake repair, or service behavior.

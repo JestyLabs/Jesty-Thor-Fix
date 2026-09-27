@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.3
+
+- Returned the Support and GitHub actions to the top-right corner.
+- Moved the open-source badge to the bottom-right and reordered its copy so
+  the support line appears above the amber Jesty message.
+- Kept all display-control, CPU/DRM check, wake-repair, and layout behavior
+  unchanged from 1.0.2.
+
 ## 1.0.2
 
 - Restored the full `JESTY APPS ARE FREE & OPEN SOURCE` message in amber at

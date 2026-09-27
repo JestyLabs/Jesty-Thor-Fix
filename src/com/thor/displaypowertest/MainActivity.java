@@ -132,14 +132,14 @@ public final class MainActivity extends Activity {
 
         LinearLayout openSourceBadge = buildOpenSourceBadge();
         FrameLayout.LayoutParams badgeParams = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, dp(50), Gravity.TOP | Gravity.END);
-        badgeParams.setMargins(0, dp(16), dp(18), 0);
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(50), Gravity.BOTTOM | Gravity.END);
+        badgeParams.setMargins(0, 0, dp(18), dp(16));
         root.addView(openSourceBadge, badgeParams);
 
         LinearLayout topActions = buildTopActions();
         FrameLayout.LayoutParams actionParams = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, dp(42), Gravity.BOTTOM | Gravity.END);
-        actionParams.setMargins(0, 0, dp(18), dp(16));
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(42), Gravity.TOP | Gravity.END);
+        actionParams.setMargins(0, dp(16), dp(18), 0);
         root.addView(topActions, actionParams);
 
         LinearLayout content = new LinearLayout(this);
@@ -275,14 +275,14 @@ public final class MainActivity extends Activity {
         badge.setOrientation(LinearLayout.VERTICAL);
         badge.setGravity(Gravity.CENTER);
         badge.setPadding(dp(16), dp(5), dp(16), dp(5));
-        TextView title = text("JESTY APPS ARE FREE & OPEN SOURCE", 9f, AMBER, true);
-        title.setGravity(Gravity.CENTER);
-        title.setLetterSpacing(0.05f);
-        badge.addView(title);
         TextView copy = text("Support device testing or star the project.", 8f,
                 Color.rgb(205, 196, 218), false);
         copy.setGravity(Gravity.CENTER);
         badge.addView(copy);
+        TextView title = text("JESTY APPS ARE FREE & OPEN SOURCE", 9f, AMBER, true);
+        title.setGravity(Gravity.CENTER);
+        title.setLetterSpacing(0.05f);
+        badge.addView(title);
         GradientDrawable bubble = new GradientDrawable();
         bubble.setColor(0xB5100B19);
         bubble.setCornerRadius(dp(25));

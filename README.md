@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.0.2"><strong>Download APK</strong></a>
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.0.3"><strong>Download APK</strong></a>
   · <a href="#what-does-it-fix">How it works</a>
   · <a href="docs/BENCHMARKS.md">Measurements and raw data</a>
   · <a href="https://www.buymeacoffee.com/jesty">☕ Support development</a>
@@ -153,8 +153,8 @@ bottom CRTC 243 inactive
 
 ## Installation
 
-1. Download `Jesty-Thor-Fix-1.0.2.apk` from the
-   [GitHub release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.0.2).
+1. Download `Jesty-Thor-Fix-1.0.3.apk` from the
+   [GitHub release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.0.3).
 2. Install the APK.
 3. Open **Jesty Thor Fix** once and confirm `FIX ACTIVE`.
 4. Select TOP mode and use **Bottom screen & CPU check -> Check now**. The app
