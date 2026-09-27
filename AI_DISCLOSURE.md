@@ -1,6 +1,7 @@
 # AI assistance disclosure
 
-Jesty Thor Fix was developed with generative-AI assistance under the maintainer's direction.
+Jesty Thor Fix was developed with generative-AI assistance under the
+maintainer's direction and supervision.
 
 AI tools were used to help:
 
@@ -9,7 +10,10 @@ AI tools were used to help:
 - create or refine UI artwork, branding, animation concepts, and documentation;
 - organize validation results and identify edge cases to test.
 
-The maintainer selected the design, directed each iteration, reviewed the source, and tested the shipped behavior on a physical AYN Thor. Statements about runtime behavior are based on device evidence, not on AI output alone.
+The maintainer selected the design, directed and supervised each iteration,
+reviewed the source and visual output, and tested the shipped behavior on a
+physical AYN Thor. Statements about runtime behavior are based on device
+evidence, not on AI output alone.
 
 AI assistance does not imply that generated material is free of third-party rights. Visual references, trademarks, and separately licensed assets are documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [ASSETS-LICENSE.md](ASSETS-LICENSE.md).
 

@@ -5,6 +5,7 @@
 - Returned the Support and GitHub actions to the top-right corner.
 - Moved the open-source badge to the bottom-right and reordered its copy so
   the support line appears above the amber Jesty message.
+- Returned the header lockup to left alignment within the control panel.
 - Kept all display-control, CPU/DRM check, wake-repair, and layout behavior
   unchanged from 1.0.2.
 

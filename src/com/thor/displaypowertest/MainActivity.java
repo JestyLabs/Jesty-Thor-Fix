@@ -302,11 +302,11 @@ public final class MainActivity extends Activity {
     private View buildHeader() {
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER);
+        header.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
 
         ImageView lockup = new ImageView(this);
         lockup.setImageResource(resource("drawable", "jesty_thor_header_lockup"));
-        lockup.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        lockup.setScaleType(ImageView.ScaleType.FIT_START);
         lockup.setAdjustViewBounds(true);
         lockup.setContentDescription("Jesty Thor Fix");
         header.addView(lockup, new LinearLayout.LayoutParams(dp(242), dp(78)));

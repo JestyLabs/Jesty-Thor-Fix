@@ -280,5 +280,6 @@ keystore, password, device serial, account email, or unreviewed log bundle.
 - External references and trademarks: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 AYN and Thor are trademarks or product names of their respective owner. Their
-use here is descriptive only. This project was developed with disclosed
-generative-AI assistance under the maintainer's direction.
+use here is descriptive only. Code, documentation, and visual assets were
+developed with disclosed generative-AI assistance under the maintainer's
+direction, supervision, review, and final approval.
