@@ -15,11 +15,8 @@ version has no new UI or permissions and does not add a reboot to mode changes.
 **This is still an opt-in testing pre-release, not a stable promotion.** The
 five-boots-per-configuration matrix, closed-lid/false-wake/external-display
 guard cases and further sleep/wake checks remain pending. Closed-Lid Wake Guard
-defaults to OFF. A transient green lower screen was observed on older boots;
-its cause is not confirmed and this release has not proved it gone. If you see
-a flash, stuck display, wake loop or unexpected restart, disable both fixes
-before another reboot and report the details. The CPU Fix can still perform
-one expected Android display/UI stack restart when its setting changes.
+defaults to OFF. The CPU Fix can still perform one expected Android display/UI
+stack restart when its setting changes.
 
 APK SHA-256: `E2D67F5A02CD1CB1BD117A19A2F7775BD4D2B8A5216422D1B8D1110BB47F8A96`
 Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`

@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Color;
@@ -171,7 +172,7 @@ public final class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         content.addView(buildHeader());
-        TextView subtitle = text("Display and CPU fixes for AYN Thor", 13f, MUTED, false);
+        TextView subtitle = text(appSubtitle(), 13f, MUTED, false);
         subtitle.setGravity(Gravity.CENTER);
         subtitle.setPadding(0, 0, 0, dp(8));
         content.addView(subtitle);
@@ -734,6 +735,17 @@ public final class MainActivity extends Activity {
         view.setTextColor(color);
         if (bold) view.setTypeface(Typeface.DEFAULT_BOLD);
         return view;
+    }
+
+    private String appSubtitle() {
+        String label = "Display and CPU fixes for AYN Thor";
+        try {
+            String version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            if (version != null && !version.trim().isEmpty()) return label + " (v" + version.trim() + ")";
+        } catch (PackageManager.NameNotFoundException ignored) {
+            // Keep the descriptive label even if package metadata is unavailable.
+        }
+        return label;
     }
 
     private FrameLayout.LayoutParams match() { return new FrameLayout.LayoutParams(-1, -1); }

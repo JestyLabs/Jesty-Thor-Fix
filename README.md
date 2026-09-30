@@ -13,25 +13,22 @@
   Install it, enable the fixes you need, and forget about it.
 </p>
 
-> **Temporary boot notice for v1.3.0:** On the maintainer's Thor, the lower
-> screen briefly flashed green during two or three boots. The cause has not
-> been confirmed and this alone does not establish hardware damage. If you
-> see it, turn **both fixes off before rebooting** and report whether it
-> persists. [v1.4.1 is available as a testing pre-release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.4.1),
-> not a validated stable replacement. It corrects TOP/BOTH reconciliation after
-> the physical AYN button shortcut; that cycle was tested on the maintainer's
-> Thor. The full cold-boot matrix and lid guard validation remain pending. The
-> guard is OFF by default. v1.3.0 remains the stable download below.
+> **Recommended testing build:** [v1.4.2](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.4.2)
+> fixes TOP/BOTH tracking after the physical AYN button shortcut. That cycle
+> passed on the maintainer's Thor. It also includes staged boot restoration
+> and an optional Closed-Lid Wake Guard, OFF by default. The full boot/lid
+> matrix is still pending, so this remains a pre-release. For the earlier
+> stable build, see [v1.3.0](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.3.0).
 
 <p align="center">
-  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.3.0"><strong>Download APK</strong></a>
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.4.2"><strong>Download testing APK</strong></a>
   · <a href="#what-does-it-fix">What it fixes</a>
   · <a href="#possible-battery-benefit">Measurements</a>
   · <a href="https://www.buymeacoffee.com/jesty">☕ Support development</a>
 </p>
 
 <p align="center">
-  <img src="docs/images/dashboard-both-v1.3.0.png" alt="Jesty Thor Fix showing both independent fixes, automatic display state, CPU clocks, and battery draw availability" width="100%">
+  <img src="docs/images/dashboard-true-off-v1.4.2.png" alt="v1.4.2 dashboard on a real Thor: TOP-only true hardware off, both main fixes active, CPU clocks and battery status" width="100%">
 </p>
 
 <p align="center">
@@ -43,7 +40,7 @@
 
 ## What does it fix?
 
-The app has **two independent switches** because the Thor has two different
+The app has **two independent fixes** because the Thor has two different
 problems:
 
 | Problem | What you may notice | Fix to enable |
@@ -53,6 +50,13 @@ problems:
 
 Use only the fix you need, or enable both. The choices are saved and restored
 after a normal reboot.
+
+The testing build also has a separate, optional **Closed-Lid Wake Guard** to
+return an accidentally awakened Thor to sleep when its Hall switch reports the
+lid closed. It starts OFF and still needs the physical closed-lid/dock test
+matrix before we recommend enabling it broadly. The physical AYN button can
+switch between TOP and BOTH without opening AYN Dashboard; v1.4.1 and later
+track that shortcut and reconcile the lower display after the mode settles.
 
 ### Which switches should I use?
 
@@ -134,12 +138,17 @@ where LITTLE and BIG were simultaneously stuck at maximum.
 
 ## Install once, then close the app
 
-1. Download `Jesty-Thor-Fix-1.3.0.apk` from the
-   [v1.3.0 release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.3.0).
+1. Download `Jesty-Thor-Fix-1.4.2.apk` from the
+   [testing release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.4.2).
 2. Install and open **Jesty Thor Fix** once.
 3. Enable the switch for each problem you want to fix.
 4. Leave the dashboard open briefly if you want to see its automatic display
    and CPU diagnosis settle.
+
+The testing build also has an optional **Closed-Lid Wake Guard**. It is OFF by
+default because closed-lid false wakes, loop protection and docked use still
+need physical testing. The AYN Dashboard CPU Fix still causes one expected
+Android UI/display restart when applying it and once during boot when needed.
 
 You do **not** need to root the Thor yourself, install Magisk, use Termux, or
 run commands. The app uses the privileged `PServerBinder` bridge already

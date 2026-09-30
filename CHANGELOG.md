@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.2 (testing pre-release)
+
+- Show the installed app version beside the dashboard subtitle, read directly
+  from the package manifest so future releases do not require a manual label.
+- No changes to display control, CPU fix, lid guard, daemon protocol, boot
+  timing, permissions or backgrounds compared with v1.4.1.
+- Update the README's recommended testing download and current dashboard image.
+
 ## 1.4.1 (testing pre-release)
 
 - Fix an inverted boot-hold condition that prevented the daemon from following

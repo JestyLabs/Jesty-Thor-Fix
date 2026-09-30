@@ -173,6 +173,22 @@ rendered BOTH, AYN fake-off, and Jesty true-off from live display hardware
 state; prevented red stock-bug verdicts while the CPU Fix was active; and
 restored both fixes after a real reboot and its expected framework restart.
 
+## 1.4.2 testing pre-release
+
+- Package: `com.thor.displaypowertest`
+- Version code: `48`
+- Version name: `1.4.2`
+- APK: `Jesty-Thor-Fix-1.4.2.apk`
+- SHA-256: `82B2C346543B0DD4F35DF5892DBB2EAFB8C418981EE1B73407492499FB891C16`
+- Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`
+- Verified signing schemes: APK Signature Scheme v1, v2, and v3.
+
+The exact signed APK was installed in place without a reboot. The screenshot
+`images/dashboard-true-off-v1.4.2.png` was captured from the top display and
+visually checked: it shows the installed version suffix, TOP true-off and
+automatic CPU status. The app's display/CPU/boot logic matches v1.4.1. The
+full cold-boot and lid-guard matrix remains pending.
+
 ## 1.4.1 testing pre-release
 
 - Package: `com.thor.displaypowertest`
