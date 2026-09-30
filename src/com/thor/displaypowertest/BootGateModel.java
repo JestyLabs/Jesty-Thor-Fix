@@ -55,6 +55,13 @@ public final class BootGateModel {
         return targetOn ? !"1".equals(bottomCrtc) : !"0".equals(bottomCrtc);
     }
 
+    /** Repair lower hardware reactivated after AYN has already selected TOP. */
+    public static boolean shouldRepairStableTop(String mode, String topCrtc,
+            String bottomCrtc, boolean fixEnabled, boolean wakeRepairPending) {
+        return fixEnabled && !wakeRepairPending && "1".equals(mode)
+                && "1".equals(topCrtc) && "1".equals(bottomCrtc);
+    }
+
     public static CpuAction cpuAction(boolean desired, String actual,
             boolean afterComposerRestart) {
         if (!("0".equals(actual) || "1".equals(actual))) return CpuAction.FAIL_SAFE;

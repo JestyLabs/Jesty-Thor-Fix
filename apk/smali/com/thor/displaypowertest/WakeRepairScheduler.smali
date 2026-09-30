@@ -67,6 +67,14 @@
     return v0
 .end method
 
+.method public static declared-synchronized isPending()Z
+    .locals 1
+
+    sget-boolean v0, Lcom/thor/displaypowertest/WakeRepairScheduler;->pending:Z
+
+    return v0
+.end method
+
 .method public static declared-synchronized markDone()V
     .locals 3
 

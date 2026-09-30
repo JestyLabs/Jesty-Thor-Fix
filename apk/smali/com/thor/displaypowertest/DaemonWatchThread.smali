@@ -122,7 +122,7 @@
 
     move-result p0
 
-    if-eqz p0, :cond_8
+    if-nez p0, :cond_8
 
     if-eqz v7, :cond_1
 
@@ -152,7 +152,7 @@
 
     move-result p0
 
-    if-nez p0, :cond_5
+    if-nez p0, :check_top_hardware
 
     invoke-static {}, Lcom/thor/displaypowertest/LidGuard;->onWakeEvent()Z
 
@@ -167,6 +167,19 @@
     invoke-static {v5, v6}, Landroid/os/SystemProperties;->set(Ljava/lang/String;Ljava/lang/String;)V
 
     invoke-static {}, Lcom/thor/displaypowertest/WakeRepairScheduler;->scheduleFromWake()V
+
+    goto :cond_5
+
+    :check_top_hardware
+    invoke-static {}, Lcom/thor/displaypowertest/WakeRepairScheduler;->isPending()Z
+
+    move-result p0
+
+    invoke-static {v14, p0}, Lcom/thor/displaypowertest/BootSafety;->shouldRepairStableTop(Ljava/lang/String;Z)Z
+
+    move-result p0
+
+    if-nez p0, :cond_1
 
     goto :cond_5
 

@@ -31,6 +31,12 @@ public final class BootSafety {
         return BootGateModel.displayActionRequired(mode, DaemonState.isEnabled(), bottom);
     }
 
+    public static boolean shouldRepairStableTop(String mode, boolean wakeRepairPending) {
+        return !held && BootGateModel.shouldRepairStableTop(mode,
+                Telemetry.topCrtcActive(), Telemetry.bottomCrtcActive(),
+                DaemonState.isEnabled(), wakeRepairPending);
+    }
+
     public static boolean knownMode(String mode) {
         return "0".equals(mode) || "1".equals(mode) || "2".equals(mode);
     }

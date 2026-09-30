@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.1 (testing pre-release)
+
+- Fix an inverted boot-hold condition that prevented the daemon from following
+  AYN's physical-button TOP/BOTH mode changes after boot was ready.
+- In stable TOP mode, restore true lower-display OFF if AYN reactivates the
+  lower physical display, without interfering with a pending wake repair.
+- Refresh the running daemon during an in-place upgrade from the older
+  protocol. No new UI, permissions, or automatic reboot behavior.
+- Physical AYN-button TOP/BOTH cycling passed on the maintainer's Thor; the
+  full cold-boot matrix, closed-lid guard and dock cases are still pending.
+  This is a testing pre-release, not a stable promotion.
+
 ## 1.4.0 (testing pre-release)
 
 - Hold all lower-display and sleep actions during boot until Android, the

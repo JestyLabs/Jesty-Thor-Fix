@@ -17,10 +17,11 @@
 > screen briefly flashed green during two or three boots. The cause has not
 > been confirmed and this alone does not establish hardware damage. If you
 > see it, turn **both fixes off before rebooting** and report whether it
-> persists. [v1.4.0 is available as a testing pre-release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.4.0),
-> not a validated stable replacement: its boot changes have one clean observed
-> boot on the exact build, while the lid guard and full cold-boot matrix are
-> still pending. The new guard is OFF by default.
+> persists. [v1.4.1 is available as a testing pre-release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.4.1),
+> not a validated stable replacement. It corrects TOP/BOTH reconciliation after
+> the physical AYN button shortcut; that cycle was tested on the maintainer's
+> Thor. The full cold-boot matrix and lid guard validation remain pending. The
+> guard is OFF by default. v1.3.0 remains the stable download below.
 
 <p align="center">
   <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.3.0"><strong>Download APK</strong></a>

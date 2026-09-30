@@ -7,10 +7,14 @@ param(
     [switch] $Sign,
     [string] $KeystorePath = $env:JESTY_KEYSTORE,
     [string] $PasswordFile,
-    [string] $KeyAlias = 'thor-display-power-auto'
+    [string] $KeyAlias = 'thor-display-power-auto',
+    [string] $ArtifactBaseName = 'Jesty-Thor-Fix-1.4.1'
 )
 
 $ErrorActionPreference = 'Stop'
+if ($ArtifactBaseName -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$') {
+    throw 'ArtifactBaseName must be a simple filename without a path.'
+}
 
 $project = Split-Path -Parent $MyInvocation.MyCommand.Path
 $work = Join-Path $project 'build'
@@ -100,7 +104,7 @@ if ($LASTEXITCODE -ne 0) { throw 'zipalign failed' }
 & $zipalign -c -v 4 $aligned
 if ($LASTEXITCODE -ne 0) { throw 'zipalign verification failed' }
 
-$output = Join-Path $dist 'Jesty-Thor-Fix-1.4.0-unsigned.apk'
+$output = Join-Path $dist "$ArtifactBaseName-unsigned.apk"
 Copy-Item -LiteralPath $aligned -Destination $output -Force
 
 if ($Sign) {
@@ -117,7 +121,7 @@ if ($Sign) {
     $passwordPtr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
     try {
         $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPtr)
-        $signedOutput = Join-Path $dist 'Jesty-Thor-Fix-1.4.0.apk'
+        $signedOutput = Join-Path $dist "$ArtifactBaseName.apk"
         $passwordInput = "$plainPassword`n$plainPassword"
         $passwordInput | & $apksigner sign `
             --ks $KeystorePath --ks-key-alias $KeyAlias `

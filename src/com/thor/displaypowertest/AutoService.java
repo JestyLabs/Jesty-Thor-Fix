@@ -23,7 +23,7 @@ public final class AutoService extends Service {
         final boolean dashboardFixEnabled = state.getBoolean("dashboard_cpu_fix_enabled", false);
         new Thread(new Runnable() {
             @Override public void run() {
-                boolean protocolMigration = !state.getBoolean("daemon_protocol_48", false);
+                boolean protocolMigration = !state.getBoolean("daemon_protocol_50", false);
                 // A display-framework restart can send BOOT_COMPLETED again in
                 // the same kernel boot. Do not kill the already staged daemon:
                 // startDaemon below is port-guarded and only rescues a missing one.
@@ -32,7 +32,7 @@ public final class AutoService extends Service {
                         try { Thread.sleep(500L); } catch (InterruptedException ignored) {}
                     }
                     if (protocolMigration) {
-                        state.edit().putBoolean("daemon_protocol_48", true).commit();
+                        state.edit().putBoolean("daemon_protocol_50", true).commit();
                     }
                 }
                 boolean held = fromBoot || protocolMigration;

@@ -109,3 +109,37 @@ This is one clean visual boot of this exact APK, **not** a five-boot pass.
   signed candidate; TOP fake-off, TOP true-off, and guard-specific captures
   remain pending.
 - [ ] If green occurs in CPU-only boots, stop release and revisit CPU auto-apply.
+
+## Watcher-fix test candidate (2026-09-30; later prepared as v1.4.1)
+
+The published v1.4.0 prerelease is unchanged. A local candidate was built and
+installed in place, retaining versionCode 46 and the existing signing
+certificate, but with APK SHA-256
+`A166D49A97B9F5BD3F46A91A35A08A7783F23F8055A0D0AA79526C290146DE11`.
+The installed APK hash was checked against the host file. It is **not** a
+published release artifact.
+
+The reported case was traced to an inverted `BOOT HOLD` branch in the smali
+mode watcher: it skipped mode-change handling after `READY`. The branch is
+corrected, and the watcher now repairs a physically reactivated lower CRTC
+while TOP and the fix remain active, without pre-empting a pending wake repair
+or acting while the top CRTC is asleep. The daemon protocol migration replaced
+the old live daemon during the in-place upgrade. Boot/lid, dashboard, and
+mode-reconciliation unit/static tests pass.
+
+The AYN `DualScreenAssistant.apk` was inspected locally. Its
+`TccKeyReceiver` receives `action.tcc.button.key.event`, distinguishes
+`key_isLongPress`, and its service calls a screen-mode helper that writes
+`dual_screen_display_mode=1` for TOP; the reset path writes `0` for BOTH.
+The long-press threshold itself is not defined in that APK. Our daemon reads
+the resulting mode setting; it does not intercept the button. This evidence
+replaced an ungrounded five-second mode debounce in an earlier, superseded
+local candidate.
+
+Live, non-reboot validation of the local candidate: boot phase `READY`, fix
+enabled, mode `1`, top CRTC `1`, lower CRTC `0`; a wake produced one scheduled
+repair with result `OFF_OK`. The maintainer then cycled the physical AYN button
+between TOP and BOTH and reported the behavior correct. The daemon log recorded
+three `WATCH ON MANUAL` and three `WATCH OFF MANUAL` actions. The later v1.4.1
+APK has the same behavior with a new version identity, so its SHA-256 differs.
+The full boot matrix and closed-lid guard remain **untested** on this fix.

@@ -44,7 +44,7 @@ public final class D {
         if (bootCoordinatorActive) {
             new Thread(() -> reconcileBoot(afterComposerRestart), "thor-boot-coordinator").start();
         }
-        Log.d("ThorDisplayDaemon", "READY 1.4.0 enabled=" + enabled
+        Log.d("ThorDisplayDaemon", "READY 1.4.1 enabled=" + enabled
                 + " bootHold=" + bootCoordinatorActive);
         while (true) {
             Socket socket = server.accept();

@@ -54,6 +54,30 @@ public final class BootAndLidModelTest {
                 "BOTTOM requires ON when lower display is off");
         check(BootGateModel.displayActionRequired("1", false, "0"),
                 "native TOP requires lower hardware on");
+        // Reproduce the reported path: enable the fix in BOTH, then change to
+        // TOP. The watcher must issue OFF even though the toggle stays ON.
+        check(!BootGateModel.displayActionRequired("0", true, "1"),
+                "enabling in BOTH leaves the lower panel on");
+        check(BootGateModel.displayActionRequired("1", true, "1"),
+                "BOTH to TOP with fix ON must power the lower panel off");
+        check(!BootGateModel.displayActionRequired("1", true, "0"),
+                "TOP true-off must remain off without repeated commands");
+        check(BootGateModel.displayActionRequired("0", true, "0"),
+                "TOP to BOTH must restore the lower panel");
+        check(!BootGateModel.displayActionRequired("?", true, "1"),
+                "unknown mode must not issue a speculative OFF");
+        check(BootGateModel.shouldRepairStableTop("1", "1", "1", true, false),
+                "AYN reactivation in stable TOP must be corrected");
+        check(!BootGateModel.shouldRepairStableTop("1", "1", "0", true, false),
+                "already-off lower hardware needs no repair");
+        check(!BootGateModel.shouldRepairStableTop("1", "0", "1", true, false),
+                "sleeping top must not cause a display action");
+        check(!BootGateModel.shouldRepairStableTop("1", "1", "1", true, true),
+                "scheduled wake repair must retain its delay");
+        check(!BootGateModel.shouldRepairStableTop("0", "1", "1", true, false),
+                "BOTH mode must not be forced into TOP true-off");
+        check(!BootGateModel.shouldRepairStableTop("1", "1", "1", false, false),
+                "disabled fix must not power off the lower panel");
         check(BootGateModel.cpuAction(true, "0", false)
                 == BootGateModel.CpuAction.RESTART_ONCE, "CPU preference mismatch restarts once");
         check(BootGateModel.cpuAction(true, "0", true)
