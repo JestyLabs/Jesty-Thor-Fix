@@ -6,6 +6,7 @@ param(
     [string] $JavaHome = $env:JAVA_HOME,
     [switch] $Sign,
     [string] $KeystorePath = $env:JESTY_KEYSTORE,
+    [string] $PasswordFile,
     [string] $KeyAlias = 'thor-display-power-auto'
 )
 
@@ -99,18 +100,24 @@ if ($LASTEXITCODE -ne 0) { throw 'zipalign failed' }
 & $zipalign -c -v 4 $aligned
 if ($LASTEXITCODE -ne 0) { throw 'zipalign verification failed' }
 
-$output = Join-Path $dist 'Jesty-Thor-Fix-1.3.0-unsigned.apk'
+$output = Join-Path $dist 'Jesty-Thor-Fix-1.4.0-unsigned.apk'
 Copy-Item -LiteralPath $aligned -Destination $output -Force
 
 if ($Sign) {
     if (-not $KeystorePath) { throw 'Pass -KeystorePath or set JESTY_KEYSTORE.' }
     if (-not (Test-Path -LiteralPath $KeystorePath)) { throw "Keystore not found: $KeystorePath" }
 
-    $securePassword = Read-Host 'Keystore password' -AsSecureString
+    if ($PasswordFile) {
+        if (-not (Test-Path -LiteralPath $PasswordFile)) { throw 'Signing password file not found.' }
+        $encryptedPassword = (Get-Content -LiteralPath $PasswordFile -Raw).Trim()
+        $securePassword = ConvertTo-SecureString -String $encryptedPassword
+    } else {
+        $securePassword = Read-Host 'Keystore password' -AsSecureString
+    }
     $passwordPtr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
     try {
         $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPtr)
-        $signedOutput = Join-Path $dist 'Jesty-Thor-Fix-1.3.0.apk'
+        $signedOutput = Join-Path $dist 'Jesty-Thor-Fix-1.4.0.apk'
         $passwordInput = "$plainPassword`n$plainPassword"
         $passwordInput | & $apksigner sign `
             --ks $KeystorePath --ks-key-alias $KeyAlias `
@@ -127,6 +134,7 @@ if ($Sign) {
         }
         $plainPassword = $null
         $passwordInput = $null
+        $encryptedPassword = $null
     }
 }
 

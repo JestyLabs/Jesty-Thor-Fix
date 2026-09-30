@@ -53,6 +53,14 @@ public final class DaemonState {
         Telemetry.CpuSnapshot cpu = Telemetry.readCpu();
         Telemetry.PowerSnapshot power = Telemetry.readPower();
         return "ok=1"
+                + ";boot_phase=" + clean(BootSafety.phase()).replace(' ', '_')
+                + ";display_actions_held=" + (BootSafety.isHeld() ? "1" : "0")
+                + ";lid=" + LidGuard.lid()
+                + ";lid_guard=" + (LidGuard.isEnabled() ? "1" : "0")
+                + ";lid_guard_state=" + LidGuard.state()
+                + ";blocked_wakes=" + LidGuard.blockedWakes()
+                + ";last_lid_action=" + LidGuard.lastAction()
+                + ";external_display=" + LidGuard.externalDisplay()
                 + ";fix=" + (enabled ? "1" : "0")
                 + ";mode=" + clean(mode)
                 + ";power=" + clean(DisplayHardware.getProperty())

@@ -23,41 +23,28 @@ public final class AutoService extends Service {
         final boolean dashboardFixEnabled = state.getBoolean("dashboard_cpu_fix_enabled", false);
         new Thread(new Runnable() {
             @Override public void run() {
-                boolean protocolMigration = !state.getBoolean("daemon_protocol_47", false);
-                if (fromBoot || protocolMigration) {
+                boolean protocolMigration = !state.getBoolean("daemon_protocol_48", false);
+                // A display-framework restart can send BOOT_COMPLETED again in
+                // the same kernel boot. Do not kill the already staged daemon:
+                // startDaemon below is port-guarded and only rescues a missing one.
+                if (protocolMigration) {
                     if (PServer.stopLegacyDaemon()) {
                         try { Thread.sleep(500L); } catch (InterruptedException ignored) {}
                     }
                     if (protocolMigration) {
-                        state.edit().putBoolean("daemon_protocol_47", true).commit();
+                        state.edit().putBoolean("daemon_protocol_48", true).commit();
                     }
                 }
-                boolean started = PServer.startDaemon(enabled);
+                boolean held = fromBoot || protocolMigration;
+                boolean started = PServer.startDaemon(enabled, held,
+                        dashboardFixEnabled, state.getBoolean("lid_guard_enabled", false));
                 if (!started) {
                     try { Thread.sleep(40L); } catch (InterruptedException ignored) {}
-                    PServer.startDaemon(enabled);
+                    PServer.startDaemon(enabled, held, dashboardFixEnabled,
+                            state.getBoolean("lid_guard_enabled", false));
                 }
-                for (int attempt = 0; attempt < 20; attempt++) {
-                    try {
-                        SocketClient.request(enabled ? 'E' : 'N', 500);
-                        break;
-                    } catch (Throwable ignored) {
-                        try { Thread.sleep(100L); } catch (InterruptedException interrupted) { break; }
-                    }
-                }
-                if (fromBoot) {
-                    for (int attempt = 0; attempt < 8; attempt++) {
-                        try {
-                            String result = SocketClient.request(dashboardFixEnabled ? 'R' : 'L', 1800);
-                            if (result != null && result.startsWith("ok=1")) {
-                                Log.d("ThorDisplayAuto", "boot dashboard CPU reconcile=" + result);
-                                break;
-                            }
-                        } catch (Throwable ignored) {
-                            try { Thread.sleep(500L); } catch (InterruptedException interrupted) { break; }
-                        }
-                    }
-                }
+                // The daemon owns the staged boot sequence. Sending E here before
+                // its mode watcher knows TOP caused an unwanted lower-panel ON.
                 Log.d("ThorDisplayAuto", "reconcile enabled=" + enabled + " fromBoot=" + fromBoot);
                 workerRunning = false;
                 stopSelf();

@@ -54,12 +54,15 @@ public final class MainActivity extends Activity {
     private boolean visualBottomOn = true;
     private boolean suppressToggle;
     private boolean suppressDashboardToggle;
+    private boolean suppressLidToggle;
     private boolean commandInFlight;
     private boolean dashboardCommandInFlight;
+    private boolean lidCommandInFlight;
     private DashboardStateModel.Visual displayVisual = DashboardStateModel.Visual.BOTH_ON;
 
     private Switch fixToggle;
     private Switch dashboardFixToggle;
+    private Switch lidGuardToggle;
     private TextView dashboardFixHelp;
     private TextView stateText;
     private TextView stateDetail;
@@ -70,6 +73,7 @@ public final class MainActivity extends Activity {
     private TextView displayDetail;
     private TextView powerValue;
     private TextView warningValue;
+    private TextView lidValue;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -90,6 +94,12 @@ public final class MainActivity extends Activity {
         suppressDashboardToggle = false;
         dashboardFixToggle.setOnCheckedChangeListener((button, checked) -> {
             if (!suppressDashboardToggle) confirmDashboardCpuFix(checked);
+        });
+        suppressLidToggle = true;
+        lidGuardToggle.setChecked(preferences.getBoolean("lid_guard_enabled", false));
+        suppressLidToggle = false;
+        lidGuardToggle.setOnCheckedChangeListener((button, checked) -> {
+            if (!suppressLidToggle) setLidGuardEnabled(checked);
         });
         startService(new Intent(this, AutoService.class));
     }
@@ -156,7 +166,7 @@ public final class MainActivity extends Activity {
 
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(24), dp(10), dp(24), dp(10));
+        content.setPadding(dp(24), dp(5), dp(24), dp(5));
         scroll.addView(content, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -179,7 +189,7 @@ public final class MainActivity extends Activity {
         fixToggle = makeSwitch("", Color.WHITE, 14f);
         controls.addView(featureToggleRow("TRUE BOTTOM SCREEN OFF",
                 "Actually powers off the lower screen in Top Only mode", fixToggle),
-                new LinearLayout.LayoutParams(-1, dp(54)));
+                new LinearLayout.LayoutParams(-1, dp(46)));
 
         View divider = new View(this);
         divider.setBackgroundColor(0x338B4AE2);
@@ -188,7 +198,14 @@ public final class MainActivity extends Activity {
         dashboardFixToggle = makeSwitch("", Color.WHITE, 14f);
         controls.addView(featureToggleRow("AYN DASHBOARD CPU FIX",
                 "Restarts Android UI/display to apply \u00B7 closes open apps", dashboardFixToggle),
-                new LinearLayout.LayoutParams(-1, dp(54)));
+                new LinearLayout.LayoutParams(-1, dp(46)));
+        View guardDivider = new View(this);
+        guardDivider.setBackgroundColor(0x338B4AE2);
+        controls.addView(guardDivider, new LinearLayout.LayoutParams(-1, dp(1)));
+        lidGuardToggle = makeSwitch("", Color.WHITE, 14f);
+        controls.addView(featureToggleRow("CLOSED-LID WAKE GUARD",
+                "Returns the Thor to sleep after an accidental wake while closed", lidGuardToggle),
+                new LinearLayout.LayoutParams(-1, dp(46)));
         content.addView(controls);
 
         LinearLayout cpuPanel = panel();
@@ -198,13 +215,13 @@ public final class MainActivity extends Activity {
         displayValue = text("\u2014", 18f, Color.WHITE, true);
         displayValue.setGravity(Gravity.CENTER_VERTICAL);
         displayValue.setPadding(0, dp(2), 0, 0);
-        cpuPanel.addView(displayValue, new LinearLayout.LayoutParams(-1, dp(30)));
+        cpuPanel.addView(displayValue, new LinearLayout.LayoutParams(-1, dp(26)));
         displayDetail = text("Waiting for hardware\u2026", 10f, MUTED, false);
         displayDetail.setPadding(0, 0, 0, dp(3));
-        cpuPanel.addView(displayDetail, new LinearLayout.LayoutParams(-1, dp(18)));
+        cpuPanel.addView(displayDetail, new LinearLayout.LayoutParams(-1, dp(15)));
         powerValue = text("BATTERY DRAW  \u2014  \u00B7  UNPLUG USB", 10f, MUTED, true);
         powerValue.setPadding(0, 0, 0, dp(5));
-        cpuPanel.addView(powerValue, new LinearLayout.LayoutParams(-1, dp(21)));
+        cpuPanel.addView(powerValue, new LinearLayout.LayoutParams(-1, dp(18)));
 
         View statusDivider = new View(this);
         statusDivider.setBackgroundColor(0x338B4AE2);
@@ -218,10 +235,13 @@ public final class MainActivity extends Activity {
         littleValue = addMetric(cpuRow, "LITTLE", "\u2014");
         bigValue = addMetric(cpuRow, "BIG", "\u2014");
         primeValue = addMetric(cpuRow, "PRIME", "\u2014");
-        cpuPanel.addView(cpuRow, new LinearLayout.LayoutParams(-1, dp(46)));
+        cpuPanel.addView(cpuRow, new LinearLayout.LayoutParams(-1, dp(40)));
         warningValue = text("", 10f, RED, true);
         warningValue.setPadding(0, dp(4), 0, dp(2));
-        cpuPanel.addView(warningValue, new LinearLayout.LayoutParams(-1, dp(26)));
+        cpuPanel.addView(warningValue, new LinearLayout.LayoutParams(-1, dp(22)));
+        lidValue = text("LID UNKNOWN  \u00B7  WAKE GUARD OFF  \u00B7  0 BLOCKED", 9f, MUTED, true);
+        lidValue.setPadding(0, dp(2), 0, 0);
+        cpuPanel.addView(lidValue, new LinearLayout.LayoutParams(-1, dp(15)));
 
         content.addView(cpuPanel);
         return root;
@@ -346,9 +366,9 @@ public final class MainActivity extends Activity {
         lockup.setScaleType(ImageView.ScaleType.FIT_CENTER);
         lockup.setAdjustViewBounds(true);
         lockup.setContentDescription("Jesty Thor Fix");
-        header.addView(lockup, new LinearLayout.LayoutParams(dp(242), dp(78)));
+        header.addView(lockup, new LinearLayout.LayoutParams(dp(242), dp(68)));
 
-        header.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(80)));
+        header.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(70)));
         return header;
     }
 
@@ -368,6 +388,33 @@ public final class MainActivity extends Activity {
                 runOnUiThread(() -> finishToggle(previous, error.getMessage()));
             }
         });
+    }
+
+    private void setLidGuardEnabled(final boolean requested) {
+        if (lidCommandInFlight) return;
+        final boolean previous = preferences.getBoolean("lid_guard_enabled", false);
+        lidCommandInFlight = true;
+        lidGuardToggle.setEnabled(false);
+        new Thread(() -> {
+            try {
+                SocketClient.request(requested ? 'G' : 'H', 1800);
+                preferences.edit().putBoolean("lid_guard_enabled", requested).commit();
+                runOnUiThread(() -> {
+                    lidCommandInFlight = false;
+                    lidGuardToggle.setEnabled(true);
+                });
+            } catch (Throwable error) {
+                runOnUiThread(() -> {
+                    lidCommandInFlight = false;
+                    lidGuardToggle.setEnabled(true);
+                    suppressLidToggle = true;
+                    lidGuardToggle.setChecked(previous);
+                    suppressLidToggle = false;
+                    Toast.makeText(this, "Hall switch unavailable; wake guard stays off",
+                            Toast.LENGTH_LONG).show();
+                });
+            }
+        }, "lid-guard-toggle").start();
     }
 
     private void finishToggle(boolean actual, String error) {
@@ -419,6 +466,12 @@ public final class MainActivity extends Activity {
         String topCrtc = values.get("top_crtc");
         String bottomCrtc = values.get("bottom_crtc");
         stateDetail.setVisibility(View.GONE);
+        boolean bootHeld = "1".equals(values.get("display_actions_held"));
+        String lid = value(values, "lid");
+        String guardState = bootHeld && preferences.getBoolean("lid_guard_enabled", false)
+                ? "PENDING" : "1".equals(values.get("lid_guard")) ? "ON" : "OFF";
+        lidValue.setText("LID " + lid.toUpperCase(Locale.US) + "  \u00B7  WAKE GUARD "
+                + guardState + "  \u00B7  " + value(values, "blocked_wakes") + " BLOCKED");
 
         long littleCur = number(values, "little_cur"), littleMax = number(values, "little_max");
         long bigCur = number(values, "big_cur"), bigMax = number(values, "big_max");
@@ -428,13 +481,33 @@ public final class MainActivity extends Activity {
         bigValue.setText(clock(bigCur, bigMax));
         primeValue.setText(clock(primeCur, primeMax));
         String mode = values.get("mode");
-        DashboardStateModel.DisplayStatus display = dashboardModel.updateDisplay(
-                mode, topCrtc, bottomCrtc, enabled);
-        displayValue.setText(display.title);
-        displayValue.setTextColor(color(display.tone));
-        displayDetail.setText(display.detail);
-        displayDetail.setTextColor(color(display.tone));
-        if (display.confirmed) setDisplayVisual(display.confirmedVisual);
+        if (!bootHeld && !lidCommandInFlight) {
+            boolean guardEnabled = "1".equals(values.get("lid_guard"));
+            if (lidGuardToggle.isChecked() != guardEnabled) {
+                suppressLidToggle = true;
+                lidGuardToggle.setChecked(guardEnabled);
+                suppressLidToggle = false;
+                preferences.edit().putBoolean("lid_guard_enabled", guardEnabled).apply();
+            }
+        }
+        DashboardStateModel.DisplayStatus display = null;
+        if (bootHeld) {
+            String phase = value(values, "boot_phase").replace('_', ' ');
+            displayValue.setText(phase);
+            displayValue.setTextColor(AMBER);
+            displayDetail.setText("Display controls paused until boot is safe");
+            displayDetail.setTextColor(MUTED);
+        } else {
+            display = dashboardModel.updateDisplay(mode, topCrtc, bottomCrtc, enabled);
+            displayValue.setText(display.title);
+            displayValue.setTextColor(color(display.tone));
+            displayDetail.setText(display.detail);
+            displayDetail.setTextColor(color(display.tone));
+            if (display.confirmed) setDisplayVisual(display.confirmedVisual);
+        }
+        fixToggle.setEnabled(!bootHeld && !commandInFlight);
+        dashboardFixToggle.setEnabled(!bootHeld && !dashboardCommandInFlight);
+        lidGuardToggle.setEnabled(!bootHeld && !lidCommandInFlight);
 
         double batteryWatts = decimalNumber(values, "battery_w");
         if ("battery".equals(values.get("power_source")) && batteryWatts >= 0d) {
@@ -453,17 +526,16 @@ public final class MainActivity extends Activity {
         boolean dashboardFixDesired = preferences.getBoolean("dashboard_cpu_fix_enabled", false);
         String clockStateKey = value(values, "mode") + ":" + value(values, "top_crtc")
                 + ":" + value(values, "bottom_crtc") + ":" + dashboardFixActive
-                + ":" + dashboardFixDesired + ":" + display.confirmed;
-        DashboardStateModel.ClockStatus clocks = dashboardModel.updateClocks(clockStateKey,
+                + ":" + dashboardFixDesired + ":" + (display != null && display.confirmed);
+        DashboardStateModel.ClockStatus clocks = bootHeld ? null : dashboardModel.updateClocks(clockStateKey,
                 number(values, "little_high_ticks"), number(values, "little_total_ticks"),
                 number(values, "big_high_ticks"), number(values, "big_total_ticks"), utilization,
                 dashboardFixDesired, dashboardFixActive);
-
-        littleValue.setTextColor(clocks.pinned ? RED : Color.WHITE);
-        bigValue.setTextColor(clocks.pinned ? RED : Color.WHITE);
+        littleValue.setTextColor(clocks != null && clocks.pinned ? RED : Color.WHITE);
+        bigValue.setTextColor(clocks != null && clocks.pinned ? RED : Color.WHITE);
         primeValue.setTextColor(Color.WHITE);
-        warningValue.setTextColor(color(clocks.tone));
-        warningValue.setText(clocks.text);
+        warningValue.setTextColor(clocks == null ? AMBER : color(clocks.tone));
+        warningValue.setText(clocks == null ? "BOOT SAFETY ACTIVE" : clocks.text);
     }
 
     private void startTelemetry() {
@@ -585,7 +657,7 @@ public final class MainActivity extends Activity {
         background.setStroke(dp(1), 0x88C45CFF);
         panel.setBackground(background);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
-        params.setMargins(0, 0, 0, dp(8));
+        params.setMargins(0, 0, 0, dp(6));
         panel.setLayoutParams(params);
         return panel;
     }

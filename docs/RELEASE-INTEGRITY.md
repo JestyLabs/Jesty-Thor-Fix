@@ -173,6 +173,21 @@ rendered BOTH, AYN fake-off, and Jesty true-off from live display hardware
 state; prevented red stock-bug verdicts while the CPU Fix was active; and
 restored both fixes after a real reboot and its expected framework restart.
 
+## 1.4.0 testing pre-release
+
+- Package: `com.thor.displaypowertest`
+- Version code: `46`
+- Version name: `1.4.0`
+- APK: `Jesty-Thor-Fix-1.4.0.apk`
+- SHA-256: `C3B5D4927A131EF900F30ACBA250823D43A5952CF6D095B0E4866C8EAC939E14`
+- Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`
+- Verified signing schemes: APK Signature Scheme v1, v2, and v3.
+
+The exact signed APK was installed in place and passed one user-observed clean
+cold boot with both fixes enabled. This is a testing pre-release, not the
+Latest stable release. The full physical matrix and lid guard validation remain
+open; see `VALIDATION-1.4.0-PENDING.md`. The lid guard defaults to OFF.
+
 ## Stable 1.3.0 dashboard telemetry update
 
 - Package: `com.thor.displaypowertest`

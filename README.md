@@ -13,15 +13,24 @@
   Install it, enable the fixes you need, and forget about it.
 </p>
 
+> **Temporary boot notice for v1.3.0:** On the maintainer's Thor, the lower
+> screen briefly flashed green during two or three boots. The cause has not
+> been confirmed and this alone does not establish hardware damage. If you
+> see it, turn **both fixes off before rebooting** and report whether it
+> persists. [v1.4.0 is available as a testing pre-release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.4.0),
+> not a validated stable replacement: its boot changes have one clean observed
+> boot on the exact build, while the lid guard and full cold-boot matrix are
+> still pending. The new guard is OFF by default.
+
 <p align="center">
-  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.2.0"><strong>Download APK</strong></a>
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.3.0"><strong>Download APK</strong></a>
   · <a href="#what-does-it-fix">What it fixes</a>
   · <a href="#possible-battery-benefit">Measurements</a>
   · <a href="https://www.buymeacoffee.com/jesty">☕ Support development</a>
 </p>
 
 <p align="center">
-  <img src="docs/images/dashboard-both-v1.2.0.png" alt="Jesty Thor Fix showing both independent fixes, display mode, CPU clocks, and live power estimate" width="100%">
+  <img src="docs/images/dashboard-both-v1.3.0.png" alt="Jesty Thor Fix showing both independent fixes, automatic display state, CPU clocks, and battery draw availability" width="100%">
 </p>
 
 <p align="center">
@@ -38,8 +47,8 @@ problems:
 
 | Problem | What you may notice | Fix to enable |
 | --- | --- | --- |
-| The lower display is black in TOP mode, but its hardware is still active | The screen looks off, yet the display controller remains on and can return after wake | **True Bottom Display Fix** |
-| AYN Dashboard can make LITTLE/BIG CPU clocks stay at maximum | The CPU cannot downclock normally at low load, potentially wasting power and producing extra heat | **AYN Dashboard CPU Fix** |
+| The lower display is black in TOP mode, but its hardware is still active | The screen looks off, yet the display controller remains on and can return after wake | **True Bottom Screen Off** |
+| AYN Dashboard can keep LITTLE/BIG CPU clocks pinned high | The CPU cannot downclock normally at low load, potentially wasting power and producing extra heat | **AYN Dashboard CPU Fix** |
 
 Use only the fix you need, or enable both. The choices are saved and restored
 after a normal reboot.
@@ -48,7 +57,7 @@ after a normal reboot.
 
 | How you use the Thor | Recommended setting |
 | --- | --- |
-| You use TOP mode and want the lower display truly powered off | Enable **True Bottom Display Fix** |
+| You use TOP mode and want the lower display truly powered off | Enable **True Bottom Screen Off** |
 | You use AYN Dashboard or regularly use both screens | Enable **AYN Dashboard CPU Fix** |
 | You switch between TOP and BOTH | Enable **both fixes** |
 
@@ -61,7 +70,7 @@ On the tested Thor firmware, the stock mode could make the lower panel look
 completely black while its physical display hardware was still active. Looking
 at the glass is therefore not enough to tell whether it is really off.
 
-**True Bottom Display Fix** follows the selected display mode:
+**True Bottom Screen Off** follows the selected display mode:
 
 - in **TOP**, it powers down the lower display hardware;
 - after sleep or wake, it checks and restores true-off if Android reactivated it;
@@ -77,11 +86,11 @@ at the glass is therefore not enough to tell whether it is really off.
 
 | AYN fake-off: black, hardware active | Jesty true-off: hardware powered down |
 | --- | --- |
-| <img src="docs/images/dashboard-ayn-fake-off-v1.2.0.png" alt="TOP-only with AYN fake-off and lower display hardware still active" width="100%"> | <img src="docs/images/dashboard-jesty-true-off-v1.2.0.png" alt="TOP-only with Jesty true-off and lower display hardware powered down" width="100%"> |
+| <img src="docs/images/dashboard-ayn-fake-off-v1.2.0.png" alt="TOP-only with AYN black screen and lower display hardware still active (v1.2.0 screenshot)" width="100%"> | <img src="docs/images/dashboard-jesty-true-off-v1.2.0.png" alt="TOP-only with Jesty true-off and lower display hardware powered down (v1.2.0 screenshot)" width="100%"> |
 
-Tap **Bottom screen & CPU check → Check now** if you want the app to verify
-the physical lower-display state. `Bottom hardware fully off` is stronger
-evidence than a screen that merely looks black.
+The dashboard verifies the physical display state automatically. `TOP ONLY ·
+TRUE OFF` means the lower CRTC is inactive; `TOP ONLY · AYN BLACK SCREEN`
+means the panel looks black but its hardware remains active.
 
 ## Bug 2: AYN Dashboard can hold CPU clocks at maximum
 
@@ -101,7 +110,7 @@ the Thor in BOTH mode. Under low load:
 
 - LITTLE remained at **2.02 / 2.02 GHz**;
 - BIG remained at **2.71 / 2.71 GHz**;
-- the sustained condition was detected in red by Jesty Thor Fix.
+- the sustained high-clock condition was detected in red by Jesty Thor Fix.
 
 <p align="center">
   <img src="docs/images/ayn-dashboard-cpu-pinning.png" alt="AYN Dashboard open with LITTLE and BIG CPU clusters pinned at maximum" width="100%">
@@ -115,20 +124,21 @@ With the fix enabled, a focused BOTH-mode validation recorded **0/25 samples**
 where LITTLE and BIG were simultaneously stuck at maximum.
 
 > [!WARNING]
-> Changing **AYN Dashboard CPU Fix** restarts the Android framework once and
-> closes open apps. The displays stay black for a short period while Android
+> Changing **AYN Dashboard CPU Fix** restarts the Android UI/display stack once
+> and closes open apps. The displays stay black for a short period while Android
 > returns. When enabled, this restart also happens once during a normal boot,
-> which can look like a second boot phase. Version 1.2.0 prevents the Thor from
+> which can look like a second boot phase. Version 1.2.0 and later prevent the Thor from
 > suspending during this transition; the timed protection is released after
 > Android has recovered.
 
 ## Install once, then close the app
 
-1. Download `Jesty-Thor-Fix-1.2.0.apk` from the
-   [v1.2.0 release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.2.0).
+1. Download `Jesty-Thor-Fix-1.3.0.apk` from the
+   [v1.3.0 release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.3.0).
 2. Install and open **Jesty Thor Fix** once.
 3. Enable the switch for each problem you want to fix.
-4. Use **Check now** if you want to verify the current display and CPU state.
+4. Leave the dashboard open briefly if you want to see its automatic display
+   and CPU diagnosis settle.
 
 You do **not** need to root the Thor yourself, install Magisk, use Termux, or
 run commands. The app uses the privileged `PServerBinder` bridge already
@@ -151,7 +161,7 @@ run a busy loop.
 > stop explicitly blocks the background service until you open the app again.
 > Swiping the app away from Recents does not.
 
-## Possible battery benefit
+## Power and possible battery benefit
 
 Both bugs can waste energy in different ways: Bug 1 can leave unwanted display
 hardware active, while Bug 2 can prevent CPU clusters from downclocking
@@ -159,26 +169,15 @@ normally. Fixing either behavior may reduce unnecessary power use. Actual
 battery life depends on brightness, games, performance mode, temperature,
 firmware, and background activity.
 
-Version 1.2.0 shows a live **estimated system power** value beside USB input.
-It is calculated from the Thor's own USB and battery telemetry and is useful
-for comparing nearby states after they settle. Short peaks during boot, load,
-or charging are normal; the value is not a laboratory meter or a battery-life
-promise.
+Version 1.3.0 shows live **Battery draw** only while the Thor is actually
+running from its battery. It uses the battery current and voltage reported by
+the device, smooths the last five readings, and displays watts. When USB power
+is connected the dashboard deliberately shows `UNPLUG USB` instead of mixing
+charging input with battery consumption.
 
-Only the **True Bottom Display Fix** has a published power comparison. In one
-controlled A/B/A low-load capture, its measured system-power proxy changed
-from **2.030 W to 1.239 W**:
-
-| Metric | Native TOP | Jesty true-off | Difference in this capture |
-| --- | ---: | ---: | ---: |
-| LITTLE average | 2.016 GHz | 1.616 GHz | -19.8% |
-| BIG average | 2.707 GHz | 1.654 GHz | -38.9% |
-| BIG at ≥95% maximum | 75/75 samples | 0/45 samples | continuous lock removed |
-| System-power proxy | 2.030 W | 1.239 W | **-0.792 W / -39.0%** |
-
-This short result does **not** mean 39% more battery life. The proxy is useful
-for direction and approximate magnitude, not as a battery-runtime promise.
-See the [method and sanitized samples](docs/BENCHMARKS.md).
+The app does not calculate a battery-life gain or convert the live value into
+an autonomy estimate. A short historical A/B/A capture of the true-off path is
+preserved with its limitations in the [benchmark notes](docs/BENCHMARKS.md).
 
 The separate Dashboard CPU Fix allows LITTLE/BIG to downclock instead of
 remaining pinned at maximum, so it can also reduce wasted power. We have not
@@ -200,16 +199,20 @@ tested on-device.
 <details>
 <summary><strong>What was verified on the physical Thor?</strong></summary>
 
-The exact signed v1.2.0 APK was installed in place and tested:
+The exact signed v1.3.0 APK was installed in place for a focused dashboard and
+telemetry smoke test. The unchanged display-control and restart matrix remains
+covered by the earlier v1.2.0 validation:
 
-- package `com.thor.displaypowertest`, version code `44`, version `1.2.0`;
+- package `com.thor.displaypowertest`, version code `45`, version `1.3.0`;
 - signing certificate unchanged from earlier releases;
 - the dashboard distinguished BOTH, AYN fake-off, and Jesty true-off from live
   display hardware state and selected matching artwork;
-- CPU pinning required sustained, settled samples and never produced a red
-  stock-bug verdict while the CPU Fix was active;
-- live USB input and estimated system power recovered after both framework
-  restarts and after a normal reboot;
+- CPU pinning uses a 12-second kernel residency window instead of instantaneous
+  frequency snapshots;
+- the automatic status ignored brief maximum-frequency spikes and reported the
+  active CPU Fix as normal after the window settled;
+- external power showed `BATTERY DRAW — · UNPLUG USB` rather than a charging
+  proxy;
 - TOP true-off ended with the top CRTC active and the lower CRTC inactive;
 - sleep/wake restored true-off and ended `OFF_OK`;
 - BOTH kept both displays active;
@@ -225,7 +228,7 @@ The exact signed v1.2.0 APK was installed in place and tested:
 APK SHA-256:
 
 ```text
-11CC0973965B344B216C7C8509564139BF3030C97CC9F6ADA9797A2DCD44DFD5
+021AC43581E6999AABFB896B760834B4F1804EF43EFD63709058E36F5D9297AD
 ```
 
 </details>

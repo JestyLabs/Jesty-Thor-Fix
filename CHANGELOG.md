@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.4.0 (testing pre-release)
+
+- Hold all lower-display and sleep actions during boot until Android, the
+  display compositor, AYN mode, and both physical CRTCs settle; add a 10-second
+  grace period, or five seconds after the one required CPU-fix restart.
+- Never turn the lower panel on speculatively while mode is unknown. After 60
+  seconds without a stable state, leave native hardware untouched and report
+  `BOOT SAFETY TIMEOUT`.
+- Add an opt-in Closed-Lid Wake Guard using the Thor Hall switch, with a
+  dock/unknown-state exclusion and a three-attempt wake-loop limit.
+- Expose boot and lid state in additive `Q` fields and in the dashboard.
+- The CPU Fix transition still restarts Android's UI/display stack once at
+  boot when needed. An adaptive post-restart daemon relaunch shortened the
+  observed READY time from about 72 to 62 seconds without reducing the
+  pre-restart boot grace period.
+- **Not stable-validated:** one user-observed clean cold boot of the exact
+  signed APK; the 20-boot configuration matrix, closed-lid/false-wake/dock
+  checks, and remaining screenshots are pending. The lid guard is OFF by
+  default. See `docs/VALIDATION-1.4.0-PENDING.md`.
+
 ## 1.3.0
 
 - Reworked the dashboard around one automatic display/CPU status panel and

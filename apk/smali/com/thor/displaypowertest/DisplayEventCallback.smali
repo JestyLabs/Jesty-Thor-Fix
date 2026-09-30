@@ -16,6 +16,22 @@
     .locals 8
 
     :try_start_0
+    invoke-static {}, Lcom/thor/displaypowertest/BootSafety;->isHeld()Z
+    move-result v0
+    if-nez v0, :cond_0
+
+    if-eqz p1, :lid_guard_event
+    const/4 v0, 0x4
+    if-ne p1, v0, :lid_guard_done
+
+    :lid_guard_event
+
+    invoke-static {}, Lcom/thor/displaypowertest/LidGuard;->onWakeEvent()Z
+    move-result v0
+    if-nez v0, :cond_0
+
+    :lid_guard_done
+
     const/4 v0, 0x4
     if-ne p1, v0, :cond_0
 

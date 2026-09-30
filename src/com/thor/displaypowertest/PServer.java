@@ -14,10 +14,17 @@ public final class PServer {
     public static boolean startDaemon() { return startDaemon(true); }
 
     public static boolean startDaemon(boolean enabled) {
+        return startDaemon(enabled, false, false, false);
+    }
+
+    public static boolean startDaemon(boolean enabled, boolean bootHold,
+            boolean dashboardFix, boolean lidGuard) {
         String state = enabled ? "1" : "0";
         String command = "echo S>/data/local/tmp/td032.log;ss -ltn|grep -q :3804||{ "
                 + "A=$(pm path com.thor.displaypowertest);A=${A#*:};CLASSPATH=$A "
-                + "app_process / D " + state + " >>/data/local/tmp/td032.log 2>&1 & }";
+                + "app_process / D " + state + (bootHold ? " hold " : " run ")
+                + (dashboardFix ? "1" : "0") + " " + (lidGuard ? "1" : "0")
+                + " >>/data/local/tmp/td032.log 2>&1 & }";
         return send(command, "daemon start command sent enabled=" + enabled);
     }
 

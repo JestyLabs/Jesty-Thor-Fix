@@ -118,6 +118,12 @@
 
     :cond_enabled
 
+    invoke-static {}, Lcom/thor/displaypowertest/BootSafety;->isHeld()Z
+
+    move-result p0
+
+    if-eqz p0, :cond_8
+
     if-eqz v7, :cond_1
 
     invoke-virtual {v14, v7}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
@@ -148,6 +154,12 @@
 
     if-nez p0, :cond_5
 
+    invoke-static {}, Lcom/thor/displaypowertest/LidGuard;->onWakeEvent()Z
+
+    move-result p0
+
+    if-nez p0, :cond_5
+
     const-string v5, "display.power.state"
 
     const-string v6, "0"
@@ -160,6 +172,18 @@
 
     :cond_1
     invoke-static {}, Lcom/thor/displaypowertest/WakeRepairScheduler;->cancel()V
+
+    invoke-static {v14}, Lcom/thor/displaypowertest/BootSafety;->shouldApplyMode(Ljava/lang/String;)Z
+
+    move-result p0
+
+    if-nez p0, :cond_apply_mode
+
+    move-object v7, v14
+
+    goto :cond_5
+
+    :cond_apply_mode
 
     const-string p0, "1"
 
