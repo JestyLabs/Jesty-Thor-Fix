@@ -23,7 +23,7 @@
 <p align="center">
   <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.4.2"><strong>Download testing APK</strong></a>
   · <a href="#what-does-it-fix">What it fixes</a>
-  · <a href="#possible-battery-benefit">Measurements</a>
+  · <a href="#power-and-possible-battery-benefit">Measurements</a>
   · <a href="https://www.buymeacoffee.com/jesty">☕ Support development</a>
 </p>
 
