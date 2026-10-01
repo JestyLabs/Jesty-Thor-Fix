@@ -23,49 +23,67 @@
 <p align="center">
   <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.15"><strong>Download latest APK</strong></a>
   · <a href="#what-does-it-fix">What it fixes</a>
+  · <a href="#whats-in-v1515">What's new</a>
   · <a href="#power-and-possible-battery-benefit">Measurements</a>
   · <a href="https://www.buymeacoffee.com/jesty">☕ Support development</a>
 </p>
 
+## What's in v1.5.15
+
+- **True Bottom Screen Off** follows the physical AYN TOP/BOTH selection and
+  restores true hardware off after a TOP sleep/wake.
+- **AYN Dashboard CPU Fix** restores a saved ON setting after a cold boot,
+  verifies that the vendor property became active, and lets LITTLE/BIG clocks
+  fall below their maxima in the observed AYN Dashboard session.
+- **Closed-Lid Wake Guard** is a third, optional switch. It uses the Thor's
+  Hall switch to return an accidental closed-lid wake to sleep. It starts OFF
+  and pauses after three blocked wakes in ten seconds until the lid opens.
+- **Staged boot restoration** waits for Android, the display compositor, AYN
+  mode, and both display controllers to settle before changing the display.
+  If CPU Fix needs a compositor restart, display actions stay on hold until
+  Android returns. An unknown mode never causes a speculative lower-panel ON.
+
+The CPU Fix compositor restart can look like a second boot. On the supervised
+v1.5.15 cold boot, the kernel boot ID changed once, Android returned after
+one compositor restart, and `BOOT READY` arrived at about 95 seconds. No
+green flash or artifact was reported. The boot duration has a separate
+[measurement follow-up](docs/VALIDATION-1.5.0-PENDING.md#boot-duration-follow-up-for-independent-analysis).
+
+### Real v1.5.15 screenshots
+
+Jesty Thor Fix on the **upper screen** after that cold boot: BOTH panels
+active, CPU Fix confirmed, Wake Guard OFF. The shorter CPU Fix description
+fits on one line at the original font size.
+
 <p align="center">
-  <img src="docs/images/dashboard-both-v1.5.15-review.png" alt="v1.5.15 dashboard on a real Thor: BOTH screens active and CPU Fix confirmed after boot" width="100%">
+  <img src="docs/images/dashboard-both-v1.5.15-review.png" alt="Real v1.5.15 upper-screen capture after cold boot: three switches, BOTH screens, CPU Fix active, Wake Guard off" width="100%">
 </p>
+
+At the same time, **AYN Dashboard was open on the lower screen** in its
+dual-screen mode. These are separate captures of the two physical displays
+from the same post-boot check.
+
+<p align="center">
+  <img src="docs/images/ayn-dashboard-both-v1.5.15-review.png" alt="Real lower-screen capture from the v1.5.15 post-boot check: AYN Dashboard in dual-screen mode" width="680">
+</p>
+
+These captures show one observed session, not every firmware or boot
+configuration. The [validation diary](docs/VALIDATION-1.5.0-PENDING.md)
+separates host tests, physical observations, and deferred scenarios.
 
 <details>
-<summary><strong>v1.5.15 validation: real Thor screenshots and test status</strong></summary>
+<summary><strong>Earlier TOP and Wake Guard test captures</strong></summary>
 
-The [v1.5.15 review PR](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/1)
-has passed physical BOTH↔TOP and TOP sleep/wake, private-socket checks, and
-closed-lid wake including the three-attempt anti-loop limit. On this Thor,
-the vendor CPU Fix property is absent after a cold boot. v1.5.15 distinguishes
-that condition from a failed read, applies a saved ON preference once, and
-verifies the resulting property after the compositor restart. One supervised
-in-place transition and one genuine cold boot passed. The cold boot reached
-`BOOT READY` at about 95 seconds, with one expected second visual Android UI
-phase, no second kernel boot, and no reported green flash or artifact. With
-AYN Dashboard open on the lower screen afterward, the upper app showed
-`CPU FIX ACTIVE · CLOCKS NORMAL`. This is a scoped physical result, not a
-claim that every boot configuration has been exhaustively tested. The Thor
-was left in BOTH with Wake Guard OFF. With the guard off, `LID UNKNOWN` means
-the Hall watcher is not running; it does not describe the CPU Fix.
-BOTTOM ONLY and physical dock use are future improvements. v1.5.15 was
-promoted from testing to stable with the same APK after maintainer review.
+The following images are from **v1.5.11**, before the v1.5.15 CPU Fix restore.
+They document the physical TOP true-off and closed-lid anti-loop checks. Their
+CPU status text reflects that older build; they are not v1.5.15 screenshots.
 
 <p align="center">
-  <img src="docs/images/dashboard-both-v1.5.15-review.png" alt="v1.5.15 on the physical Thor after the CPU Fix cold boot: BOTH screens active, CPU Fix active and Wake Guard off" width="100%">
+  <img src="docs/images/dashboard-top-v1.5.11-review.png" alt="Earlier v1.5.11 TOP validation: lower display hardware truly off, CPU Fix status then unknown" width="100%">
 </p>
 <p align="center">
-  <img src="docs/images/ayn-dashboard-both-v1.5.15-review.png" alt="AYN Dashboard on the physical Thor's lower screen after the v1.5.15 cold boot" width="100%">
+  <img src="docs/images/wake-guard-loop-v1.5.11-review.png" alt="Earlier v1.5.11 closed-lid anti-loop validation: three blocked wakes, guard returned to off" width="100%">
 </p>
-<p align="center">
-  <img src="docs/images/dashboard-top-v1.5.11-review.png" alt="Unreleased v1.5.11 on the physical Thor in TOP mode: lower display hardware truly off" width="100%">
-</p>
-<p align="center">
-  <img src="docs/images/wake-guard-loop-v1.5.11-review.png" alt="Unreleased v1.5.11 on the physical Thor after the closed-lid loop check: Wake Guard off and three blocked wakes" width="100%">
-</p>
-
-The [validation diary](docs/VALIDATION-1.5.0-PENDING.md) separates host tests,
-physical observations, and scenarios still unavailable.
 
 </details>
 
@@ -78,8 +96,8 @@ physical observations, and scenarios still unavailable.
 
 ## What does it fix?
 
-The app has **two independent fixes** because the Thor has two different
-problems:
+The app has **two independent fixes** for two Thor firmware problems, plus
+an optional closed-lid wake guard:
 
 | Problem | What you may notice | Fix to enable |
 | --- | --- | --- |
@@ -89,12 +107,9 @@ problems:
 Use only the fix you need, or enable both. The choices are saved and restored
 after a normal reboot.
 
-The current release also has a separate, optional **Closed-Lid Wake Guard** to
-return an accidentally awakened Thor to sleep when its Hall switch reports the
-lid closed. It starts OFF. Closed-lid wake and loop protection passed focused
-physical checks; dock use has not been physically tested. The AYN button can
-switch between TOP and BOTH without opening AYN Dashboard; v1.4.1 and later
-track that shortcut and reconcile the lower display after the mode settles.
+The physical AYN button can switch between TOP and BOTH without opening AYN
+Dashboard. The app follows that shortcut and reconciles the lower display
+after the mode settles.
 
 ### Which switches should I use?
 
@@ -103,6 +118,22 @@ track that shortcut and reconcile the lower display after the mode settles.
 | You use TOP mode and want the lower display truly powered off | Enable **True Bottom Screen Off** |
 | You use AYN Dashboard or regularly use both screens | Enable **AYN Dashboard CPU Fix** |
 | You switch between TOP and BOTH | Enable **both fixes** |
+| You want accidental closed-lid wakes returned to sleep | Optionally enable **Closed-Lid Wake Guard** |
+
+### Closed-Lid Wake Guard
+
+When enabled, the guard reads the Thor's Hall switch. Closing the lid lets the
+device sleep; a wake while the lid remains closed is returned to sleep after a
+short check. Opening the lid during that wait allows normal wake. To avoid a
+sleep/wake loop, the guard pauses after three blocked wakes in ten seconds and
+resumes after the lid opens. It is **OFF by default** and only starts after
+boot restoration reaches `READY`.
+
+The close/open sequence, one controlled false wake, and the anti-loop pause
+passed supervised tests on the physical Thor. External-display dock use was
+not physically tested and is deferred. With the guard OFF, `LID UNKNOWN` in
+the dashboard means the Hall watcher is inactive; it says nothing about the
+CPU Fix.
 
 ## Bug 1: black does not always mean off
 
@@ -117,8 +148,11 @@ at the glass is therefore not enough to tell whether it is really off.
 
 - in **TOP**, it powers down the lower display hardware;
 - after sleep or wake, it checks and restores true-off if Android reactivated it;
-- in **BOTH** or **BOTTOM**, it leaves the lower display available normally;
+- in **BOTH**, it keeps both displays available normally;
 - it does not choose a display mode for you.
+
+BOTTOM ONLY is outside the validated v1.5.15 scope and is a possible future
+improvement.
 
 | | Stock TOP-only | TOP with Jesty true-off |
 | --- | --- | --- |
@@ -163,8 +197,16 @@ the Thor in BOTH mode. Under low load:
 caused the reproduced behavior. It does **not** set CPU frequencies, change
 governors, or apply a performance profile.
 
-With the fix enabled, a focused BOTH-mode validation recorded **0/25 samples**
-where LITTLE and BIG were simultaneously stuck at maximum.
+An earlier focused BOTH-mode validation recorded **0/25 samples** where
+LITTLE and BIG were simultaneously stuck at maximum with the fix enabled.
+
+On v1.5.15, the saved CPU Fix also restored after a supervised cold boot on
+the tested Thor. Its firmware leaves the vendor property unconfigured during
+boot; the app waits for a safe state, applies the saved ON choice once, and
+reports the fix active only after reading back the expected value. With AYN
+Dashboard open on the lower screen afterward, the upper app showed
+`CPU FIX ACTIVE · CLOCKS NORMAL` and LITTLE/BIG below their maxima in the
+captured sample.
 
 > [!WARNING]
 > Changing **AYN Dashboard CPU Fix** restarts the Android UI/display stack once
@@ -183,10 +225,9 @@ where LITTLE and BIG were simultaneously stuck at maximum.
 4. Leave the dashboard open briefly if you want to see its automatic display
    and CPU diagnosis settle.
 
-The current release also has an optional **Closed-Lid Wake Guard**. It is OFF by
-default. Closed-lid false wakes and loop protection passed supervised physical
-checks; docked use remains deferred. The AYN Dashboard CPU Fix causes one expected
-Android UI/display restart when applying it and once during boot when needed.
+The optional Closed-Lid Wake Guard starts OFF. The AYN Dashboard CPU Fix
+causes one Android UI/display restart when applying it and once during boot
+when restoration needs it.
 
 You do **not** need to root the Thor yourself, install Magisk, use Termux, or
 run commands. The app uses the privileged `PServerBinder` bridge already
@@ -197,7 +238,7 @@ After setup, you can:
 - close the app;
 - swipe it away from Recents;
 - use another launcher or game;
-- switch normally between TOP, BOTH, and BOTTOM;
+- switch normally between TOP and BOTH;
 - reboot normally and keep your saved choices.
 
 The visible app is only a control panel. A small privileged background service
@@ -217,7 +258,7 @@ normally. Fixing either behavior may reduce unnecessary power use. Actual
 battery life depends on brightness, games, performance mode, temperature,
 firmware, and background activity.
 
-Version 1.3.0 shows live **Battery draw** only while the Thor is actually
+Since v1.3.0, the dashboard shows live **Battery draw** only while the Thor is actually
 running from its battery. It uses the battery current and voltage reported by
 the device, smooths the last five readings, and displays watts. When USB power
 is connected the dashboard deliberately shows `UNPLUG USB` instead of mixing
@@ -247,37 +288,38 @@ tested on-device.
 <details>
 <summary><strong>What was verified on the physical Thor?</strong></summary>
 
-The exact signed v1.3.0 APK was installed in place for a focused dashboard and
-telemetry smoke test. The unchanged display-control and restart matrix remains
-covered by the earlier v1.2.0 validation:
+The exact signed **v1.5.15** APK (versionCode 64) was installed on the
+maintainer's Thor. A copy pulled from the device matched the released APK's
+SHA-256 byte for byte. The scoped review recorded:
 
-- package `com.thor.displaypowertest`, version code `45`, version `1.3.0`;
-- signing certificate unchanged from earlier releases;
-- the dashboard distinguished BOTH, AYN fake-off, and Jesty true-off from live
-  display hardware state and selected matching artwork;
-- CPU pinning uses a 12-second kernel residency window instead of instantaneous
-  frequency snapshots;
-- the automatic status ignored brief maximum-frequency spikes and reported the
-  active CPU Fix as normal after the window settled;
-- external power showed `BATTERY DRAW — · UNPLUG USB` rather than a charging
-  proxy;
-- TOP true-off ended with the top CRTC active and the lower CRTC inactive;
-- sleep/wake restored true-off and ended `OFF_OK`;
-- BOTH kept both displays active;
-- the Dashboard fix changed the reproduced result to 0/25 simultaneous
-  LITTLE/BIG maximum samples in the focused run;
-- CPU-fix OFF and ON completed one Android framework restart in roughly 28 and
-  26 seconds on the tested Thor, without changing the Android boot ID;
-- the privileged service recovered after each framework restart;
-- a real reboot changed the boot ID, restored both saved fixes, and completed
-  the expected second Android-framework phase in about 60 seconds total;
-- closing the visible app left the fixes active.
+- physical BOTH→TOP→BOTH: the lower CRTC powered off in TOP and both CRTCs
+  were active again in BOTH;
+- TOP sleep/wake: the lower CRTC returned to true-off without a reported
+  green flash;
+- Hall close/open, one controlled wake while closed, and the three-attempt
+  anti-loop pause; the guard was left OFF;
+- one in-place CPU Fix transition and one genuine cold boot of v1.5.15:
+  property `1`, one compositor restart, one recovered daemon, and BOTH active;
+- AYN Dashboard on the lower display after boot while Jesty on the upper
+  showed `CPU FIX ACTIVE · CLOCKS NORMAL` and LITTLE/BIG below their maxima
+  in the captured sample;
+- private socket, bounded client, distinct-UID and duplicate-daemon cases
+  in host and targeted device checks.
 
-APK SHA-256:
+The user observed no green flash, artifact, or restart loop. The second visual
+Android UI phase did not change the kernel boot ID. The boot reached
+`BOOT READY` at about 95 seconds; its duration is a performance follow-up.
+This does not replace a full configuration matrix. BOTTOM ONLY and physical
+external-display dock use were deferred.
+
+Released APK SHA-256:
 
 ```text
-021AC43581E6999AABFB896B760834B4F1804EF43EFD63709058E36F5D9297AD
+093B6AF26E86E072343988C04CBF03256005703D567177E99D308B9BADC71F2B
 ```
+
+The [validation diary](docs/VALIDATION-1.5.0-PENDING.md) records the
+chronology, traces, host tests, and earlier build evidence.
 
 </details>
 

@@ -33,3 +33,10 @@ APK SHA-256: `093B6AF26E86E072343988C04CBF03256005703D567177E99D308B9BADC71F2B`
 Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`
 
 Detailed results: [validation diary](https://github.com/JestyLabs/Jesty-Thor-Fix/blob/v1.5.15/docs/VALIDATION-1.5.0-PENDING.md).
+
+Real post-boot captures from the physical Thor: [Jesty v1.5.15 on the upper
+screen](https://github.com/JestyLabs/Jesty-Thor-Fix/blob/v1.5.15/docs/images/dashboard-both-v1.5.15-review.png)
+and [AYN Dashboard on the lower
+screen](https://github.com/JestyLabs/Jesty-Thor-Fix/blob/v1.5.15/docs/images/ayn-dashboard-both-v1.5.15-review.png).
+Earlier TOP and Wake Guard captures in the README are explicitly labeled
+v1.5.11; they were not restaged merely for screenshots.
