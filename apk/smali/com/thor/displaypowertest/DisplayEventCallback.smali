@@ -74,7 +74,7 @@
     const/4 v5, 0x2
     if-ne v4, v5, :cond_0
 
-    invoke-static {}, Lcom/thor/displaypowertest/WakeRepairScheduler;->noteDisplayOn()V
+    invoke-static {}, Lcom/thor/displaypowertest/DisplayActionCoordinator;->noteDisplayOn()V
     :try_end_0
     .catch Ljava/lang/Throwable; {:try_start_0 .. :try_end_0} :catch_0
 

@@ -48,10 +48,14 @@ public final class DaemonState {
         }
     }
 
-    public static synchronized String snapshot() {
+    // Snapshot does slow telemetry and LidGuard probes: never hold DaemonState's
+    // monitor while the display coordinator may need to record a transition.
+    public static String snapshot() {
         long now = SystemClock.elapsedRealtime();
         Telemetry.CpuSnapshot cpu = Telemetry.readCpu();
         Telemetry.PowerSnapshot power = Telemetry.readPower();
+        String topCrtc = Telemetry.topCrtcActive();
+        String bottomCrtc = Telemetry.bottomCrtcActive();
         return "ok=1"
                 + ";boot_phase=" + clean(BootSafety.phase()).replace(' ', '_')
                 + ";display_actions_held=" + (BootSafety.isHeld() ? "1" : "0")
@@ -62,10 +66,17 @@ public final class DaemonState {
                 + ";last_lid_action=" + LidGuard.lastAction()
                 + ";external_display=" + LidGuard.externalDisplay()
                 + ";fix=" + (enabled ? "1" : "0")
+                + ";display_desired=" + (enabled ? "1" : "0")
+                + ";display_effective=" + DisplayDecisionModel.effective(
+                        mode, topCrtc, bottomCrtc, enabled, BootSafety.isHeld())
+                + ";display_action_status=" + clean(DisplayActionCoordinator.status())
+                + ";display_generation=" + DisplayActionCoordinator.generation()
+                + ";watcher_health=" + WatcherSupervisor.health()
+                + ";watcher_last_sample_ms=" + WatcherSupervisor.lastSampleAt()
                 + ";mode=" + clean(mode)
                 + ";power=" + clean(DisplayHardware.getProperty())
-                + ";top_crtc=" + clean(Telemetry.topCrtcActive())
-                + ";bottom_crtc=" + clean(Telemetry.bottomCrtcActive())
+                + ";top_crtc=" + clean(topCrtc)
+                + ";bottom_crtc=" + clean(bottomCrtc)
                 + ";uptime_ms=" + (now - startedAt)
                 + ";little_cur=" + cpu.littleCurrent
                 + ";little_max=" + cpu.littleMax

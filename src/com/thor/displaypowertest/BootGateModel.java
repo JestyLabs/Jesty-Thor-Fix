@@ -51,6 +51,7 @@ public final class BootGateModel {
         if (!knownMode(mode) || !("0".equals(bottomCrtc) || "1".equals(bottomCrtc))) {
             return false;
         }
+        if ("2".equals(mode)) return false;
         boolean targetOn = !fixEnabled || !"1".equals(mode);
         return targetOn ? !"1".equals(bottomCrtc) : !"0".equals(bottomCrtc);
     }
@@ -64,6 +65,9 @@ public final class BootGateModel {
 
     public static CpuAction cpuAction(boolean desired, String actual,
             boolean afterComposerRestart) {
+        if (PropertyState.UNSET.equals(actual) && desired && !afterComposerRestart) {
+            return CpuAction.RESTART_ONCE;
+        }
         if (!("0".equals(actual) || "1".equals(actual))) return CpuAction.FAIL_SAFE;
         if (desired == "1".equals(actual)) return CpuAction.PROCEED;
         return afterComposerRestart ? CpuAction.FAIL_SAFE : CpuAction.RESTART_ONCE;

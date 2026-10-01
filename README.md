@@ -31,6 +31,44 @@
   <img src="docs/images/dashboard-true-off-v1.4.2.png" alt="v1.4.2 dashboard on a real Thor: TOP-only true hardware off, both main fixes active, CPU clocks and battery status" width="100%">
 </p>
 
+<details>
+<summary><strong>Unreleased v1.5.15 review: real Thor screenshots and test status</strong></summary>
+
+The draft [v1.5.15 review PR](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/1)
+has passed physical BOTH↔TOP and TOP sleep/wake, private-socket checks, and
+closed-lid wake including the three-attempt anti-loop limit. On this Thor,
+the vendor CPU Fix property is absent after a cold boot. v1.5.15 distinguishes
+that condition from a failed read, applies a saved ON preference once, and
+verifies the resulting property after the compositor restart. One supervised
+in-place transition and one genuine cold boot passed. The cold boot reached
+`BOOT READY` at about 95 seconds, with one expected second visual Android UI
+phase, no second kernel boot, and no reported green flash or artifact. With
+AYN Dashboard open on the lower screen afterward, the upper app showed
+`CPU FIX ACTIVE · CLOCKS NORMAL`. This is a scoped physical result, not a
+claim that every boot configuration has been exhaustively tested. The Thor
+was left in BOTH with Wake Guard OFF. With the guard off, `LID UNKNOWN` means
+the Hall watcher is not running; it does not describe the CPU Fix.
+BOTTOM ONLY and physical dock use are future improvements. This candidate
+is not a release or a replacement for the download above.
+
+<p align="center">
+  <img src="docs/images/dashboard-both-v1.5.15-review.png" alt="Unreleased v1.5.15 on the physical Thor after the CPU Fix cold boot: BOTH screens active, CPU Fix active and Wake Guard off" width="100%">
+</p>
+<p align="center">
+  <img src="docs/images/ayn-dashboard-both-v1.5.15-review.png" alt="AYN Dashboard on the physical Thor's lower screen after the v1.5.15 cold boot" width="100%">
+</p>
+<p align="center">
+  <img src="docs/images/dashboard-top-v1.5.11-review.png" alt="Unreleased v1.5.11 on the physical Thor in TOP mode: lower display hardware truly off" width="100%">
+</p>
+<p align="center">
+  <img src="docs/images/wake-guard-loop-v1.5.11-review.png" alt="Unreleased v1.5.11 on the physical Thor after the closed-lid loop check: Wake Guard off and three blocked wakes" width="100%">
+</p>
+
+The [validation diary](docs/VALIDATION-1.5.0-PENDING.md) separates host tests,
+physical observations, and scenarios still unavailable.
+
+</details>
+
 <p align="center">
   <img alt="AYN Thor" src="https://img.shields.io/badge/device-AYN%20Thor-7C3AED?style=for-the-badge">
   <img alt="Android 13" src="https://img.shields.io/badge/Android-13-3DDC84?style=for-the-badge&amp;logo=android&amp;logoColor=white">
@@ -270,6 +308,8 @@ Place `apktool.jar` at `tools/apktool.jar`, or set `APKTOOL_JAR`, then run:
 The repository contains no signing key or password. Self-built APKs will not
 update the official build unless signed with the same private key.
 
+Maintainer checklist: [build and release guide](docs/BUILD-AND-RELEASE.md).
+
 </details>
 
 ## Support and documentation
@@ -286,7 +326,8 @@ Documentation: [architecture](docs/ARCHITECTURE.md) ·
 [device validation](docs/DEVICE-VALIDATION.md) ·
 [live results](docs/LIVE-RESULTS.md) ·
 [benchmarks](docs/BENCHMARKS.md) ·
-[release integrity](docs/RELEASE-INTEGRITY.md)
+[release integrity](docs/RELEASE-INTEGRITY.md) ·
+[build and release](docs/BUILD-AND-RELEASE.md)
 
 ## License, provenance, and independence
 

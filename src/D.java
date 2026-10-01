@@ -1,27 +1,36 @@
 import com.thor.displaypowertest.DaemonState;
+import com.thor.displaypowertest.DaemonIdentity;
 import com.thor.displaypowertest.BootGateModel;
 import com.thor.displaypowertest.BootSafety;
 import com.thor.displaypowertest.DaemonWatchThread;
 import com.thor.displaypowertest.DisplayEventManager;
 import com.thor.displaypowertest.DisplayHardware;
+import com.thor.displaypowertest.DisplayActionCoordinator;
 import com.thor.displaypowertest.LidGuard;
 import com.thor.displaypowertest.Telemetry;
+import com.thor.displaypowertest.PropertyState;
 import com.thor.displaypowertest.WakeRepairScheduler;
+import com.thor.displaypowertest.WatcherSupervisor;
 
 import android.util.Log;
 import android.os.SystemClock;
+import android.net.LocalServerSocket;
+import android.net.LocalSocket;
 
 import java.io.OutputStream;
 import java.io.FileWriter;
 import java.io.File;
-import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import com.thor.displaypowertest.SecureChannel;
 
 public final class D {
     private static final String TRANSITION_WAKE_LOCK = "jesty_dashboard_cpu_transition";
-    private static boolean composerRestartScheduled;
+    private static volatile boolean composerRestartScheduled;
+    private static volatile boolean composerRestartFailed;
+    private static volatile boolean cpuFixDesired;
     private static boolean bootCoordinatorActive;
     private static boolean bootCpuFixDesired;
     private static boolean bootLidGuardDesired;
@@ -31,6 +40,7 @@ public final class D {
         bootCoordinatorActive = (args.length > 1 && "hold".equals(args[1]))
                 || !"1".equals(property("sys.boot_completed"));
         bootCpuFixDesired = args.length > 2 && "1".equals(args[2]);
+        cpuFixDesired = bootCpuFixDesired;
         bootLidGuardDesired = args.length > 3 && "1".equals(args[3]);
         bootStartedAt = args.length > 4 ? Long.parseLong(args[4])
                 : SystemClock.elapsedRealtime();
@@ -38,60 +48,62 @@ public final class D {
         BootSafety.begin(bootCoordinatorActive);
         DaemonState.setEnabled(enabled);
         if (!bootCoordinatorActive) LidGuard.setEnabled(bootLidGuardDesired);
-        new DaemonWatchThread().start();
+        LocalServerSocket server = SecureChannel.listen();
+        WatcherSupervisor.start();
         DisplayEventManager.register();
-        ServerSocket server = new ServerSocket(3804, 4, InetAddress.getByName("127.0.0.1"));
+        ThreadPoolExecutor connections = new ThreadPoolExecutor(2, 2, 0L,
+                TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(4));
         if (bootCoordinatorActive) {
             new Thread(() -> reconcileBoot(afterComposerRestart), "thor-boot-coordinator").start();
         }
-        Log.d("ThorDisplayDaemon", "READY 1.4.2 enabled=" + enabled
+        Log.d("ThorDisplayDaemon", "READY " + DaemonIdentity.VERSION + " enabled=" + enabled
                 + " bootHold=" + bootCoordinatorActive);
         while (true) {
-            Socket socket = server.accept();
+            LocalSocket socket = server.accept();
             try {
-                int command = socket.getInputStream().read();
-                String response = handle((char) command);
-                OutputStream output = socket.getOutputStream();
-                output.write((response + "\n").getBytes(StandardCharsets.UTF_8));
-                output.flush();
-            } catch (Throwable error) {
-                Log.e("ThorDisplayDaemon", "command failed", error);
-            } finally {
+                connections.execute(() -> serve(socket));
+            } catch (java.util.concurrent.RejectedExecutionException busy) {
                 socket.close();
             }
         }
     }
 
+    private static void serve(LocalSocket socket) {
+        try (LocalSocket client = socket) {
+            if (!SecureChannel.isTrustedApp(client)) {
+                Log.w("ThorDisplayDaemon", "rejected untrusted local client");
+                return;
+            }
+            client.setSoTimeout(1500);
+            int command = client.getInputStream().read();
+            String response = command < 0 ? "ok=0;error=EMPTY_COMMAND"
+                    : handle((char) command);
+            OutputStream output = client.getOutputStream();
+            output.write((response + "\n").getBytes(StandardCharsets.UTF_8));
+            output.flush();
+        } catch (Throwable error) {
+            Log.e("ThorDisplayDaemon", "command failed", error);
+        }
+    }
+
     private static String handle(char command) {
-        if (BootSafety.isHeld() && command != 'Q' && command != 'V') {
+        if (BootSafety.isHeld() && command != 'I' && command != 'Q' && command != 'V') {
             return "ok=0;error=BOOT_HOLD;boot_phase="
                     + BootSafety.phase().replace(' ', '_');
         }
         switch (command) {
-            case '0':
-                WakeRepairScheduler.cancel();
-                return DisplayHardware.apply(false, "LEGACY") ? "ok=1" : "ok=0;error=OFF_FAILED";
-            case '1':
-                WakeRepairScheduler.cancel();
-                return DisplayHardware.apply(true, "LEGACY") ? "ok=1" : "ok=0;error=ON_FAILED";
+            case 'I': return "ok=1;protocol=" + SecureChannel.PROTOCOL
+                    + ";version=" + DaemonIdentity.VERSION + ";pid=" + android.os.Process.myPid()
+                    + ";boot_phase=" + BootSafety.phase().replace(' ', '_')
+                    + ";fix=" + (DaemonState.isEnabled() ? "1" : "0")
+                    + ";watcher=" + WatcherSupervisor.health();
             case 'E':
-                DaemonState.setEnabled(true);
-                WakeRepairScheduler.cancel();
-                boolean top = "1".equals(DaemonState.getMode());
-                boolean enabledOk = DisplayHardware.apply(!top, "ENABLE_RECONCILE");
-                return enabledOk ? "ok=1;fix=1" : "ok=0;error=ENABLE_FAILED";
+                return DisplayActionCoordinator.requestFix(true);
             case 'N':
-                DaemonState.setEnabled(false);
-                WakeRepairScheduler.cancel();
-                final boolean nativeOk = DisplayHardware.apply(true, "NATIVE_IMMEDIATE");
-                new Thread(new Runnable() {
-                    @Override public void run() {
-                        try { Thread.sleep(350L); } catch (InterruptedException ignored) {}
-                        if (!DaemonState.isEnabled()) DisplayHardware.apply(true, "NATIVE_FINAL");
-                    }
-                }, "native-final").start();
-                return nativeOk ? "ok=1;fix=0" : "ok=0;error=NATIVE_FAILED";
-            case 'Q': return DaemonState.snapshot();
+                return DisplayActionCoordinator.requestFix(false);
+            case 'Q': return DaemonState.snapshot()
+                    + ";cpu_fix_desired=" + (cpuFixDesired ? "1" : "0")
+                    + ";cpu_fix_phase=" + cpuFixPhase();
             case 'V': return Telemetry.verifyDrm();
             case 'R': return restartComposerWithSystemLoadCheckDisabled(true);
             case 'L': return restartComposerWithSystemLoadCheckDisabled(false);
@@ -103,6 +115,16 @@ public final class D {
     }
 
     private static void reconcileBoot(boolean afterComposerRestart) {
+        try {
+            reconcileBootPhase(afterComposerRestart);
+        } finally {
+            // A surviving post-restart daemon owns the release. The kernel's
+            // timed lock is the fallback if that daemon never starts.
+            if (afterComposerRestart) releaseTransitionWakeLock();
+        }
+    }
+
+    private static void reconcileBootPhase(boolean afterComposerRestart) {
         BootGateModel gate = new BootGateModel(bootStartedAt, afterComposerRestart);
         BootSafety.phase(afterComposerRestart ? "WAITING AFTER COMPOSER" : "WAITING FOR ANDROID");
         traceBoot(afterComposerRestart ? "WAIT_AFTER_COMPOSER" : "WAIT_FOR_ANDROID");
@@ -123,12 +145,13 @@ public final class D {
             try { Thread.sleep(500L); } catch (InterruptedException ignored) { return; }
         }
         BootGateModel.CpuAction cpuAction = BootGateModel.cpuAction(bootCpuFixDesired,
-                Telemetry.systemLoadFixState(), afterComposerRestart);
+                Telemetry.systemLoadFixObservation(), afterComposerRestart);
         if (cpuAction == BootGateModel.CpuAction.FAIL_SAFE) {
-                BootSafety.timeout();
-                DaemonState.setLastAction("BOOT_CPU_FIX_NOT_APPLIED");
-                traceBoot("BOOT_CPU_FIX_NOT_APPLIED");
-                return;
+            // A read failure or invalid CPU property must never trigger a restart.
+            // It does not make a separately verified display state unsafe.
+            DaemonState.setLastAction("BOOT_CPU_FIX_NOT_APPLIED");
+            traceBoot("BOOT_CPU_FIX_NOT_APPLIED");
+            Log.w("ThorDisplayDaemon", "CPU fix not confirmed; continuing safe display reconcile");
         }
         if (cpuAction == BootGateModel.CpuAction.RESTART_ONCE) {
             BootSafety.phase("APPLYING CPU FIX");
@@ -149,15 +172,12 @@ public final class D {
             return;
         }
         boolean bottomShouldBeOn = !DaemonState.isEnabled() || !"1".equals(mode);
-        String bottom = Telemetry.bottomCrtcActive();
-        if (!(bottomShouldBeOn ? "1" : "0").equals(bottom)) {
-            if (!DisplayHardware.apply(bottomShouldBeOn, "BOOT_RECONCILE")) {
-                BootSafety.timeout();
-                traceBoot("BOOT_DISPLAY_FAILED");
-                return;
-            }
-            traceBoot(bottomShouldBeOn ? "BOTTOM_ON" : "BOTTOM_OFF");
+        if (!DisplayActionCoordinator.reconcileBoot(mode, bottomShouldBeOn)) {
+            BootSafety.timeout();
+            traceBoot("BOOT_DISPLAY_FAILED");
+            return;
         }
+        traceBoot(bottomShouldBeOn ? "BOTTOM_ON_CONFIRMED" : "BOTTOM_OFF_CONFIRMED");
         BootSafety.ready();
         bootCoordinatorActive = false;
         if (bootLidGuardDesired && !LidGuard.setEnabled(true)) {
@@ -188,55 +208,117 @@ public final class D {
     }
 
     private static String property(String name) {
+        Process process = null;
         try {
-            Process process = new ProcessBuilder("getprop", name).start();
+            process = new ProcessBuilder("getprop", name).start();
+            if (!process.waitFor(2L, TimeUnit.SECONDS) || process.exitValue() != 0)
+                return "?";
             java.io.BufferedReader reader = new java.io.BufferedReader(
                     new java.io.InputStreamReader(process.getInputStream()));
             String value = reader.readLine();
             reader.close();
-            process.waitFor();
-            return value == null ? "" : value.trim();
-        } catch (Throwable ignored) { return ""; }
+            return value == null || value.trim().isEmpty() ? "?" : value.trim();
+        } catch (Throwable ignored) { return "?"; }
+        finally { if (process != null) process.destroy(); }
+    }
+
+    private static String composerPid() {
+        Process process = null;
+        try {
+            process = new ProcessBuilder("pidof",
+                    "vendor.qti.hardware.display.composer-service").start();
+            if (!process.waitFor(2L, TimeUnit.SECONDS) || process.exitValue() != 0)
+                return "?";
+            try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(process.getInputStream()))) {
+                String value = reader.readLine();
+                return value != null && value.trim().matches("[0-9]+")
+                        ? value.trim() : "?";
+            }
+        } catch (Throwable ignored) { return "?"; }
+        finally { if (process != null) process.destroy(); }
     }
 
     private static String setSystemLoadCheckDisabled(boolean enabled) {
-        String value = enabled ? "1" : "0";
+        return setSystemLoadCheckValue(enabled ? "1" : "0");
+    }
+
+    private static String setSystemLoadCheckValue(String value) {
+        Process process = null;
         try {
-            Process process = new ProcessBuilder("setprop",
+            process = new ProcessBuilder("setprop",
                     "vendor.display.disable_system_load_check", value).start();
-            int exit = process.waitFor();
+            if (!process.waitFor(2L, TimeUnit.SECONDS)) return "ok=0;error=SETPROP_TIMEOUT";
+            int exit = process.exitValue();
             if (exit != 0) return "ok=0;error=SETPROP_EXIT_" + exit;
             return "ok=1;system_load_fix=" + value;
         } catch (Throwable error) {
             return "ok=0;error=SETPROP_FAILED";
+        } finally { if (process != null) process.destroy(); }
+    }
+
+    private static void restoreSystemLoadCheckState(String previous) {
+        // An empty value restores the unconfigured state after a failed
+        // pre-restart write. Never invent a prior binary value for UNSET.
+        String value = PropertyState.UNSET.equals(previous) ? "" : previous;
+        String result = setSystemLoadCheckValue(value);
+        if (!result.startsWith("ok=1")) {
+            Log.e("ThorDisplayDaemon", "could not restore CPU property: " + result);
         }
     }
 
     private static synchronized String restartComposerWithSystemLoadCheckDisabled(boolean enabled) {
         final String desired = enabled ? "1" : "0";
-        if (desired.equals(Telemetry.systemLoadFixState())) {
+        final String actual = Telemetry.systemLoadFixObservation();
+        boolean unsetEnable = enabled && PropertyState.UNSET.equals(actual);
+        if (!unsetEnable && !"0".equals(actual) && !"1".equals(actual)) {
+            return "ok=0;error=CPU_FIX_STATE_UNKNOWN";
+        }
+        if (!"running".equals(property("init.svc.vendor.qti.hardware.display.composer"))) {
+            return "ok=0;error=COMPOSER_NOT_READY";
+        }
+        if (!"RUNNING".equals(WatcherSupervisor.health())) {
+            return "ok=0;error=WATCHER_NOT_READY";
+        }
+        final String beforeComposerPid = composerPid();
+        if ("?".equals(beforeComposerPid)) return "ok=0;error=COMPOSER_PID_UNKNOWN";
+        if (desired.equals(actual) && !composerRestartFailed) {
+            cpuFixDesired = enabled;
             return "ok=1;system_load_fix=" + desired + ";composer_restart=not_needed";
         }
         if (composerRestartScheduled) {
             return "ok=0;error=COMPOSER_RESTART_BUSY";
         }
-        String propertyResult = setSystemLoadCheckDisabled(enabled);
-        if (!propertyResult.startsWith("ok=1")) return propertyResult;
         if (!acquireTransitionWakeLock()) {
-            setSystemLoadCheckDisabled(!enabled);
             return "ok=0;error=WAKE_LOCK_FAILED";
         }
+        String propertyResult = setSystemLoadCheckDisabled(enabled);
+        if (!propertyResult.startsWith("ok=1")) {
+            releaseTransitionWakeLock();
+            return propertyResult;
+        }
+        if (!desired.equals(Telemetry.systemLoadFixObservation())) {
+            restoreSystemLoadCheckState(actual);
+            releaseTransitionWakeLock();
+            return "ok=0;error=SETPROP_UNCONFIRMED";
+        }
+        cpuFixDesired = enabled;
+        composerRestartFailed = false;
         composerRestartScheduled = true;
         new Thread(new Runnable() {
             @Override public void run() {
                 try {
                     Thread.sleep(300L);
-                    scheduleTransitionCleanupAndDaemonRestart();
+                    scheduleTransitionCleanupAndDaemonRestart(beforeComposerPid);
                     int exit = new ProcessBuilder("setprop", "ctl.restart",
                             "vendor.qti.hardware.display.composer").start().waitFor();
                     if (exit != 0) throw new IllegalStateException("composer restart exit=" + exit);
                     Thread.sleep(3000L);
                 } catch (Throwable error) {
+                    composerRestartFailed = true;
+                    if (beforeComposerPid.equals(composerPid())) {
+                        restoreSystemLoadCheckState(actual);
+                    }
                     Log.e("ThorDisplayDaemon", "composer restart failed", error);
                     releaseTransitionWakeLock();
                 } finally {
@@ -247,12 +329,23 @@ public final class D {
         return "ok=1;system_load_fix=" + desired + ";composer_restart=scheduled_once";
     }
 
+    private static String cpuFixPhase() {
+        if (composerRestartFailed) return "ERROR";
+        if (composerRestartScheduled || BootSafety.isHeld()) return "PENDING";
+        String actual = Telemetry.systemLoadFixState();
+        if (!"0".equals(actual) && !"1".equals(actual)) return "UNKNOWN";
+        if (!"running".equals(property("init.svc.vendor.qti.hardware.display.composer")))
+            return "PENDING";
+        if (!"RUNNING".equals(WatcherSupervisor.health())) return "PENDING";
+        return (cpuFixDesired ? "1" : "0").equals(actual) ? "CONFIRMED" : "MISMATCH";
+    }
+
     private static boolean acquireTransitionWakeLock() {
         try {
-            // Kernel timeout is a safety net; the surviving helper releases it
-            // explicitly as soon as Android's display stack has recovered.
+            // The post-restart phase can need 60 seconds after helper recovery.
+            // The post-restart daemon releases this early after reconciliation.
             Process process = new ProcessBuilder("sh", "-c", "echo '"
-                    + TRANSITION_WAKE_LOCK + " 90000000000' > /sys/power/wake_lock").start();
+                    + TRANSITION_WAKE_LOCK + " 150000000000' > /sys/power/wake_lock").start();
             return process.waitFor() == 0;
         } catch (Throwable error) {
             Log.e("ThorDisplayDaemon", "transition wake lock failed", error);
@@ -269,32 +362,41 @@ public final class D {
         }
     }
 
-    private static void scheduleTransitionCleanupAndDaemonRestart() throws Exception {
+    private static void scheduleTransitionCleanupAndDaemonRestart(String beforeComposerPid)
+            throws Exception {
         String enabled = DaemonState.isEnabled() ? "1" : "0";
+        String desiredCpu = cpuFixDesired ? "1" : "0";
+        // During BOOT HOLD the Hall watcher has not been enabled yet. Preserve
+        // its saved preference rather than sampling the inactive watcher.
+        String desiredLidGuard = (bootCoordinatorActive ? bootLidGuardDesired
+                : LidGuard.isEnabled()) ? "1" : "0";
+        // A compositor restart starts a second readiness phase. Do not reuse
+        // the initial boot's 60-second deadline for its five-second grace.
+        long phaseStartedAt = SystemClock.elapsedRealtime();
         int daemonPid = android.os.Process.myPid();
         // The vendor composer restarts SurfaceFlinger and zygote. Keep an
         // eight-second minimum, then relaunch as soon as the Android services
-        // and package manager recover. Keep the original 18-second wake-lock
-        // coverage independently; the post-restart BootGate still requires
-        // stable CRTCs + 5 s before any display action.
-        String command = "(sleep 18; echo '" + TRANSITION_WAKE_LOCK
-                + "' > /sys/power/wake_unlock 2>/dev/null) & "
-                + "sleep 8; for I in $(seq 1 10); do "
+        // and package manager recover. The post-restart daemon releases the
+        // timed wake lock only after reconciliation or safe timeout.
+        String command = "sleep 8; for I in $(seq 1 10); do "
                 + "[ \"$(getprop init.svc.vendor.qti.hardware.display.composer)\" = running ] "
                 + "&& [ \"$(getprop init.svc.surfaceflinger)\" = running ] "
                 + "&& [ \"$(getprop init.svc.zygote)\" = running ] "
                 + "&& [ \"$(getprop sys.boot_completed)\" = 1 ] "
                 + "&& [ -n \"$(pm path com.thor.displaypowertest 2>/dev/null)\" ] "
                 + "&& break; sleep 1; done; "
+                + "NEW=$(pidof vendor.qti.hardware.display.composer-service); "
+                + "[ -n \"$NEW\" ] && [ \"$NEW\" != '" + beforeComposerPid
+                + "' ] || exit 1; "
                 + "A=''; for I in $(seq 1 30); do "
                 + "A=$(pm path com.thor.displaypowertest 2>/dev/null); "
                 + "[ -n \"$A\" ] && break; sleep 1; done; "
                 + "A=${A#*:}; [ -n \"$A\" ] || exit 1; "
                 + "kill " + daemonPid + "; sleep 1; "
                 + "CLASSPATH=$A app_process / D " + enabled
-                + (bootCoordinatorActive ? " hold " + (bootCpuFixDesired ? "1" : "0")
-                    + " " + (LidGuard.isEnabled() ? "1" : "0") + " " + bootStartedAt
-                    + " post" : " run 0 " + (LidGuard.isEnabled() ? "1" : "0"))
+                + " hold " + desiredCpu
+                + " " + desiredLidGuard + " " + phaseStartedAt
+                + " post"
                 + " >>/data/local/tmp/td032.log 2>&1 &";
         new ProcessBuilder("sh", "-c", command).start();
     }

@@ -37,6 +37,13 @@ public final class BootAndLidModelTest {
                 "third sample starts post-composer grace");
         check(post.observe(30000L, true, true, "0", "1", "1") == BootGateModel.Result.READY,
                 "five second post-composer grace");
+        BootGateModel latePost = new BootGateModel(59000L, true);
+        latePost.observe(60000L, true, true, "0", "1", "1");
+        latePost.observe(60500L, true, true, "0", "1", "1");
+        latePost.observe(61000L, true, true, "0", "1", "1");
+        check(latePost.observe(66000L, true, true, "0", "1", "1")
+                == BootGateModel.Result.READY,
+                "post-composer grace retains a fresh deadline after a late initial boot");
         BootGateModel timeout = new BootGateModel(0L, false);
         check(timeout.observe(60000L, true, true, "1", "1", "0")
                 == BootGateModel.Result.TIMEOUT, "safety timeout");
@@ -50,8 +57,8 @@ public final class BootAndLidModelTest {
                 "BOTH already on is idempotent");
         check(BootGateModel.displayActionRequired("0", true, "0"),
                 "BOTH requires ON when lower display is off");
-        check(BootGateModel.displayActionRequired("2", true, "0"),
-                "BOTTOM requires ON when lower display is off");
+        check(!BootGateModel.displayActionRequired("2", true, "0"),
+                "BOTTOM transition must not force ON from the mode flag alone");
         check(BootGateModel.displayActionRequired("1", false, "0"),
                 "native TOP requires lower hardware on");
         // Reproduce the reported path: enable the fix in BOTH, then change to
@@ -88,6 +95,15 @@ public final class BootAndLidModelTest {
                 == BootGateModel.CpuAction.PROCEED, "matching CPU setting needs no restart");
         check(BootGateModel.cpuAction(true, "?", false)
                 == BootGateModel.CpuAction.FAIL_SAFE, "unknown CPU state fails safe");
+        check(BootGateModel.cpuAction(true, "UNSET", false)
+                == BootGateModel.CpuAction.RESTART_ONCE,
+                "confirmed unconfigured property can be applied once");
+        check(BootGateModel.cpuAction(true, "UNSET", true)
+                == BootGateModel.CpuAction.FAIL_SAFE,
+                "unconfigured property after composer restart must not loop");
+        check(BootGateModel.cpuAction(false, "UNSET", false)
+                == BootGateModel.CpuAction.FAIL_SAFE,
+                "unconfigured property is not confirmed OFF");
     }
 
     private static void lid() {

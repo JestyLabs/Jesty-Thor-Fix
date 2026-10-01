@@ -108,6 +108,12 @@ public final class DashboardStateModel {
                             : "Bottom hardware is physically off",
                     Tone.GREEN, confirmedVisual, true);
         }
+        if ("BOTTOM_TOP_ACTIVE".equals(candidate)) {
+            confirmedVisual = Visual.BOTH_ON;
+            return new DisplayStatus("BOTTOM ONLY \u00B7 TOP HARDWARE ON",
+                    "Upper panel remains active in AYN mode", Tone.AMBER,
+                    confirmedVisual, true);
+        }
         confirmedVisual = Visual.BOTH_ON;
         return new DisplayStatus("BOTTOM ONLY", "Top screen off",
                 Tone.GREEN, confirmedVisual, true);
@@ -123,6 +129,8 @@ public final class DashboardStateModel {
         if ("1".equals(mode) && "1".equals(topCrtc) && "1".equals(bottomCrtc)) return "AYN_BLACK";
         if ("1".equals(mode) && "1".equals(topCrtc) && "0".equals(bottomCrtc)) return "TRUE_OFF";
         if ("2".equals(mode) && "0".equals(topCrtc) && "1".equals(bottomCrtc)) return "BOTTOM";
+        if ("2".equals(mode) && "1".equals(topCrtc) && "1".equals(bottomCrtc))
+            return "BOTTOM_TOP_ACTIVE";
         return "MISMATCH";
     }
 
@@ -134,6 +142,14 @@ public final class DashboardStateModel {
     public ClockStatus updateClocks(String stateKey, long littleHighTicks, long littleTotalTicks,
             long bigHighTicks, long bigTotalTicks, int utilization,
             boolean fixDesired, boolean fixActive) {
+        return updateClocks(stateKey, littleHighTicks, littleTotalTicks,
+                bigHighTicks, bigTotalTicks, utilization, fixDesired, fixActive, false);
+    }
+
+    /** Diagnose the raw symptom even when the CPU property itself is unknown. */
+    public ClockStatus updateClocks(String stateKey, long littleHighTicks, long littleTotalTicks,
+            long bigHighTicks, long bigTotalTicks, int utilization,
+            boolean fixDesired, boolean fixActive, boolean diagnoseUnconfirmed) {
         if (!stateKey.equals(clockStateKey)) {
             resetClocks();
             clockStateKey = stateKey;
@@ -157,7 +173,8 @@ public final class DashboardStateModel {
         clockWindow.addLast(new ClockDelta(littleHighDelta, littleTotalDelta,
                 bigHighDelta, bigTotalDelta, utilization));
         while (clockWindow.size() > CLOCK_WINDOW_SAMPLES) clockWindow.removeFirst();
-        if (fixDesired != fixActive || clockWindow.size() < CLOCK_MIN_SAMPLES) return checking();
+        if ((!diagnoseUnconfirmed && fixDesired != fixActive)
+                || clockWindow.size() < CLOCK_MIN_SAMPLES) return checking();
 
         long littleHigh = 0, littleTotal = 0, bigHigh = 0, bigTotal = 0, load = 0;
         for (ClockDelta sample : clockWindow) {

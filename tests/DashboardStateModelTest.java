@@ -17,6 +17,10 @@ public final class DashboardStateModelTest {
         assertDisplay("TOP ONLY \u00B7 AYN BLACK SCREEN", stableDisplay("1", "1", "1", false));
         assertDisplay("TOP ONLY \u00B7 TRUE OFF", stableDisplay("1", "1", "0", true));
         assertDisplay("BOTTOM ONLY", stableDisplay("2", "0", "1", true));
+        assertDisplay("BOTTOM ONLY \u00B7 TOP HARDWARE ON",
+                stableDisplay("2", "1", "1", true));
+        assertDisplay("BOTTOM ONLY \u00B7 TOP HARDWARE ON",
+                stableDisplay("2", "1", "1", false));
     }
 
     private static DashboardStateModel.DisplayStatus stableDisplay(
@@ -34,6 +38,15 @@ public final class DashboardStateModelTest {
         assertDisplay("DISPLAY TRANSITION", model.updateDisplay("0", "1", "1", true));
         for (int i = 0; i < 7; i++) model.updateDisplay("0", "1", "0", true);
         assertDisplay("DISPLAY STATE MISMATCH", model.updateDisplay("0", "1", "0", true));
+        assertDisplay("DISPLAY STATE MISMATCH", stableDisplayMismatch("2", "1", "0"));
+    }
+
+    private static DashboardStateModel.DisplayStatus stableDisplayMismatch(
+            String mode, String top, String bottom) {
+        DashboardStateModel model = new DashboardStateModel();
+        DashboardStateModel.DisplayStatus status = null;
+        for (int i = 0; i < 8; i++) status = model.updateDisplay(mode, top, bottom, true);
+        return status;
     }
 
     private static void clockDiagnosis() {
