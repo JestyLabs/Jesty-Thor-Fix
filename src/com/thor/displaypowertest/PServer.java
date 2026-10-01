@@ -25,9 +25,26 @@ public final class PServer {
 
     public static boolean startDaemon(boolean enabled, boolean bootHold,
             boolean dashboardFix, boolean lidGuard) {
+        return startDaemon(enabled, bootHold, dashboardFix, lidGuard,
+                -1L, -1L, "?", -1L);
+    }
+
+    /**
+     * Timing fields travel as environment variables so the identity-checked
+     * command line keeps its existing shape. All values are numeric or an enum name.
+     */
+    public static boolean startDaemon(boolean enabled, boolean bootHold,
+            boolean dashboardFix, boolean lidGuard, long receiverAtMs, long serviceAtMs,
+            String socketState, long launchWaitMs) {
         String state = enabled ? "1" : "0";
+        String safeSocket = socketState != null && socketState.matches("[A-Z_]{1,32}")
+                ? socketState : "UNKNOWN";
         String command = "A=$(pm path com.thor.displaypowertest | head -n 1);A=${A#*:};"
-                + "CLASSPATH=$A "
+                + "JESTY_RECEIVER_MS=" + Math.max(-1L, receiverAtMs)
+                + " JESTY_SERVICE_MS=" + Math.max(-1L, serviceAtMs)
+                + " JESTY_SOCKET_STATE=" + safeSocket
+                + " JESTY_LAUNCH_WAIT_MS=" + Math.max(-1L, launchWaitMs)
+                + " CLASSPATH=$A "
                 + "app_process / D " + state + (bootHold ? " hold " : " run ")
                 + (dashboardFix ? "1" : "0") + " " + (lidGuard ? "1" : "0")
                 + " >>/data/local/tmp/td032.log 2>&1 &";
@@ -86,17 +103,40 @@ public final class PServer {
 
     public static boolean healthy(boolean expectedFix) {
         try {
-            String response = SocketClient.request('I', 700);
-            boolean valid = response.startsWith("ok=1;")
-                    && response.contains(";protocol=" + SecureChannel.PROTOCOL + ";")
-                    && response.contains(";version=" + DaemonIdentity.VERSION + ";")
-                    && response.contains(";pid=")
-                    && response.contains(";boot_phase=")
-                    && response.contains(";boot_phase=READY;")
-                    && response.contains(";fix=" + (expectedFix ? "1" : "0") + ";")
-                    && response.endsWith(";watcher=RUNNING");
-            return valid;
+            return healthyResponse(SocketClient.request('I', 700), expectedFix);
         } catch (Throwable ignored) { return false; }
+    }
+
+    private static boolean healthyResponse(String response, boolean expectedFix) {
+        return response.startsWith("ok=1;")
+                && response.contains(";protocol=" + SecureChannel.PROTOCOL + ";")
+                && response.contains(";version=" + DaemonIdentity.VERSION + ";")
+                && response.contains(";pid=")
+                && response.contains(";boot_phase=")
+                && response.contains(";boot_phase=READY;")
+                && response.contains(";fix=" + (expectedFix ? "1" : "0") + ";")
+                && response.endsWith(";watcher=RUNNING");
+    }
+
+    /** One authenticated 'I' request; transport or identity failure is UNREACHABLE. */
+    public static DaemonLaunchModel.Probe probe(boolean expectedFix) {
+        String response;
+        try {
+            response = SocketClient.request('I', 700);
+        } catch (Throwable ignored) {
+            return DaemonLaunchModel.Probe.UNREACHABLE;
+        }
+        if (healthyResponse(response, expectedFix)) return DaemonLaunchModel.Probe.HEALTHY;
+        if (DaemonLaunchModel.starting(response, DaemonIdentity.VERSION, expectedFix)) {
+            return DaemonLaunchModel.Probe.STARTING;
+        }
+        return DaemonLaunchModel.Probe.UNHEALTHY;
+    }
+
+    /** Classifies the socket path only after an authenticated probe found no listener. */
+    public static DaemonLaunchModel.SocketState socketState() {
+        return DaemonLaunchModel.classify(secureSocketExists(), reachable(),
+                SecureChannel.stampedBootId(), SecureChannel.currentBootId());
     }
 
     /** One diagnostic sample after bounded retries, never per poll. */

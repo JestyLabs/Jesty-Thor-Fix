@@ -34,24 +34,28 @@ the repository. Never commit either of them or an APK.
    blindly. The `gh api` Git objects/ref route has worked: compare the remote
    head before upload, update the ref without force, then verify the PR head.
    Keep the candidate APK out of Git; the release asset is uploaded separately.
-5. Only after the agreed gates in `VALIDATION-1.5.0-PENDING.md` pass, create a tag and
-   GitHub release with the exact tested signed APK. Attach only that APK,
+5. A diagnostic **pre-release** may be published before physical tests when
+   the release notes and README clearly mark it untested on the Thor and the
+   stable release remains recommended. Only after
+   the agreed gates in `VALIDATION-1.5.16-PENDING.md` pass may that exact
+   artifact be considered for stable promotion. v1.5.16 completed the scoped
+   supervised checks and received maintainer approval for stable release.
+   Attach only that APK,
    record its SHA-256 and certificate in release documentation, and verify the
    downloaded asset hash. If staged as a pre-release, promote the **same release
    and unchanged APK** to stable after maintainer approval of the scoped
    physical/security evidence. If the APK changes,
    increment the version/code and repeat affected validation.
 
-Example GitHub CLI workflow for a testing pre-release (substitute the validated
-version and APK, and write the release-notes file first):
+Example GitHub CLI workflow for the stable v1.5.16 release after maintainer
+approval (write and verify the release-notes file first):
 
 ```powershell
 $gh = 'C:\Temp\gh-2.101.0\unpacked\bin\gh.exe'
 & $gh auth status
-& $gh release create v1.5.15 'dist\Jesty-Thor-Fix-1.5.15.apk' --prerelease --title 'Jesty Thor Fix v1.5.15' --notes-file 'docs\RELEASE-NOTES-1.5.15.md'
-& $gh release view v1.5.15
+& $gh release create v1.5.16 'dist\Jesty-Thor-Fix-1.5.16.apk' --latest --title 'Jesty Thor Fix v1.5.16' --notes-file 'docs\RELEASE-NOTES-1.5.16.md'
+& $gh release view v1.5.16
 ```
 
-Do not run the release command merely because the branch is pushed. v1.5.15
-was first published as a testing pre-release, then promoted to stable with
-the same tag and verified APK after maintainer approval.
+Do not run the release command merely because the branch is pushed. Confirm
+the agreed physical result, exact signed APK hash, and remote main tree first.

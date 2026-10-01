@@ -13,22 +13,33 @@
   Install it, enable the fixes you need, and forget about it.
 </p>
 
-> **Latest stable release:** [v1.5.15](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.15)
-> passed supervised BOTH/TOP, Wake Guard, and CPU Fix restoration checks on
-> the maintainer's Thor. CPU Fix restoration includes one Android UI restart
-> during boot, which can look like a second boot. BOTTOM ONLY and physical
-> dock use are deferred. The earlier [v1.3.0](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.3.0)
-> remains available in release history.
+> **Latest stable release:** [v1.5.16](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.16)
+> keeps the v1.5.15 BOTH/TOP, Wake Guard and CPU Fix behavior and removes the
+> observed stale-socket boot delay. The exact signed APK passed host checks,
+> an in-place installation and **one supervised cold boot** on the maintainer's
+> Thor: `BOOT READY` at 65.479 s, both CRTCs active in BOTH, one Android UI
+> restart, and no reported green flash or artifact. This is one observation,
+> not a boot-time guarantee. BOTTOM ONLY and physical dock use remain deferred.
 
 <p align="center">
-  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.15"><strong>Download latest APK</strong></a>
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.16"><strong>Download latest APK</strong></a>
   · <a href="#what-does-it-fix">What it fixes</a>
-  · <a href="#whats-in-v1515">What's new</a>
+  · <a href="#whats-in-v1516">What's new</a>
   · <a href="#power-and-possible-battery-benefit">Measurements</a>
   · <a href="https://www.buymeacoffee.com/jesty">☕ Support development</a>
 </p>
 
-## What's in v1.5.15
+## What's in v1.5.16
+
+The daemon now recognizes a private socket left by an earlier kernel boot
+and starts without the former 30-second pathname wait. An unreadable or
+unstamped boot ID keeps a bounded five-second grace. The boot trace includes
+receiver, service, daemon, gate and compositor timing. The compositor helper
+checks the old daemon's identity before signalling it and waits for its exit.
+The safety grace periods are unchanged. In the supervised v1.5.16 BOTH cold
+boot, READY arrived at 65.479 seconds; see the [validation diary](docs/VALIDATION-1.5.16-PENDING.md).
+
+## Features introduced by v1.5.15
 
 - **True Bottom Screen Off** follows the physical AYN TOP/BOTH selection and
   restores true hardware off after a TOP sleep/wake.

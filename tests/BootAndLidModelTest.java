@@ -47,6 +47,20 @@ public final class BootAndLidModelTest {
         BootGateModel timeout = new BootGateModel(0L, false);
         check(timeout.observe(60000L, true, true, "1", "1", "0")
                 == BootGateModel.Result.TIMEOUT, "safety timeout");
+
+        BootGateModel observed = new BootGateModel(0L, false);
+        check(observed.graceMs() == 10000L && post.graceMs() == 5000L,
+                "trace exposes the configured grace without changing it");
+        observed.observe(500L, true, true, "0", "1", "1");
+        observed.observe(1000L, true, true, "0", "1", "1");
+        check(observed.stableSamples() == 2 && observed.stableSinceMs() < 0L,
+                "grace has not begun before the third sample");
+        observed.observe(1500L, true, true, "0", "1", "1");
+        check(observed.stableSamples() == 3 && observed.stableSinceMs() == 1500L
+                && "0:1:1".equals(observed.candidate()), "grace start is observable");
+        observed.observe(2000L, true, true, "0", "1", "0");
+        check(observed.stableSamples() == 1 && observed.stableSinceMs() < 0L,
+                "a CRTC change is observable as a candidate reset");
         check(!BootGateModel.displayActionRequired("?", true, "0"),
                 "unknown mode must never power on");
         check(!BootGateModel.displayActionRequired("1", true, "0"),

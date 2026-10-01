@@ -37,6 +37,9 @@ $autoService = Get-Content -LiteralPath (Join-Path $repository 'src\com\thor\dis
 if ($autoService -notmatch 'daemon_protocol_unix_v2') {
     throw 'In-place updates must migrate the running privileged daemon to the authenticated channel.'
 }
+if ($autoService -match 'secureSocketExists\(') {
+    throw 'AutoService must classify a socket inode by boot ID, not wait on its mere existence.'
+}
 $daemonSource = Get-Content -LiteralPath (Join-Path $repository 'src\D.java') -Raw
 if ($daemonSource -notmatch 'setSoTimeout\(1500\)' -or
     $daemonSource -notmatch 'SecureChannel\.isTrustedApp\(client\)' -or
@@ -56,6 +59,7 @@ New-Item -ItemType Directory -Path $output | Out-Null
 
 $sources = @(
     (Join-Path $repository 'src\com\thor\displaypowertest\BootGateModel.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\DaemonLaunchModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\LidGuardModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\ExternalDisplayModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\DisplayDecisionModel.java'),
@@ -65,6 +69,7 @@ $sources = @(
     (Join-Path $repository 'src\com\thor\displaypowertest\PreviousSecureDaemonIdentity.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\PropertyState.java'),
     (Join-Path $repository 'tests\BootAndLidModelTest.java'),
+    (Join-Path $repository 'tests\DaemonLaunchModelTest.java'),
     (Join-Path $repository 'tests\DisplayDecisionModelTest.java'),
     (Join-Path $repository 'tests\DisplayGenerationModelTest.java'),
     (Join-Path $repository 'tests\IpcPeerPolicyTest.java'),
@@ -76,6 +81,8 @@ $sources = @(
 if ($LASTEXITCODE -ne 0) { throw 'Boot/lid test compilation failed.' }
 & java -cp $output BootAndLidModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Boot/lid tests failed.' }
+& java -cp $output DaemonLaunchModelTest
+if ($LASTEXITCODE -ne 0) { throw 'Daemon launch model tests failed.' }
 & java -cp $output PropertyStateTest
 if ($LASTEXITCODE -ne 0) { throw 'Property-state tests failed.' }
 & java -cp $output DisplayDecisionModelTest

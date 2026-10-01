@@ -1,5 +1,24 @@
 # Release integrity
 
+## Stable 1.5.16 release
+
+- Package: `com.thor.displaypowertest`
+- Version code/name: `65` / `1.5.16`
+- APK: `Jesty-Thor-Fix-1.5.16.apk`
+- Local signed APK SHA-256: `4C697E4AD43D689BAF14ECD8184F827AC1E3E86BFD4CA198B18334104B6050F5`
+- Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`
+- Alignment and v1/v2/v3 signatures passed during the signed build.
+- The exact APK was installed over v1.5.15 without clearing data and passed
+  one supervised cold boot on the Thor in BOTH. It reached `BOOT READY` at
+  65.479 s with both CRTCs active; the user reported no green flash or
+  artifact. Remote release-asset integrity is recorded after upload.
+
+The supervised checks recorded in `VALIDATION-1.5.16-PENDING.md` passed for
+this exact signed APK. One boot is evidence for this device and configuration,
+not a repeatability guarantee. No key, password, APK, or device log is stored
+in Git.
+
+
 ## Previously validated 0.32 APK
 
 - File: `Jesty-Thor-Fix-0.32.apk`

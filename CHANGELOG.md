@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.5.16 (stable)
+
+- Classify private socket state by kernel boot ID, avoiding the 30-second
+  pathname-only wait after a cold boot when the stale inode is identifiable.
+  An unreadable or unstamped ID retains a five-second safety grace.
+- Treat an authenticated same-version boot phase as an in-progress daemon,
+  and release the wake lock when a non-handoff boot coordinator ends.
+- Verify the old daemon's root UID and command line before signalling it;
+  wait for its exit and abort replacement on identity or exit failure.
+- Add receiver, service, process, gate, compositor, helper, PID and boot ID
+  timing marks to the local boot trace. Safety grace periods are unchanged.
+- Host tests, signed build, in-place installation and one supervised Thor
+  cold boot passed. That boot reached READY at 65.479 s with both CRTCs
+  active and one Android UI restart; no green flash or artifact was reported.
+  Repeatability across boot conditions is not yet established.
+
+## 1.5.15 (stable)
+
+- Restore a saved CPU Fix ON setting from an unset vendor property after a
+  cold boot, with one compositor restart and verified active status.
+- Preserve staged display boot, BOTH/TOP true-off repair, and optional
+  Closed-Lid Wake Guard; physical review and a cold boot passed on the Thor.
+
+
 ## 1.4.2 (testing pre-release)
 
 - Show the installed app version beside the dashboard subtitle, read directly

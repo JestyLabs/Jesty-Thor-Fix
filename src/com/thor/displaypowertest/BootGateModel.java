@@ -41,6 +41,12 @@ public final class BootGateModel {
                 ? Result.READY : Result.WAIT;
     }
 
+    /** Read-only observability for the boot trace; never influences the decision. */
+    public int stableSamples() { return stableSamples; }
+    public long stableSinceMs() { return stableSinceMs; }
+    public long graceMs() { return graceMs; }
+    public String candidate() { return candidate; }
+
     private static boolean knownMode(String mode) {
         return "0".equals(mode) || "1".equals(mode) || "2".equals(mode);
     }

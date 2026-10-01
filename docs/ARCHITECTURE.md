@@ -7,7 +7,9 @@ Jesty Thor Fix is split between a normal Android dashboard and a privileged root
 - `MainActivity` renders the dashboard, controls the persistent fix and guard settings,
   and polls telemetry once per second only while visible.
 - `AutoService` starts or reconnects to the daemon, migrates the old protocol
-  once, and reconciles saved settings after a normal boot.
+  once, and reconciles saved settings after a normal boot. From v1.5.16 it
+  classifies an unreachable socket pathname before waiting (see *Daemon launch
+  and stale sockets*).
 - `BootReceiver` starts that service after a normal boot.
 - `SocketClient` sends one-byte commands over a filesystem Unix socket in the
   app's private `files/` directory. It checks the kernel-reported server UID
@@ -48,6 +50,56 @@ app-data SELinux label. An isolated test found that this Thor can replace an
 occupied filesystem socket pathname on a second bind. From v1.5.11 the daemon
 therefore holds a cross-process private file lock before socket cleanup and
 bind; physical lock-contention validation remains pending.
+
+## Daemon launch and stale sockets
+
+The filesystem socket inode survives power-off, so after a cold boot it exists
+before any daemon is listening. Up to v1.5.15 `AutoService` treated the mere
+pathname as a possibly live daemon and polled it for 30 seconds (150 x 200 ms)
+before launching; that wait preceded the daemon's first boot-trace line.
+From v1.5.16 the daemon writes the kernel `boot_id` into its instance lock file
+once it holds the lock. `AutoService` sends one authenticated `I` request and
+classifies the result with `DaemonLaunchModel`:
+
+| Observation | Action |
+|---|---|
+| Healthy (`READY`, same version and fix intent, watcher running) | No launch |
+| `STARTING`: same version and fix intent, phase in the boot coordinator | No launch; the daemon owns the transition |
+| Reachable but neither of the above | Previous 30-second wait, then the guarded replacement path |
+| Unreachable, no pathname | Launch now |
+| Unreachable, stamped `boot_id` differs from the current one | Launch now (inode from an earlier kernel boot) |
+| Unreachable, stamp absent/unreadable or equal to the current boot | Five-second bounded grace, then launch |
+
+`BOOT SAFETY TIMEOUT` is not a starting phase. The instance lock still
+arbitrates any launch race; a losing daemon exits before binding. The
+migration marker is saved after `HEALTHY` or `STARTING`, both of which are
+authenticated, same-version responses. Daemons older than v1.5.16 do not stamp
+the lock, so the first boot after upgrading takes the five-second branch.
+
+The post-compositor helper keeps its eight-second floor and service checks. It
+now signals the old daemon only after checking its root UID and command line,
+waits for that process to exit (up to about five seconds) instead of a fixed
+one-second sleep, and does not launch a successor while the old daemon still
+holds the lock. Only a daemon that scheduled a compositor restart hands the
+timed wake-lock to its successor; every other boot coordinator ending releases
+it.
+
+### Boot trace marks
+
+`/data/local/tmp/jesty-thor-boot-trace.log` uses the boot clock
+(`elapsedRealtime`, and `/proc/uptime` in the helper at 10 ms resolution). Each
+line carries `pid`, `boot_id` and `source=daemon|helper`.
+Besides the existing phase lines, v1.5.16 records `DAEMON_MAIN` (launch type,
+the actual `BootReceiver` time, `AutoService.onStartCommand` time, socket
+classification, launch wait and process start),
+`LISTEN_OK`, `SERVICES_REGISTERED`, edges of each gate input
+(`GATE_BOOT_COMPLETED`, `GATE_COMPOSER_RUNNING`, `GATE_MODE_KNOWN`,
+`GATE_CRTC_VALID`), `GATE_STABLE_SAMPLE` 1-3, `GATE_RESET`,
+`GATE_GRACE_BEGIN`/`END`, the CPU property write/verification, compositor
+restart request/acknowledgement, the helper's new compositor, SurfaceFlinger
+and zygote PIDs, floor end, service and package checks, old daemon exit and
+successor launch, and `WAKE_UNLOCK_SENT` (also written when no lock was
+held). These marks only observe; no safety wait was shortened.
 
 ## Staged boot and lid guard
 
@@ -163,4 +215,6 @@ The relaunched daemon verifies `1` before reporting the fix as active.
 One supervised cold boot and an in-place transition exercised this path.
 The compositor restart also restarts Android UI, so a second visual boot
 phase can occur without another kernel boot. The roughly 95-second readiness
-time observed in that cold boot remains a performance follow-up.
+time observed in that cold boot remains a performance follow-up. v1.5.16
+removes the stale-socket wait identified as its largest candidate and adds the
+trace marks above; the effect is unconfirmed until a supervised cold boot.

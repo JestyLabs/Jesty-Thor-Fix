@@ -31,12 +31,17 @@ public final class D {
     private static volatile boolean composerRestartScheduled;
     private static volatile boolean composerRestartFailed;
     private static volatile boolean cpuFixDesired;
-    private static boolean bootCoordinatorActive;
-    private static boolean bootCpuFixDesired;
-    private static boolean bootLidGuardDesired;
-    private static long bootStartedAt;
+    private static final String BOOT_TRACE = "/data/local/tmp/jesty-thor-boot-trace.log";
+    private static final Object TRACE_LOCK = new Object();
+    private static volatile boolean bootCoordinatorActive;
+    private static volatile boolean bootCpuFixDesired;
+    private static volatile boolean bootLidGuardDesired;
+    private static volatile long bootStartedAt;
+    private static volatile String bootId = "?";
     public static void main(String[] args) throws Exception {
         boolean enabled = args.length == 0 || !"0".equals(args[0]);
+        String currentBootId = SecureChannel.currentBootId();
+        bootId = currentBootId.isEmpty() ? "?" : currentBootId;
         bootCoordinatorActive = (args.length > 1 && "hold".equals(args[1]))
                 || !"1".equals(property("sys.boot_completed"));
         bootCpuFixDesired = args.length > 2 && "1".equals(args[2]);
@@ -45,12 +50,23 @@ public final class D {
         bootStartedAt = args.length > 4 ? Long.parseLong(args[4])
                 : SystemClock.elapsedRealtime();
         boolean afterComposerRestart = args.length > 5 && "post".equals(args[5]);
+        if (bootCoordinatorActive) {
+            traceMark("DAEMON_MAIN", "launch=" + (afterComposerRestart ? "post"
+                    : args.length > 1 && "hold".equals(args[1]) ? "hold" : "run")
+                    + ";receiver_ms=" + envNumber("JESTY_RECEIVER_MS")
+                    + ";service_ms=" + envNumber("JESTY_SERVICE_MS")
+                    + ";socket=" + envToken("JESTY_SOCKET_STATE")
+                    + ";launch_wait_ms=" + envNumber("JESTY_LAUNCH_WAIT_MS")
+                    + ";process_start_ms=" + processStartMs());
+        }
         BootSafety.begin(bootCoordinatorActive);
         DaemonState.setEnabled(enabled);
         if (!bootCoordinatorActive) LidGuard.setEnabled(bootLidGuardDesired);
         LocalServerSocket server = SecureChannel.listen();
+        if (bootCoordinatorActive) traceMark("LISTEN_OK", null);
         WatcherSupervisor.start();
         DisplayEventManager.register();
+        if (bootCoordinatorActive) traceMark("SERVICES_REGISTERED", null);
         ThreadPoolExecutor connections = new ThreadPoolExecutor(2, 2, 0L,
                 TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(4));
         if (bootCoordinatorActive) {
@@ -115,34 +131,76 @@ public final class D {
     }
 
     private static void reconcileBoot(boolean afterComposerRestart) {
+        boolean handedOff = false;
         try {
-            reconcileBootPhase(afterComposerRestart);
+            handedOff = reconcileBootPhase(afterComposerRestart);
         } finally {
-            // A surviving post-restart daemon owns the release. The kernel's
-            // timed lock is the fallback if that daemon never starts.
-            if (afterComposerRestart) releaseTransitionWakeLock();
+            // Only a daemon that scheduled a compositor restart hands the timed
+            // lock to its successor. Any other ending releases it here, so a
+            // daemon that won the launch race cannot leave it to the timeout.
+            synchronized (D.class) {
+                if (!handedOff && !composerRestartScheduled) {
+                    releaseTransitionWakeLock();
+                    traceMark("WAKE_UNLOCK_SENT", "after_composer="
+                            + (afterComposerRestart ? "1" : "0"));
+                }
+            }
         }
     }
 
-    private static void reconcileBootPhase(boolean afterComposerRestart) {
+    /** Returns true only when a compositor restart now owns the boot transition. */
+    private static boolean reconcileBootPhase(boolean afterComposerRestart) {
         BootGateModel gate = new BootGateModel(bootStartedAt, afterComposerRestart);
         BootSafety.phase(afterComposerRestart ? "WAITING AFTER COMPOSER" : "WAITING FOR ANDROID");
         traceBoot(afterComposerRestart ? "WAIT_AFTER_COMPOSER" : "WAIT_FOR_ANDROID");
+        Boolean lastBooted = null;
+        Boolean lastComposer = null;
+        Boolean lastModeKnown = null;
+        Boolean lastCrtcValid = null;
         while (true) {
             long now = SystemClock.elapsedRealtime();
-            BootGateModel.Result result = gate.observe(now,
-                    "1".equals(property("sys.boot_completed")),
-                    "running".equals(property("init.svc.vendor.qti.hardware.display.composer")),
-                    DaemonState.getMode(), Telemetry.topCrtcActive(), Telemetry.bottomCrtcActive());
+            boolean booted = "1".equals(property("sys.boot_completed"));
+            boolean composer = "running".equals(
+                    property("init.svc.vendor.qti.hardware.display.composer"));
+            String mode = DaemonState.getMode();
+            String top = Telemetry.topCrtcActive();
+            String bottom = Telemetry.bottomCrtcActive();
+            lastBooted = gateEdge("GATE_BOOT_COMPLETED", lastBooted, booted);
+            lastComposer = gateEdge("GATE_COMPOSER_RUNNING", lastComposer, composer);
+            lastModeKnown = gateEdge("GATE_MODE_KNOWN", lastModeKnown,
+                    BootSafety.knownMode(mode));
+            lastCrtcValid = gateEdge("GATE_CRTC_VALID", lastCrtcValid,
+                    binary(top) && binary(bottom));
+            int previousSamples = gate.stableSamples();
+            String previousCandidate = gate.candidate();
+            BootGateModel.Result result = gate.observe(now, booted, composer, mode, top, bottom);
             if (result == BootGateModel.Result.TIMEOUT) {
                 BootSafety.timeout();
                 DaemonState.setLastAction("BOOT_SAFETY_TIMEOUT");
                 Log.e("ThorDisplayDaemon", "BOOT SAFETY TIMEOUT; no display action");
                 traceBoot("BOOT_SAFETY_TIMEOUT");
-                return;
+                return false;
             }
-            if (result == BootGateModel.Result.READY) break;
-            try { Thread.sleep(500L); } catch (InterruptedException ignored) { return; }
+            int samples = gate.stableSamples();
+            if (previousSamples > 0 && samples != previousSamples + 1) {
+                traceMark("GATE_RESET", "previous_samples=" + previousSamples
+                        + ";previous=" + safeCandidate(previousCandidate)
+                        + ";candidate=" + safeCandidate(gate.candidate()));
+            }
+            // samples == 1 always means a new candidate, even right after another one.
+            if (samples == 1 || (samples <= 3 && samples == previousSamples + 1)) {
+                traceMark("GATE_STABLE_SAMPLE", "n=" + samples
+                        + ";candidate=" + safeCandidate(gate.candidate()));
+            }
+            if (samples == 3 && previousSamples == 2) {
+                traceMark("GATE_GRACE_BEGIN", "grace_ms=" + gate.graceMs());
+            }
+            if (result == BootGateModel.Result.READY) {
+                traceMark("GATE_GRACE_END", "grace_ms=" + gate.graceMs()
+                        + ";samples=" + samples);
+                break;
+            }
+            try { Thread.sleep(500L); } catch (InterruptedException ignored) { return false; }
         }
         BootGateModel.CpuAction cpuAction = BootGateModel.cpuAction(bootCpuFixDesired,
                 Telemetry.systemLoadFixObservation(), afterComposerRestart);
@@ -157,25 +215,25 @@ public final class D {
             BootSafety.phase("APPLYING CPU FIX");
             traceBoot("APPLY_CPU_FIX");
             String result = restartComposerWithSystemLoadCheckDisabled(bootCpuFixDesired);
-            if (result.contains("composer_restart=scheduled_once")) return;
+            if (result.contains("composer_restart=scheduled_once")) return true;
             BootSafety.timeout();
             DaemonState.setLastAction("BOOT_CPU_FIX_FAILED");
             Log.e("ThorDisplayDaemon", "boot CPU reconcile failed: " + result);
             traceBoot("BOOT_CPU_FIX_FAILED");
-            return;
+            return false;
         }
         BootSafety.phase("RECONCILING DISPLAY");
         traceBoot("RECONCILE_DISPLAY");
         String mode = DaemonState.getMode();
         if (!BootSafety.knownMode(mode)) {
             BootSafety.timeout();
-            return;
+            return false;
         }
         boolean bottomShouldBeOn = !DaemonState.isEnabled() || !"1".equals(mode);
         if (!DisplayActionCoordinator.reconcileBoot(mode, bottomShouldBeOn)) {
             BootSafety.timeout();
             traceBoot("BOOT_DISPLAY_FAILED");
-            return;
+            return false;
         }
         traceBoot(bottomShouldBeOn ? "BOTTOM_ON_CONFIRMED" : "BOTTOM_OFF_CONFIRMED");
         BootSafety.ready();
@@ -187,23 +245,81 @@ public final class D {
         Log.d("ThorDisplayDaemon", "BOOT READY mode=" + mode
                 + " bottom=" + Telemetry.bottomCrtcActive());
         traceBoot("BOOT_READY");
+        return false;
+    }
+
+    private static Boolean gateEdge(String action, Boolean previous, boolean current) {
+        if (previous == null || previous != current) {
+            traceMark(action, "value=" + (current ? "1" : "0"));
+        }
+        return current;
+    }
+
+    private static boolean binary(String value) {
+        return "0".equals(value) || "1".equals(value);
+    }
+
+    private static String safeCandidate(String candidate) {
+        return candidate != null && candidate.matches("[0-2]:[01]:[01]") ? candidate : "-";
     }
 
     /** Device-local trace contains only phase and hardware flags, no personal data. */
     private static void traceBoot(String action) {
         String observedMode = DaemonState.getMode();
-        String line = "elapsed_ms=" + SystemClock.elapsedRealtime()
+        appendTrace("elapsed_ms=" + SystemClock.elapsedRealtime()
                 + ";action=" + action
                 + ";mode=" + (BootSafety.knownMode(observedMode) ? observedMode : "?")
                 + ";top_crtc=" + Telemetry.topCrtcActive()
                 + ";bottom_crtc=" + Telemetry.bottomCrtcActive()
-                + ";cpu_fix=" + Telemetry.systemLoadFixState() + "\n";
-        File trace = new File("/data/local/tmp/jesty-thor-boot-trace.log");
-        try (FileWriter writer = new FileWriter(trace, true)) {
-            writer.write(line);
-            trace.setReadable(true, false);
-        } catch (Throwable error) {
-            Log.w("ThorDisplayDaemon", "could not write sanitized boot trace", error);
+                + ";cpu_fix=" + Telemetry.systemLoadFixState()
+                + ";pid=" + android.os.Process.myPid()
+                + ";boot_id=" + bootId
+                + ";source=daemon");
+    }
+
+    /** Cheap timing mark: no debugfs read and no property fork. */
+    private static void traceMark(String action, String detail) {
+        appendTrace("elapsed_ms=" + SystemClock.elapsedRealtime()
+                + ";action=" + action
+                + (detail == null || detail.isEmpty() ? "" : ";" + detail)
+                + ";pid=" + android.os.Process.myPid()
+                + ";boot_id=" + bootId
+                + ";source=daemon");
+    }
+
+    private static void appendTrace(String line) {
+        synchronized (TRACE_LOCK) {
+            File trace = new File(BOOT_TRACE);
+            try (FileWriter writer = new FileWriter(trace, true)) {
+                writer.write(line + "\n");
+                trace.setReadable(true, false);
+            } catch (Throwable error) {
+                Log.w("ThorDisplayDaemon", "could not write sanitized boot trace", error);
+            }
+        }
+    }
+
+    private static String envNumber(String name) {
+        String value = System.getenv(name);
+        return value != null && value.matches("-?[0-9]{1,18}") ? value : "?";
+    }
+
+    private static String envToken(String name) {
+        String value = System.getenv(name);
+        return value != null && value.matches("[A-Z_]{1,32}") ? value : "?";
+    }
+
+    /** Process start on the boot clock, so it is comparable with elapsed_ms. */
+    private static long processStartMs() {
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                new java.io.FileReader("/proc/self/stat"))) {
+            String stat = reader.readLine();
+            String[] fields = stat.substring(stat.lastIndexOf(')') + 2).split(" ");
+            long ticks = Long.parseLong(fields[19]);
+            long hz = android.system.Os.sysconf(android.system.OsConstants._SC_CLK_TCK);
+            return hz > 0 ? ticks * 1000L / hz : -1L;
+        } catch (Throwable ignored) {
+            return -1L;
         }
     }
 
@@ -292,16 +408,19 @@ public final class D {
         if (!acquireTransitionWakeLock()) {
             return "ok=0;error=WAKE_LOCK_FAILED";
         }
+        final boolean bootTrace = bootCoordinatorActive;
         String propertyResult = setSystemLoadCheckDisabled(enabled);
         if (!propertyResult.startsWith("ok=1")) {
             releaseTransitionWakeLock();
             return propertyResult;
         }
+        if (bootTrace) traceMark("CPU_PROP_WRITTEN", "value=" + desired);
         if (!desired.equals(Telemetry.systemLoadFixObservation())) {
             restoreSystemLoadCheckState(actual);
             releaseTransitionWakeLock();
             return "ok=0;error=SETPROP_UNCONFIRMED";
         }
+        if (bootTrace) traceMark("CPU_PROP_VERIFIED", "value=" + desired);
         cpuFixDesired = enabled;
         composerRestartFailed = false;
         composerRestartScheduled = true;
@@ -310,8 +429,12 @@ public final class D {
                 try {
                     Thread.sleep(300L);
                     scheduleTransitionCleanupAndDaemonRestart(beforeComposerPid);
+                    if (bootTrace) traceMark("HELPER_SCHEDULED",
+                            "old_composer=" + beforeComposerPid);
+                    if (bootTrace) traceMark("CTL_RESTART_SENT", null);
                     int exit = new ProcessBuilder("setprop", "ctl.restart",
                             "vendor.qti.hardware.display.composer").start().waitFor();
+                    if (bootTrace) traceMark("CTL_RESTART_ACK", "exit=" + exit);
                     if (exit != 0) throw new IllegalStateException("composer restart exit=" + exit);
                     Thread.sleep(3000L);
                 } catch (Throwable error) {
@@ -378,27 +501,96 @@ public final class D {
         // eight-second minimum, then relaunch as soon as the Android services
         // and package manager recover. The post-restart daemon releases the
         // timed wake lock only after reconciliation or safe timeout.
-        String command = "sleep 8; for I in $(seq 1 10); do "
-                + "[ \"$(getprop init.svc.vendor.qti.hardware.display.composer)\" = running ] "
-                + "&& [ \"$(getprop init.svc.surfaceflinger)\" = running ] "
-                + "&& [ \"$(getprop init.svc.zygote)\" = running ] "
-                + "&& [ \"$(getprop sys.boot_completed)\" = 1 ] "
-                + "&& [ -n \"$(pm path com.thor.displaypowertest 2>/dev/null)\" ] "
-                + "&& break; sleep 1; done; "
-                + "NEW=$(pidof vendor.qti.hardware.display.composer-service); "
-                + "[ -n \"$NEW\" ] && [ \"$NEW\" != '" + beforeComposerPid
-                + "' ] || exit 1; "
-                + "A=''; for I in $(seq 1 30); do "
-                + "A=$(pm path com.thor.displaypowertest 2>/dev/null); "
-                + "[ -n \"$A\" ] && break; sleep 1; done; "
-                + "A=${A#*:}; [ -n \"$A\" ] || exit 1; "
-                + "kill " + daemonPid + "; sleep 1; "
-                + "CLASSPATH=$A app_process / D " + enabled
-                + " hold " + desiredCpu
-                + " " + desiredLidGuard + " " + phaseStartedAt
-                + " post"
-                + " >>/data/local/tmp/td032.log 2>&1 &";
-        new ProcessBuilder("sh", "-c", command).start();
+        // Timing marks use /proc/uptime (boot clock, 10 ms resolution) in
+        // centiseconds: mksh arithmetic is 32-bit, so milliseconds are only
+        // formatted, never computed.
+        String command = String.join("\n",
+                "exec </dev/null >>/data/local/tmp/td032.log 2>&1",
+                "TR=" + BOOT_TRACE,
+                "BID=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)",
+                "cs(){ read U X </proc/uptime; S=${U%.*}; F=${U#*.}; F=${F#0};"
+                        + " echo $((S*100+${F:-0})); }",
+                "T(){ echo \"elapsed_ms=$(cs)0;action=$1;${2:+$2;}pid=$$;"
+                        + "boot_id=${BID:-?};source=helper\" >>$TR; }",
+                "OLD='" + beforeComposerPid + "'",
+                "DP=" + daemonPid,
+                "SF0=$(pidof surfaceflinger); Z0=$(pidof zygote64)",
+                "T HELPER_START \"old_composer=$OLD;old_sf=${SF0:--};old_zygote=${Z0:--};"
+                        + "daemon_pid=$DP\"",
+                "B=$(cs); N=0; NC=''; NS=''; NZ=''",
+                "while [ $(($(cs)-B)) -lt 800 ] && [ $N -lt 60 ]; do",
+                "  P=$(pidof vendor.qti.hardware.display.composer-service)",
+                "  if [ -z \"$NC\" ] && [ -n \"$P\" ] && [ \"$P\" != \"$OLD\" ]; then"
+                        + " NC=$P; T HELPER_COMPOSER_NEW_PID \"composer_pid=$P\"; fi",
+                "  P=$(pidof surfaceflinger)",
+                "  if [ -z \"$NS\" ] && [ -n \"$P\" ] && [ \"$P\" != \"$SF0\" ]; then"
+                        + " NS=$P; T HELPER_SF_NEW_PID \"sf_pid=$P\"; fi",
+                "  P=$(pidof zygote64)",
+                "  if [ -z \"$NZ\" ] && [ -n \"$P\" ] && [ \"$P\" != \"$Z0\" ]; then"
+                        + " NZ=$P; T HELPER_ZYGOTE_NEW_PID \"zygote_pid=$P\"; fi",
+                "  N=$((N+1)); sleep 0.25",
+                "done",
+                // The eight-second floor holds even if fractional sleep is unsupported.
+                "R=$((800-($(cs)-B))); [ $R -gt 0 ] && sleep $(((R+99)/100))",
+                "T HELPER_FLOOR_DONE \"polls=$N\"",
+                "A=''",
+                "for I in $(seq 1 10); do",
+                "  [ \"$(getprop init.svc.vendor.qti.hardware.display.composer)\" = running ]"
+                        + " && [ \"$(getprop init.svc.surfaceflinger)\" = running ]"
+                        + " && [ \"$(getprop init.svc.zygote)\" = running ]"
+                        + " && [ \"$(getprop sys.boot_completed)\" = 1 ]"
+                        + " && A=$(pm path com.thor.displaypowertest 2>/dev/null)"
+                        + " && [ -n \"$A\" ] && break",
+                "  A=''; sleep 1",
+                "done",
+                "[ -n \"$A\" ] && PM=1 || PM=0",
+                "T HELPER_SERVICES_CHECKED \"attempts=$I;pm=$PM\"",
+                "NEW=$(pidof vendor.qti.hardware.display.composer-service)",
+                "if [ -z \"$NEW\" ] || [ \"$NEW\" = \"$OLD\" ]; then"
+                        + " T HELPER_ABORT reason=COMPOSER_NOT_RESTARTED; exit 1; fi",
+                "if [ -z \"$A\" ]; then for I in $(seq 1 30); do"
+                        + " A=$(pm path com.thor.displaypowertest 2>/dev/null);"
+                        + " [ -n \"$A\" ] && break; sleep 1; done; fi",
+                "A=${A#*:}",
+                "if [ -z \"$A\" ]; then T HELPER_ABORT reason=PACKAGE_PATH; exit 1; fi",
+                "T HELPER_PM_READY \"composer_pid=$NEW\"",
+                "state(){ [ ! -d /proc/$DP ] && { echo GONE; return; };"
+                        + " S=$(sed -n 's/^State:[[:space:]]*\\([A-Z]\\).*/\\1/p'"
+                        + " /proc/$DP/status 2>/dev/null);"
+                        + " if [ -z \"$S\" ]; then echo UNKNOWN;"
+                        + " elif [ \"$S\" = Z ]; then echo GONE;"
+                        + " else echo LIVE; fi; }",
+                // Only signal the PID if it is still this root daemon, then wait
+                // for its exit so the successor's instance lock cannot lose.
+                "PSTATE=$(state)",
+                "if [ \"$PSTATE\" = UNKNOWN ]; then"
+                        + " T HELPER_ABORT reason=DAEMON_IDENTITY_MISMATCH; exit 1; fi",
+                "if [ \"$PSTATE\" = LIVE ]; then",
+                "  if [ \"$(stat -c %u /proc/$DP 2>/dev/null)\" != 0 ]; then"
+                        + " T HELPER_ABORT reason=DAEMON_IDENTITY_MISMATCH; exit 1; fi",
+                "  if ! tr '\\000' ' ' </proc/$DP/cmdline 2>/dev/null"
+                        + " | grep -Eq '^app_process / D [01] (hold|run) [01] [01]( |$)'; then"
+                        + " T HELPER_ABORT reason=DAEMON_IDENTITY_MISMATCH; exit 1; fi",
+                "  kill $DP || { T HELPER_ABORT reason=KILL_FAILED; exit 1; }",
+                "  T HELPER_KILL_SENT \"daemon_pid=$DP\"",
+                "  I=0; while [ \"$(state)\" != GONE ] && [ $I -lt 50 ];"
+                        + " do sleep 0.1; I=$((I+1)); done",
+                "  [ \"$(state)\" != GONE ] && sleep 1",
+                "  if [ \"$(state)\" != GONE ]; then"
+                        + " T HELPER_ABORT reason=OLD_DAEMON_ALIVE; exit 1; fi",
+                "  T HELPER_OLD_EXITED \"polls=$I\"",
+                "else",
+                "  T HELPER_OLD_GONE \"daemon_pid=$DP\"",
+                "fi",
+                "T HELPER_EXEC_NEW \"composer_pid=$NEW\"",
+                "CLASSPATH=$A app_process / D " + enabled
+                        + " hold " + desiredCpu
+                        + " " + desiredLidGuard + " " + phaseStartedAt
+                        + " post &");
+        ProcessBuilder helper = new ProcessBuilder("sh", "-c", command);
+        // Launch timing belongs to this daemon only; never pass it to the successor.
+        helper.environment().keySet().removeIf(name -> name.startsWith("JESTY_"));
+        helper.start();
     }
 
 }

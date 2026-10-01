@@ -8,11 +8,16 @@ import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.nio.charset.StandardCharsets;
 
 /** Private Unix-domain transport. The protocol response is not authentication. */
 public final class SecureChannel {
@@ -78,6 +83,7 @@ public final class SecureChannel {
             lockFd = null; // FileOutputStream now owns this descriptor.
             lock = lockStream.getChannel().tryLock();
             if (lock == null) throw new IOException("Daemon instance already locked");
+            stampBootId(lockStream);
 
             removeStaleSocket(appUid);
             bound = new LocalSocket();
@@ -115,6 +121,44 @@ public final class SecureChannel {
     }
 
     public static String path() { return SOCKET_PATH; }
+
+    /** Kernel boot ID; empty when unreadable in the caller's SELinux context. */
+    public static String currentBootId() {
+        return firstLine("/proc/sys/kernel/random/boot_id");
+    }
+
+    /** Boot ID written by the daemon that last owned the instance lock. */
+    public static String stampedBootId() {
+        return firstLine(LOCK_PATH);
+    }
+
+    /**
+     * Lets AutoService recognise a socket inode left by an earlier kernel boot
+     * without waiting for it. Best effort: an absent stamp keeps the bounded
+     * conservative grace.
+     */
+    private static void stampBootId(FileOutputStream lockStream) {
+        String bootId = currentBootId();
+        if (!DaemonLaunchModel.validBootId(bootId)) return;
+        try {
+            FileChannel channel = lockStream.getChannel();
+            channel.truncate(0L);
+            channel.write(ByteBuffer.wrap((bootId + "\n")
+                    .getBytes(StandardCharsets.US_ASCII)), 0L);
+            channel.force(false);
+        } catch (Throwable error) {
+            android.util.Log.w("ThorDisplayDaemon", "could not stamp boot ID", error);
+        }
+    }
+
+    private static String firstLine(String path) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(path))) {
+            String value = reader.readLine();
+            return value == null ? "" : value.trim();
+        } catch (Throwable ignored) {
+            return "";
+        }
+    }
 
     private static LocalSocketAddress address() {
         return new LocalSocketAddress(SOCKET_PATH,
