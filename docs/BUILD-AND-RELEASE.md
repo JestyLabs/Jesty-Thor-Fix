@@ -37,7 +37,7 @@ the repository. Never commit either of them or an APK.
 5. A diagnostic **pre-release** may be published before physical tests when
    the release notes and README clearly mark it untested on the Thor and the
    stable release remains recommended. Only after
-   the agreed gates in `VALIDATION-1.5.16-PENDING.md` pass may that exact
+   the agreed gates in `VALIDATION-1.5.16.md` pass may that exact
    artifact be considered for stable promotion. v1.5.16 completed the scoped
    supervised checks and received maintainer approval for stable release.
    Attach only that APK,
@@ -59,3 +59,9 @@ $gh = 'C:\Temp\gh-2.101.0\unpacked\bin\gh.exe'
 
 Do not run the release command merely because the branch is pushed. Confirm
 the agreed physical result, exact signed APK hash, and remote main tree first.
+
+For a host-verified build awaiting supervised Thor tests, publish a clearly
+labelled **pre-release** with `--prerelease --latest=false` and keep the tested
+stable release as Latest. v1.5.17 uses this path; its physical criteria are
+in `VALIDATION-1.5.17-PENDING.md`. Promotion requires results for the exact
+signed APK and a separate maintainer decision.

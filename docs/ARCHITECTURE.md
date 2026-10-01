@@ -101,13 +101,34 @@ and zygote PIDs, floor end, service and package checks, old daemon exit and
 successor launch, and `WAKE_UNLOCK_SENT` (also written when no lock was
 held). These marks only observe; no safety wait was shortened.
 
+From v1.5.17 the helper also records `HELPER_SYSTEM_SERVER_NEW_PID`,
+`HELPER_PACKAGE_SERVICE_FOUND` and `HELPER_SETTINGS_SERVICE_FOUND` (service
+checks start only after a new `system_server` PID, so the old one cannot
+satisfy them), and `HELPER_KILL_RACE_GONE` when the old daemon exited just
+before the signal. The successor records `ANDROID_SYSTEM_SERVER`,
+`ANDROID_PACKAGE_SERVICE`, `ANDROID_SETTINGS_SERVICE`, `ANDROID_BOOTANIM_EXIT`
+edges once per second until the boot animation exits again (at most 60
+seconds), and `FIRST_IDENTITY_QUERY`, normally AutoService on Android's second
+`BOOT_COMPLETED`. `sys.boot_completed` is not reset by a compositor restart,
+so `GATE_BOOT_COMPLETED` in the post-restart phase does not show Android's
+second boot; these marks do not gate any action. The trace rotates to
+`jesty-thor-boot-trace.log.1` above 256 KiB.
+
+Bounded command waits use `ProcessWait` (5 ms polling). The inherited timed
+`Process.waitFor` implementation can poll at 100 ms, and the v1.5.16 trace
+showed similar gaps around short commands. The exact Thor timing benefit
+remains to be measured on the v1.5.17 build.
+
 ## Staged boot and lid guard
 
 The boot receiver launches the daemon in `BOOT HOLD` with its saved choices.
 The mode watcher, display callback, socket display commands, and lid sleep
 action respect this gate. `BootGateModel` requires Android boot completion,
 running compositor, a known AYN display mode, three matching CRTC samples, and
-then a 10-second stable grace period. The CPU property is reconciled first; if
+then a 10-second stable grace period. Samples run at a fixed 500 ms cadence;
+the sample that can complete the grace is taken when the grace ends, and
+READY still requires that fresh sample to match. The CPU property is
+reconciled first; if
 that restarts the compositor, the relaunched daemon repeats readiness checks
 with a five-second grace period. Only then does it reconcile the lower display
 idempotently. At 60 seconds without readiness, it remains held and reports
@@ -214,7 +235,8 @@ to `1` and compositor restart. Read failure or invalid values fail safe.
 The relaunched daemon verifies `1` before reporting the fix as active.
 One supervised cold boot and an in-place transition exercised this path.
 The compositor restart also restarts Android UI, so a second visual boot
-phase can occur without another kernel boot. The roughly 95-second readiness
-time observed in that cold boot remains a performance follow-up. v1.5.16
-removes the stale-socket wait identified as its largest candidate and adds the
-trace marks above; the effect is unconfirmed until a supervised cold boot.
+phase can occur without another kernel boot. v1.5.16 removed the stale-socket
+wait and reached READY at 65.479 seconds in one supervised cold boot, compared
+with about 95.417 seconds in an earlier v1.5.15 boot. These are separate runs,
+not a repeatability guarantee. v1.5.17 changes command-wait and gate cadence;
+its timing and physical behavior remain unverified on the Thor.

@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.5.17 (candidate, not yet validated on the Thor)
+
+- Replace every timed `Process.waitFor` with a 5 ms bounded poll. The v1.5.16
+  trace showed 102-103 ms gaps around short commands and 702-713 ms sample
+  spacing; the causal timing benefit still needs measurement on the Thor.
+  Timeouts and failure handling are unchanged.
+- Gate samples run at a fixed 500 ms cadence from each sample's start and the
+  sample after the grace is taken when the grace completes. Three matching
+  samples, the 10-second and 5-second graces, the fresh-sample READY rule and
+  the 60-second timeout are unchanged. Removing overhead moves the expected
+  compositor restart about 2 seconds earlier in absolute time; this is a
+  measurement-based estimate until a supervised cold boot confirms it.
+- Read both CRTCs from one DRM state read in the gate and in trace lines,
+  giving one consistent snapshot and half the debugfs reads per sample.
+  Unknown or malformed neighboring CRTC blocks cannot be attributed to the
+  top or bottom panel.
+- Observability only: after a compositor restart, trace the new
+  `system_server` PID, package/settings service registration (helper and
+  successor), `service.bootanim.exit` edges and the first identity query,
+  because `sys.boot_completed` keeps its first-boot value across that restart.
+- Helper: a daemon that exits between the identity check and the signal is
+  no longer reported as `KILL_FAILED`; a process that disappears while its
+  status is read is classified as gone, not as an identity mismatch.
+- `BootReceiver` ignores any action other than `BOOT_COMPLETED`.
+- The local boot trace rotates at 256 KiB, keeping one previous file.
+- The v1.5.16 daemon is added to the guarded replacement allowlist.
+- Use the v1.5.17 name for the signed build artifact and check its agreement
+  with the manifest in the host suite. The optional second-boot observer
+  samples once per second to limit its diagnostic overhead.
+
 ## 1.5.16 (stable)
 
 - Classify private socket state by kernel boot ID, avoiding the 30-second

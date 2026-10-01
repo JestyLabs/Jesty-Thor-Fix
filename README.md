@@ -47,7 +47,7 @@ The signed v1.5.16 APK passed host checks, an in-place upgrade and that
 supervised cold boot. BOTH showed normal image on both screens, CPU Fix was
 active, and no green flash or artifact was reported. Earlier physical tests
 covered TOP true-off, TOP sleep/wake, closed-lid wake return and the guard's
-anti-loop pause. [Read the validation diary](docs/VALIDATION-1.5.16-PENDING.md).
+anti-loop pause. [Read the validation diary](docs/VALIDATION-1.5.16.md).
 
 ## How it works
 
@@ -83,6 +83,10 @@ use the device; no battery-life percentage is claimed.
 [Benchmarks](docs/BENCHMARKS.md) ·
 [Build from source](docs/BUILD-AND-RELEASE.md) ·
 [Release integrity](docs/RELEASE-INTEGRITY.md)
+
+Testing a newer build? [v1.5.17](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.17)
+is a pre-release for supervised Thor validation. v1.5.16 remains the stable
+download above.
 
 Jesty Thor Fix is free, open source under [GPL-3.0-only](LICENSE), and
 independent of AYN. Artwork terms are in [ASSETS-LICENSE.md](ASSETS-LICENSE.md);

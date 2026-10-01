@@ -7,6 +7,48 @@ public final class BootAndLidModelTest {
         if (!condition) throw new AssertionError(message);
     }
 
+    private static void cadence() {
+        BootGateModel gate = new BootGateModel(0L, false);
+        check(gate.nextSampleDelayMs(1000L, 1040L) == 460L,
+                "fixed-rate cadence subtracts the sample's own cost");
+        check(gate.nextSampleDelayMs(1000L, 1700L) == 1L,
+                "a slow sample is followed promptly, never with a negative sleep");
+        gate.observe(1000L, true, true, "0", "1", "1");
+        gate.observe(1500L, true, true, "0", "1", "1");
+        check(gate.nextSampleDelayMs(1500L, 1520L) == 480L,
+                "no grace clamp before the third stable sample");
+        gate.observe(2000L, true, true, "0", "1", "1");
+        check(gate.nextSampleDelayMs(11800L, 11850L) == 150L,
+                "the sample after the grace is taken when the grace completes");
+        check(gate.observe(11999L, true, true, "0", "1", "1") == BootGateModel.Result.WAIT,
+                "one millisecond early is still inside the grace");
+        check(gate.observe(12000L, true, true, "0", "1", "1") == BootGateModel.Result.READY,
+                "READY needs a fresh valid sample taken at or after the grace end");
+
+        // Simulate the daemon loop with 30 ms of reads per sample and one slow
+        // 650 ms sample that shifts the phase: READY is never earlier than the
+        // full grace and no longer overshoots it.
+        for (int post = 0; post < 2; post++) {
+            BootGateModel loop = new BootGateModel(0L, post == 1);
+            long now = 37L;
+            long readyAt = -1L;
+            for (int i = 0; i < 200 && readyAt < 0L; i++) {
+                long sampleStart = now;
+                if (loop.observe(now, true, true, "0", "1", "1")
+                        == BootGateModel.Result.READY) {
+                    readyAt = now;
+                } else {
+                    now += i == 4 ? 650L : 30L;
+                    now += loop.nextSampleDelayMs(sampleStart, now);
+                }
+            }
+            check(readyAt >= 0L && readyAt - loop.stableSinceMs() == loop.graceMs(),
+                    "simulated cadence reaches READY exactly at the full grace");
+            check(loop.stableSinceMs() == 37L + 2L * BootGateModel.SAMPLE_PERIOD_MS,
+                    "the third stable sample is two fixed periods after the first");
+        }
+    }
+
     private static void boot() {
         BootGateModel gate = new BootGateModel(1000L, false);
         check(gate.observe(1000L, false, true, "1", "1", "1") == BootGateModel.Result.WAIT,
@@ -61,6 +103,7 @@ public final class BootAndLidModelTest {
         observed.observe(2000L, true, true, "0", "1", "0");
         check(observed.stableSamples() == 1 && observed.stableSinceMs() < 0L,
                 "a CRTC change is observable as a candidate reset");
+        cadence();
         check(!BootGateModel.displayActionRequired("?", true, "0"),
                 "unknown mode must never power on");
         check(!BootGateModel.displayActionRequired("1", true, "0"),

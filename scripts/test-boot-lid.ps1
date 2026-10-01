@@ -12,6 +12,12 @@ $daemonVersion = [regex]::Match($identity, 'VERSION = "([^"]+)"').Groups[1].Valu
 if (-not $versionName -or $versionName -ne $daemonVersion) {
     throw "Manifest/daemon version mismatch: $versionName / $daemonVersion"
 }
+$buildScript = Get-Content -LiteralPath (Join-Path $repository 'build.ps1') -Raw
+$artifactVersion = [regex]::Match($buildScript,
+    "ArtifactBaseName = 'Jesty-Thor-Fix-([^']+)'").Groups[1].Value
+if ($artifactVersion -ne $versionName) {
+    throw "Manifest/build artifact version mismatch: $versionName / $artifactVersion"
+}
 
 # The watcher is only a Settings reader. All display decisions and writes
 # belong to DisplayActionCoordinator and DisplayHardware respectively.
@@ -46,6 +52,18 @@ if ($daemonSource -notmatch 'setSoTimeout\(1500\)' -or
     $daemonSource -match 'ServerSocket\(') {
     throw 'Daemon IPC must be authenticated, bounded and Unix-only.'
 }
+# Keep bounded command waits on ProcessWait's 5 ms poll. The v1.5.16 trace
+# suggests a coarser wait; the physical timing benefit remains unverified.
+$timedWaits = @(Get-ChildItem -LiteralPath (Join-Path $repository 'src') -Filter '*.java' -Recurse |
+    Select-String -Pattern '\.waitFor\(\s*[^)\s]')
+if ($timedWaits.Count -gt 0) {
+    throw "Timed Process.waitFor must use ProcessWait: $($timedWaits[0].Path):$($timedWaits[0].LineNumber)"
+}
+$bootReceiver = Get-Content -LiteralPath (Join-Path $repository 'apk\smali\com\thor\displaypowertest\BootReceiver.smali') -Raw
+if ($bootReceiver -notmatch 'const-string v1, "android\.intent\.action\.BOOT_COMPLETED"' -or
+    $bootReceiver -notmatch 'Landroid/content/Intent;->getAction\(\)') {
+    throw 'The exported BootReceiver must ignore any action other than BOOT_COMPLETED.'
+}
 
 if (Test-Path -LiteralPath $output) {
     $resolved = [IO.Path]::GetFullPath((Resolve-Path -LiteralPath $output).Path)
@@ -68,7 +86,11 @@ $sources = @(
     (Join-Path $repository 'src\com\thor\displaypowertest\LegacyDaemonIdentity.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\PreviousSecureDaemonIdentity.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\PropertyState.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\ProcessWait.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\Telemetry.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\DashboardStateModel.java'),
     (Join-Path $repository 'tests\BootAndLidModelTest.java'),
+    (Join-Path $repository 'tests\BootLatencyTest.java'),
     (Join-Path $repository 'tests\DaemonLaunchModelTest.java'),
     (Join-Path $repository 'tests\DisplayDecisionModelTest.java'),
     (Join-Path $repository 'tests\DisplayGenerationModelTest.java'),
@@ -81,6 +103,8 @@ $sources = @(
 if ($LASTEXITCODE -ne 0) { throw 'Boot/lid test compilation failed.' }
 & java -cp $output BootAndLidModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Boot/lid tests failed.' }
+& java -cp $output BootLatencyTest
+if ($LASTEXITCODE -ne 0) { throw 'Boot latency tests failed.' }
 & java -cp $output DaemonLaunchModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Daemon launch model tests failed.' }
 & java -cp $output PropertyStateTest

@@ -9,6 +9,7 @@ import com.thor.displaypowertest.DisplayActionCoordinator;
 import com.thor.displaypowertest.LidGuard;
 import com.thor.displaypowertest.Telemetry;
 import com.thor.displaypowertest.PropertyState;
+import com.thor.displaypowertest.ProcessWait;
 import com.thor.displaypowertest.WakeRepairScheduler;
 import com.thor.displaypowertest.WatcherSupervisor;
 
@@ -38,6 +39,9 @@ public final class D {
     private static volatile boolean bootLidGuardDesired;
     private static volatile long bootStartedAt;
     private static volatile String bootId = "?";
+    private static final java.util.concurrent.atomic.AtomicBoolean FIRST_IDENTITY_TRACE =
+            new java.util.concurrent.atomic.AtomicBoolean();
+    private static final long TRACE_ROTATE_BYTES = 256L * 1024L;
     public static void main(String[] args) throws Exception {
         boolean enabled = args.length == 0 || !"0".equals(args[0]);
         String currentBootId = SecureChannel.currentBootId();
@@ -71,6 +75,10 @@ public final class D {
                 TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(4));
         if (bootCoordinatorActive) {
             new Thread(() -> reconcileBoot(afterComposerRestart), "thor-boot-coordinator").start();
+        }
+        if (afterComposerRestart) {
+            FIRST_IDENTITY_TRACE.set(true);
+            new Thread(D::observeAndroidRecovery, "thor-android-recovery-trace").start();
         }
         Log.d("ThorDisplayDaemon", "READY " + DaemonIdentity.VERSION + " enabled=" + enabled
                 + " bootHold=" + bootCoordinatorActive);
@@ -108,7 +116,13 @@ public final class D {
                     + BootSafety.phase().replace(' ', '_');
         }
         switch (command) {
-            case 'I': return "ok=1;protocol=" + SecureChannel.PROTOCOL
+            case 'I':
+                // After a compositor restart the first identity query normally
+                // comes from AutoService on Android's second BOOT_COMPLETED.
+                if (FIRST_IDENTITY_TRACE.compareAndSet(true, false)) {
+                    traceMark("FIRST_IDENTITY_QUERY", null);
+                }
+                return "ok=1;protocol=" + SecureChannel.PROTOCOL
                     + ";version=" + DaemonIdentity.VERSION + ";pid=" + android.os.Process.myPid()
                     + ";boot_phase=" + BootSafety.phase().replace(' ', '_')
                     + ";fix=" + (DaemonState.isEnabled() ? "1" : "0")
@@ -163,8 +177,9 @@ public final class D {
             boolean composer = "running".equals(
                     property("init.svc.vendor.qti.hardware.display.composer"));
             String mode = DaemonState.getMode();
-            String top = Telemetry.topCrtcActive();
-            String bottom = Telemetry.bottomCrtcActive();
+            String[] crtc = Telemetry.crtcActivePair();
+            String top = crtc[0];
+            String bottom = crtc[1];
             lastBooted = gateEdge("GATE_BOOT_COMPLETED", lastBooted, booted);
             lastComposer = gateEdge("GATE_COMPOSER_RUNNING", lastComposer, composer);
             lastModeKnown = gateEdge("GATE_MODE_KNOWN", lastModeKnown,
@@ -200,7 +215,8 @@ public final class D {
                         + ";samples=" + samples);
                 break;
             }
-            try { Thread.sleep(500L); } catch (InterruptedException ignored) { return false; }
+            long delay = gate.nextSampleDelayMs(now, SystemClock.elapsedRealtime());
+            try { Thread.sleep(delay); } catch (InterruptedException ignored) { return false; }
         }
         BootGateModel.CpuAction cpuAction = BootGateModel.cpuAction(bootCpuFixDesired,
                 Telemetry.systemLoadFixObservation(), afterComposerRestart);
@@ -266,11 +282,12 @@ public final class D {
     /** Device-local trace contains only phase and hardware flags, no personal data. */
     private static void traceBoot(String action) {
         String observedMode = DaemonState.getMode();
+        String[] crtc = Telemetry.crtcActivePair();
         appendTrace("elapsed_ms=" + SystemClock.elapsedRealtime()
                 + ";action=" + action
                 + ";mode=" + (BootSafety.knownMode(observedMode) ? observedMode : "?")
-                + ";top_crtc=" + Telemetry.topCrtcActive()
-                + ";bottom_crtc=" + Telemetry.bottomCrtcActive()
+                + ";top_crtc=" + crtc[0]
+                + ";bottom_crtc=" + crtc[1]
                 + ";cpu_fix=" + Telemetry.systemLoadFixState()
                 + ";pid=" + android.os.Process.myPid()
                 + ";boot_id=" + bootId
@@ -290,6 +307,13 @@ public final class D {
     private static void appendTrace(String line) {
         synchronized (TRACE_LOCK) {
             File trace = new File(BOOT_TRACE);
+            // Bound local storage: keep one previous generation only.
+            if (trace.length() > TRACE_ROTATE_BYTES) {
+                File previous = new File(BOOT_TRACE + ".1");
+                if (!trace.renameTo(previous)) {
+                    Log.w("ThorDisplayDaemon", "could not rotate boot trace");
+                }
+            }
             try (FileWriter writer = new FileWriter(trace, true)) {
                 writer.write(line + "\n");
                 trace.setReadable(true, false);
@@ -327,7 +351,7 @@ public final class D {
         Process process = null;
         try {
             process = new ProcessBuilder("getprop", name).start();
-            if (!process.waitFor(2L, TimeUnit.SECONDS) || process.exitValue() != 0)
+            if (!ProcessWait.exited(process, 2000L) || process.exitValue() != 0)
                 return "?";
             java.io.BufferedReader reader = new java.io.BufferedReader(
                     new java.io.InputStreamReader(process.getInputStream()));
@@ -339,11 +363,85 @@ public final class D {
     }
 
     private static String composerPid() {
+        return pidOf("vendor.qti.hardware.display.composer-service");
+    }
+
+    /** "1" when servicemanager lists the service, "0" when not, "?" on failure. */
+    private static String serviceFound(String name) {
         Process process = null;
         try {
-            process = new ProcessBuilder("pidof",
-                    "vendor.qti.hardware.display.composer-service").start();
-            if (!process.waitFor(2L, TimeUnit.SECONDS) || process.exitValue() != 0)
+            process = new ProcessBuilder("service", "check", name).start();
+            if (!ProcessWait.exited(process, 2000L) || process.exitValue() != 0)
+                return "?";
+            try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(process.getInputStream()))) {
+                String value = reader.readLine();
+                if (value == null) return "?";
+                if (value.endsWith(": found")) return "1";
+                return value.endsWith(": not found") ? "0" : "?";
+            }
+        } catch (Throwable ignored) { return "?"; }
+        finally { if (process != null) process.destroy(); }
+    }
+
+    /**
+     * Observability only, for the daemon launched after a compositor restart.
+     * sys.boot_completed keeps its first-boot value across that restart, so it
+     * cannot show when Android finishes its second visual boot. Record edges of
+     * signals that do restart with the framework. Nothing here gates or changes
+     * display, CPU or lid state.
+     */
+    private static void observeAndroidRecovery() {
+        long started = SystemClock.elapsedRealtime();
+        String bootanim = null;
+        String systemServer = null;
+        String packageService = null;
+        String settingsService = null;
+        boolean sawBootanimRunning = false;
+        String reason = "TIMEOUT";
+        while (SystemClock.elapsedRealtime() - started < 60000L) {
+            String value = property("service.bootanim.exit");
+            String nextBootanim = binary(value) ? value : "?";
+            String nextSystemServer = pidOf("system_server");
+            String nextPackage = serviceFound("package");
+            String nextSettings = serviceFound("settings");
+            if (!nextBootanim.equals(bootanim)) {
+                traceMark("ANDROID_BOOTANIM_EXIT", "value=" + nextBootanim);
+            }
+            if (!nextSystemServer.equals(systemServer)) {
+                traceMark("ANDROID_SYSTEM_SERVER", "pid=" + nextSystemServer);
+            }
+            if (!nextPackage.equals(packageService)) {
+                traceMark("ANDROID_PACKAGE_SERVICE", "found=" + nextPackage);
+            }
+            if (!nextSettings.equals(settingsService)) {
+                traceMark("ANDROID_SETTINGS_SERVICE", "found=" + nextSettings);
+            }
+            bootanim = nextBootanim;
+            systemServer = nextSystemServer;
+            packageService = nextPackage;
+            settingsService = nextSettings;
+            if ("0".equals(bootanim)) {
+                sawBootanimRunning = true;
+            } else if ("1".equals(bootanim) && sawBootanimRunning) {
+                reason = "BOOTANIM_EXIT";
+                break;
+            }
+            // Four subprocess probes per pass: keep this diagnostic watcher
+            // light enough not to distort the boot timing it records.
+            try { Thread.sleep(1000L); } catch (InterruptedException ignored) {
+                reason = "INTERRUPTED";
+                break;
+            }
+        }
+        traceMark("ANDROID_RECOVERY_TRACE_END", "reason=" + reason);
+    }
+
+    private static String pidOf(String name) {
+        Process process = null;
+        try {
+            process = new ProcessBuilder("pidof", name).start();
+            if (!ProcessWait.exited(process, 2000L) || process.exitValue() != 0)
                 return "?";
             try (java.io.BufferedReader reader = new java.io.BufferedReader(
                     new java.io.InputStreamReader(process.getInputStream()))) {
@@ -364,7 +462,7 @@ public final class D {
         try {
             process = new ProcessBuilder("setprop",
                     "vendor.display.disable_system_load_check", value).start();
-            if (!process.waitFor(2L, TimeUnit.SECONDS)) return "ok=0;error=SETPROP_TIMEOUT";
+            if (!ProcessWait.exited(process, 2000L)) return "ok=0;error=SETPROP_TIMEOUT";
             int exit = process.exitValue();
             if (exit != 0) return "ok=0;error=SETPROP_EXIT_" + exit;
             return "ok=1;system_load_fix=" + value;
@@ -514,10 +612,10 @@ public final class D {
                         + "boot_id=${BID:-?};source=helper\" >>$TR; }",
                 "OLD='" + beforeComposerPid + "'",
                 "DP=" + daemonPid,
-                "SF0=$(pidof surfaceflinger); Z0=$(pidof zygote64)",
+                "SF0=$(pidof surfaceflinger); Z0=$(pidof zygote64); SS0=$(pidof system_server)",
                 "T HELPER_START \"old_composer=$OLD;old_sf=${SF0:--};old_zygote=${Z0:--};"
-                        + "daemon_pid=$DP\"",
-                "B=$(cs); N=0; NC=''; NS=''; NZ=''",
+                        + "old_system_server=${SS0:--};daemon_pid=$DP\"",
+                "B=$(cs); N=0; NC=''; NS=''; NZ=''; NSS=''; PKS=''; STS=''",
                 "while [ $(($(cs)-B)) -lt 800 ] && [ $N -lt 60 ]; do",
                 "  P=$(pidof vendor.qti.hardware.display.composer-service)",
                 "  if [ -z \"$NC\" ] && [ -n \"$P\" ] && [ \"$P\" != \"$OLD\" ]; then"
@@ -528,6 +626,17 @@ public final class D {
                 "  P=$(pidof zygote64)",
                 "  if [ -z \"$NZ\" ] && [ -n \"$P\" ] && [ \"$P\" != \"$Z0\" ]; then"
                         + " NZ=$P; T HELPER_ZYGOTE_NEW_PID \"zygote_pid=$P\"; fi",
+                // Observability only: service readiness of the new system_server
+                // shows how much of the eight-second floor is actually needed.
+                "  P=$(pidof system_server)",
+                "  if [ -z \"$NSS\" ] && [ -n \"$P\" ] && [ \"$P\" != \"$SS0\" ]; then"
+                        + " NSS=$P; T HELPER_SYSTEM_SERVER_NEW_PID \"system_server_pid=$P\"; fi",
+                "  if [ -n \"$NSS\" ] && [ -z \"$PKS\" ]"
+                        + " && service check package 2>/dev/null | grep -q ': found$'; then"
+                        + " PKS=1; T HELPER_PACKAGE_SERVICE_FOUND; fi",
+                "  if [ -n \"$NSS\" ] && [ -z \"$STS\" ]"
+                        + " && service check settings 2>/dev/null | grep -q ': found$'; then"
+                        + " STS=1; T HELPER_SETTINGS_SERVICE_FOUND; fi",
                 "  N=$((N+1)); sleep 0.25",
                 "done",
                 // The eight-second floor holds even if fractional sleep is unsupported.
@@ -557,22 +666,32 @@ public final class D {
                 "state(){ [ ! -d /proc/$DP ] && { echo GONE; return; };"
                         + " S=$(sed -n 's/^State:[[:space:]]*\\([A-Z]\\).*/\\1/p'"
                         + " /proc/$DP/status 2>/dev/null);"
-                        + " if [ -z \"$S\" ]; then echo UNKNOWN;"
+                        + " if [ -z \"$S\" ]; then"
+                        + " if [ -d /proc/$DP ]; then echo UNKNOWN; else echo GONE; fi;"
                         + " elif [ \"$S\" = Z ]; then echo GONE;"
                         + " else echo LIVE; fi; }",
                 // Only signal the PID if it is still this root daemon, then wait
                 // for its exit so the successor's instance lock cannot lose.
+                // A failed identity read is re-classified: a daemon that has
+                // just exited is gone, anything still present is a mismatch.
+                "ident(){ [ \"$(stat -c %u /proc/$DP 2>/dev/null)\" = 0 ]"
+                        + " && tr '\\000' ' ' </proc/$DP/cmdline 2>/dev/null"
+                        + " | grep -Eq '^app_process / D [01] (hold|run) [01] [01]( |$)'"
+                        + " && { echo OK; return; };"
+                        + " [ \"$(state)\" = GONE ] && echo GONE || echo BAD; }",
                 "PSTATE=$(state)",
                 "if [ \"$PSTATE\" = UNKNOWN ]; then"
                         + " T HELPER_ABORT reason=DAEMON_IDENTITY_MISMATCH; exit 1; fi",
-                "if [ \"$PSTATE\" = LIVE ]; then",
-                "  if [ \"$(stat -c %u /proc/$DP 2>/dev/null)\" != 0 ]; then"
+                "[ \"$PSTATE\" = LIVE ] && PSTATE=$(ident)",
+                "if [ \"$PSTATE\" = BAD ]; then"
                         + " T HELPER_ABORT reason=DAEMON_IDENTITY_MISMATCH; exit 1; fi",
-                "  if ! tr '\\000' ' ' </proc/$DP/cmdline 2>/dev/null"
-                        + " | grep -Eq '^app_process / D [01] (hold|run) [01] [01]( |$)'; then"
-                        + " T HELPER_ABORT reason=DAEMON_IDENTITY_MISMATCH; exit 1; fi",
-                "  kill $DP || { T HELPER_ABORT reason=KILL_FAILED; exit 1; }",
-                "  T HELPER_KILL_SENT \"daemon_pid=$DP\"",
+                "if [ \"$PSTATE\" = OK ]; then",
+                // A daemon that exits between the checks and the signal is
+                // not a failure; only a live process that rejects it is.
+                "  if kill $DP 2>/dev/null; then T HELPER_KILL_SENT \"daemon_pid=$DP\";"
+                        + " elif [ \"$(state)\" = GONE ]; then"
+                        + " T HELPER_KILL_RACE_GONE \"daemon_pid=$DP\";"
+                        + " else T HELPER_ABORT reason=KILL_FAILED; exit 1; fi",
                 "  I=0; while [ \"$(state)\" != GONE ] && [ $I -lt 50 ];"
                         + " do sleep 0.1; I=$((I+1)); done",
                 "  [ \"$(state)\" != GONE ] && sleep 1",

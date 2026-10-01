@@ -47,6 +47,22 @@ public final class BootGateModel {
     public long graceMs() { return graceMs; }
     public String candidate() { return candidate; }
 
+    public static final long SAMPLE_PERIOD_MS = 500L;
+
+    /**
+     * Fixed-rate cadence measured from the start of the previous sample, but
+     * never sleeping past the instant the grace can complete. It only decides
+     * when the next fresh sample is taken; READY still requires that sample to
+     * be valid and unchanged, with its timestamp taken before its reads.
+     */
+    public long nextSampleDelayMs(long sampleStartedAtMs, long nowMs) {
+        long delay = sampleStartedAtMs + SAMPLE_PERIOD_MS - nowMs;
+        if (stableSamples >= 3 && stableSinceMs >= 0L) {
+            delay = Math.min(delay, stableSinceMs + graceMs - nowMs);
+        }
+        return Math.max(1L, delay);
+    }
+
     private static boolean knownMode(String mode) {
         return "0".equals(mode) || "1".equals(mode) || "2".equals(mode);
     }

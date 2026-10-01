@@ -20,6 +20,33 @@
 
     move-result-wide v3
 
+    # The receiver is exported for BOOT_COMPLETED. Only that protected system
+    # broadcast may start the boot path; explicit intents with any other
+    # action, or none, are ignored.
+    if-eqz p2, :ignore
+
+    invoke-virtual {p2}, Landroid/content/Intent;->getAction()Ljava/lang/String;
+
+    move-result-object v0
+
+    const-string v1, "android.intent.action.BOOT_COMPLETED"
+
+    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+
+    move-result v0
+
+    if-nez v0, :boot
+
+    :ignore
+    const-string v0, "ThorDisplayAuto"
+
+    const-string v1, "BootReceiver ignored unexpected action"
+
+    invoke-static {v0, v1}, Landroid/util/Log;->w(Ljava/lang/String;Ljava/lang/String;)I
+
+    return-void
+
+    :boot
     const-string v0, "ThorDisplayAuto"
 
     const-string v1, "BootReceiver"

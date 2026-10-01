@@ -1,5 +1,20 @@
 # Release integrity
 
+## 1.5.17 testing pre-release (Thor validation pending)
+
+- Package: `com.thor.displaypowertest`
+- Version code/name: `66` / `1.5.17`
+- APK: `Jesty-Thor-Fix-1.5.17.apk`
+- Local signed APK SHA-256: `6E9BE2F4076FAB75753CD742D64D5027CFBF8C07275EF61119E67CFE93EDC550`
+- Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`
+- Alignment and v1/v2/v3 signatures passed. Host suites passed after the
+  patch and local corrections. The exact APK has **not** been installed or
+  boot-tested on the Thor. The GitHub asset is checked after upload.
+
+v1.5.16 remains Latest stable. No APK, signing material or device log is
+committed to Git.
+
+
 ## Stable 1.5.16 release
 
 - Package: `com.thor.displaypowertest`
@@ -15,7 +30,7 @@
   9,147,485 bytes; SHA-256 matched the local signed APK above. GitHub marks
   v1.5.16 as Latest and not a pre-release.
 
-The supervised checks recorded in `VALIDATION-1.5.16-PENDING.md` passed for
+The supervised checks recorded in `VALIDATION-1.5.16.md` passed for
 this exact signed APK. One boot is evidence for this device and configuration,
 not a repeatability guarantee. No key, password, APK, or device log is stored
 in Git.

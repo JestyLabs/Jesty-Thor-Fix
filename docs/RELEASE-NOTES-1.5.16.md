@@ -1,6 +1,6 @@
 # Jesty Thor Fix v1.5.16 — stable release
 
-This candidate targets the boot delay observed with v1.5.15. A filesystem
+This release targets the boot delay observed with v1.5.15. A filesystem
 socket inode can survive power-off; the previous launcher waited up to 30
 seconds on that pathname before starting the daemon. v1.5.16 stamps the
 daemon lock with the kernel boot ID and launches immediately when it can prove

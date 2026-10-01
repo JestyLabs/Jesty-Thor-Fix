@@ -121,7 +121,7 @@ public final class LidGuard {
         Process process = null;
         try {
             process = new ProcessBuilder("getevent", "-S", node.getPath()).start();
-            if (!process.waitFor(2L, TimeUnit.SECONDS) || process.exitValue() != 0) return -1;
+            if (!ProcessWait.exited(process, 2000L) || process.exitValue() != 0) return -1;
             String value = new BufferedReader(new InputStreamReader(
                     process.getInputStream())).readLine();
             if (value == null || !value.trim().matches("(?i)[0-9a-f]{1,8}")) return -1;
@@ -239,7 +239,7 @@ public final class LidGuard {
             }, "thor-display-probe-output");
             reader.setDaemon(true);
             reader.start();
-            if (!process.waitFor(2L, TimeUnit.SECONDS) || process.exitValue() != 0) return null;
+            if (!ProcessWait.exited(process, 2000L) || process.exitValue() != 0) return null;
             reader.join(200L);
             return reader.isAlive() ? null : external.get();
         } catch (Throwable error) { return null; }

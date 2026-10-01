@@ -4,7 +4,6 @@ import android.os.SystemClock;
 import android.util.Log;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.util.concurrent.TimeUnit;
 
 /** The only author of lower-panel transitions and guard-requested sleep. */
 public final class DisplayActionCoordinator {
@@ -147,7 +146,7 @@ public final class DisplayActionCoordinator {
             Process process = null;
             try {
                 process = new ProcessBuilder("input", "keyevent", "223").start();
-                boolean slept = process.waitFor(2L, TimeUnit.SECONDS)
+                boolean slept = ProcessWait.exited(process, 2000L)
                         && process.exitValue() == 0;
                 status = slept ? "SLEEP_REQUESTED" : "SLEEP_FAILED";
                 return slept;
@@ -221,7 +220,7 @@ public final class DisplayActionCoordinator {
         try {
             process = new ProcessBuilder("settings", "get", "system",
                     "dual_screen_display_mode").start();
-            if (!process.waitFor(2L, TimeUnit.SECONDS) || process.exitValue() != 0) return "?";
+            if (!ProcessWait.exited(process, 2000L) || process.exitValue() != 0) return "?";
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream()))) {
                 String value = reader.readLine();

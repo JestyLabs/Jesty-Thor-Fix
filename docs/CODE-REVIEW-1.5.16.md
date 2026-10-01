@@ -34,6 +34,6 @@ recovery gap in item 2 remains open. The supplied `DAEMON_MAIN` initially
 labeled service start as receiver time; the smali receiver now passes its own
 timestamp and the trace records both separately.
 
-The [validation diary](VALIDATION-1.5.16-PENDING.md) records one physical
+The [validation diary](VALIDATION-1.5.16.md) records one physical
 boot and the remaining limits. The maintainer approved stable publication
 after that supervised result.

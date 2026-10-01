@@ -110,6 +110,52 @@ public final class Telemetry {
         return crtcActive("181");
     }
 
+    /**
+     * Top and bottom CRTC from one DRM state read: a single consistent
+     * snapshot, and half the debugfs reads of two separate calls.
+     * Returns {top, bottom}; each element is "0", "1" or "?".
+     */
+    public static String[] crtcActivePair() {
+        File state = new File("/sys/kernel/debug/dri/0/state");
+        if (!state.canRead()) return new String[] {"?", "?"};
+        try (BufferedReader reader = new BufferedReader(new FileReader(state))) {
+            return parseCrtcPair(reader);
+        } catch (Throwable ignored) {
+            return new String[] {"?", "?"};
+        }
+    }
+
+    /** Pure parser for crtcActivePair, kept separate for host tests. */
+    public static String[] parseCrtcPair(BufferedReader reader) throws java.io.IOException {
+        String[] result = {"?", "?"};
+        String line;
+        int current = -1;
+        int remaining = 0;
+        int found = 0;
+        while (found < 2 && (line = reader.readLine()) != null) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith("crtc[")) {
+                if (trimmed.startsWith("crtc[181]")) current = 0;
+                else if (trimmed.startsWith("crtc[243]")) current = 1;
+                else current = -1;
+                remaining = current >= 0 ? 14 : 0;
+            }
+            else if (current >= 0 && trimmed.startsWith("active=")) {
+                if ("?".equals(result[current])) {
+                    String value = trimmed.substring(7);
+                    if ("0".equals(value) || "1".equals(value)) {
+                        result[current] = value;
+                        found++;
+                    }
+                }
+                current = -1;
+            } else if (current >= 0 && --remaining <= 0) {
+                current = -1;
+            }
+        }
+        return result;
+    }
+
     private static String crtcActive(String target) {
         File state = new File("/sys/kernel/debug/dri/0/state");
         if (!state.canRead()) return "?";
@@ -141,7 +187,7 @@ public final class Telemetry {
             process = new ProcessBuilder("getprop",
                     "vendor.display.disable_system_load_check",
                     PropertyState.MISSING_MARKER).start();
-            if (!process.waitFor(2L, java.util.concurrent.TimeUnit.SECONDS)) return "?";
+            if (!ProcessWait.exited(process, 2000L)) return "?";
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream()))) {
                 return PropertyState.observed(reader.readLine(), process.exitValue());
