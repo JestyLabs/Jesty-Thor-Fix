@@ -157,7 +157,28 @@ avoid unnecessary reboots until the signed candidate and recovery steps are read
 - [ ] Without reboot, exercise the physical AYN button through BOTH, TOP,
   BOTTOM and back. Confirm CRTC states, effective/pending UI, stale repair
   invalidation, and no speculative ON in unknown/sleep state. BOTH→TOP and
-  its UI/CRTCs passed; return to BOTH and BOTTOM remain pending.
+  its UI/CRTCs passed; return to BOTH passed. In BOTTOM ONLY on 2026-10-01,
+  AYN reported `mode=2` while both physical CRTCs (181 and 243) stayed active,
+  and both display devices reported ON. The old model incorrectly required
+  upper CRTC 0 and would show a mismatch. Local source now classifies this
+  observed state separately and never powers the lower panel ON from `mode=2`
+  alone. The user returned to BOTH through the physical shortcut. Host model
+  tests pass, but on-device validation of the corrected BOTTOM-only UI remains
+  pending. No reboot was performed for this test.
+
+The in-place v1.5.8 test build was installed while physically in BOTH and
+recovered a single authenticated daemon without reboot, but its APK version
+was 1.5.8 while the health response still reported 1.5.7. This was a release
+identity defect, not a display transition. Candidate v1.5.9/versionCode 58
+uses one `DaemonIdentity.VERSION` for both daemon and app health checks, with
+a host test enforcing the manifest match. Its signed APK SHA-256 is
+`4A2E2B2E4429C40CD3275767FE325FAF3D01DC5857EDB9BF3EDDD3029F4A0FA0`;
+certificate SHA-256 remains
+`727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`.
+It installed in BOTH over v1.5.8 without reboot, replaced the known prior
+daemon, and reached `BOOT READY` with one root daemon reporting 1.5.9. Both
+CRTCs stayed active. The BOTTOM-only UI correction still needs direct device
+validation before publication.
 - [ ] Test wake repair, lid-close/open/false wake, and external display only
   where hardware and safe observation are available. Stop at first anomaly.
 - [ ] Test one user-approved CPU Fix change only if needed; it intentionally
@@ -169,7 +190,7 @@ avoid unnecessary reboots until the signed candidate and recovery steps are read
 
 ## Publication
 
-- [ ] Publish the exact signed APK/hash as a 1.5.7 pre-release only after app
+- [ ] Publish the exact signed APK/hash as a 1.5.9 pre-release only after app
   gates pass. Update README, release notes, screenshots where actually changed,
   integrity documentation, and profile links from observed results.
 - [ ] Promote that same tag and APK to stable only after the remaining app

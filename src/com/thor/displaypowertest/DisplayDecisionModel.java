@@ -22,9 +22,22 @@ public final class DisplayDecisionModel {
                 || !("0".equals(topCrtc) || "1".equals(topCrtc))
                 || !("0".equals(bottomCrtc) || "1".equals(bottomCrtc))
                 || ("0".equals(topCrtc) && "0".equals(bottomCrtc))) return "PENDING";
-        String expectedTop = "2".equals(mode) ? "0" : "1";
         String expectedBottom = fixEnabled && "1".equals(mode) ? "0" : "1";
-        return expectedTop.equals(topCrtc) && expectedBottom.equals(bottomCrtc)
+        return topCompatible(mode, topCrtc) && expectedBottom.equals(bottomCrtc)
                 ? "CONFIRMED" : "MISMATCH";
+    }
+
+    /** The upper CRTC can remain active in the observed BOTTOM ONLY mode. */
+    public static boolean topCompatible(String mode, String topCrtc) {
+        return "2".equals(mode) ? "0".equals(topCrtc) || "1".equals(topCrtc)
+                : ("0".equals(mode) || "1".equals(mode)) && "1".equals(topCrtc);
+    }
+
+    /** In BOTTOM ONLY, never power ON a dark lower panel from the mode flag alone. */
+    public static boolean readyForReconcile(String mode, String topCrtc,
+            String bottomCrtc) {
+        return topCompatible(mode, topCrtc)
+                && ("0".equals(bottomCrtc) || "1".equals(bottomCrtc))
+                && (!"2".equals(mode) || "1".equals(bottomCrtc));
     }
 }

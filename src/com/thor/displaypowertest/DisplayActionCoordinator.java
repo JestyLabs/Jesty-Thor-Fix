@@ -92,8 +92,7 @@ public final class DisplayActionCoordinator {
                 return "ok=0;error=DISPLAY_MODE_UNKNOWN";
             String top = Telemetry.topCrtcActive();
             String bottom = Telemetry.bottomCrtcActive();
-            if (!("2".equals(mode) ? "0" : "1").equals(top)
-                    || !("0".equals(bottom) || "1".equals(bottom)))
+            if (!DisplayDecisionModel.readyForReconcile(mode, top, bottom))
                 return "ok=0;error=DISPLAY_TRANSITION";
             boolean targetOn = !requested || !"1".equals(mode);
             if (!applyConfirmed(targetOn, "USER_RECONCILE", mode))
@@ -111,8 +110,8 @@ public final class DisplayActionCoordinator {
         synchronized (DisplayHardware.class) {
             if (!BootSafety.knownMode(expectedMode)
                     || !expectedMode.equals(readCurrentMode())) return false;
-            if (!("2".equals(expectedMode) ? "0" : "1")
-                    .equals(Telemetry.topCrtcActive())) return false;
+            if (!DisplayDecisionModel.readyForReconcile(expectedMode,
+                    Telemetry.topCrtcActive(), Telemetry.bottomCrtcActive())) return false;
             if (!applyConfirmed(targetOn, "BOOT_RECONCILE", expectedMode)) return false;
             generations.invalidate();
             cancelRepairLocked();
@@ -186,7 +185,7 @@ public final class DisplayActionCoordinator {
         String expected = on ? "1" : "0";
         String top = Telemetry.topCrtcActive();
         String before = Telemetry.bottomCrtcActive();
-        if (!("2".equals(expectedMode) ? "0" : "1").equals(top)
+        if (!DisplayDecisionModel.readyForReconcile(expectedMode, top, before)
                 || (on && "0".equals(top) && "0".equals(before))) {
             status = "DISPLAY_ASLEEP_OR_TRANSITION";
             return false;
@@ -211,8 +210,8 @@ public final class DisplayActionCoordinator {
         String finalBottom = Telemetry.bottomCrtcActive();
         boolean confirmed = expectedMode.equals(readCurrentMode())
                 && expected.equals(finalBottom)
-                && ("2".equals(expectedMode) ? "0" : "1")
-                        .equals(Telemetry.topCrtcActive());
+                && DisplayDecisionModel.topCompatible(expectedMode,
+                        Telemetry.topCrtcActive());
         if (!confirmed) DisplayHardware.alignPropertyWithCrtc(finalBottom);
         status = confirmed ? "CONFIRMED" : "UNCONFIRMED";
         return confirmed;

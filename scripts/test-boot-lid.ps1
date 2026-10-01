@@ -5,6 +5,14 @@ $ErrorActionPreference = 'Stop'
 $repository = Split-Path -Parent $PSScriptRoot
 $output = Join-Path $env:TEMP 'jesty-thor-boot-lid-tests'
 
+$manifest = Get-Content -LiteralPath (Join-Path $repository 'apk\AndroidManifest.xml') -Raw
+$identity = Get-Content -LiteralPath (Join-Path $repository 'src\com\thor\displaypowertest\DaemonIdentity.java') -Raw
+$versionName = [regex]::Match($manifest, 'android:versionName="([^"]+)"').Groups[1].Value
+$daemonVersion = [regex]::Match($identity, 'VERSION = "([^"]+)"').Groups[1].Value
+if (-not $versionName -or $versionName -ne $daemonVersion) {
+    throw "Manifest/daemon version mismatch: $versionName / $daemonVersion"
+}
+
 # The watcher is only a Settings reader. All display decisions and writes
 # belong to DisplayActionCoordinator and DisplayHardware respectively.
 $watcher = Get-Content -LiteralPath (Join-Path $repository 'apk\smali\com\thor\displaypowertest\DaemonWatchThread.smali') -Raw

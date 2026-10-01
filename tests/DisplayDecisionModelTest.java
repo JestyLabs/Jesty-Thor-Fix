@@ -37,6 +37,18 @@ public final class DisplayDecisionModelTest {
             throw new AssertionError("unknown mode cannot confirm display fix");
         if (!"CONFIRMED".equals(DisplayDecisionModel.effective("0", "1", "1", true, false)))
             throw new AssertionError("BOTH with fix desired keeps lower hardware on");
+        if (!"CONFIRMED".equals(DisplayDecisionModel.effective("2", "1", "1", true, false)))
+            throw new AssertionError("BOTTOM with active upper CRTC is observed stock behavior");
+        if (!"CONFIRMED".equals(DisplayDecisionModel.effective("2", "0", "1", true, false)))
+            throw new AssertionError("BOTTOM with inactive upper CRTC is also valid");
+        if (!"MISMATCH".equals(DisplayDecisionModel.effective("2", "1", "0", true, false)))
+            throw new AssertionError("BOTTOM with lower CRTC off is not confirmed");
+        if (DisplayDecisionModel.readyForReconcile("2", "1", "0"))
+            throw new AssertionError("BOTTOM must not force the lower panel on while transitioning");
+        if (!DisplayDecisionModel.readyForReconcile("2", "1", "1"))
+            throw new AssertionError("observed BOTTOM state permits idempotent confirmation");
+        if (DisplayDecisionModel.readyForReconcile("?", "1", "1"))
+            throw new AssertionError("unknown mode must not be reconciled");
         System.out.println("DisplayDecisionModelTest passed");
     }
 }

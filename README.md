@@ -270,6 +270,8 @@ Place `apktool.jar` at `tools/apktool.jar`, or set `APKTOOL_JAR`, then run:
 The repository contains no signing key or password. Self-built APKs will not
 update the official build unless signed with the same private key.
 
+Maintainer checklist: [build and release guide](docs/BUILD-AND-RELEASE.md).
+
 </details>
 
 ## Support and documentation
@@ -286,7 +288,8 @@ Documentation: [architecture](docs/ARCHITECTURE.md) ·
 [device validation](docs/DEVICE-VALIDATION.md) ·
 [live results](docs/LIVE-RESULTS.md) ·
 [benchmarks](docs/BENCHMARKS.md) ·
-[release integrity](docs/RELEASE-INTEGRITY.md)
+[release integrity](docs/RELEASE-INTEGRITY.md) ·
+[build and release](docs/BUILD-AND-RELEASE.md)
 
 ## License, provenance, and independence
 

@@ -51,6 +51,7 @@ public final class BootGateModel {
         if (!knownMode(mode) || !("0".equals(bottomCrtc) || "1".equals(bottomCrtc))) {
             return false;
         }
+        if ("2".equals(mode)) return false;
         boolean targetOn = !fixEnabled || !"1".equals(mode);
         return targetOn ? !"1".equals(bottomCrtc) : !"0".equals(bottomCrtc);
     }

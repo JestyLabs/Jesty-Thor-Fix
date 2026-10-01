@@ -89,7 +89,7 @@ public final class PServer {
             String response = SocketClient.request('I', 700);
             boolean valid = response.startsWith("ok=1;")
                     && response.contains(";protocol=" + SecureChannel.PROTOCOL + ";")
-                    && response.contains(";version=1.5.7;")
+                    && response.contains(";version=" + DaemonIdentity.VERSION + ";")
                     && response.contains(";pid=")
                     && response.contains(";boot_phase=")
                     && response.contains(";boot_phase=READY;")

@@ -108,6 +108,12 @@ public final class DashboardStateModel {
                             : "Bottom hardware is physically off",
                     Tone.GREEN, confirmedVisual, true);
         }
+        if ("BOTTOM_TOP_ACTIVE".equals(candidate)) {
+            confirmedVisual = Visual.BOTH_ON;
+            return new DisplayStatus("BOTTOM ONLY \u00B7 TOP HARDWARE ON",
+                    "Upper panel remains active in AYN mode", Tone.AMBER,
+                    confirmedVisual, true);
+        }
         confirmedVisual = Visual.BOTH_ON;
         return new DisplayStatus("BOTTOM ONLY", "Top screen off",
                 Tone.GREEN, confirmedVisual, true);
@@ -123,6 +129,8 @@ public final class DashboardStateModel {
         if ("1".equals(mode) && "1".equals(topCrtc) && "1".equals(bottomCrtc)) return "AYN_BLACK";
         if ("1".equals(mode) && "1".equals(topCrtc) && "0".equals(bottomCrtc)) return "TRUE_OFF";
         if ("2".equals(mode) && "0".equals(topCrtc) && "1".equals(bottomCrtc)) return "BOTTOM";
+        if ("2".equals(mode) && "1".equals(topCrtc) && "1".equals(bottomCrtc))
+            return "BOTTOM_TOP_ACTIVE";
         return "MISMATCH";
     }
 

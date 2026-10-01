@@ -50,8 +50,8 @@ public final class BootAndLidModelTest {
                 "BOTH already on is idempotent");
         check(BootGateModel.displayActionRequired("0", true, "0"),
                 "BOTH requires ON when lower display is off");
-        check(BootGateModel.displayActionRequired("2", true, "0"),
-                "BOTTOM requires ON when lower display is off");
+        check(!BootGateModel.displayActionRequired("2", true, "0"),
+                "BOTTOM transition must not force ON from the mode flag alone");
         check(BootGateModel.displayActionRequired("1", false, "0"),
                 "native TOP requires lower hardware on");
         // Reproduce the reported path: enable the fix in BOTH, then change to

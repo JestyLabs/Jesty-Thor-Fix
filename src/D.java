@@ -1,4 +1,5 @@
 import com.thor.displaypowertest.DaemonState;
+import com.thor.displaypowertest.DaemonIdentity;
 import com.thor.displaypowertest.BootGateModel;
 import com.thor.displaypowertest.BootSafety;
 import com.thor.displaypowertest.DaemonWatchThread;
@@ -54,7 +55,7 @@ public final class D {
         if (bootCoordinatorActive) {
             new Thread(() -> reconcileBoot(afterComposerRestart), "thor-boot-coordinator").start();
         }
-        Log.d("ThorDisplayDaemon", "READY 1.5.7 enabled=" + enabled
+        Log.d("ThorDisplayDaemon", "READY " + DaemonIdentity.VERSION + " enabled=" + enabled
                 + " bootHold=" + bootCoordinatorActive);
         while (true) {
             LocalSocket socket = server.accept();
@@ -91,7 +92,7 @@ public final class D {
         }
         switch (command) {
             case 'I': return "ok=1;protocol=" + SecureChannel.PROTOCOL
-                    + ";version=1.5.7;pid=" + android.os.Process.myPid()
+                    + ";version=" + DaemonIdentity.VERSION + ";pid=" + android.os.Process.myPid()
                     + ";boot_phase=" + BootSafety.phase().replace(' ', '_')
                     + ";fix=" + (DaemonState.isEnabled() ? "1" : "0")
                     + ";watcher=" + WatcherSupervisor.health();
