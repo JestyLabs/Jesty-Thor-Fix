@@ -34,15 +34,16 @@ the repository. Never commit either of them or an APK.
    blindly. The `gh api` Git objects/ref route has worked: compare the remote
    head before upload, update the ref without force, then verify the PR head.
    Keep the candidate APK out of Git; the release asset is uploaded separately.
-5. Only after the gates in `VALIDATION-1.5.0-PENDING.md` pass, create a tag and
-   GitHub pre-release with the exact tested signed APK. Attach only that APK,
+5. Only after the agreed gates in `VALIDATION-1.5.0-PENDING.md` pass, create a tag and
+   GitHub release with the exact tested signed APK. Attach only that APK,
    record its SHA-256 and certificate in release documentation, and verify the
-   downloaded asset hash. Promote the **same release and unchanged APK** to
-   stable after the remaining physical/security gates pass. If the APK changes,
+   downloaded asset hash. If staged as a pre-release, promote the **same release
+   and unchanged APK** to stable after maintainer approval of the scoped
+   physical/security evidence. If the APK changes,
    increment the version/code and repeat affected validation.
 
-Example GitHub CLI workflow (substitute the validated version and APK, and
-write the release-notes file first):
+Example GitHub CLI workflow for a testing pre-release (substitute the validated
+version and APK, and write the release-notes file first):
 
 ```powershell
 $gh = 'C:\Temp\gh-2.101.0\unpacked\bin\gh.exe'
@@ -51,6 +52,6 @@ $gh = 'C:\Temp\gh-2.101.0\unpacked\bin\gh.exe'
 & $gh release view v1.5.15
 ```
 
-Do not run the release command merely because the branch is pushed. The
-maintainer explicitly approved merging the reviewed v1.5.15 candidate and
-publishing a testing pre-release; the same tested APK must be used.
+Do not run the release command merely because the branch is pushed. v1.5.15
+was first published as a testing pre-release, then promoted to stable with
+the same tag and verified APK after maintainer approval.

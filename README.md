@@ -13,15 +13,15 @@
   Install it, enable the fixes you need, and forget about it.
 </p>
 
-> **Recommended testing build:** [v1.5.15](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.15)
+> **Latest stable release:** [v1.5.15](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.15)
 > passed supervised BOTH/TOP, Wake Guard, and CPU Fix restoration checks on
 > the maintainer's Thor. CPU Fix restoration includes one Android UI restart
 > during boot, which can look like a second boot. BOTTOM ONLY and physical
-> dock use are deferred, so this remains a pre-release. For the earlier
-> stable build, see [v1.3.0](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.3.0).
+> dock use are deferred. The earlier [v1.3.0](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.3.0)
+> remains available in release history.
 
 <p align="center">
-  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.15"><strong>Download testing APK</strong></a>
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.15"><strong>Download latest APK</strong></a>
   · <a href="#what-does-it-fix">What it fixes</a>
   · <a href="#power-and-possible-battery-benefit">Measurements</a>
   · <a href="https://www.buymeacoffee.com/jesty">☕ Support development</a>
@@ -32,7 +32,7 @@
 </p>
 
 <details>
-<summary><strong>v1.5.15 testing release: real Thor screenshots and test status</strong></summary>
+<summary><strong>v1.5.15 validation: real Thor screenshots and test status</strong></summary>
 
 The [v1.5.15 review PR](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/1)
 has passed physical BOTH↔TOP and TOP sleep/wake, private-socket checks, and
@@ -48,8 +48,8 @@ AYN Dashboard open on the lower screen afterward, the upper app showed
 claim that every boot configuration has been exhaustively tested. The Thor
 was left in BOTH with Wake Guard OFF. With the guard off, `LID UNKNOWN` means
 the Hall watcher is not running; it does not describe the CPU Fix.
-BOTTOM ONLY and physical dock use are future improvements. This is a testing
-pre-release; the stable v1.3.0 remains available separately.
+BOTTOM ONLY and physical dock use are future improvements. v1.5.15 was
+promoted from testing to stable with the same APK after maintainer review.
 
 <p align="center">
   <img src="docs/images/dashboard-both-v1.5.15-review.png" alt="v1.5.15 on the physical Thor after the CPU Fix cold boot: BOTH screens active, CPU Fix active and Wake Guard off" width="100%">
@@ -89,10 +89,10 @@ problems:
 Use only the fix you need, or enable both. The choices are saved and restored
 after a normal reboot.
 
-The testing build also has a separate, optional **Closed-Lid Wake Guard** to
+The current release also has a separate, optional **Closed-Lid Wake Guard** to
 return an accidentally awakened Thor to sleep when its Hall switch reports the
-lid closed. It starts OFF and still needs the physical closed-lid/dock test
-matrix before we recommend enabling it broadly. The physical AYN button can
+lid closed. It starts OFF. Closed-lid wake and loop protection passed focused
+physical checks; dock use has not been physically tested. The AYN button can
 switch between TOP and BOTH without opening AYN Dashboard; v1.4.1 and later
 track that shortcut and reconcile the lower display after the mode settles.
 
@@ -177,13 +177,13 @@ where LITTLE and BIG were simultaneously stuck at maximum.
 ## Install once, then close the app
 
 1. Download `Jesty-Thor-Fix-1.5.15.apk` from the
-   [testing release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.15).
+   [latest release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.15).
 2. Install and open **Jesty Thor Fix** once.
 3. Enable the switch for each problem you want to fix.
 4. Leave the dashboard open briefly if you want to see its automatic display
    and CPU diagnosis settle.
 
-The testing build also has an optional **Closed-Lid Wake Guard**. It is OFF by
+The current release also has an optional **Closed-Lid Wake Guard**. It is OFF by
 default. Closed-lid false wakes and loop protection passed supervised physical
 checks; docked use remains deferred. The AYN Dashboard CPU Fix causes one expected
 Android UI/display restart when applying it and once during boot when needed.

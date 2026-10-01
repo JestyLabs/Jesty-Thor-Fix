@@ -1,4 +1,4 @@
-# Jesty Thor Fix v1.5.15 — testing pre-release
+# Jesty Thor Fix v1.5.15 — stable release
 
 This update restores the AYN Dashboard CPU Fix after a cold boot on the tested
 AYN Thor. Its firmware leaves the vendor CPU Fix property unconfigured at boot.
@@ -22,8 +22,9 @@ duration is recorded for a separate performance investigation.
 
 Physical BOTH/TOP, TOP sleep/wake, Hall close/open, a controlled closed-lid
 wake, and the anti-loop limit were also exercised in this review. BOTTOM ONLY
-and physical use with an external-display dock are deferred. This is a
-testing pre-release; the earlier v1.3.0 stable release remains available.
+and physical use with an external-display dock are deferred. After maintainer
+review, this exact APK was promoted from testing to stable without a rebuild
+or asset replacement. The earlier v1.3.0 remains available in release history.
 
 APK: `Jesty-Thor-Fix-1.5.15.apk` (versionCode 64)
 

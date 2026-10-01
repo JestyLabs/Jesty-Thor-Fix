@@ -173,7 +173,7 @@ rendered BOTH, AYN fake-off, and Jesty true-off from live display hardware
 state; prevented red stock-bug verdicts while the CPU Fix was active; and
 restored both fixes after a real reboot and its expected framework restart.
 
-## 1.5.15 testing pre-release
+## Stable 1.5.15 release
 
 - Package: `com.thor.displaypowertest`
 - Version code: `64`
@@ -193,8 +193,11 @@ NORMAL` on the upper display. The expected Android UI restart can look like a
 second boot without changing the kernel boot ID. See
 [`VALIDATION-1.5.0-PENDING.md`](VALIDATION-1.5.0-PENDING.md) for scoped physical,
 host, and unavailable cases. The published download must be checked against
-the SHA-256 above; publication alone does not verify it. This is a testing
-pre-release, while v1.3.0 remains the stable release.
+the SHA-256 above; publication alone does not verify it. The published
+9,143,389-byte asset was downloaded and matched this SHA-256. The maintainer
+promoted the same release and unchanged APK from pre-release to Latest stable.
+v1.3.0 remains available in release history. BOTTOM ONLY and physical dock
+use remain outside the tested scope.
 
 ## 1.4.2 testing pre-release
 
