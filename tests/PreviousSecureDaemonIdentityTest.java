@@ -14,6 +14,10 @@ public final class PreviousSecureDaemonIdentityTest {
                 "the current installed version can be replaced during upgrade");
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.5.7"), BOTH) == 11398,
                 "the 1.5.8 APK's older daemon identity can be replaced during upgrade");
+        check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.5.9"), BOTH) == 11398,
+                "the installed 1.5.9 daemon can be replaced during upgrade");
+        check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.5.10"), BOTH) == 11398,
+                "the installed 1.5.10 daemon can be replaced during upgrade");
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.5.4"), BOTH) < 0,
                 "unknown version must not be killed");
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("pid=11398", "pid=1;bad=x"), BOTH) < 0,

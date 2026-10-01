@@ -233,3 +233,78 @@ The user confirmed this text. Whether the upper glass displayed content or
 black was not established by visual inspection. The user does not plan to use
 BOTTOM ONLY and moved further work on that mode to phase 2. Its remaining
 visual and transition cases are therefore explicitly deferred, not passed.
+
+## v1.5.10 review candidate — 2026-10-01
+
+This phase covers BOTH and TOP. Further BOTTOM ONLY work is deferred to a
+separate phase whose implementation is not yet decided. The original 20-boot
+matrix has been replaced by proportional, observed validation: at most two
+cold boots, only when each answers a specific open question. No release is
+authorized by this change in test scope.
+
+The v1.5.10 source uses versionCode 59 and adds the installed v1.5.9 daemon
+to the narrow replacement allowlist. It lets dashboard text and metrics grow
+vertically instead of clipping inside fixed-height rows. The private socket
+listener now verifies its bound inode owner/type/mode and refuses to remove
+any reachable listener. Host boot/lid and dashboard suites passed; the signed
+APK is aligned, has v1/v2/v3 signatures, and uses the established certificate.
+The exact candidate APK SHA-256 is
+`EFA19FD4333694F8833503860577A12FBEE19152CB4F5D1874F8C2D4B97C3031`.
+
+Before installation, the connected Thor reported v1.5.9, AYN mode 0, Android
+asleep, one root daemon, the private Unix listener and no TCP 3804 listener.
+The CPU property was still unknown. The previous signed v1.5.9 APK and a
+sanitized boot trace were preserved locally. After the user woke the device,
+BOTH had CRTC 181=1 and 243=1, battery 100%, and temperature 28.0 C.
+
+One in-place installation of the exact v1.5.10 APK succeeded without clearing
+app data or rebooting. The old authenticated daemon was replaced only after
+the BOTH/CRTC gate; the new daemon reached `BOOT READY` with one root process
+and the private listener. Both CRTCs stayed active, the compositor and
+SurfaceFlinger PIDs stayed unchanged, and the kernel boot ID stayed unchanged.
+The APK pulled back from the installed package matched the signed host APK
+byte-for-byte by SHA-256.
+The unknown CPU property produced `BOOT_CPU_FIX_NOT_APPLIED`, not a restart.
+A real lower-display screenshot in BOTH shows the feature descriptions and
+CPU metrics readable after scrolling; the warning remains `CPU FIX STATE
+UNKNOWN · NO RESTART`. The reviewed image is
+[`dashboard-both-v1.5.10-review.png`](images/dashboard-both-v1.5.10-review.png),
+SHA-256 `53B5C849313D3E880432CBB9FB1671BC8DBCE9A350EB5D0062981C90B413B538`.
+
+Adversarial IPC checks on this installed build: a temporary app with UID
+10122 could not connect to the private socket owned by the Jesty app UID
+10166; it was removed after the check. A temporary signed instrumentation
+client running as the Jesty app UID 10166 connected but sent no command. The
+daemon closed that client after its 1.5-second read timeout, and one root
+daemon, the private listener, mode 0, and both active CRTCs remained. That
+instrumentation package was also removed. A same-UID instrumentation check
+read the live socket inode as a socket owned by UID 10166 with mode 0600 and
+SELinux label `u:object_r:app_data_file:s0`. The v1.5.10 listener also checks
+type, owner, and mode before accepting clients.
+
+An isolated occupied-path exercise exposed a further Thor-specific defect:
+Android allowed a second `LocalSocket.bind()` to replace the filesystem inode
+even while a `LocalServerSocket` still held the first listener. The test used
+only `jesty-isolated-collision-v2.sock`; it did not touch the active control
+socket. The original inode was 372490 and the replacement 372489. The live
+daemon remained unique and healthy. Because a pre-bind reachability check
+cannot make concurrent starts atomic, v1.5.10 is superseded by v1.5.11 before
+the final physical test. No cold boot has been used in this review phase.
+
+## v1.5.11 final review candidate — 2026-10-01
+
+VersionCode 60 / versionName 1.5.11 adds a cross-process file lock in the
+private app directory. The daemon acquires it before stale-socket cleanup or
+bind and holds it for its lifetime. Lock-file type, owner and mode are checked;
+the migration allowlist adds only the installed v1.5.10 identity. The code
+compiled against Android 34, both host suites passed, the APK is aligned and
+signed with the established certificate (SHA-256 certificate digest
+`727d4850779bed1e51018108e13bc399d4da38cfc68f4f7504120ad5e2dad6fc`).
+The exact signed candidate APK SHA-256 is
+`257910077F61831F2550A986C5BC580224106B29FA26CA5B4D230D4503E13084`.
+
+Physical migration, lock contention, BOTH/TOP transitions, lid guard, and one
+observed cold boot remain pending. The CPU Fix property is still unknown;
+no compositor transition is justified while it stays unknown. No dock is
+available, so external-display behavior remains host-tested only. This is a
+draft PR candidate, not a public release.

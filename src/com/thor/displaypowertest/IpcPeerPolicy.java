@@ -13,4 +13,10 @@ public final class IpcPeerPolicy {
     public static boolean trustedDirectory(int appUid, int filesUid) {
         return appUid >= 10000 && filesUid == appUid;
     }
+
+    public static boolean trustedSocketInode(int appUid, int socketUid,
+            int mode, boolean isSocket) {
+        return appUid >= 10000 && socketUid == appUid && isSocket
+                && (mode & 0777) == 0600;
+    }
 }

@@ -37,9 +37,17 @@ The dashboard does not need to remain open for the fix to stay active.
 
 The old loopback TCP listener is stopped during in-place migration only after
 the legacy daemon's process identity is checked. The migration marker is saved
-only after an authenticated health check. There is no TCP fallback. The app's
-private socket, SELinux access, and migration still require on-device validation
-for 1.5.0; an unsigned build is not evidence that they work on the Thor.
+only after an authenticated health check. There is no TCP fallback. The
+v1.5.10 review candidate replaced the installed v1.5.9 daemon in BOTH without
+a reboot and verified one root daemon and the private listener afterward. A
+different app UID was denied access; a silent app-UID client was closed by the
+read timeout. The remaining physical transitions are still pending; host
+tests alone cannot establish those results.
+The follow-up inode check confirmed the socket's owner, type, 0600 mode and
+app-data SELinux label. An isolated test found that this Thor can replace an
+occupied filesystem socket pathname on a second bind. From v1.5.11 the daemon
+therefore holds a cross-process private file lock before socket cleanup and
+bind; physical lock-contention validation remains pending.
 
 ## Staged boot and lid guard
 
@@ -59,7 +67,9 @@ an open lid inhibit sleep. It waits 1.5 seconds after closure or 500 ms after
 a closed-lid wake and rechecks before `KEYCODE_SLEEP`. After three sleep
 attempts in ten seconds it pauses until the lid opens. It does not require
 Device Admin, Accessibility, SensorManager, or another foreground service.
-The complete physical matrix remains a release gate for 1.5.0.
+The current review covers BOTH and TOP with at most two observed cold boots.
+BOTTOM ONLY is deferred to a separate decision and physical dock behavior is
+not yet available for testing.
 
 ## Why Java and smali are both present
 

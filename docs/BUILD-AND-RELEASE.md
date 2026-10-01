@@ -28,8 +28,12 @@ the repository. Never commit either of them or an APK.
    required user observation. A signed build or host test is not device
    validation. Stop at the first unexpected restart, panel state, or error.
 4. Stage only source and documentation, run `scripts\prepublish.ps1`, review
-   `git diff --cached`, commit, and push a work branch. Keep the candidate APK
-   out of Git; the release asset is uploaded separately.
+   `git diff --cached`, commit, and update the work branch through an authenticated
+   transport that has been verified on this host. The local Windows
+   `git-remote-https.exe` has crashed during push; do not retry `git push`
+   blindly. The `gh api` Git objects/ref route has worked: compare the remote
+   head before upload, update the ref without force, then verify the PR head.
+   Keep the candidate APK out of Git; the release asset is uploaded separately.
 5. Only after the gates in `VALIDATION-1.5.0-PENDING.md` pass, create a tag and
    GitHub pre-release with the exact tested signed APK. Attach only that APK,
    record its SHA-256 and certificate in release documentation, and verify the
@@ -43,10 +47,9 @@ write the release-notes file first):
 ```powershell
 $gh = 'C:\Temp\gh-2.101.0\unpacked\bin\gh.exe'
 & $gh auth status
-git push -u origin HEAD
-& $gh release create v1.5.9 'dist\Jesty-Thor-Fix-1.5.9.apk' --prerelease --title 'Jesty Thor Fix v1.5.9' --notes-file 'docs\RELEASE-NOTES-1.5.9.md'
-& $gh release view v1.5.9
+& $gh release create v1.5.11 'dist\Jesty-Thor-Fix-1.5.11.apk' --prerelease --title 'Jesty Thor Fix v1.5.11' --notes-file 'docs\RELEASE-NOTES-1.5.11.md'
+& $gh release view v1.5.11
 ```
 
 Do not run the release command merely because the branch is pushed. In
-particular, the v1.5.9 candidate is not cleared for public release yet.
+particular, the v1.5.11 candidate is not cleared for public release yet.

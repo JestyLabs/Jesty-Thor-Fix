@@ -11,7 +11,8 @@ public final class PreviousSecureDaemonIdentity {
         String version = field(health, "version");
         if (!field(health, "protocol").equals("2")
                 || !(version.equals("1.5.3") || version.equals("1.5.5")
-                        || version.equals("1.5.6") || version.equals("1.5.7"))
+                        || version.equals("1.5.6") || version.equals("1.5.7")
+                        || version.equals("1.5.9") || version.equals("1.5.10"))
                 || !field(health, "watcher").equals("RUNNING")) return -1;
         if (!field(snapshot, "mode").equals("0")
                 || !field(snapshot, "top_crtc").equals("1")

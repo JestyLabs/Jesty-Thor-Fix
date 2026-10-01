@@ -192,7 +192,7 @@ public final class MainActivity extends Activity {
         fixToggle = makeSwitch("", Color.WHITE, 14f);
         controls.addView(featureToggleRow("TRUE BOTTOM SCREEN OFF",
                 "Actually powers off the lower screen in Top Only mode", fixToggle),
-                new LinearLayout.LayoutParams(-1, dp(46)));
+                new LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         View divider = new View(this);
         divider.setBackgroundColor(0x338B4AE2);
@@ -201,14 +201,14 @@ public final class MainActivity extends Activity {
         dashboardFixToggle = makeSwitch("", Color.WHITE, 14f);
         controls.addView(featureToggleRow("AYN DASHBOARD CPU FIX",
                 "Restarts Android UI/display to apply \u00B7 closes open apps", dashboardFixToggle),
-                new LinearLayout.LayoutParams(-1, dp(46)));
+                new LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT));
         View guardDivider = new View(this);
         guardDivider.setBackgroundColor(0x338B4AE2);
         controls.addView(guardDivider, new LinearLayout.LayoutParams(-1, dp(1)));
         lidGuardToggle = makeSwitch("", Color.WHITE, 14f);
         controls.addView(featureToggleRow("CLOSED-LID WAKE GUARD",
                 "Returns the Thor to sleep after an accidental wake while closed", lidGuardToggle),
-                new LinearLayout.LayoutParams(-1, dp(46)));
+                new LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT));
         content.addView(controls);
 
         LinearLayout cpuPanel = panel();
@@ -218,13 +218,17 @@ public final class MainActivity extends Activity {
         displayValue = text("\u2014", 18f, Color.WHITE, true);
         displayValue.setGravity(Gravity.CENTER_VERTICAL);
         displayValue.setPadding(0, dp(2), 0, 0);
-        cpuPanel.addView(displayValue, new LinearLayout.LayoutParams(-1, dp(26)));
+        displayValue.setMinHeight(dp(26));
+        cpuPanel.addView(displayValue, new LinearLayout.LayoutParams(-1,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
         displayDetail = text("Waiting for hardware\u2026", 10f, MUTED, false);
         displayDetail.setPadding(0, 0, 0, dp(3));
-        cpuPanel.addView(displayDetail, new LinearLayout.LayoutParams(-1, dp(15)));
+        cpuPanel.addView(displayDetail, new LinearLayout.LayoutParams(-1,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
         powerValue = text("BATTERY DRAW  \u2014  \u00B7  UNPLUG USB", 10f, MUTED, true);
         powerValue.setPadding(0, 0, 0, dp(5));
-        cpuPanel.addView(powerValue, new LinearLayout.LayoutParams(-1, dp(18)));
+        cpuPanel.addView(powerValue, new LinearLayout.LayoutParams(-1,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
 
         View statusDivider = new View(this);
         statusDivider.setBackgroundColor(0x338B4AE2);
@@ -238,13 +242,16 @@ public final class MainActivity extends Activity {
         littleValue = addMetric(cpuRow, "LITTLE", "\u2014");
         bigValue = addMetric(cpuRow, "BIG", "\u2014");
         primeValue = addMetric(cpuRow, "PRIME", "\u2014");
-        cpuPanel.addView(cpuRow, new LinearLayout.LayoutParams(-1, dp(40)));
+        cpuPanel.addView(cpuRow, new LinearLayout.LayoutParams(-1,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
         warningValue = text("", 10f, RED, true);
         warningValue.setPadding(0, dp(4), 0, dp(2));
-        cpuPanel.addView(warningValue, new LinearLayout.LayoutParams(-1, dp(22)));
+        cpuPanel.addView(warningValue, new LinearLayout.LayoutParams(-1,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
         lidValue = text("LID UNKNOWN  \u00B7  WAKE GUARD OFF  \u00B7  0 BLOCKED", 9f, MUTED, true);
         lidValue.setPadding(0, dp(2), 0, 0);
-        cpuPanel.addView(lidValue, new LinearLayout.LayoutParams(-1, dp(15)));
+        cpuPanel.addView(lidValue, new LinearLayout.LayoutParams(-1,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
 
         content.addView(cpuPanel);
         return root;
@@ -732,7 +739,8 @@ public final class MainActivity extends Activity {
         TextView value = text(initial, 15f, Color.WHITE, true);
         value.setPadding(0, dp(2), 0, 0);
         metric.addView(value);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, -1, 1f);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         row.addView(metric, params);
         return value;
     }
@@ -741,6 +749,8 @@ public final class MainActivity extends Activity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setMinimumHeight(dp(46));
+        row.setPadding(0, dp(4), 0, dp(4));
 
         LinearLayout copy = new LinearLayout(this);
         copy.setOrientation(LinearLayout.VERTICAL);
@@ -752,7 +762,8 @@ public final class MainActivity extends Activity {
         help.setPadding(0, dp(1), dp(8), 0);
         if (toggle == dashboardFixToggle) dashboardFixHelp = help;
         copy.addView(help);
-        row.addView(copy, new LinearLayout.LayoutParams(0, -1, 1f));
+        row.addView(copy, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         row.addView(toggle, new LinearLayout.LayoutParams(dp(58), dp(40)));
         return row;
     }
