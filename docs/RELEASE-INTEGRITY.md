@@ -11,7 +11,9 @@
 - The exact APK was installed over v1.5.15 without clearing data and passed
   one supervised cold boot on the Thor in BOTH. It reached `BOOT READY` at
   65.479 s with both CRTCs active; the user reported no green flash or
-  artifact. Remote release-asset integrity is recorded after upload.
+  artifact. The GitHub release asset was downloaded after publication:
+  9,147,485 bytes; SHA-256 matched the local signed APK above. GitHub marks
+  v1.5.16 as Latest and not a pre-release.
 
 The supervised checks recorded in `VALIDATION-1.5.16-PENDING.md` passed for
 this exact signed APK. One boot is evidence for this device and configuration,
