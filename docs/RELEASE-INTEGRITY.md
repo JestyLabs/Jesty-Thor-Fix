@@ -173,6 +173,29 @@ rendered BOTH, AYN fake-off, and Jesty true-off from live display hardware
 state; prevented red stock-bug verdicts while the CPU Fix was active; and
 restored both fixes after a real reboot and its expected framework restart.
 
+## 1.5.15 testing pre-release
+
+- Package: `com.thor.displaypowertest`
+- Version code: `64`
+- Version name: `1.5.15`
+- APK: `Jesty-Thor-Fix-1.5.15.apk`
+- APK SHA-256: `093B6AF26E86E072343988C04CBF03256005703D567177E99D308B9BADC71F2B`
+- Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`
+- Verified signing schemes: APK Signature Scheme v1, v2, and v3.
+
+The exact signed and aligned APK was installed on the physical Thor. A copy
+pulled from the device matched this SHA-256 byte for byte. The supervised
+in-place CPU Fix transition and a genuine cold boot of the final APK restored
+property `1` with one compositor restart and one daemon. BOTH remained active
+on both CRTCs; the user reported no green flash, artifact, or loop. AYN
+Dashboard on the lower display left Jesty showing `CPU FIX ACTIVE · CLOCKS
+NORMAL` on the upper display. The expected Android UI restart can look like a
+second boot without changing the kernel boot ID. See
+[`VALIDATION-1.5.0-PENDING.md`](VALIDATION-1.5.0-PENDING.md) for scoped physical,
+host, and unavailable cases. The published download must be checked against
+the SHA-256 above; publication alone does not verify it. This is a testing
+pre-release, while v1.3.0 remains the stable release.
+
 ## 1.4.2 testing pre-release
 
 - Package: `com.thor.displaypowertest`

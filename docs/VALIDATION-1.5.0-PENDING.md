@@ -620,5 +620,35 @@ paths. The approximately 95-second time to `BOOT_READY` needs separate
 performance investigation; it is not a correctness failure in these traces.
 This extension had one genuine cold boot, without a repeat. The older
 BOTH/TOP, IPC, and Wake Guard evidence remains in the chronology above.
-Physical dock testing and BOTTOM ONLY are deferred by user decision. This
-candidate remains a draft PR; no release or stable promotion is authorized.
+Physical dock testing and BOTTOM ONLY are deferred by user decision. The
+maintainer subsequently approved merging this review and publishing the
+exact tested v1.5.15 APK as a testing pre-release, without stable promotion.
+
+### Boot-duration follow-up for independent analysis
+
+The local sanitized trace uses kernel elapsed milliseconds, so the numbers
+below measure time from kernel start, not wall time after the power button.
+The first recorded daemon milestone is `WAIT_FOR_ANDROID` at 64.528 s; the
+trace does not decompose the preceding 64.528 s. From that milestone to
+`APPLY_CPU_FIX` at 77.016 s is 12.488 s. From apply to
+`WAIT_AFTER_COMPOSER` at 87.391 s is 10.375 s. From there to
+`RECONCILE_DISPLAY` at 94.887 s is 7.496 s, and from reconciliation to
+`BOOT_READY` at 95.417 s is 0.530 s. The observed total is 95.417 s.
+
+The vendor composer service declares an `onrestart` of SurfaceFlinger, and
+SurfaceFlinger declares an `onrestart` of zygote. The second visual boot is
+therefore consistent with this one compositor restart cascading through
+Android UI. The single kernel boot ID and one composer PID change support
+that interpretation. These data do **not** establish which part of the
+95 seconds dominates, whether it varies on later boots, or whether the
+device became usable before `BOOT_READY`.
+
+For a later performance investigation, capture monotonic timestamps for
+kernel/Android startup, `sys.boot_completed`, first composer `running`,
+first known AYN mode and three stable CRTC samples, the configured 10-second
+boot grace, property write, composer restart request and new PID, the
+post-composer five-second grace, and final reconciliation. Compare a
+CPU Fix ON boot with a comparable OFF boot only if that extra physical boot
+is justified and supervised. Keep the current safety delays until a measured
+segment shows a safe reduction. No additional boot is required for this
+testing pre-release.
