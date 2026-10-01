@@ -1,4 +1,4 @@
-# 1.5.x validation ledger — candidates, not a release
+# 1.5.x validation ledger — candidates through v1.5.15 release
 
 The exact signed 1.5.0 candidate (versionCode 49, SHA-256
 `627A174FDF18030A012A79C05E5793BDAAF2DDD6DA12AAB116F66DEBA4E274FB`)
@@ -652,3 +652,19 @@ CPU Fix ON boot with a comparable OFF boot only if that extra physical boot
 is justified and supervised. Keep the current safety delays until a measured
 segment shows a safe reduction. No additional boot is required for this
 testing pre-release.
+
+### Stable promotion — 2026-10-01
+
+After reviewing the scoped physical and host evidence, the maintainer
+explicitly requested stable promotion. The existing v1.5.15 GitHub release
+was changed from pre-release to Latest stable with the same tag and APK;
+there was no rebuild, asset replacement, reinstall, or additional boot.
+The GitHub asset ID remained `603811753`, its size remained 9,143,389 bytes,
+and its recorded SHA-256 remained
+`093B6AF26E86E072343988C04CBF03256005703D567177E99D308B9BADC71F2B`.
+The asset downloaded from GitHub had the same hash and the established
+v1/v2/v3 signing certificate. The tag still points to the reviewed release
+commit `8603a9d8648d6123e64512396223e2eb33aa55b2`. The documentation on
+`main` and the JestyLabs profile were updated to identify v1.5.15 as stable.
+The boot-duration investigation above remains a follow-up; BOTTOM ONLY and
+physical dock use remain outside the validated scope.
