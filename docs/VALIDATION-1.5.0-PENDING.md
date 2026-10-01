@@ -468,3 +468,48 @@ physically untested because the vendor property is absent. No `setprop` was
 used to manufacture a known state. Physical dock and BOTTOM ONLY work remain
 future improvements outside this phase by user decision. The PR stays in
 draft; this is not a release or stable promotion.
+
+### CPU Fix absence investigation — 2026-10-01
+
+Read-only checks after the second boot reconfirmed `kalama`, SoC ID `603`,
+platform subtype `0`, a running vendor display composer, and an empty
+`vendor.display.disable_system_load_check`. The boot ID stayed
+`f7062f15-b3fb-44ac-87a6-6dfad529035d`; no property write, compositor
+restart, package install, or further cold boot was performed. The actual
+Thor vendor boot script sets the property only for subtype `1`. Android's
+property service persists `persist.*` properties, not ordinary `vendor.*`
+properties, so an earlier runtime `setprop` does not survive a cold boot.
+
+The on-device `/vendor/lib64/libsdmextension.so` contains the exact property
+name and the diagnostic string `System load check disabled`. A publicly
+available Qualcomm-derived `ResourceImpl` reference initializes
+`disable_system_load_check` to false and changes it only after a successful
+property read of value `1`; its `CheckSystemLoad` path skips the check when
+that flag is true. This supports, but does not prove for the Thor binary,
+that an absent property leaves the check enabled. The local binary was not
+patched or redistributed. Its local SHA-256 is
+`B23AC200FAA14F81DAC69AC3C83CF922A02C237E3FC7A3202B00137622862370`.
+Reference code:
+[`resource_impl.h`](https://github.com/Ambition66/interview_knowledge_base/blob/2d0bb68ef4a2ac12a051094ffa36cdea3234f9d4/clstc_and_stc/sdm/resource_impl.h)
+and [`resource_impl.cpp`](https://github.com/Ambition66/interview_knowledge_base/blob/2d0bb68ef4a2ac12a051094ffa36cdea3234f9d4/clstc_and_stc/sdm/resource_impl.cpp).
+Those files are not a verified source match for this proprietary build.
+
+The code history exposes the behavioral regression directly. Older releases
+called `setprop vendor.display.disable_system_load_check 1` whenever the
+desired value differed from the observed value, including when the property
+was absent, then restarted the vendor composer. v1.5.12 rejects an absent
+property before any write. This prevents the risky speculative transition
+but also means a saved CPU Fix ON preference is **not restored** on this
+firmware after a cold boot. The UI reports `CPU FIX STATE UNKNOWN · NO
+RESTART`; there is no evidence that the fix was applied in this run. The
+earlier focused 0/25 high-clock result belongs to an older build after a
+known property write/restart and must not be carried over as v1.5.12 proof.
+
+To resolve the block, a future change must make an explicit decision about
+the absent-property baseline, apply only when that decision is justified,
+observe one controlled compositor transition with the user present, and
+verify the property, composer PID, daemon recovery, BOTH/TOP CRTCs, and CPU
+clock result. It must not silently relabel empty as `0` or claim success from
+the saved preference. Until then, the draft PR must not be recommended as a
+working CPU Fix or published as a stable release. The user-approved two
+cold-boot limit for this review has already been reached.

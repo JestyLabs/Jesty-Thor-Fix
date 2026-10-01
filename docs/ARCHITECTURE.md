@@ -157,3 +157,12 @@ therefore remains absent after a cold boot on this Thor. Jesty reports its
 effective CPU Fix state as unknown and does not infer `0` or request a
 compositor restart from that absence. The saved ON preference is not proof
 that the vendor fix is applied.
+
+This is an unresolved restore path for the draft v1.5.12 candidate: the
+non-persistent `vendor.display.*` value set by older versions disappears at
+a cold boot, and this Thor's vendor script does not replenish it. Earlier
+versions attempted to set `1` even when the property was absent; v1.5.12
+deliberately blocks that write and compositor restart. The UI's ON switch
+therefore records intent only, while `cpu_fix_phase=UNKNOWN` reports the
+effective verification result. The draft is not ready to claim CPU Fix
+restoration on this firmware.

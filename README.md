@@ -40,8 +40,11 @@ private-socket contention checks, and a controlled closed-lid wake including
 the three-attempt anti-loop limit. The
 post-boot device was left in BOTH with Wake Guard OFF. No green flash or
 second visual boot was observed in either run. The vendor CPU Fix property remained unknown, so the
-saved ON preference does not confirm that fix is applied and the
-compositor-restart path was not exercised. BOTTOM ONLY and physical dock use
+saved ON preference does not confirm that fix is applied. On this Thor's
+firmware the property is absent after a cold boot, so this candidate skips
+automatic CPU Fix application and the compositor-restart path was not
+exercised. Do not rely on this candidate for the Dashboard CPU Fix yet.
+BOTTOM ONLY and physical dock use
 are future improvements, outside this review. This candidate is not a release
 or a replacement for the download above.
 
