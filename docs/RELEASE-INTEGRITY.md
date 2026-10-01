@@ -9,7 +9,8 @@
 - Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`
 - Alignment and v1/v2/v3 signatures passed. Host suites passed after the
   patch and local corrections. The exact APK has **not** been installed or
-  boot-tested on the Thor. The GitHub asset is checked after upload.
+  boot-tested on the Thor. The GitHub pre-release asset was downloaded after
+  upload and matched the local SHA-256 and 9,151,581-byte size.
 
 v1.5.16 remains Latest stable. No APK, signing material or device log is
 committed to Git.
