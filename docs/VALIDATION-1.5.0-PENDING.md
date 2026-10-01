@@ -199,3 +199,37 @@ validation before publication.
 
 The firmware bridge finding is handled privately with the vendor later. This
 ledger does not claim a firmware correction or full device security.
+
+## Review continuation on 2026-10-01
+
+The working tree was clean at `1c45000` on `work/thor-v1.5.9-review` before
+this review. The connected Thor still reports installed versionName 1.5.9 and
+versionCode 58. A read-only snapshot found AYN mode 0, one root `app_process`
+daemon, the private Unix listener in `/proc/net/unix`, no TCP 3804 listener,
+and the CPU property still empty. At the time of the DRM read, Android was
+asleep and both CRTCs were inactive; this is **not** an awake BOTH-mode
+confirmation. The shell UID cannot stat the private socket inode, so its
+owner and mode remain unverified by this check.
+
+Both host suites (`test-boot-lid.ps1` and `test-dashboard.ps1`) passed again.
+The local signed APK still hashes to
+`4A2E2B2E4429C40CD3275767FE325FAF3D01DC5857EDB9BF3EDDD3029F4A0FA0`.
+`git diff --check origin/main...HEAD` passed. This review inspected the
+authenticated socket, old-daemon replacement gate, display coordinator,
+CPU/composer restart path, wake guard, and dashboard effective-state logic.
+It does not close the adversarial IPC or physical transition gates above.
+In particular, the composer relaunch remains untested with the current
+unknown CPU property; do not force it merely to clear a checklist item.
+
+After the user selected BOTTOM ONLY through the physical AYN control, a live
+read found `dual_screen_display_mode=2`, Android awake, CRTC 181 active=1,
+CRTC 243 active=1, and both Android display devices ON. This reproduces the
+hardware combination that v1.5.9 classifies as BOTTOM ONLY with upper
+hardware still active. The daemon remained a single root process and
+`display.power.state=1`; the CPU property stayed unknown. The app running on
+the lower display reported `BOTTOM ONLY · TOP HARDWARE ON` and `Upper panel
+remains active in AYN mode`; its screenshot showed the both-panels-on artwork.
+The user confirmed this text. Whether the upper glass displayed content or
+black was not established by visual inspection. The user does not plan to use
+BOTTOM ONLY and moved further work on that mode to phase 2. Its remaining
+visual and transition cases are therefore explicitly deferred, not passed.
