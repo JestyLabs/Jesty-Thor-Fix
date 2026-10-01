@@ -12,8 +12,9 @@ public final class DisplayHardware {
     private DisplayHardware() {}
 
     public static synchronized boolean apply(boolean on, String reason) {
+        String previousProperty = getProperty();
+        boolean propertyChanged = false;
         try {
-            setProperty(on ? "1" : "0");
             Class<?> surfaceControl = Class.forName("android.view.SurfaceControl");
             Method tokenMethod = surfaceControl.getDeclaredMethod("getPhysicalDisplayToken", long.class);
             Method powerMethod = surfaceControl.getDeclaredMethod("setDisplayPowerMode", IBinder.class, int.class);
@@ -24,11 +25,21 @@ public final class DisplayHardware {
                 DaemonState.setLastAction(reason + ":TOKEN_NULL");
                 return false;
             }
+            // Do not publish a new logical state before we know the physical
+            // display exists. A missing token used to leave this property wrong.
+            setProperty(on ? "1" : "0");
+            propertyChanged = true;
             powerMethod.invoke(null, token, on ? 2 : 0);
             DaemonState.setLastAction(reason + (on ? ":ON" : ":OFF"));
             Log.d(TAG, reason + (on ? " ON" : " OFF"));
             return true;
         } catch (Throwable error) {
+            if (propertyChanged && ("0".equals(previousProperty) || "1".equals(previousProperty))) {
+                try { setProperty(previousProperty); }
+                catch (Throwable rollbackError) {
+                    Log.e(TAG, reason + " property rollback failed", rollbackError);
+                }
+            }
             DaemonState.setLastAction(reason + ":ERROR");
             Log.e(TAG, reason + " display transition failed", error);
             return false;
@@ -43,6 +54,25 @@ public final class DisplayHardware {
             return String.valueOf(get.invoke(null, "display.power.state"));
         } catch (Throwable ignored) {
             return "?";
+        }
+    }
+
+    /** On a failed verification, keep the logical flag aligned to observed hardware. */
+    public static synchronized void alignPropertyWithCrtc(String bottomCrtc) {
+        if (!"0".equals(bottomCrtc) && !"1".equals(bottomCrtc)) return;
+        try { setProperty(bottomCrtc); }
+        catch (Throwable error) { Log.e(TAG, "display property realignment failed", error); }
+    }
+
+    /** Records a pending TOP wake; the delayed repair performs the hardware OFF. */
+    public static synchronized boolean markWakePending() {
+        try {
+            setProperty("0");
+            return true;
+        } catch (Throwable error) {
+            Log.e(TAG, "could not record pending wake repair", error);
+            DaemonState.setLastAction("WAKE_PENDING_PROPERTY_ERROR");
+            return false;
         }
     }
 

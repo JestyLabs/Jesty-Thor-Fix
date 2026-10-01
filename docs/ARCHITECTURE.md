@@ -9,7 +9,9 @@ Jesty Thor Fix is split between a normal Android dashboard and a privileged root
 - `AutoService` starts or reconnects to the daemon, migrates the old protocol
   once, and reconciles saved settings after a normal boot.
 - `BootReceiver` starts that service after a normal boot.
-- `SocketClient` sends one-byte commands to the loopback daemon and requires an explicit `ok=1` acknowledgement.
+- `SocketClient` sends one-byte commands over a filesystem Unix socket in the
+  app's private `files/` directory. It checks the kernel-reported server UID
+  before trusting the reply; `ok=1` indicates command handling, not identity.
 
 The dashboard does not need to remain open for the fix to stay active.
 
@@ -19,10 +21,12 @@ The dashboard does not need to remain open for the fix to stay active.
 
 - watches the Thor dual-screen mode;
 - registers for display events;
-- schedules one generation-aware wake repair;
-- applies lower-display power through hidden `SurfaceControl` APIs;
-- updates the Thor-specific `display.power.state` property;
-- exposes status and one-shot verification over `127.0.0.1:3804`.
+- submits mode changes, boot reconciliation, user toggles, wake repair, and
+  Lid Guard sleep to `DisplayActionCoordinator`;
+- uses `DisplayHardware` as the only writer of the lower-display power state
+  and the Thor-specific `display.power.state` property;
+- exposes status and one-shot verification over the private Unix socket,
+  checking the client app's kernel-reported UID before reading commands;
 - applies the optional vendor system-load-check property for the AYN Dashboard
   CPU Fix and performs the required one-shot display-compositor restart, which
   restarts Android's framework processes and closes open apps;
@@ -31,9 +35,13 @@ The dashboard does not need to remain open for the fix to stay active.
 - schedules a clean daemon relaunch after that display reset so the watcher
   receives fresh Android service binders and true-off remains independent.
 
-The socket binds to loopback, not to an external network interface.
+The old loopback TCP listener is stopped during in-place migration only after
+the legacy daemon's process identity is checked. The migration marker is saved
+only after an authenticated health check. There is no TCP fallback. The app's
+private socket, SELinux access, and migration still require on-device validation
+for 1.5.0; an unsigned build is not evidence that they work on the Thor.
 
-## Staged boot and lid guard (1.4.0 candidate)
+## Staged boot and lid guard
 
 The boot receiver launches the daemon in `BOOT HOLD` with its saved choices.
 The mode watcher, display callback, socket display commands, and lid sleep
@@ -51,11 +59,15 @@ an open lid inhibit sleep. It waits 1.5 seconds after closure or 500 ms after
 a closed-lid wake and rechecks before `KEYCODE_SLEEP`. After three sleep
 attempts in ten seconds it pauses until the lid opens. It does not require
 Device Admin, Accessibility, SensorManager, or another foreground service.
-These hardware behaviors are **not yet physically validated for 1.4.0**.
+The complete physical matrix remains a release gate for 1.5.0.
 
 ## Why Java and smali are both present
 
-The dashboard, telemetry, state model, root launcher, and socket protocol are maintained in Java under `src/`. The previously validated watcher, hidden display callback integration, and wake scheduler remain in smali under `apk/smali/` so their device-specific hidden-API behavior stays byte-stable.
+The dashboard, telemetry, state models, coordinator, root launcher, and socket
+protocol are maintained in Java under `src/`. The smali watcher now only reads
+the AYN mode at its existing 20 ms cadence and hands samples to the Java
+coordinator. The hidden display callback and wake scheduler remain in smali.
+The coordinator throttles its DRM reads; it does not read DRM on every mode sample.
 
 Small Java stubs under `stubs/` allow the Java portion to compile against those smali-owned classes. The build process:
 
@@ -74,7 +86,9 @@ The stable scheduler uses the later of:
 - wake detection + 700 ms;
 - Display 4 ON confirmation + 400 ms.
 
-Before applying OFF it rechecks the current generation, fix state, and display mode. Native mode cancels pending repair and performs a final ON after the transition so a stale OFF cannot win.
+Before applying OFF it rechecks the current generation, fix state, mode, and
+CRTCs. Mode, fix, sleep, and boot transitions invalidate pending work. An
+unknown mode or ambiguous/sleeping CRTCs never trigger a speculative ON.
 
 ## Telemetry
 
@@ -84,6 +98,9 @@ daemon uptime, cluster current/max frequencies, cumulative LITTLE/BIG
 source, wake ID, timing markers, repair result, and last action. Version 1.4.0
 adds `boot_phase`, `display_actions_held`, `lid`, `lid_guard`,
 `lid_guard_state`, `blocked_wakes`, `last_lid_action`, and `external_display`.
+The 1.5.0 candidate adds display intent/effective/action status/generation,
+watcher health, and CPU Fix intent/phase so pending or failed work is not
+reported as confirmed.
 `G` and `H` persist the user-facing guard selection through the Android app;
 the daemon's Hall availability check may reject `G`.
 
@@ -103,7 +120,10 @@ by battery voltage. The UI presents the median of its five latest valid
 samples. The older USB/system-proxy fields remain in `Q` for diagnostics and
 protocol compatibility but are no longer displayed.
 
-`V` reads `/sys/kernel/debug/dri/0/state` once and reports the tested top/bottom CRTCs. Debugfs is not continuously polled.
+`V` performs an explicit one-shot CRTC verification. While the daemon watches
+mode changes, the coordinator samples CRTCs at most every 250 ms in steady
+state, and immediately for mode changes or due wake repairs. The app's visible
+dashboard also samples physical state in its once-per-second `Q` poll.
 
 `R` and `L` enable or disable the Dashboard CPU Fix. They update
 `vendor.display.disable_system_load_check`, restart the display compositor once,

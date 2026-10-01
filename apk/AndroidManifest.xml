@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.thor.displaypowertest"
-    android:versionCode="48"
-    android:versionName="1.4.2">
+    android:versionCode="56"
+    android:versionName="1.5.7">
     <uses-sdk android:targetSdkVersion="25"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.INTERNET"/>
@@ -32,14 +32,5 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
             </intent-filter>
         </receiver>
-        <receiver
-            android:name="com.thor.displaypowertest.ApplyReceiver"
-            android:exported="true"/>
-        <receiver
-            android:name="com.thor.displaypowertest.OffReceiver"
-            android:exported="true"/>
-        <receiver
-            android:name="com.thor.displaypowertest.OnReceiver"
-            android:exported="true"/>
     </application>
 </manifest>

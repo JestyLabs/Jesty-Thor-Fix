@@ -69,6 +69,9 @@ public final class LidGuard {
     public static String lastAction() { return lastAction; }
     public static String externalDisplay() {
         refreshExternalDisplay();
+        return externalDisplayCached();
+    }
+    static String externalDisplayCached() {
         Boolean external = externalDisplay;
         return external == null ? "unknown" : external ? "1" : "0";
     }
@@ -94,7 +97,7 @@ public final class LidGuard {
         if (now - lastWakeScheduledAt < 500L) return true;
         lastWakeScheduledAt = now;
         deferredRepair = true;
-        WakeRepairScheduler.cancel();
+        DisplayActionCoordinator.cancelWakeRepair();
         scheduler.schedule(() -> trySleep("sleep_after_closed_wake", true),
                 500L, TimeUnit.MILLISECONDS);
         return true;
@@ -171,15 +174,16 @@ public final class LidGuard {
             resumeWakeRepair();
             return;
         }
+        boolean slept = false;
         try {
-            Process process = new ProcessBuilder("input", "keyevent", "223").start();
-            if (!process.waitFor(2L, TimeUnit.SECONDS) || process.exitValue() != 0) {
+            if (!DisplayActionCoordinator.requestGuardSleep()) {
                 state = "SLEEP FAILED";
                 lastAction = "sleep_command_failed";
                 return;
             }
             model.recordSleep(now, blockedWake);
             deferredRepair = false;
+            slept = true;
             state = "ACTIVE";
             lastAction = reason;
             Log.d(TAG, reason);
@@ -187,6 +191,8 @@ public final class LidGuard {
             state = "SLEEP FAILED";
             lastAction = "sleep_command_failed";
             Log.e(TAG, "Sleep command failed", error);
+        } finally {
+            if (!slept) resumeWakeRepair();
         }
     }
 
@@ -195,7 +201,7 @@ public final class LidGuard {
         deferredRepair = false;
         if (enabled && !BootSafety.isHeld() && DaemonState.isEnabled()
                 && "1".equals(DaemonState.getMode())) {
-            WakeRepairScheduler.scheduleFromWake();
+            DisplayActionCoordinator.scheduleWakeRepair();
         }
     }
 
@@ -215,19 +221,29 @@ public final class LidGuard {
         Process process = null;
         try {
             process = new ProcessBuilder("dumpsys", "display").start();
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            String line;
-            Boolean external = null;
-            while ((line = reader.readLine()) != null) {
-                if (line.contains("mViewports=")) {
-                    external = ExternalDisplayModel.hasExtraExternalViewport(line);
+            final Process running = process;
+            final java.util.concurrent.atomic.AtomicReference<Boolean> external =
+                    new java.util.concurrent.atomic.AtomicReference<>();
+            Thread reader = new Thread(() -> {
+                try (BufferedReader output = new BufferedReader(
+                        new InputStreamReader(running.getInputStream()))) {
+                    String line;
+                    while ((line = output.readLine()) != null) {
+                        if (line.contains("mViewports=")) {
+                            external.set(ExternalDisplayModel.hasExtraExternalViewport(line));
+                        }
+                    }
+                } catch (Throwable ignored) {
+                    external.set(null);
                 }
-            }
-            reader.close();
+            }, "thor-display-probe-output");
+            reader.setDaemon(true);
+            reader.start();
             if (!process.waitFor(2L, TimeUnit.SECONDS) || process.exitValue() != 0) return null;
-            return external;
+            reader.join(200L);
+            return reader.isAlive() ? null : external.get();
         } catch (Throwable error) { return null; }
-        finally { if (process != null) process.destroy(); }
+        finally { if (process != null) process.destroyForcibly(); }
     }
 
     private static String readLine(File path) {

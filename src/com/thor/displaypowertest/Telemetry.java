@@ -140,11 +140,11 @@ public final class Telemetry {
         try {
             process = new ProcessBuilder("getprop",
                     "vendor.display.disable_system_load_check").start();
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            String value = reader.readLine();
-            reader.close();
-            process.waitFor();
-            return "1".equals(value == null ? "" : value.trim()) ? "1" : "0";
+            if (!process.waitFor(2L, java.util.concurrent.TimeUnit.SECONDS)) return "?";
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream()))) {
+                return PropertyState.binary(reader.readLine(), process.exitValue());
+            }
         } catch (Throwable ignored) {
             return "?";
         } finally {
