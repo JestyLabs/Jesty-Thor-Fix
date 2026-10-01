@@ -304,7 +304,67 @@ The exact signed candidate APK SHA-256 is
 `257910077F61831F2550A986C5BC580224106B29FA26CA5B4D230D4503E13084`.
 
 Physical migration, lock contention, BOTH/TOP transitions, lid guard, and one
-observed cold boot remain pending. The CPU Fix property is still unknown;
-no compositor transition is justified while it stays unknown. No dock is
-available, so external-display behavior remains host-tested only. This is a
-draft PR candidate, not a public release.
+observed cold boot were completed below. The CPU Fix property is still
+unknown; no compositor transition is justified while it stays unknown. No
+dock is available, so external-display behavior remains host-tested only.
+This is a draft PR candidate, not a public release.
+
+### Supervised Thor run — 2026-10-01
+
+The user was beside the Thor and visually observed every display transition.
+Before installation, BOTH was awake with CRTC 181=1 and 243=1. The signed
+v1.5.11 APK was installed once in place; no app data was cleared. The old
+v1.5.10 root daemon PID 16446 was replaced by one v1.5.11 daemon PID 21330.
+The kernel boot ID remained `6518dfe2-cf86-413a-9da7-0a91f6472c03`,
+both CRTCs remained active, and the user observed no blink or anomaly. The
+daemon reached `BOOT READY`. The APK pulled from the installed package matched
+the signed host candidate byte-for-byte by SHA-256. The temporary same-UID
+lock probe found an app-owned regular file with mode 0600 and was denied a
+second-process lock (`second_process_lock=DENIED`); it was then uninstalled.
+
+The physical AYN control changed BOTH to TOP. CRTC 181 remained active and
+243 became inactive. The user saw the lower panel switch off without green
+flash. The app was opened on the upper display and showed `TOP ONLY · TRUE
+OFF` with readable controls and metrics. A short physical sleep/wake in TOP
+restored the same effective state without an observed flash or artifact. The
+physical control then returned to BOTH, where both CRTCs and images were
+active. Reviewed real-device screenshots are
+[`dashboard-top-v1.5.11-review.png`](images/dashboard-top-v1.5.11-review.png)
+(SHA-256 `B057A75B284560F8184F098A63186059E68691A875530A77C41A122C2275480B`)
+and [`dashboard-both-v1.5.11-review.png`](images/dashboard-both-v1.5.11-review.png)
+(SHA-256 `890B7DFFAC03FF68C32500B4B9F6ACE713DF6921C5676A5E88C7AD40C183065C`).
+
+The Thor exposed `/dev/input/event1` as `hall_switch` with `SW_LID`, and
+`getevent -S` read `0000` while open and `0001` while closed. The guard was
+temporarily enabled after `BOOT READY`; the UI reported `LID OPEN · WAKE
+GUARD ON · 0 BLOCKED`. The user made two close/open cycles and saw normal
+sleep and wake. With the lid held closed and the Thor asleep, one controlled
+`KEYCODE_WAKEUP` produced `Awake`, then `Dozing`, then `Asleep` within about
+two seconds, with no loop. After opening, the UI reported `1 BLOCKED` and
+normal BOTH operation. The guard's sleep path invokes `input keyevent 223`;
+the observed return to `Asleep` confirms that path worked on this Thor. The
+guard was switched OFF and the UI confirmed it before the cold boot.
+
+One genuine power-off/power-on cold boot was performed with the user watching.
+The new kernel boot ID was `4824e62f-7523-4b9e-9a55-b24d26c73625`. The
+sanitized local trace for this boot reads `WAIT_FOR_ANDROID` at elapsed 59.116
+s with mode `?`, then `BOOT_CPU_FIX_NOT_APPLIED` at 71.574 s, followed by
+`RECONCILE_DISPLAY`, `BOTTOM_ON_CONFIRMED`, and `BOOT_READY` at 72.183 s.
+There was no speculative panel-ON action while mode was `?`. At completion,
+one root daemon PID 7710 was present, SurfaceFlinger PID 1297 remained
+`running` and stable across later checks, the CPU property was still empty,
+and CRTCs 181/243 were both active. The user reported both screens displaying
+normally, without green flash, artifacts, or a second boot. The post-boot UI
+reported `BOTH SCREENS`, `CPU FIX STATE UNKNOWN · NO RESTART`, and `WAKE
+GUARD OFF`. Device trace and filtered logs remain local under
+`C:\Temp\jesty-thor-159-review`; they are not committed.
+
+No second cold boot was needed. BOTTOM ONLY remains outside this phase. The
+CPU Fix compositor-restart path was **not physically exercised**: its vendor
+property remained unknown throughout, so the staged boot correctly skipped
+it. Thus this run confirms one kernel boot without a compositor restart, but
+does not prove that a future known-state CPU Fix transition avoids the
+previous double-transition appearance. External-display behavior was tested
+by host models only because no dock was available. This scoped review phase
+is complete with those limitations recorded. The PR remains a draft for user
+review; no release or stable promotion follows from this run.

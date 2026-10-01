@@ -31,6 +31,30 @@
   <img src="docs/images/dashboard-true-off-v1.4.2.png" alt="v1.4.2 dashboard on a real Thor: TOP-only true hardware off, both main fixes active, CPU clocks and battery status" width="100%">
 </p>
 
+<details>
+<summary><strong>Unreleased v1.5.11 review: real Thor screenshots and test status</strong></summary>
+
+The draft [v1.5.11 review PR](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/1)
+has passed one observed cold boot, physical BOTH↔TOP and TOP sleep/wake,
+private-socket contention checks, and a controlled closed-lid wake. The
+post-boot device was left in BOTH with Wake Guard OFF. No green flash was
+observed in this run. The vendor CPU Fix property remained unknown, so the
+compositor-restart path was not exercised. BOTTOM ONLY is deferred, and an
+external display has not been tested physically. This candidate is not a
+release or a replacement for the download above.
+
+<p align="center">
+  <img src="docs/images/dashboard-both-v1.5.11-review.png" alt="Unreleased v1.5.11 on the physical Thor after one cold boot: BOTH screens active, Wake Guard off, CPU Fix state unknown" width="100%">
+</p>
+<p align="center">
+  <img src="docs/images/dashboard-top-v1.5.11-review.png" alt="Unreleased v1.5.11 on the physical Thor in TOP mode: lower display hardware truly off" width="100%">
+</p>
+
+The [validation diary](docs/VALIDATION-1.5.0-PENDING.md) separates host tests,
+physical observations, and scenarios still unavailable.
+
+</details>
+
 <p align="center">
   <img alt="AYN Thor" src="https://img.shields.io/badge/device-AYN%20Thor-7C3AED?style=for-the-badge">
   <img alt="Android 13" src="https://img.shields.io/badge/Android-13-3DDC84?style=for-the-badge&amp;logo=android&amp;logoColor=white">
