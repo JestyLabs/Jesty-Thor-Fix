@@ -68,8 +68,8 @@ a closed-lid wake and rechecks before `KEYCODE_SLEEP`. After three sleep
 attempts in ten seconds it pauses until the lid opens. It does not require
 Device Admin, Accessibility, SensorManager, or another foreground service.
 The current review covers BOTH and TOP with at most two observed cold boots.
-BOTTOM ONLY is deferred to a separate decision and physical dock behavior is
-not yet available for testing.
+BOTTOM ONLY and physical dock behavior are deferred to future improvements by
+user decision; neither is a gate for the current BOTH/TOP review.
 
 ## Why Java and smali are both present
 
@@ -144,5 +144,16 @@ SurfaceFlinger's `/system/etc/init/surfaceflinger.rc` declares
 `onrestart restart --only-if-running zygote`. Thus one requested composer
 restart cascades into Android UI/framework restart and USB re-enumeration;
 open apps close, but the kernel boot ID does not change. A timed kernel
-wake-lock covers the transition and a surviving helper releases it after
-recovery. Opening the UI does not issue either command.
+wake-lock covers the transition. From v1.5.12 the relaunched daemon releases
+it after the post-restart readiness and display reconciliation phase; the
+kernel timeout is a bounded fallback if that daemon never starts. The
+post-restart phase gets its own 60-second deadline, and saved Lid Guard intent
+is carried across the relaunch even while BOOT HOLD has kept its watcher off.
+Opening the UI does not issue either command.
+
+On the tested `kalama` SoC 603, subtype 0, the vendor display-boot script only
+sets `vendor.display.disable_system_load_check=1` for subtype 1. The property
+therefore remains absent after a cold boot on this Thor. Jesty reports its
+effective CPU Fix state as unknown and does not infer `0` or request a
+compositor restart from that absence. The saved ON preference is not proof
+that the vendor fix is applied.

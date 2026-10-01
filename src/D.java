@@ -114,6 +114,16 @@ public final class D {
     }
 
     private static void reconcileBoot(boolean afterComposerRestart) {
+        try {
+            reconcileBootPhase(afterComposerRestart);
+        } finally {
+            // A surviving post-restart daemon owns the release. The kernel's
+            // timed lock is the fallback if that daemon never starts.
+            if (afterComposerRestart) releaseTransitionWakeLock();
+        }
+    }
+
+    private static void reconcileBootPhase(boolean afterComposerRestart) {
         BootGateModel gate = new BootGateModel(bootStartedAt, afterComposerRestart);
         BootSafety.phase(afterComposerRestart ? "WAITING AFTER COMPOSER" : "WAITING FOR ANDROID");
         traceBoot(afterComposerRestart ? "WAIT_AFTER_COMPOSER" : "WAIT_FOR_ANDROID");
@@ -307,10 +317,10 @@ public final class D {
 
     private static boolean acquireTransitionWakeLock() {
         try {
-            // Kernel timeout is a safety net; the surviving helper releases it
-            // explicitly as soon as Android's display stack has recovered.
+            // The post-restart phase can need 60 seconds after helper recovery.
+            // The post-restart daemon releases this early after reconciliation.
             Process process = new ProcessBuilder("sh", "-c", "echo '"
-                    + TRANSITION_WAKE_LOCK + " 90000000000' > /sys/power/wake_lock").start();
+                    + TRANSITION_WAKE_LOCK + " 150000000000' > /sys/power/wake_lock").start();
             return process.waitFor() == 0;
         } catch (Throwable error) {
             Log.e("ThorDisplayDaemon", "transition wake lock failed", error);
@@ -331,17 +341,19 @@ public final class D {
             throws Exception {
         String enabled = DaemonState.isEnabled() ? "1" : "0";
         String desiredCpu = cpuFixDesired ? "1" : "0";
-        long phaseStartedAt = bootCoordinatorActive ? bootStartedAt
-                : SystemClock.elapsedRealtime();
+        // During BOOT HOLD the Hall watcher has not been enabled yet. Preserve
+        // its saved preference rather than sampling the inactive watcher.
+        String desiredLidGuard = (bootCoordinatorActive ? bootLidGuardDesired
+                : LidGuard.isEnabled()) ? "1" : "0";
+        // A compositor restart starts a second readiness phase. Do not reuse
+        // the initial boot's 60-second deadline for its five-second grace.
+        long phaseStartedAt = SystemClock.elapsedRealtime();
         int daemonPid = android.os.Process.myPid();
         // The vendor composer restarts SurfaceFlinger and zygote. Keep an
         // eight-second minimum, then relaunch as soon as the Android services
-        // and package manager recover. Keep the original 18-second wake-lock
-        // coverage independently; the post-restart BootGate still requires
-        // stable CRTCs + 5 s before any display action.
-        String command = "(sleep 18; echo '" + TRANSITION_WAKE_LOCK
-                + "' > /sys/power/wake_unlock 2>/dev/null) & "
-                + "sleep 8; for I in $(seq 1 10); do "
+        // and package manager recover. The post-restart daemon releases the
+        // timed wake lock only after reconciliation or safe timeout.
+        String command = "sleep 8; for I in $(seq 1 10); do "
                 + "[ \"$(getprop init.svc.vendor.qti.hardware.display.composer)\" = running ] "
                 + "&& [ \"$(getprop init.svc.surfaceflinger)\" = running ] "
                 + "&& [ \"$(getprop init.svc.zygote)\" = running ] "
@@ -358,7 +370,7 @@ public final class D {
                 + "kill " + daemonPid + "; sleep 1; "
                 + "CLASSPATH=$A app_process / D " + enabled
                 + " hold " + desiredCpu
-                + " " + (LidGuard.isEnabled() ? "1" : "0") + " " + phaseStartedAt
+                + " " + desiredLidGuard + " " + phaseStartedAt
                 + " post"
                 + " >>/data/local/tmp/td032.log 2>&1 &";
         new ProcessBuilder("sh", "-c", command).start();

@@ -47,9 +47,9 @@ write the release-notes file first):
 ```powershell
 $gh = 'C:\Temp\gh-2.101.0\unpacked\bin\gh.exe'
 & $gh auth status
-& $gh release create v1.5.11 'dist\Jesty-Thor-Fix-1.5.11.apk' --prerelease --title 'Jesty Thor Fix v1.5.11' --notes-file 'docs\RELEASE-NOTES-1.5.11.md'
-& $gh release view v1.5.11
+& $gh release create v1.5.12 'dist\Jesty-Thor-Fix-1.5.12.apk' --prerelease --title 'Jesty Thor Fix v1.5.12' --notes-file 'docs\RELEASE-NOTES-1.5.12.md'
+& $gh release view v1.5.12
 ```
 
 Do not run the release command merely because the branch is pushed. In
-particular, the v1.5.11 candidate is not cleared for public release yet.
+particular, the v1.5.12 candidate is not cleared for public release yet.

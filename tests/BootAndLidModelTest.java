@@ -37,6 +37,13 @@ public final class BootAndLidModelTest {
                 "third sample starts post-composer grace");
         check(post.observe(30000L, true, true, "0", "1", "1") == BootGateModel.Result.READY,
                 "five second post-composer grace");
+        BootGateModel latePost = new BootGateModel(59000L, true);
+        latePost.observe(60000L, true, true, "0", "1", "1");
+        latePost.observe(60500L, true, true, "0", "1", "1");
+        latePost.observe(61000L, true, true, "0", "1", "1");
+        check(latePost.observe(66000L, true, true, "0", "1", "1")
+                == BootGateModel.Result.READY,
+                "post-composer grace retains a fresh deadline after a late initial boot");
         BootGateModel timeout = new BootGateModel(0L, false);
         check(timeout.observe(60000L, true, true, "1", "1", "0")
                 == BootGateModel.Result.TIMEOUT, "safety timeout");

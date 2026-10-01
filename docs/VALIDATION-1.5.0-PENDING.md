@@ -306,8 +306,9 @@ The exact signed candidate APK SHA-256 is
 Physical migration, lock contention, BOTH/TOP transitions, lid guard, and one
 observed cold boot were completed below. The CPU Fix property is still
 unknown; no compositor transition is justified while it stays unknown. No
-dock is available, so external-display behavior remains host-tested only.
-This is a draft PR candidate, not a public release.
+physical dock testing is part of a future improvement by user decision, so
+external-display behavior remains host-tested only. This is a draft PR
+candidate, not a public release.
 
 ### Supervised Thor run — 2026-10-01
 
@@ -359,12 +360,111 @@ reported `BOTH SCREENS`, `CPU FIX STATE UNKNOWN · NO RESTART`, and `WAKE
 GUARD OFF`. Device trace and filtered logs remain local under
 `C:\Temp\jesty-thor-159-review`; they are not committed.
 
-No second cold boot was needed. BOTTOM ONLY remains outside this phase. The
+At this v1.5.11 checkpoint, no second cold boot was needed. BOTTOM ONLY remains outside this phase. The
 CPU Fix compositor-restart path was **not physically exercised**: its vendor
 property remained unknown throughout, so the staged boot correctly skipped
 it. Thus this run confirms one kernel boot without a compositor restart, but
 does not prove that a future known-state CPU Fix transition avoids the
 previous double-transition appearance. External-display behavior was tested
-by host models only because no dock was available. This scoped review phase
-is complete with those limitations recorded. The PR remains a draft for user
-review; no release or stable promotion follows from this run.
+by host models only; physical dock behavior and BOTTOM ONLY are separate
+future improvements by user decision. The PR remained a draft for user review;
+no release or stable promotion followed from this run.
+
+### Read-only CPU property investigation — 2026-10-01
+
+The signed v1.5.11 APK and daemon were left unchanged. The Thor reports
+`ro.board.platform=kalama`, SoC ID `603`, and
+`/sys/devices/soc0/platform_subtype_id=0`. The vendor boot script
+`/vendor/bin/init.qti.display_boot.sh` enters the `kalama` branch for SoC
+603 but sets `vendor.display.disable_system_load_check=1` there only when
+`subtype_id=1`. Other properties from that branch are present on the device
+(`vendor.display.target.version=4`, `vendor.display.timed_render_enable=1`),
+while the CPU Fix property is empty. This explains why that script leaves it
+unset on this Thor; it does **not** establish the compositor's effective
+default behavior when the property is absent.
+
+The app preference remains ON but `cpu_fix_phase=UNKNOWN` is the only honest
+effective state. The current safety rule rejects a CPU Fix transition on an
+unknown property. No `setprop`, compositor restart, extra installation, or
+reboot was performed for this investigation. A future CPU Fix design decision
+must address this firmware default explicitly before claiming automatic
+restore or resolving the apparent double-transition behavior.
+
+### Supervised anti-loop check — 2026-10-01
+
+The user returned to the Thor for a no-reboot closed-lid loop check. After the
+cold boot, Linux had renumbered `hall_switch` from `/dev/input/event1` to
+`/dev/input/event0`. An initial read of the old node misleadingly returned
+`SW_LID=0`; no wake command was sent on that basis. `dumpsys input` and the
+`/sys/class/input/event*/device/name` entries identified the new Hall node.
+The daemon's Hall watcher discovers the node by name, rather than retaining
+the old event number. The correct node read `SW_LID=1` with the lid closed.
+
+The guard was temporarily enabled again. With the lid closed and the Thor
+asleep, three controlled `KEYCODE_WAKEUP` attempts returned to `Asleep`.
+The fourth left the Thor `Awake` with the lid still closed, as expected after
+the three-attempt limit within ten seconds. The filtered local log records
+`sleep_after_closed_wake` at 13:52:59.736, 13:53:01.673, and 13:53:03.609,
+with no fourth sleep action. On opening the lid, the UI showed
+`LID OPEN · WAKE GUARD ON · 3 BLOCKED`; normal BOTH operation resumed. The
+guard was switched OFF and the UI confirmed `LID OPEN · WAKE GUARD OFF · 3
+BLOCKED`. Both CRTCs were active, one root daemon remained, and the kernel
+boot ID was unchanged. The reviewed screenshot is
+[`wake-guard-loop-v1.5.11-review.png`](images/wake-guard-loop-v1.5.11-review.png),
+SHA-256 `5ABADFFF604D9BE3CAAB165EADC6C11E2E258FC21421EE8EC8683F464EEA52F9`.
+The source screenshot and filtered log remain local; no APK, log or key was
+added to Git.
+
+## v1.5.12 compositor-transition safety candidate — 2026-10-01
+
+Static review found three defects in the still-unexercised CPU Fix compositor
+path. The transition helper released its wake lock after a fixed 18 seconds,
+even if the post-restart daemon had not reached `READY`. It reused the initial
+boot's 60-second deadline for the post-restart phase. During `BOOT HOLD`, it
+also sampled the inactive Lid Guard watcher rather than carrying the saved
+guard preference to the relaunched daemon.
+
+VersionCode 61 / versionName 1.5.12 corrects these points. The post-restart
+daemon releases the transition wake lock only when its reconciliation ends;
+the timed kernel lock has a 150-second fallback if relaunch fails. The new
+phase gets a fresh 60-second deadline, and the saved Lid Guard intent is
+passed through the relaunch. The migration allowlist adds only the installed
+v1.5.11 identity. Both host suites passed, the APK is aligned and signed with
+the established certificate (SHA-256 certificate digest
+`727d4850779bed1e51018108e13bc399d4da38cfc68f4f7504120ad5e2dad6fc`).
+The exact signed v1.5.12 APK SHA-256 is
+`B4AD98728032F3A987B2F82DF62DE0E5102F13657E7239397BCCACD6F8EB4411`.
+
+The v1.5.12 APK was installed once in place under observation, without a
+kernel reboot. Before installation, BOTH had both CRTCs active, one v1.5.11
+daemon, and boot ID `4824e62f-7523-4b9e-9a55-b24d26c73625`. The user saw
+no blink or visual anomaly. The old daemon was replaced by one v1.5.12 daemon;
+the boot ID stayed the same. The installed APK bytes matched the signed host
+APK SHA-256 above. The UI reported `BOTH SCREENS`, `CPU FIX STATE UNKNOWN · NO
+RESTART`, and Wake Guard OFF. A same-UID second-process lock probe returned
+`DENIED`; its temporary helper was removed.
+
+The second and final permitted cold boot was then performed as a genuine
+power-off followed by the user's physical power-on. The user observed one
+visual boot with no green flash or artifact. Both CRTCs and the stable app
+view subsequently showed BOTH active.
+The new kernel boot ID was `f7062f15-b3fb-44ac-87a6-6dfad529035d`. The
+sanitized local trace records `WAIT_FOR_ANDROID` at elapsed 60.359 s with mode
+`?`, `BOOT_CPU_FIX_NOT_APPLIED` at 72.700 s, `RECONCILE_DISPLAY` at 72.802 s,
+`BOTTOM_ON_CONFIRMED` at 73.208 s, and `BOOT_READY` at 73.310 s. There was no
+speculative panel-ON action while mode was unknown. At READY both CRTCs were
+active, the CPU property remained empty, and exactly one v1.5.12 root daemon
+was present (PID 7802; SurfaceFlinger PID 2524). After a normal idle sleep,
+one wake restored BOTH with both CRTCs active. The reviewed screenshot is
+[`dashboard-both-v1.5.12-review.png`](images/dashboard-both-v1.5.12-review.png),
+SHA-256 `323FC05B6AAE173719C6AF057818E8D37DD80B1759A867D4C2FC13A580FE00B9`.
+It shows stable `BOTH SCREENS`, Wake Guard OFF, and the CPU state unknown.
+Trace, logcat, and source screenshot remain local under
+`C:\Temp\jesty-thor-159-review`, not in Git.
+
+Both allowed cold boots have now been used; no further reboot is part of this
+phase. The known-state CPU Fix transition and compositor relaunch remain
+physically untested because the vendor property is absent. No `setprop` was
+used to manufacture a known state. Physical dock and BOTTOM ONLY work remain
+future improvements outside this phase by user decision. The PR stays in
+draft; this is not a release or stable promotion.

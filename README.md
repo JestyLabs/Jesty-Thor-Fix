@@ -32,22 +32,27 @@
 </p>
 
 <details>
-<summary><strong>Unreleased v1.5.11 review: real Thor screenshots and test status</strong></summary>
+<summary><strong>Unreleased v1.5.12 review: real Thor screenshots and test status</strong></summary>
 
-The draft [v1.5.11 review PR](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/1)
-has passed one observed cold boot, physical BOTH↔TOP and TOP sleep/wake,
-private-socket contention checks, and a controlled closed-lid wake. The
-post-boot device was left in BOTH with Wake Guard OFF. No green flash was
-observed in this run. The vendor CPU Fix property remained unknown, so the
-compositor-restart path was not exercised. BOTTOM ONLY is deferred, and an
-external display has not been tested physically. This candidate is not a
-release or a replacement for the download above.
+The draft [v1.5.12 review PR](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/1)
+has passed two observed cold boots, physical BOTH↔TOP and TOP sleep/wake,
+private-socket contention checks, and a controlled closed-lid wake including
+the three-attempt anti-loop limit. The
+post-boot device was left in BOTH with Wake Guard OFF. No green flash or
+second visual boot was observed in either run. The vendor CPU Fix property remained unknown, so the
+saved ON preference does not confirm that fix is applied and the
+compositor-restart path was not exercised. BOTTOM ONLY and physical dock use
+are future improvements, outside this review. This candidate is not a release
+or a replacement for the download above.
 
 <p align="center">
-  <img src="docs/images/dashboard-both-v1.5.11-review.png" alt="Unreleased v1.5.11 on the physical Thor after one cold boot: BOTH screens active, Wake Guard off, CPU Fix state unknown" width="100%">
+  <img src="docs/images/dashboard-both-v1.5.12-review.png" alt="Unreleased v1.5.12 on the physical Thor after the second cold boot: BOTH screens active, Wake Guard off, CPU Fix state unknown" width="100%">
 </p>
 <p align="center">
   <img src="docs/images/dashboard-top-v1.5.11-review.png" alt="Unreleased v1.5.11 on the physical Thor in TOP mode: lower display hardware truly off" width="100%">
+</p>
+<p align="center">
+  <img src="docs/images/wake-guard-loop-v1.5.11-review.png" alt="Unreleased v1.5.11 on the physical Thor after the closed-lid loop check: Wake Guard off and three blocked wakes" width="100%">
 </p>
 
 The [validation diary](docs/VALIDATION-1.5.0-PENDING.md) separates host tests,
