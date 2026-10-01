@@ -95,6 +95,15 @@ public final class BootAndLidModelTest {
                 == BootGateModel.CpuAction.PROCEED, "matching CPU setting needs no restart");
         check(BootGateModel.cpuAction(true, "?", false)
                 == BootGateModel.CpuAction.FAIL_SAFE, "unknown CPU state fails safe");
+        check(BootGateModel.cpuAction(true, "UNSET", false)
+                == BootGateModel.CpuAction.RESTART_ONCE,
+                "confirmed unconfigured property can be applied once");
+        check(BootGateModel.cpuAction(true, "UNSET", true)
+                == BootGateModel.CpuAction.FAIL_SAFE,
+                "unconfigured property after composer restart must not loop");
+        check(BootGateModel.cpuAction(false, "UNSET", false)
+                == BootGateModel.CpuAction.FAIL_SAFE,
+                "unconfigured property is not confirmed OFF");
     }
 
     private static void lid() {

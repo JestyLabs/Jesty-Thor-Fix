@@ -200,7 +200,7 @@ public final class MainActivity extends Activity {
 
         dashboardFixToggle = makeSwitch("", Color.WHITE, 14f);
         controls.addView(featureToggleRow("AYN DASHBOARD CPU FIX",
-                "Restarts Android UI/display to apply \u00B7 closes open apps", dashboardFixToggle),
+                "Restarts Android UI/display once to apply", dashboardFixToggle),
                 new LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT));
         View guardDivider = new View(this);
         guardDivider.setBackgroundColor(0x338B4AE2);
@@ -771,8 +771,8 @@ public final class MainActivity extends Activity {
     private void updateDashboardFixHelp(boolean enabled) {
         if (dashboardFixHelp == null) return;
         dashboardFixHelp.setText(enabled
-                ? "ON \u00B7 Restarts Android UI/display once at boot \u00B7 closes apps"
-                : "Restarts Android UI/display to apply \u00B7 closes open apps");
+                ? "Restarts Android UI once per boot (may look like a second boot)"
+                : "Restarts Android UI/display once to apply");
         dashboardFixHelp.setTextColor(enabled ? AMBER : MUTED);
     }
 

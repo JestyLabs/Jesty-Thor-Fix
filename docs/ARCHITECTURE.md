@@ -153,16 +153,14 @@ Opening the UI does not issue either command.
 
 On the tested `kalama` SoC 603, subtype 0, the vendor display-boot script only
 sets `vendor.display.disable_system_load_check=1` for subtype 1. The property
-therefore remains absent after a cold boot on this Thor. Jesty reports its
-effective CPU Fix state as unknown and does not infer `0` or request a
-compositor restart from that absence. The saved ON preference is not proof
-that the vendor fix is applied.
-
-This is an unresolved restore path for the draft v1.5.12 candidate: the
-non-persistent `vendor.display.*` value set by older versions disappears at
-a cold boot, and this Thor's vendor script does not replenish it. Earlier
-versions attempted to set `1` even when the property was absent; v1.5.12
-deliberately blocks that write and compositor restart. The UI's ON switch
-therefore records intent only, while `cpu_fix_phase=UNKNOWN` reports the
-effective verification result. The draft is not ready to claim CPU Fix
-restoration on this firmware.
+therefore remains absent after a cold boot on this Thor. v1.5.15 reads it
+with a default marker, preserving a distinct `UNSET` observation internally.
+Public telemetry still reports `?` until the fix is applied; it never
+relabels the absent value as `0` or claims success from saved intent. With
+saved CPU Fix ON, a successful `UNSET` observation permits one guarded write
+to `1` and compositor restart. Read failure or invalid values fail safe.
+The relaunched daemon verifies `1` before reporting the fix as active.
+One supervised cold boot and an in-place transition exercised this path.
+The compositor restart also restarts Android UI, so a second visual boot
+phase can occur without another kernel boot. The roughly 95-second readiness
+time observed in that cold boot remains a performance follow-up.

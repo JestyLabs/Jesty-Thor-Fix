@@ -8,6 +8,7 @@ import com.thor.displaypowertest.DisplayHardware;
 import com.thor.displaypowertest.DisplayActionCoordinator;
 import com.thor.displaypowertest.LidGuard;
 import com.thor.displaypowertest.Telemetry;
+import com.thor.displaypowertest.PropertyState;
 import com.thor.displaypowertest.WakeRepairScheduler;
 import com.thor.displaypowertest.WatcherSupervisor;
 
@@ -144,9 +145,9 @@ public final class D {
             try { Thread.sleep(500L); } catch (InterruptedException ignored) { return; }
         }
         BootGateModel.CpuAction cpuAction = BootGateModel.cpuAction(bootCpuFixDesired,
-                Telemetry.systemLoadFixState(), afterComposerRestart);
+                Telemetry.systemLoadFixObservation(), afterComposerRestart);
         if (cpuAction == BootGateModel.CpuAction.FAIL_SAFE) {
-            // An unknown CPU property must never trigger a compositor restart.
+            // A read failure or invalid CPU property must never trigger a restart.
             // It does not make a separately verified display state unsafe.
             DaemonState.setLastAction("BOOT_CPU_FIX_NOT_APPLIED");
             traceBoot("BOOT_CPU_FIX_NOT_APPLIED");
@@ -239,7 +240,10 @@ public final class D {
     }
 
     private static String setSystemLoadCheckDisabled(boolean enabled) {
-        String value = enabled ? "1" : "0";
+        return setSystemLoadCheckValue(enabled ? "1" : "0");
+    }
+
+    private static String setSystemLoadCheckValue(String value) {
         Process process = null;
         try {
             process = new ProcessBuilder("setprop",
@@ -253,10 +257,21 @@ public final class D {
         } finally { if (process != null) process.destroy(); }
     }
 
+    private static void restoreSystemLoadCheckState(String previous) {
+        // An empty value restores the unconfigured state after a failed
+        // pre-restart write. Never invent a prior binary value for UNSET.
+        String value = PropertyState.UNSET.equals(previous) ? "" : previous;
+        String result = setSystemLoadCheckValue(value);
+        if (!result.startsWith("ok=1")) {
+            Log.e("ThorDisplayDaemon", "could not restore CPU property: " + result);
+        }
+    }
+
     private static synchronized String restartComposerWithSystemLoadCheckDisabled(boolean enabled) {
         final String desired = enabled ? "1" : "0";
-        final String actual = Telemetry.systemLoadFixState();
-        if (!"0".equals(actual) && !"1".equals(actual)) {
+        final String actual = Telemetry.systemLoadFixObservation();
+        boolean unsetEnable = enabled && PropertyState.UNSET.equals(actual);
+        if (!unsetEnable && !"0".equals(actual) && !"1".equals(actual)) {
             return "ok=0;error=CPU_FIX_STATE_UNKNOWN";
         }
         if (!"running".equals(property("init.svc.vendor.qti.hardware.display.composer"))) {
@@ -274,11 +289,18 @@ public final class D {
         if (composerRestartScheduled) {
             return "ok=0;error=COMPOSER_RESTART_BUSY";
         }
-        String propertyResult = setSystemLoadCheckDisabled(enabled);
-        if (!propertyResult.startsWith("ok=1")) return propertyResult;
         if (!acquireTransitionWakeLock()) {
-            setSystemLoadCheckDisabled("1".equals(actual));
             return "ok=0;error=WAKE_LOCK_FAILED";
+        }
+        String propertyResult = setSystemLoadCheckDisabled(enabled);
+        if (!propertyResult.startsWith("ok=1")) {
+            releaseTransitionWakeLock();
+            return propertyResult;
+        }
+        if (!desired.equals(Telemetry.systemLoadFixObservation())) {
+            restoreSystemLoadCheckState(actual);
+            releaseTransitionWakeLock();
+            return "ok=0;error=SETPROP_UNCONFIRMED";
         }
         cpuFixDesired = enabled;
         composerRestartFailed = false;
@@ -294,6 +316,9 @@ public final class D {
                     Thread.sleep(3000L);
                 } catch (Throwable error) {
                     composerRestartFailed = true;
+                    if (beforeComposerPid.equals(composerPid())) {
+                        restoreSystemLoadCheckState(actual);
+                    }
                     Log.e("ThorDisplayDaemon", "composer restart failed", error);
                     releaseTransitionWakeLock();
                 } finally {

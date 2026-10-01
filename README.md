@@ -32,24 +32,30 @@
 </p>
 
 <details>
-<summary><strong>Unreleased v1.5.12 review: real Thor screenshots and test status</strong></summary>
+<summary><strong>Unreleased v1.5.15 review: real Thor screenshots and test status</strong></summary>
 
-The draft [v1.5.12 review PR](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/1)
-has passed two observed cold boots, physical BOTH↔TOP and TOP sleep/wake,
-private-socket contention checks, and a controlled closed-lid wake including
-the three-attempt anti-loop limit. The
-post-boot device was left in BOTH with Wake Guard OFF. No green flash or
-second visual boot was observed in either run. The vendor CPU Fix property remained unknown, so the
-saved ON preference does not confirm that fix is applied. On this Thor's
-firmware the property is absent after a cold boot, so this candidate skips
-automatic CPU Fix application and the compositor-restart path was not
-exercised. Do not rely on this candidate for the Dashboard CPU Fix yet.
-BOTTOM ONLY and physical dock use
-are future improvements, outside this review. This candidate is not a release
-or a replacement for the download above.
+The draft [v1.5.15 review PR](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/1)
+has passed physical BOTH↔TOP and TOP sleep/wake, private-socket checks, and
+closed-lid wake including the three-attempt anti-loop limit. On this Thor,
+the vendor CPU Fix property is absent after a cold boot. v1.5.15 distinguishes
+that condition from a failed read, applies a saved ON preference once, and
+verifies the resulting property after the compositor restart. One supervised
+in-place transition and one genuine cold boot passed. The cold boot reached
+`BOOT READY` at about 95 seconds, with one expected second visual Android UI
+phase, no second kernel boot, and no reported green flash or artifact. With
+AYN Dashboard open on the lower screen afterward, the upper app showed
+`CPU FIX ACTIVE · CLOCKS NORMAL`. This is a scoped physical result, not a
+claim that every boot configuration has been exhaustively tested. The Thor
+was left in BOTH with Wake Guard OFF. With the guard off, `LID UNKNOWN` means
+the Hall watcher is not running; it does not describe the CPU Fix.
+BOTTOM ONLY and physical dock use are future improvements. This candidate
+is not a release or a replacement for the download above.
 
 <p align="center">
-  <img src="docs/images/dashboard-both-v1.5.12-review.png" alt="Unreleased v1.5.12 on the physical Thor after the second cold boot: BOTH screens active, Wake Guard off, CPU Fix state unknown" width="100%">
+  <img src="docs/images/dashboard-both-v1.5.15-review.png" alt="Unreleased v1.5.15 on the physical Thor after the CPU Fix cold boot: BOTH screens active, CPU Fix active and Wake Guard off" width="100%">
+</p>
+<p align="center">
+  <img src="docs/images/ayn-dashboard-both-v1.5.15-review.png" alt="AYN Dashboard on the physical Thor's lower screen after the v1.5.15 cold boot" width="100%">
 </p>
 <p align="center">
   <img src="docs/images/dashboard-top-v1.5.11-review.png" alt="Unreleased v1.5.11 on the physical Thor in TOP mode: lower display hardware truly off" width="100%">

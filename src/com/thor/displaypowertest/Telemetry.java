@@ -135,21 +135,27 @@ public final class Telemetry {
         return "?";
     }
 
-    public static String systemLoadFixState() {
+    public static String systemLoadFixObservation() {
         Process process = null;
         try {
             process = new ProcessBuilder("getprop",
-                    "vendor.display.disable_system_load_check").start();
+                    "vendor.display.disable_system_load_check",
+                    PropertyState.MISSING_MARKER).start();
             if (!process.waitFor(2L, java.util.concurrent.TimeUnit.SECONDS)) return "?";
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream()))) {
-                return PropertyState.binary(reader.readLine(), process.exitValue());
+                return PropertyState.observed(reader.readLine(), process.exitValue());
             }
         } catch (Throwable ignored) {
             return "?";
         } finally {
             if (process != null) process.destroy();
         }
+    }
+
+    public static String systemLoadFixState() {
+        String observed = systemLoadFixObservation();
+        return PropertyState.UNSET.equals(observed) ? "?" : observed;
     }
 
     private static long maxFrequency(int policy) {

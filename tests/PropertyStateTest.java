@@ -8,6 +8,13 @@ public final class PropertyStateTest {
         check("?", PropertyState.binary(null, 0));
         check("?", PropertyState.binary("unexpected", 0));
         check("?", PropertyState.binary("1", 1));
+        check(PropertyState.UNSET, PropertyState.observed(
+                PropertyState.MISSING_MARKER, 0));
+        check(PropertyState.UNSET, PropertyState.observed("", 0));
+        check("?", PropertyState.observed(null, 0));
+        check("?", PropertyState.observed(PropertyState.MISSING_MARKER, 1));
+        check("?", PropertyState.observed("unexpected", 0));
+        check("1", PropertyState.observed("1", 0));
         System.out.println("PropertyStateTest passed");
     }
 

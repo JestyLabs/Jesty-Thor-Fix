@@ -513,3 +513,112 @@ clock result. It must not silently relabel empty as `0` or claim success from
 the saved preference. Until then, the draft PR must not be recommended as a
 working CPU Fix or published as a stable release. The user-approved two
 cold-boot limit for this review has already been reached.
+
+## v1.5.13 CPU Fix restore candidate — 2026-10-01
+
+The user authorized a supervised property `1` / compositor transition to
+resolve the CPU Fix regression. This extends the CPU Fix test scope; it does
+not change the earlier BOTH/TOP, BOTTOM ONLY, or dock decisions. The code now
+uses `getprop NAME DEFAULT` to distinguish a successfully read unconfigured
+property from a failed read or an invalid value. The device command was
+checked read-only: absent returns the default marker; a known property
+returns its value. An unconfigured property with saved CPU Fix ON may schedule
+one composer restart. A read failure, invalid value, or unconfigured state
+after that restart still fails safe. CPU Fix OFF with an unconfigured property
+is never claimed confirmed. The daemon acquires its timed transition wake
+lock before writing and verifies that the property became `1` before
+requesting the composer restart. A failed pre-restart write releases the lock
+and attempts to restore the prior unconfigured state. The post-restart daemon
+must observe `1` before reporting `CONFIRMED`.
+
+The candidate is versionCode 62 / versionName 1.5.13. The migration allowlist
+adds only the installed v1.5.12 identity. Both host suites passed. The signed
+and aligned APK verifies under the established certificate; SHA-256 is
+`B03732EA16E11DDB80FCA6DA47C8C833205C643B13C5F65CC1405AF1A56141B9`.
+The signed APK remains outside Git. The Thor preflight showed v1.5.12, kernel boot ID
+`f7062f15-b3fb-44ac-87a6-6dfad529035d`, composer PID 1337,
+SurfaceFlinger PID 2524, one root daemon PID 7802, property absent, and
+`Awake`; the user confirmed image on both panels. One supervised in-place
+install succeeded. Before app launch, boot ID, composer PID, daemon PID, and
+absent property were unchanged. Launching the new app replaced the daemon,
+then the trace recorded `APPLY_CPU_FIX` at elapsed 1792.310 s with mode 0
+and both CRTCs active. ADB disconnected during the one compositor transition
+and reconnected. The kernel boot ID stayed unchanged; the composer changed
+from PID 1337 to 29410, SurfaceFlinger from 2524 to 29407, and the root
+daemon from 7802 to one v1.5.13 PID 30391. The property read back `1`.
+Trace continued through `WAIT_AFTER_COMPOSER` at 1802.625 s,
+`RECONCILE_DISPLAY` at 1810.131 s, and `BOOT_READY` at 1810.650 s with mode
+0 and both CRTCs active. The installed APK hash matched the host SHA-256
+above byte for byte. The user observed a normal visual return with no green
+flash, artifacts, or unexpected repeated boot; Android showed its ordinary
+USB-mode chooser after reconnection, which was dismissed. The v1.5.13 app
+then showed `BOTH SCREENS` and `CPU FIX ACTIVE · CLOCKS NORMAL`, with Wake
+Guard OFF. The local screenshot SHA-256 is
+`3081875BDB6EDF8F1979EC193AFD58BF2061FBC13966B0DB7FDA3F08DEE08602`.
+
+This verifies the in-place transition, not yet the original AYN Dashboard
+high-clock reproduction or automatic restore after a genuine cold boot. Those
+are the remaining gates before calling the CPU Fix regression fully resolved.
+Stop at the first flash, unexpected panel state, failed daemon recovery, or
+restart loop. No additional kernel reboot has occurred in this extension.
+
+## v1.5.15 CPU Fix restoration and final observed state — 2026-10-01
+
+The preceding v1.5.13 paragraph records the state at that point in the
+chronology. Its two remaining gates were then exercised. With AYN Dashboard
+open on the lower display and Jesty on the upper display, the app showed
+`CPU FIX ACTIVE · CLOCKS NORMAL` and LITTLE/BIG current clocks below their
+reported maxima. This confirms effective property `1` and observed clock
+movement in that session; it is not a broad performance benchmark.
+
+The user requested a shorter, single-line CPU Fix hint at the existing font
+size. The final v1.5.15 hint is `Restarts Android UI once per boot (may look
+like a second boot)` when enabled. The v1.5.14 and v1.5.15 APKs were each
+installed in place under observation. The property stayed `1`, the kernel
+boot ID and composer PID stayed unchanged, and only the daemon was replaced;
+neither text-only install triggered another compositor restart. The final
+candidate is versionCode 64 / versionName 1.5.15. Both host suites passed.
+The exact signed APK and the APK pulled from the Thor have matching SHA-256
+`093B6AF26E86E072343988C04CBF03256005703D567177E99D308B9BADC71F2B`.
+The APK verifies with the established signing certificate, SHA-256
+`727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`.
+APK, trace, logs, and signing material remain outside Git.
+
+One additional supervised power-off/power-on cold boot exercised automatic
+CPU Fix restoration on this final APK. The prior kernel boot ID was
+`f7062f15-b3fb-44ac-87a6-6dfad529035d`; the new ID was
+`85266414-667f-4691-bce0-e3ecaca53068` and did not change during the
+compositor/UI restart. The trace recorded `WAIT_FOR_ANDROID` at elapsed
+64.528 s with mode `?`, both CRTCs active, and CPU property absent;
+`APPLY_CPU_FIX` at 77.016 s in mode 0; `WAIT_AFTER_COMPOSER` at 87.391 s
+with property `1`; `RECONCILE_DISPLAY` at 94.887 s; and `BOOT_READY` at
+95.417 s with mode 0, both CRTCs active, property `1`, and one root daemon.
+The composer changed once from PID 1203 to 8254 and SurfaceFlinger changed
+once to PID 8251. The user observed the expected second visual Android UI
+phase, with no green flash, artifact, restart loop, or second kernel boot.
+Android's USB chooser appeared and was dismissed with CANCEL. The user
+confirmed normal image on both panels, `CPU FIX ACTIVE · CLOCKS NORMAL`,
+and Wake Guard OFF.
+
+AYN Dashboard was reopened on the lower screen after this boot while Jesty
+remained visible on the upper screen. After approximately 30 seconds, Jesty
+still showed `CPU FIX ACTIVE · CLOCKS NORMAL`, with LITTLE 0.90/2.02 GHz
+and BIG 1.65/2.80 GHz in the captured sample. The property, composer PID,
+daemon PID, boot ID, and both CRTCs remained stable. The opportunistic real
+screenshots are [`dashboard-both-v1.5.15-review.png`](images/dashboard-both-v1.5.15-review.png)
+(SHA-256 `615D8977AC057CB7E2276BEF8FA316F961BF5D036B453C2F3A118A03C5A30587`)
+and [`ayn-dashboard-both-v1.5.15-review.png`](images/ayn-dashboard-both-v1.5.15-review.png)
+(SHA-256 `851E162C2C0C094E18AF6B8A1E72E7CF609DC5D8E03F13A884A0277BA1B205C8`).
+No old TOP or Wake Guard scenario was restaged solely to make new images.
+
+The dashboard's `LID UNKNOWN` with Wake Guard OFF reflects that its Hall
+watcher is inactive and has not populated the in-memory lid model. It is
+independent of the CPU Fix. The guard was left OFF and the Thor in BOTH.
+
+The CPU Fix regression is resolved for the observed in-place and cold-boot
+paths. The approximately 95-second time to `BOOT_READY` needs separate
+performance investigation; it is not a correctness failure in these traces.
+This extension had one genuine cold boot, without a repeat. The older
+BOTH/TOP, IPC, and Wake Guard evidence remains in the chronology above.
+Physical dock testing and BOTTOM ONLY are deferred by user decision. This
+candidate remains a draft PR; no release or stable promotion is authorized.

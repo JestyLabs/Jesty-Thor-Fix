@@ -65,6 +65,9 @@ public final class BootGateModel {
 
     public static CpuAction cpuAction(boolean desired, String actual,
             boolean afterComposerRestart) {
+        if (PropertyState.UNSET.equals(actual) && desired && !afterComposerRestart) {
+            return CpuAction.RESTART_ONCE;
+        }
         if (!("0".equals(actual) || "1".equals(actual))) return CpuAction.FAIL_SAFE;
         if (desired == "1".equals(actual)) return CpuAction.PROCEED;
         return afterComposerRestart ? CpuAction.FAIL_SAFE : CpuAction.RESTART_ONCE;
