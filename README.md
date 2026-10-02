@@ -22,8 +22,8 @@
   <img alt="GPL 3" src="https://img.shields.io/badge/code-GPL--3.0-8B5CF6?style=for-the-badge">
 </p>
 
-**Made for the AYN Thor.** No Magisk, terminal, or manual rooting. Set it once;
-the fixes keep working when the app is closed.
+**Made for the AYN Thor.** No Magisk, terminal, or manual rooting.
+Set it once, the fixes keep working when the app is closed or swiped away.
 
 <img width="1080" height="483" alt="image" src="https://github.com/user-attachments/assets/d1f1d875-792b-4b84-8d52-41b307d11ae4" />
 
