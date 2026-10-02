@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>Make the AYN Thor behave the way its screens and lid should.</strong><br>
+  <strong>Make the AYN Thor behave the way it should.</strong><br>
   Truly turn off the lower display in TOP mode, let CPU clocks settle when using
   AYN Dashboard, and keep accidental closed-lid wakes from draining the battery.
 </p>
@@ -24,7 +24,7 @@ the fixes keep working when the app is closed.
 | --- | --- |
 | **True Bottom Screen Off** | In TOP mode, powers down lower-display hardware that the stock mode can leave active behind a black screen. Follows the physical AYN TOP/BOTH switch and repairs true-off after sleep/wake. |
 | **AYN Dashboard CPU Fix** | Stops the reproduced AYN Dashboard behavior that keeps LITTLE/BIG CPU clocks pinned high under light load. It does not set frequencies or governors. |
-| **Closed-Lid Wake Guard** | When enabled, returns an accidental wake to sleep if the lid is still closed. Opening the lid allows normal wake. Pauses after repeated blocked wakes to avoid a loop. **OFF by default.** |
+| **Closed-Lid Wake Guard** | When enabled, returns an accidental wake to sleep if the lid is still closed. Opening the lid allows normal wake. **OFF by default.** |
 
 Use any combination of the three. The app shows the actual display and CPU
 state, so you can tell whether a fix is active.
@@ -33,21 +33,6 @@ state, so you can tell whether a fix is active.
   <img src="docs/images/dashboard-both-v1.5.15-review.png" alt="Jesty Thor Fix dashboard showing its three controls and live BOTH-screen and CPU status" width="780">
 </p>
 <p align="center"><sub>Jesty dashboard on the Thor's upper screen. Physical v1.5.15 capture; the interface is unchanged in v1.5.16.</sub></p>
-
-## What's new in v1.5.16
-
-Boot restoration starts sooner when a private socket was left by the previous
-boot. On one supervised Thor cold boot, Jesty reached READY at **65.5 seconds**
-instead of about **95 seconds** in the earlier v1.5.15 observation. The safety
-waits were kept, and the restart helper now checks the old daemon's identity
-before replacing it. Boot tracing makes future timing problems easier to
-diagnose. These are observed timings, not a speed guarantee.
-
-The signed v1.5.16 APK passed host checks, an in-place upgrade and that
-supervised cold boot. BOTH showed normal image on both screens, CPU Fix was
-active, and no green flash or artifact was reported. Earlier physical tests
-covered TOP true-off, TOP sleep/wake, closed-lid wake return and the guard's
-anti-loop pause. [Read the validation diary](docs/VALIDATION-1.5.16.md).
 
 ## How it works
 
@@ -60,6 +45,8 @@ Enabling the CPU Fix requires **one Android UI/display restart**. Its saved ON
 setting can cause the same restart during a fresh boot, which may look like a
 second boot. The kernel does not reboot. The dashboard reports the fix active
 only after the vendor setting is read back.
+
+
 
 ## Get started
 
@@ -74,8 +61,7 @@ you open the app again.
 ## Compatibility and details
 
 Built for the **AYN Thor**; tested on its Android 13 firmware
-`TKQ1.231222.001` (2026-02-06 build). BOTTOM ONLY and use with an external
-display dock are outside the validated scope. Power savings depend on how you
+`TKQ1.231222.001` (2026-02-06 build). Power savings depend on how you
 use the device; no battery-life percentage is claimed.
 
 [Release notes](docs/RELEASE-NOTES-1.5.16.md) ·
