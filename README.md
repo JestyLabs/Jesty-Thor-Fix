@@ -25,6 +25,8 @@
 **Made for the AYN Thor.** No Magisk, terminal, or manual rooting. Set it once;
 the fixes keep working when the app is closed.
 
+<img width="1080" height="483" alt="image" src="https://github.com/user-attachments/assets/d1f1d875-792b-4b84-8d52-41b307d11ae4" />
+
 Jesty Thor Fix started after I noticed two odd behaviors on my own Thor:
 **TOP mode was not actually shutting down the lower display hardware**, and
 under the same kind of light-load use the **AYN Dashboard could leave the
