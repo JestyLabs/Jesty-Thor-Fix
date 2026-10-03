@@ -143,7 +143,7 @@ mode changes through an observer with a slower 500–1000 ms safety check, use
 repairs, and wake. A `dpms` node is only a candidate if the Thor exposes one
 and it agrees with the physical CRTC state. See the
 [v1.5.17 validation plan](docs/VALIDATION-1.5.17-PENDING.md) for the pending
-measurements.
+measurements and the [roadmap](docs/ROADMAP-AFTER-1.5.17.md) for later changes.
 
 ## Get started
 

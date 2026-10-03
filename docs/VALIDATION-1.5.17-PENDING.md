@@ -2,6 +2,9 @@
 
 **Status:** pre-release; physical validation pending. v1.5.16 remains Latest.
 
+Later safety, timing and resource decisions are tracked in the
+[post-v1.5.17 roadmap](ROADMAP-AFTER-1.5.17.md).
+
 ## Completed on the host
 
 - Reviewed the supplied patch against the v1.5.16 main tree. Corrected the
