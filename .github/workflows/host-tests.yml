@@ -1,0 +1,26 @@
+name: Host model tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  host-tests:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Boot, lid and IPC models
+        shell: pwsh
+        run: ./scripts/test-boot-lid.ps1
+      - name: Dashboard models
+        shell: pwsh
+        run: ./scripts/test-dashboard.ps1

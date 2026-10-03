@@ -1,5 +1,7 @@
 # v1.5.16 validation diary
 
+**Status:** stable release; one supervised physical cold boot recorded.
+
 ## Completed on the host
 
 - Source review and one safety correction to the supplied patch: helper

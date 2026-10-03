@@ -78,11 +78,13 @@ load. The two issues are handled independently.
 
 ## Measured behavior
 
-A short controlled **A/B/A test on physical hardware** compared native TOP mode
-with the corrected state while keeping the same USB connection, power profile,
-brightness, and workload.
+A short controlled **A/B/A test on physical hardware** used v0.32 in TOP mode:
+45 seconds native, 45 seconds with True Bottom Screen Off, then 30 seconds
+native again. AYN Dashboard was out of focus. USB connection, power profile,
+brightness, and workload were held constant. This test **did not isolate the
+AYN Dashboard CPU Fix**.
 
-| Metric | Native TOP | Corrected state |
+| Metric | Native TOP | True bottom off |
 | --- | ---: | ---: |
 | LITTLE mean | 2.016 GHz | 1.616 GHz |
 | BIG mean | 2.707 GHz | 1.654 GHz |
@@ -98,8 +100,50 @@ The power figure is derived from the Thor firmware's USB/battery telemetry
 rather than a calibrated external power meter, so charger losses, sampling
 timing, background work, and battery regulation can affect the result.
 
-Full methodology and raw CSV data are available in the
+This proxy cannot establish the CPU Fix's separate power benefit or a net
+saving for every game. Full methodology and raw CSV data are available in the
 **[benchmark documentation](docs/BENCHMARKS.md)**.
+
+## Safety and resource use
+
+The controls use Android and Thor vendor mechanisms. No code path in this
+release writes CPU frequencies, voltages, thermal limits, firmware, or disk
+partitions. We have not identified a physical-damage path in the reviewed code
+or supervised tests, but cannot guarantee hardware safety on every firmware.
+The practical failures to watch for are software states such as a stuck daemon,
+a boot safety timeout, an incorrect display state, or an Android UI restart.
+
+| Action | What it changes |
+| --- | --- |
+| Lower display power | Calls Android's `setDisplayPowerMode` for the Thor's lower display token; the result is checked against the physical CRTC. |
+| CPU Fix | Sets the runtime vendor property `vendor.display.disable_system_load_check`; it does not set CPU clocks or governors. |
+| Compositor restart | Restarts the Android UI/display stack once when the CPU setting must change. Apps may close; the kernel does not reboot. |
+| Transition wake lock | Keeps the device awake during that handoff, with a 150-second limit and an earlier release on the normal path. It is not permanent. |
+| Closed-Lid Wake Guard | Sends `KEYCODE_SLEEP` (`input keyevent 223`) after confirming the lid remains closed. It is OFF by default. |
+
+The app also has a background cost. Its mode watcher attempts a Settings
+provider read every **20 ms** (up to about 50 per second) while Android is
+running, **even when True Bottom Screen Off is OFF**. With that fix ON and a
+known display mode, its normal hardware check can read the full DRM debugfs
+state twice per 250 ms (up to about eight reads per second). Actual CPU time,
+idle-state impact, and any game frame-time effect have **not** been measured.
+Debugfs reads delaying display commits or causing micro-stutter is a hypothesis,
+not an observed fault.
+
+During real suspend, user-space polling stops and there is no permanent wake
+lock. If the screen is dark but the Thor stays awake for media, downloads, or
+charging, the watcher continues. Wake Guard waits for Hall events rather than
+polling the lid; dashboard polling runs only while the app is open. Estimates
+of under 1% of one CPU core, 20–40 MB daemon RSS, and roughly 7 KB of trace
+per boot are **unverified estimates**, not measured specifications.
+
+After the v1.5.18 safety work, we plan to measure and reduce this cost: watch
+mode changes through an observer with a slower 500–1000 ms safety check, use
+20 ms checks only briefly after display/wake events, and read DRM on changes,
+repairs, and wake. A `dpms` node is only a candidate if the Thor exposes one
+and it agrees with the physical CRTC state. See the
+[v1.5.17 validation plan](docs/VALIDATION-1.5.17-PENDING.md) for the pending
+measurements.
 
 ## Get started
 
