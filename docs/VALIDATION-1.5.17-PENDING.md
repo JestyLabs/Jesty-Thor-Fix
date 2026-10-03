@@ -48,7 +48,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/collect-thor-boot.ps
    before the next, then **one in TOP** after confirming the physical switch
    and expected CRTC state. Keep the same CPU Fix setting and comparable
    conditions. Do not add boots to improve a timing average.
-4. For each boot, save trace and `.1`, events and crash logcat, tombstone list,
+4. For each boot, save trace and `.1`, events, filtered main/system and crash
+   logcat, tombstone list,
    `ro.boottime.*`, broadcast history, `query-receivers`, boot ID, PIDs, CPU
    property, mode and CRTCs. The collector's `-InspectInit` switch also reads
    composer init rules, possible `system_load` writers and Magisk/KernelSU

@@ -71,6 +71,7 @@ Save-AdbRead 'crtc-state' "su -c 'cat /sys/kernel/debug/dri/0/state'"
 Save-AdbRead 'boot-trace' 'cat /data/local/tmp/jesty-thor-boot-trace.log'
 Save-AdbRead 'boot-trace-previous' 'cat /data/local/tmp/jesty-thor-boot-trace.log.1'
 Save-AdbRead 'events-boot' 'logcat -b events -v monotonic -d | grep -E "boot_progress|sf_stop_bootanim|wm_boot_animation_done"'
+Save-AdbRead 'service-boot' 'logcat -b main -b system -v monotonic -d | grep -E "BootReceiver|trusted daemon healthy|trusted daemon boot coordinator active|ThorDisplayAuto|ThorDisplayDaemon"'
 Save-AdbRead 'crash-buffer' 'logcat -b crash -v monotonic -d'
 Save-AdbRead 'tombstone-list' "su -c 'ls -l /data/tombstones'"
 Save-AdbRead 'broadcast-history' 'dumpsys activity broadcasts history'
