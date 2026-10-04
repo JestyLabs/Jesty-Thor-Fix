@@ -20,7 +20,7 @@ public final class ExternalDisplayModel {
             Matcher id = DISPLAY_ID.matcher(viewport);
             if (!id.find()) return null;
             int displayId = Integer.parseInt(id.group(1));
-            if (displayId != 4) return true;
+            if (displayId != ThorHardwareProfile.BOTTOM_LOGICAL_DISPLAY_ID) return true;
         }
         return false;
     }

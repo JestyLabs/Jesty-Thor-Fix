@@ -52,6 +52,50 @@ public final class DaemonLaunchModelTest {
         check(!DaemonLaunchModel.starting("ok=0;error=BOOT_HOLD", "1.5.16", true),
                 "rejections are not starting");
         check(!DaemonLaunchModel.starting(null, "1.5.16", true), "null response");
+
+        String stalled = STARTING.replace("WAITING_FOR_ANDROID", "APPLYING_CPU_FIX")
+                .replace(";fix=", ";phase_ms=90000;fix=");
+        check(DaemonLaunchModel.starting(stalled, "1.5.16", true),
+                "phase_ms does not change the starting classification");
+        check(DaemonLaunchModel.replaceablePid(stalled, "1.5.16", true) == 8123,
+                "a starting phase unchanged for 90 s is stalled");
+        check(DaemonLaunchModel.replaceablePid(stalled.replace("phase_ms=90000", "phase_ms=89999"),
+                "1.5.16", true) == -1, "a phase younger than 90 s is not stalled");
+        check(DaemonLaunchModel.replaceablePid(STARTING, "1.5.16", true) == -1,
+                "a daemon without phase_ms is never stalled");
+        check(DaemonLaunchModel.replaceablePid(stalled.replace("phase_ms=90000", "phase_ms=-1"),
+                "1.5.16", true) == -1, "a negative age is malformed");
+        check(DaemonLaunchModel.replaceablePid(stalled.replace("phase_ms=90000", "phase_ms=9x"),
+                "1.5.16", true) == -1, "a malformed age is not stalled");
+        check(DaemonLaunchModel.replaceablePid(stalled.replace("APPLYING_CPU_FIX", "READY"),
+                "1.5.16", true) == -1, "READY is never stalled");
+        check(DaemonLaunchModel.replaceablePid(stalled.replace("APPLYING_CPU_FIX",
+                "BOOT_SAFETY_TIMEOUT"), "1.5.16", true) == -1,
+                "the safety timeout is a final state, not a stalled phase");
+        check(DaemonLaunchModel.replaceablePid(stalled, "1.5.17", true) == -1,
+                "another version is never replaced through this path");
+        check(DaemonLaunchModel.replaceablePid(stalled, "1.5.16", false) == -1,
+                "a different display intent is not replaced through this path");
+        check(DaemonLaunchModel.replaceablePid(stalled.replace("pid=8123", "pid=99"),
+                "1.5.16", true) == -1, "a low PID is never signalled");
+        check(DaemonLaunchModel.replaceablePid(null, "1.5.16", true) == -1, "null response");
+
+        String failed = STARTING.replace("WAITING_FOR_ANDROID", "HANDOFF_FAILED")
+                .replace(";fix=", ";phase_ms=0;fix=");
+        check(!DaemonLaunchModel.starting(failed, "1.5.16", true),
+                "a failed handover is not a starting coordinator");
+        check(DaemonLaunchModel.replaceablePid(failed, "1.5.16", true) == 8123,
+                "a failed handover is replaceable at once");
+        check(DaemonLaunchModel.replaceablePid(failed.replace(";phase_ms=0", ""),
+                "1.5.16", true) == 8123, "a failed handover needs no phase age");
+        check(DaemonLaunchModel.replaceablePid(failed, "1.5.17", true) == -1,
+                "a failed handover of another version is not replaced here");
+        check(DaemonLaunchModel.replaceablePid(failed, "1.5.16", false) == -1,
+                "a failed handover with another intent is not replaced here");
+        check(DaemonLaunchModel.replaceablePid(failed.replace("protocol=2", "protocol=1"),
+                "1.5.16", true) == -1, "another protocol is not replaced here");
+        check(DaemonLaunchModel.replaceablePid(failed.replace("ok=1;", "ok=0;"),
+                "1.5.16", true) == -1, "a rejection is not replaceable");
         System.out.println("DaemonLaunchModelTest passed");
     }
 

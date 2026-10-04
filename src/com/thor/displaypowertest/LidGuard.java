@@ -106,14 +106,24 @@ public final class LidGuard {
     private static File findHallNode() {
         File[] entries = new File("/sys/class/input").listFiles();
         if (entries == null) return null;
+        java.util.List<File> events = new java.util.ArrayList<>();
         for (File entry : entries) {
-            if (!entry.getName().startsWith("event")) continue;
-            String name = readLine(new File(entry, "device/name"));
-            if ("hall_switch".equals(name)) {
-                return new File("/dev/input/" + entry.getName());
-            }
+            if (entry.getName().startsWith("event")) events.add(entry);
         }
-        return null;
+        String[] names = new String[events.size()];
+        String[] switches = new String[events.size()];
+        for (int i = 0; i < names.length; i++) {
+            names[i] = readLine(new File(events.get(i), "device/name"));
+            switches[i] = readLine(new File(events.get(i), "device/capabilities/sw"));
+        }
+        int chosen = HallNodeModel.choose(names, switches);
+        if (chosen < 0) return null;
+        if (!ThorHardwareProfile.HALL_DEVICE_NAME.equals(names[chosen])) {
+            // Not reached on the tested Thor, which exposes the named device.
+            Log.w(TAG, "named Hall device absent; using the only SW_LID device "
+                    + events.get(chosen).getName());
+        }
+        return new File("/dev/input/" + events.get(chosen).getName());
     }
 
     /** Snapshot the current switch bit before the first event arrives. */

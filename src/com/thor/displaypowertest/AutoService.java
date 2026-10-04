@@ -55,6 +55,21 @@ public final class AutoService extends Service {
                             probe = PServer.probe(enabled);
                         }
                     }
+                    if ((probe == Probe.STARTING || probe == Probe.UNHEALTHY)
+                            && PServer.stopReplaceableSecureDaemonIfSafe(enabled)) {
+                        // A failed handover or a stalled boot phase would
+                        // otherwise hold display actions until the next reboot.
+                        for (int poll = 0; poll < 25 && PServer.reachable(); poll++) {
+                            if (!pause()) return;
+                        }
+                        if (PServer.reachable()) {
+                            Log.e(TAG, "held daemon still listening; replacement held");
+                            return;
+                        }
+                        Log.w(TAG, "held same-version daemon stopped; relaunching in hold");
+                        replacingSecureDaemon = true;
+                        probe = Probe.UNREACHABLE;
+                    }
                     if (probe == Probe.UNHEALTHY) {
                         for (int poll = 0; poll < 150 && probe == Probe.UNHEALTHY; poll++) {
                             if (!pause()) return;

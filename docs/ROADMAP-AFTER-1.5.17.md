@@ -1,7 +1,12 @@
 # Thor roadmap after the v1.5.17 pre-release
 
-**Status:** plan only. No v1.5.17 Thor installation, boot result, or later
-behavior change is claimed here. v1.5.16 remains Latest stable.
+**Status:** v1.5.17 diagnostic session resumed for one graphics investigation
+boot on 2026-10-04; see the
+[validation diary](VALIDATION-1.5.17-PENDING.md). The exact APK was installed
+and two BOTH plus one TOP cold boots were observed. v1.5.16 remains Latest
+stable; v1.5.18 and v1.5.19 were not installed. The owner observed the
+second BOTH boot normal; the Thor later entered ordinary sleep. Later
+behavior changes remain plans.
 
 The order is: measure, correct safety failures, investigate the largest boot
 gain, then consider shorter waits. Keep each performance behavior change in
@@ -17,13 +22,20 @@ boots and one TOP boot, reviewing each before continuing. The visible end of
 the second Android UI phase is the main timing metric; BOOT_READY is separate.
 
 Stop and preserve evidence on any current-boot HELPER_ABORT, late GATE_RESET,
-SurfaceFlinger abort, display mismatch, flash, restart loop or incomplete
-recovery. Preserve app data. v1.5.16 cannot replace a running v1.5.17 daemon
-through its allowlist: a successful downgrade requires a supervised cold boot.
+SurfaceFlinger abort outside the owner's exact early-signature exception,
+display mismatch, flash, restart loop or incomplete recovery. The signature
+and its limits are defined in the validation diary; it still counts as an
+abort for stable promotion. Preserve app data. v1.5.16 cannot replace a running
+v1.5.17 daemon through its allowlist: a successful downgrade requires a
+supervised cold boot.
 
 Measure gate cadence and grace, CPU property timing, helper service marks,
 system_server, boot animation and second BOOT_COMPLETED. The post-restart gate
 may use these signals only if the physical evidence shows they are reliable.
+Use embedded uptimeMillis from first-phase boot events when the logcat
+`-v monotonic` column disagrees; the baseline has a measured +3.55 s
+first-phase offset. Keep paired uptime/wall-clock readings for later
+tombstone correlation and broadcast history for the receiver delay.
 Measure daemon CPU by thread, RSS and display reads in idle-screen-on,
 naturally-awake-screen-off and game conditions. A True Bottom Screen Off ON/OFF
 frame-time A/B using SurfaceFlinger `--timestats` needs separate approval and
@@ -31,10 +43,34 @@ must restore the initial state.
 
 ## 1. Investigate avoiding the compositor restart (read-only first)
 
+The historical runtime property, panel-cycle and composer-restart experiments
+have now been recovered from thread `01a0cbaa-8916-7ee0-8dfb-df13250c180c`.
+Their results and the minimal supervised next-session test are consolidated in
+[CPU Fix restart options](CPU-FIX-RESTART-OPTIONS.md). Runtime ON/OFF still
+needs one confirmed visual compositor/framework restart; the open question is
+whether a property write can precede the **first** composer start at boot.
+
+In the corrected v1.5.16 baseline, the first visual finish was 17.899 s,
+Jesty's receiver ran at 29.340 s, the daemon applied the CPU Fix at
+42.028 s, and the second visual finish was 55.249 s. Roughly 26 s of the
+37.350-second interval between visual finishes involved the current CPU Fix
+gate and compositor restart. This supports investigating an earlier property
+write; it does not justify shortening the gate grace.
+
 Inspect the compositor's init class/trigger, `ro.boottime` against
 `post-fs-data`, vendor scripts that could overwrite the CPU property, and
 read-only Magisk/KernelSU presence. Investigate the device's `uname -r` and
 matching DRM source before claiming that debugfs reads block modesets.
+
+Read-only Thor observation on 2026-10-04: `qti_display_boot` is a `class main`
+one-shot service started by `post-fs-data` at approximately 3.701 s; the vendor
+composer starts at approximately 4.074 s. The vendor script sets
+`vendor.display.disable_system_load_check=1` only for `subtype_id=1`; this Thor
+reports Kalama SOC 603 and `subtype_id=0`. These observations explain why that
+vendor branch does not set the property here. They do not establish that a
+third-party post-fs-data script can reliably win the startup race. ADB shell
+has no `su` and cannot inspect `/data/adb`, so Magisk/KernelSU presence remains
+unconfirmed. No persistent system change was made.
 
 If setting the property before composer startup is viable, a future opt-in
 must prevent boot loops, remove all persistent scripts when the app is
@@ -44,6 +80,17 @@ if automatic removal cannot be proven, reject that design. Any persistent
 system change requires the owner's explicit decision before implementation.
 
 ## 2. v1.5.18 safety correction
+
+**Source status:** the helper observer, `phase_ms` and the stalled-phase
+replacement below are integrated in the v1.5.18 source and passed host tests
+and an unsigned build. They are not signed, installed or run on a Thor. The
+post-restart readiness signal is not included.
+Release only after step 0's v1.5.17 evidence. The source narrows the plan
+below: only an abort that proves the compositor never restarted (exit 10, with
+the watcher still running) recovers in place. Any other abort may follow a
+framework restart that leaves the old daemon's watcher and display callback
+stale, so that daemon holds as `HANDOFF FAILED` and is replaced by
+`AutoService`. See ARCHITECTURE.md.
 
 - The daemon observes the compositor helper child. On an error exit while the
   daemon remains alive, it runs a safe post-restart gate, marks

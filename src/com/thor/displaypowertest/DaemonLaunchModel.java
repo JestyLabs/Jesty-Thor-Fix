@@ -45,16 +45,48 @@ public final class DaemonLaunchModel {
      * BOOT SAFETY TIMEOUT is deliberately not a starting phase.
      */
     public static boolean starting(String response, String version, boolean expectedFix) {
-        if (response == null || !response.startsWith("ok=1;")) return false;
-        if (!"2".equals(field(response, "protocol"))
-                || !version.equals(field(response, "version"))
-                || !field(response, "pid").matches("[1-9][0-9]{0,8}")
-                || !(expectedFix ? "1" : "0").equals(field(response, "fix"))) return false;
+        if (!sameIdentity(response, version, expectedFix)) return false;
         String phase = field(response, "boot_phase");
         for (String candidate : BOOT_PHASES) {
             if (candidate.equals(phase)) return true;
         }
         return false;
+    }
+
+    /**
+     * A boot phase that has not changed for this long is stalled: every gate
+     * phase has its own 60-second timeout and a normal compositor handover
+     * replaces the daemon within roughly 10-20 seconds.
+     */
+    public static final long STUCK_PHASE_MS = 90000L;
+
+    /** Held phase of a daemon whose compositor handover failed (from v1.5.18). */
+    public static final String HANDOFF_FAILED_PHASE = "HANDOFF_FAILED";
+
+    /**
+     * PID of an authenticated same-version, same-intent daemon that asks to be
+     * replaced (HANDOFF_FAILED) or whose starting phase has stalled, or -1. A
+     * response without a numeric phase_ms (any daemon before 1.5.18) is never
+     * classified as stalled. BOOT SAFETY TIMEOUT is never replaced here.
+     */
+    public static int replaceablePid(String response, String version, boolean expectedFix) {
+        if (!sameIdentity(response, version, expectedFix)) return -1;
+        boolean replaceable = HANDOFF_FAILED_PHASE.equals(field(response, "boot_phase"));
+        if (!replaceable && starting(response, version, expectedFix)) {
+            String age = field(response, "phase_ms");
+            replaceable = age.matches("[0-9]{1,12}") && Long.parseLong(age) >= STUCK_PHASE_MS;
+        }
+        if (!replaceable) return -1;
+        int pid = Integer.parseInt(field(response, "pid"));
+        return pid > 100 ? pid : -1;
+    }
+
+    private static boolean sameIdentity(String response, String version, boolean expectedFix) {
+        return response != null && response.startsWith("ok=1;")
+                && "2".equals(field(response, "protocol"))
+                && version.equals(field(response, "version"))
+                && field(response, "pid").matches("[1-9][0-9]{0,8}")
+                && (expectedFix ? "1" : "0").equals(field(response, "fix"));
     }
 
     public static boolean validBootId(String value) {

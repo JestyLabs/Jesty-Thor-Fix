@@ -10,6 +10,8 @@ the repository. Never commit either of them or an APK.
    version mismatch. Add the previously installed daemon version to the
    narrow `PreviousSecureDaemonIdentity` migration allowlist and test it;
    never accept an arbitrary reported version or kill an unidentified PID.
+   The in-app updater depends on this: an updated app can replace the running
+   daemon only if the new build allowlists the version being replaced.
 2. Run the host tests and build:
 
    ```powershell
@@ -40,7 +42,9 @@ the repository. Never commit either of them or an APK.
    the agreed gates in `VALIDATION-1.5.16.md` pass may that exact
    artifact be considered for stable promotion. v1.5.16 completed the scoped
    supervised checks and received maintainer approval for stable release.
-   Attach only that APK,
+   Attach only that APK, named exactly `Jesty-Thor-Fix-<version>.apk` with
+   the tag `v<version>` (the in-app updater accepts no other asset name and
+   requires GitHub's asset SHA-256 digest),
    record its SHA-256 and certificate in release documentation, and verify the
    downloaded asset hash. If staged as a pre-release, promote the **same release
    and unchanged APK** to stable after maintainer approval of the scoped

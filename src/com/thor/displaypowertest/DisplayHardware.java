@@ -7,7 +7,6 @@ import java.lang.reflect.Method;
 
 public final class DisplayHardware {
     private static final String TAG = "ThorDisplayDaemon";
-    private static final long BOTTOM_DISPLAY_ID = 0x40446d4a32a16584L;
 
     private DisplayHardware() {}
 
@@ -20,7 +19,8 @@ public final class DisplayHardware {
             Method powerMethod = surfaceControl.getDeclaredMethod("setDisplayPowerMode", IBinder.class, int.class);
             tokenMethod.setAccessible(true);
             powerMethod.setAccessible(true);
-            IBinder token = (IBinder) tokenMethod.invoke(null, BOTTOM_DISPLAY_ID);
+            IBinder token = (IBinder) tokenMethod.invoke(null,
+                    ThorHardwareProfile.BOTTOM_PHYSICAL_DISPLAY_ID);
             if (token == null) {
                 DaemonState.setLastAction(reason + ":TOKEN_NULL");
                 return false;

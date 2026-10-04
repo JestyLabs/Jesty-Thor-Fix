@@ -30,7 +30,11 @@ public final class PreviousSecureDaemonIdentityTest {
                 "the installed 1.5.15 daemon can be replaced during upgrade");
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.5.16"), BOTH) == 11398,
                 "the installed 1.5.16 daemon can be replaced during upgrade");
-        check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.5.17"), BOTH) == -1,
+        check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.5.17"), BOTH) == 11398,
+                "the installed 1.5.17 daemon can be replaced during upgrade");
+        check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.5.18"), BOTH) == 11398,
+                "the installed 1.5.18 daemon can be replaced during upgrade");
+        check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.5.19"), BOTH) == -1,
                 "the current version is never treated as an older daemon");
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.5.4"), BOTH) < 0,
                 "unknown version must not be killed");
