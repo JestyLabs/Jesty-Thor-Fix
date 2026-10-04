@@ -388,6 +388,7 @@ public final class CpuFixController {
         ProcessBuilder helper = new ProcessBuilder("sh", "-c", command);
         // Launch timing belongs to this daemon only; never pass it to the successor.
         helper.environment().keySet().removeIf(name -> name.startsWith("JESTY_"));
+        helper.environment().remove("JT");
         return helper.start();
     }
 }

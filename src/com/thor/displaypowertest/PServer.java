@@ -29,30 +29,19 @@ public final class PServer {
                 -1L, -1L, "?", -1L);
     }
 
-    /**
-     * Timing fields travel as environment variables so the identity-checked
-     * command line keeps its existing shape. All values are numeric or an enum name.
-     */
+    /** Timing fields use one compact environment value; argv identity stays fixed. */
     public static boolean startDaemon(boolean enabled, boolean bootHold,
             boolean dashboardFix, boolean lidGuard, long receiverAtMs, long serviceAtMs,
             String socketState, long launchWaitMs) {
-        String state = enabled ? "1" : "0";
-        String safeSocket = socketState != null && socketState.matches("[A-Z_]{1,32}")
-                ? socketState : "UNKNOWN";
-        // Root output goes to the shared log only when it is not a planted
-        // link or foreign file; otherwise it is discarded.
-        String command = RootLogFiles.SHELL_GUARD + ";"
-                + "L=" + RootLogFiles.DAEMON_LOG + ";safe_log \"$L\"||L=/dev/null;"
-                + "A=$(pm path com.thor.displaypowertest | head -n 1);A=${A#*:};"
-                + "JESTY_RECEIVER_MS=" + Math.max(-1L, receiverAtMs)
-                + " JESTY_SERVICE_MS=" + Math.max(-1L, serviceAtMs)
-                + " JESTY_SOCKET_STATE=" + safeSocket
-                + " JESTY_LAUNCH_WAIT_MS=" + Math.max(-1L, launchWaitMs)
-                + " CLASSPATH=$A "
-                + "app_process / D " + state + (bootHold ? " hold " : " run ")
-                + (dashboardFix ? "1" : "0") + " " + (lidGuard ? "1" : "0")
-                + " >>\"$L\" 2>&1 &";
-        return send(command, "daemon launch submitted enabled=" + enabled);
+        try {
+            String command = DaemonLaunchScript.command(RootLogFiles.DAEMON_LOG,
+                    enabled, bootHold, dashboardFix, lidGuard,
+                    receiverAtMs, serviceAtMs, socketState, launchWaitMs);
+            return send(command, "daemon launch submitted enabled=" + enabled);
+        } catch (IllegalArgumentException error) {
+            Log.e(TAG, "daemon launch rejected before bridge call", error);
+            return false;
+        }
     }
 
     public static boolean stopLegacyDaemon() {

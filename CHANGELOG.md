@@ -1,10 +1,27 @@
 # Changelog
 
-## 1.5.19 (host-built refactor candidate; not validated on the Thor)
+## 1.5.20 (unsigned host build; not installed on the Thor)
 
-Structure only; no intended behavior change. The 1.5.18 safety changes remain a
-separate commit for review. One 1.5.19 install may validate both candidates on
-the Thor, but neither is considered physically validated yet.
+- Shorten the root bridge daemon launch command and bound it to 255 characters.
+  Four timing environment variables become one compact `JT` value; the daemon
+  expands it back into the existing trace fields. The root log pathname still
+  rejects links and files not owned by the launcher before redirection.
+- Add a pure command/metadata test including the longest possible timing values.
+  The 1.5.19 candidate's command was substantially longer and the root bridge
+  reported submission but no successor daemon started. A bridge command-size
+  limit is a hypothesis, not a confirmed root cause; this fix needs a signed
+  build and a supervised, reversible in-place test before boot testing.
+- Include 1.5.19 in the narrow older-daemon migration allowlist. The installed
+  Thor was safely returned to 1.5.17 after the failed 1.5.19 migration.
+
+## 1.5.19 (failed supervised in-place migration; not suitable for release)
+
+The 1.5.18 safety changes remain a separate local commit for review. A
+supervised 1.5.19 install in BOTH on 2026-10-04 did not launch the new daemon
+after replacing the 1.5.17 daemon. The display and compositor stayed normal,
+but the app had no active root daemon. The 1.5.17 APK was reinstalled without
+clearing data; its daemon became healthy again without a reboot. Do not promote
+or install 1.5.19 again. See the 1.5.19 validation diary for evidence.
 
 - The root daemon's former static `D` code is split into objects with explicit
   constructor dependencies, built by `DaemonRuntime`: `BootSession`,

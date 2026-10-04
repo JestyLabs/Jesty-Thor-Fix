@@ -38,11 +38,12 @@ public final class DaemonRuntime {
     public void run() throws Exception {
         boolean coordinating = session.active();
         if (coordinating) {
+            String[] launch = DaemonLaunchScript.traceFields(System.getenv("JT"));
             trace.mark("DAEMON_MAIN", "launch=" + args.launchKind()
-                    + ";receiver_ms=" + SystemProbe.envNumber("JESTY_RECEIVER_MS")
-                    + ";service_ms=" + SystemProbe.envNumber("JESTY_SERVICE_MS")
-                    + ";socket=" + SystemProbe.envToken("JESTY_SOCKET_STATE")
-                    + ";launch_wait_ms=" + SystemProbe.envNumber("JESTY_LAUNCH_WAIT_MS")
+                    + ";receiver_ms=" + launch[0]
+                    + ";service_ms=" + launch[1]
+                    + ";socket=" + launch[2]
+                    + ";launch_wait_ms=" + launch[3]
                     + ";process_start_ms=" + probe.processStartMs());
         }
         BootSafety.begin(coordinating);

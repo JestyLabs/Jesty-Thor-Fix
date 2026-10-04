@@ -113,6 +113,7 @@ New-Item -ItemType Directory -Path $output | Out-Null
 $sources = @(
     (Join-Path $repository 'src\com\thor\displaypowertest\BootGateModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\DaemonLaunchModel.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\DaemonLaunchScript.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\LidGuardModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\ExternalDisplayModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\DisplayDecisionModel.java'),
@@ -131,6 +132,7 @@ $sources = @(
     (Join-Path $repository 'tests\BootAndLidModelTest.java'),
     (Join-Path $repository 'tests\BootLatencyTest.java'),
     (Join-Path $repository 'tests\DaemonLaunchModelTest.java'),
+    (Join-Path $repository 'tests\DaemonLaunchScriptTest.java'),
     (Join-Path $repository 'tests\DisplayDecisionModelTest.java'),
     (Join-Path $repository 'tests\DisplayGenerationModelTest.java'),
     (Join-Path $repository 'tests\IpcPeerPolicyTest.java'),
@@ -149,6 +151,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Boot/lid tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Boot latency tests failed.' }
 & java -cp $output DaemonLaunchModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Daemon launch model tests failed.' }
+& java -cp $output DaemonLaunchScriptTest
+if ($LASTEXITCODE -ne 0) { throw 'Daemon launch script tests failed.' }
 & java -cp $output PropertyStateTest
 if ($LASTEXITCODE -ne 0) { throw 'Property-state tests failed.' }
 & java -cp $output DisplayDecisionModelTest

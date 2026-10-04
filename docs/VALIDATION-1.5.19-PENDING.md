@@ -1,11 +1,46 @@
 # v1.5.18 + v1.5.19 combined physical candidate
 
-**Status (2026-10-04): host-only.** The 1.5.18 safety/updater patch and the
+**Status (2026-10-04): failed supervised in-place migration; stopped.** The 1.5.18 safety/updater patch and the
 1.5.19 structural refactor were integrated as separate commits. Both host
 test scripts pass on the combined tree. The v1.5.19 APK builds, aligns and
-was signed with the established certificate. No installation, runtime update
-or cold boot was done.
-The Thor still has v1.5.17 installed as a pre-release. v1.5.16 remains Latest.
+was signed with the established certificate. The 1.5.19 installation was
+attempted once in BOTH and rolled back to 1.5.17 without clearing data or
+rebooting. No 1.5.19 cold boot or feature validation was done. v1.5.16 remains
+Latest.
+
+## Supervised attempt and safe rollback — 2026-10-04
+
+- Before installation: Android 13, v1.5.17/versionCode 66, battery 88%, AYN
+  mode BOTH (`0`), both CRTCs 181/243 active, CPU property `1`, one root daemon
+  PID 8608, composer PID 7438 and boot ID
+  `599c48a0-4d31-4d90-91b0-287eb5c8577d`.
+- The exact signed 1.5.19 APK below passed SHA-256, v1/v2/v3 signature and
+  alignment checks. `adb install -r` succeeded. VersionCode 68 was visible;
+  boot ID, compositor PID, CPU property and both CRTCs were unchanged.
+- Opening the app started `AutoService` at 18:38:41 local. It identified and
+  stopped the old authenticated daemon at 18:39:11. The root bridge reported
+  new-daemon submissions at 18:39:11 and 18:39:41, but no `app_process / D`
+  successor or `READY` appeared. At 18:40:11 the service logged `trusted
+  daemon did not pass health check`. The 1.5.19 migration therefore failed;
+  further mode, Wake Guard and boot tests were stopped.
+- The owner confirmed normal images on both screens. The root daemon log was
+  mode 0600 and could not be read through unprivileged ADB. The full logcat and
+  read-only before/after collectors were saved under `C:\Temp` outside Git.
+- The signed 1.5.17 APK with the same certificate was installed with
+  `adb install -r -d`, without data clearing. After opening the app, it started
+  one root daemon PID 26583 and logged `READY 1.5.17` and `trusted daemon
+  healthy` at 18:44:06. The boot ID and compositor PID were still unchanged,
+  CPU property was `1`, both CRTCs were active, and the owner confirmed BOTH
+  visually normal. There was no cold boot.
+
+The root cause remains unproved. One concrete difference is that the bridge
+launch command grew from roughly 239 to 359 characters when the root-log guard
+was added. The vendor bridge acknowledges submission but does not expose the
+shell's exit status. A command-size limit or truncation is a hypothesis;
+v1.5.20 shortens and tests the command before another supervised attempt.
+
+The remaining numbered test sequence below is **deferred**. It is not evidence
+that 1.5.19 passed any of those checks.
 
 Exact candidate kept outside Git:
 `dist/Jesty-Thor-Fix-1.5.19.apk`, package `com.thor.displaypowertest`,

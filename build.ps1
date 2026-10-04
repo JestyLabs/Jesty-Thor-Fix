@@ -8,7 +8,7 @@ param(
     [string] $KeystorePath = $env:JESTY_KEYSTORE,
     [string] $PasswordFile,
     [string] $KeyAlias = 'thor-display-power-auto',
-    [string] $ArtifactBaseName = 'Jesty-Thor-Fix-1.5.19'
+    [string] $ArtifactBaseName = 'Jesty-Thor-Fix-1.5.20'
 )
 
 $ErrorActionPreference = 'Stop'
