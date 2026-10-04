@@ -1,8 +1,9 @@
 # v1.5.20 daemon launch repair candidate
 
-**Status (2026-10-05): signed in-place handover, BOTH/TOP and TOP wake passed;
-cold boot and remaining feature checks pending.** The Thor finished in visually
-confirmed BOTH with v1.5.20 installed. Do not treat this as a boot validation.
+**Status (2026-10-05): signed in-place handover, BOTH/TOP, TOP wake, one
+supervised TOP cold boot and available Wake Guard checks passed.** The Thor
+finished awake in BOTH with v1.5.20, CPU Fix active and Wake Guard OFF. This
+is not yet stable-release validation.
 
 ## Reason for this candidate
 
@@ -30,7 +31,7 @@ fields. No display, boot gate, CPU property or Wake Guard behavior changed.
   `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`.
   Exact signed APK SHA-256:
   `AC4EC453863935F8ECA674CE5F6F2B0418C1AEFEC081987B247AE7E6A10C79C6`.
-  The APK remains outside Git and has not been installed.
+  The APK remains outside Git; the exact signed file was installed in place.
 - The launch command was reviewed for fixed arguments, bounded length, safe
   log fallback and a single `pm path` result on this Thor. The root daemon
   started successfully, which exercises the shell on-device. Prepublication
@@ -64,15 +65,65 @@ fields. No display, boot gate, CPU property or Wake Guard behavior changed.
 The failed v1.5.19 launch and successful shorter v1.5.20 launch support the
 command-length hypothesis, but do not prove the bridge's exact limit.
 
+## Supervised TOP cold boot (2026-10-05)
+
+- Before shutdown: v1.5.20, CPU property `1`, mode TOP, CRTC 181=`1`,
+  243=`0`, owner-confirmed image on the superior panel and the lower panel
+  dark. The exact signed v1.5.17 APK with published SHA-256 was ready for a
+  data-preserving rollback. One `reboot -p` power-off and one physical power-on
+  produced boot ID `d33386ae-e35e-4b64-8bf8-63ebfdc1e699`.
+- The first daemon started at elapsed 33.656 s with
+  `socket=STALE_PREVIOUS_BOOT` and `launch_wait_ms=74`; the old 30 s socket
+  wait did not recur. CPU property was initially unknown, written to `1` at
+  44.897 s, and verified at 44.909 s. One compositor restart was requested.
+  The helper found the new compositor, SurfaceFlinger, zygote and
+  system_server, then launched one successor daemon. There was no helper abort,
+  daemon duplication or late gate reset.
+- The successor observed the second boot animation exit at 54.279 s and
+  reached `BOOT_READY` at 60.539 s. In TOP, the lower CRTC remained active
+  during the held boot/restart interval; reconciliation confirmed CRTC 181=`1`
+  and 243=`0` at 60.532 s. The owner saw the expected two visual phases with
+  no green flash, artefact, wrong panel or extra cycle, and confirmed normal
+  TOP image at the end. The CPU property was `1` after boot.
+- The crash buffer contained the same early SurfaceFlinger signature as the
+  earlier 1.5.17 TOP boot: `no suitable EGLConfig found, giving up`, frame
+  `chooseEglConfig`, BuildId `a4e0851419d45662b0fd5cd067b585bf`, before
+  Jesty's first daemon. The two Google Play Services exceptions around 29 s
+  and 66 s also match that earlier boot. No later SurfaceFlinger abort appeared.
+  The known early abort remains a release-quality limitation, even though the
+  Jesty action completed and the image was normal.
+- Raw read-only evidence is outside Git in
+  `C:\Temp\jesty-thor-1517-evidence\20261005-v1520-top-early` and
+  `C:\Temp\jesty-thor-1517-evidence\20261005-003323-v1520-top-postboot`.
+  The owner confirmed `TOP ONLY · TRUE OFF`, `CPU FIX ACTIVE · CLOCKS NORMAL`
+  and the expected toggles in the app. After the boot test, the physical AYN
+  control returned the Thor to BOTH with both CRTCs active and normal image.
+
+## Supervised Wake Guard check (2026-10-05)
+
+- The owner enabled the guard temporarily in BOTH. The named `hall_switch`
+  reported `SW_LID=0` with the lid open. One normal close/open entered sleep
+  and woke normally in BOTH, as observed by the owner.
+- For one controlled false wake, the owner held the lid closed. Preflight was
+  `SW_LID=1`, `mWakefulness=Asleep`. One ADB `KEYCODE_WAKEUP` produced
+  `Awake → Dozing → Asleep` in the following samples while `SW_LID` stayed
+  `1`; there was no repeated wake command or loop. The owner opened the lid,
+  confirmed BOTH normal and switched the guard OFF again.
+- Final ADB state: `SW_LID=0`, `mWakefulness=Awake`, mode BOTH, CRTC 181=`1`,
+  243=`1`, CPU property `1`, one daemon PID 8991. Samples are saved outside
+  Git as `closed-lid-wake-samples.txt` in the TOP postboot evidence folder.
+
 ## Remaining supervised device checks
 
-1. Confirm the saved controls, CPU Fix presentation and updater behavior
-   without changing the CPU Fix toggle or forcing a compositor restart.
-2. With the owner observing, perform at most one supervised TOP cold boot with
-   both visual phases and the boot trace. Preserve the signed v1.5.17 APK as a
-   data-preserving rollback option. Stop on an unexpected panel, abort or loop.
-3. Wake Guard and updater installation still need their own physical checks
-   before a stable release; neither was exercised by this handover.
+1. Verify the updater with a genuinely newer release signed by the same
+   certificate, including cancel, installer confirmation, offline/failure and
+   install-readiness paths. No such release was created for this test.
+2. The anti-loop Wake Guard limit was not retested on v1.5.20; it passed on
+   v1.5.17. The external-display/dock case remains deferred by product choice.
+3. The known early firmware SurfaceFlinger abort still needs a separate
+   release decision. Additional boots may improve confidence, but the owner
+   observed no green flash or wrong panel in this v1.5.20 run.
 
-Successful handover alone does not validate the 1.5.18/1.5.19 helper recovery,
-updater, closed-lid path or second visual boot latency.
+These results exercise the normal helper handoff, closed-lid path and second
+visual boot on hardware. The adversarial helper recovery and updater install
+paths remain host-tested only.
