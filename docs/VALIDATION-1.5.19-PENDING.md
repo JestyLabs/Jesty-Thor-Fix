@@ -19,6 +19,17 @@ The one conflicting 1.5.18 test-script hunk was applied manually without
 changing its assertions. The standalone in-app-updates patch was already
 included in 1.5.18 and was not applied a second time.
 
+## Review boundary
+
+The GitHub `work/thor-v1.5.19-combined-candidate` branch was published as one
+snapshot commit because this Windows host's Git HTTPS helper crashes during
+push. The local integration is split into `6d737b9` (1.5.18 safety/updater),
+`755d2bc` (1.5.19 refactor) and `354dbf7` (signed candidate/validation), with
+earlier investigation commits. The remote tree was compared with the exact
+local tree, but GitHub's single snapshot is not a useful bisect boundary.
+Keep the local split history and use those commits when attributing a defect.
+Do not interpret the single remote commit as a single small code change.
+
 ## Before touching the Thor
 
 1. Review the combined diff, especially daemon identity/migration, IPC,
@@ -58,6 +69,30 @@ included in 1.5.18 and was not applied a second time.
    verification and dashboard display can be checked now, but do not claim
    the end-to-end updater install passed without that release and Android's
    user confirmation.
+
+## Checks to combine with that one session
+
+- Before installation, run the two host suites, recheck the APK hash and
+  certificate above, and save the installed version, preferences, daemon PID,
+  socket, composer PID, boot ID, CPU property, mode and CRTCs. This is a
+  baseline, not an additional boot.
+- After installation in BOTH, confirm the daemon handover once, unchanged boot
+  ID and composer PID, no second daemon, and the same effective CPU Fix and
+  Wake Guard preferences. If a handover fails, preserve the trace and stop;
+  do not retry by toggling CPU Fix.
+- Check updater presentation without starting an install: the stable-release
+  check should offer nothing newer than this 1.5.19 candidate. A manual
+  no-network check may be observed while awake if it does not interrupt the
+  device session. Download cancellation and Android install confirmation
+  require a genuinely newer, signed release; record them as unavailable now.
+- For the supervised TOP boot, use the same collector for both visual phases.
+  Report the first visual end, Jesty receiver/service/daemon start, gate and
+  grace, compositor restart, second visual end, and BOOT READY separately.
+  The primary user-facing latency is the **second visual end**, not READY.
+  Pair `cat /proc/uptime` with `date +%s.%N` and prefer event payload uptime
+  over a shifted logcat monotonic column in the first phase.
+- The helper-abort recovery path is exercised by host models only. Do not
+  force a compositor/helper failure on the Thor to manufacture coverage.
 
 Stop and preserve evidence on HELPER_ABORT, late GATE_RESET, a new
 SurfaceFlinger abort, green flash, wrong panel, another kernel boot, repeated
