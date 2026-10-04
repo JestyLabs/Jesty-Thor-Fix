@@ -1,12 +1,12 @@
 # Thor roadmap after the v1.5.17 pre-release
 
-**Status:** v1.5.17 diagnostic session resumed for one graphics investigation
-boot on 2026-10-04; see the
-[validation diary](VALIDATION-1.5.17-PENDING.md). The exact APK was installed
-and two BOTH plus one TOP cold boots were observed. v1.5.16 remains Latest
-stable; v1.5.18 and v1.5.19 were not installed. The owner observed the
-second BOTH boot normal; the Thor later entered ordinary sleep. Later
-behavior changes remain plans.
+**Status (2026-10-05):** v1.5.16 remains Latest stable. The combined v1.5.19
+candidate failed daemon migration and was rolled back without clearing data.
+The corrected, signed v1.5.20 passed an in-place upgrade, BOTH/TOP checks, one
+TOP cold boot and Wake Guard checks on the Thor. See its
+[validation diary](VALIDATION-1.5.20-PENDING.md). v1.5.18 was incorporated in
+this candidate rather than installed separately. The pre-compositor property
+write and an earlier compositor restart remain untested proposals.
 
 The order is: measure, correct safety failures, investigate the largest boot
 gain, then consider shorter waits. Keep each performance behavior change in
@@ -51,7 +51,7 @@ needs one confirmed visual compositor/framework restart; the open question is
 whether a property write can precede the **first** composer start at boot.
 
 In the corrected v1.5.16 baseline, the first visual finish was 17.899 s,
-Jesty's receiver ran at 29.340 s, the daemon applied the CPU Fix at
+the app's receiver ran at 29.340 s, the daemon applied the CPU Fix at
 42.028 s, and the second visual finish was 55.249 s. Roughly 26 s of the
 37.350-second interval between visual finishes involved the current CPU Fix
 gate and compositor restart. This supports investigating an earlier property
@@ -81,11 +81,10 @@ system change requires the owner's explicit decision before implementation.
 
 ## 2. v1.5.18 safety correction
 
-**Source status:** the helper observer, `phase_ms` and the stalled-phase
-replacement below are integrated in the v1.5.18 source and passed host tests
-and an unsigned build. They are not signed, installed or run on a Thor. The
-post-restart readiness signal is not included.
-Release only after step 0's v1.5.17 evidence. The source narrows the plan
+**Source status:** the helper observer, `phase_ms` and stalled-phase
+replacement were integrated into the signed v1.5.20 candidate. The normal
+handoff passed on the Thor; adversarial recovery remains host-tested only.
+The post-restart readiness signal is not included. The source narrows the plan
 below: only an abort that proves the compositor never restarted (exit 10, with
 the watcher still running) recovers in place. Any other abort may follow a
 framework restart that leaves the old daemon's watcher and display callback
@@ -127,9 +126,14 @@ stale, so that daemon holds as `HANDOFF FAILED` and is replaced by
 
 ## Process and deferred features
 
-The Windows CI runs both host suites on pushes and PRs. A release is stable
-only after the exact signed APK has an in-place upgrade, at least three
-supervised BOTH boots, one TOP boot, correct final CRTCs and zero aborts.
+The Windows CI runs both host suites on pushes and PRs. For the v1.5.20
+pre-release, the owner replaced the old fixed quota of three BOTH boots and
+one TOP boot with targeted supervised tests: exact signed APK, in-place
+upgrade, BOTH/TOP and sleep/wake, one TOP boot, correct final CRTCs, and
+Wake Guard with a controlled false wake. Additional boots require a concrete
+open question. The known early SurfaceFlinger abort occurred before the app
+started; it is recorded as an explicit exception to the old zero-aborts gate,
+not counted as zero aborts. Stable promotion requires a separate decision.
 Validation files use explicit status fields; release notes must not call a
 stable version a candidate. Keep logs, tombstones, APKs and signing keys out
 of Git. Do not increase logcat buffers without the owner's approval.
@@ -139,4 +143,8 @@ Cross-check future work against all open items in
 watcher cost, CPU OFF/unset warning, hardcoded display IDs, fork frequency,
 migration/TOP upgrade, display callback health, socket permissions,
 synchronization and dashboard telemetry. Physical BOTTOM ONLY, dock use and
-replacing `LID UNKNOWN` with a Wake Guard OFF label remain deferred.
+the updater's end-to-end installation test are deferred by owner decision.
+Replacing `LID UNKNOWN` with a Wake Guard OFF label is also deferred. The next
+active investigation is whether the CPU property can be set before the first
+compositor starts, with a reversible boot path and one supervised trial only
+after the design and host checks pass.

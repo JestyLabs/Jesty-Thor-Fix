@@ -64,8 +64,10 @@ $gh = 'C:\Temp\gh-2.101.0\unpacked\bin\gh.exe'
 Do not run the release command merely because the branch is pushed. Confirm
 the agreed physical result, exact signed APK hash, and remote main tree first.
 
-For a host-verified build awaiting supervised Thor tests, publish a clearly
-labelled **pre-release** with `--prerelease --latest=false` and keep the tested
-stable release as Latest. v1.5.17 uses this path; its physical criteria are
-in `VALIDATION-1.5.17-PENDING.md`. Promotion requires results for the exact
-signed APK and a separate maintainer decision.
+For a testing build, publish a clearly labelled **pre-release** with
+`--prerelease --latest=false` and keep the tested stable release as Latest.
+The exact v1.5.20 APK has supervised physical results in
+`VALIDATION-1.5.20-PENDING.md`; the owner approved targeted checks in place of
+the old fixed boot quota. The known early firmware SurfaceFlinger abort must
+remain explicit in the notes. Stable promotion requires a separate maintainer
+decision for this exact APK and its remaining limitations.

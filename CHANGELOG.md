@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.5.20 (unsigned host build; not installed on the Thor)
+## 1.5.20 (signed testing pre-release candidate)
 
 - Shorten the root bridge daemon launch command and bound it to 255 characters.
   Four timing environment variables become one compact `JT` value; the daemon
@@ -9,10 +9,16 @@
 - Add a pure command/metadata test including the longest possible timing values.
   The 1.5.19 candidate's command was substantially longer and the root bridge
   reported submission but no successor daemon started. A bridge command-size
-  limit is a hypothesis, not a confirmed root cause; this fix needs a signed
-  build and a supervised, reversible in-place test before boot testing.
+  limit is a hypothesis, not a confirmed root cause. The signed v1.5.20 APK
+  passed the supervised in-place handover that failed on v1.5.19.
 - Include 1.5.19 in the narrow older-daemon migration allowlist. The installed
   Thor was safely returned to 1.5.17 after the failed 1.5.19 migration.
+- On the Thor, BOTH/TOP switching, TOP wake, one TOP cold boot with one expected
+  compositor restart, and the available closed-lid Wake Guard checks passed.
+  No green flash or wrong final panel was seen. The known early firmware
+  SurfaceFlinger abort still occurred before the app started. Updater install
+  and adversarial helper recovery remain untested on hardware; see the
+  [validation diary](docs/VALIDATION-1.5.20-PENDING.md).
 
 ## 1.5.19 (failed supervised in-place migration; not suitable for release)
 

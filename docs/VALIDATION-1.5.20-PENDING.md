@@ -88,10 +88,10 @@ command-length hypothesis, but do not prove the bridge's exact limit.
 - The crash buffer contained the same early SurfaceFlinger signature as the
   earlier 1.5.17 TOP boot: `no suitable EGLConfig found, giving up`, frame
   `chooseEglConfig`, BuildId `a4e0851419d45662b0fd5cd067b585bf`, before
-  Jesty's first daemon. The two Google Play Services exceptions around 29 s
+  the app's first daemon. The two Google Play Services exceptions around 29 s
   and 66 s also match that earlier boot. No later SurfaceFlinger abort appeared.
   The known early abort remains a release-quality limitation, even though the
-  Jesty action completed and the image was normal.
+  app action completed and the image was normal.
 - Raw read-only evidence is outside Git in
   `C:\Temp\jesty-thor-1517-evidence\20261005-v1520-top-early` and
   `C:\Temp\jesty-thor-1517-evidence\20261005-003323-v1520-top-postboot`.
@@ -113,11 +113,12 @@ command-length hypothesis, but do not prove the bridge's exact limit.
   243=`1`, CPU property `1`, one daemon PID 8991. Samples are saved outside
   Git as `closed-lid-wake-samples.txt` in the TOP postboot evidence folder.
 
-## Remaining supervised device checks
+## Deferred physical checks and known limits
 
-1. Verify the updater with a genuinely newer release signed by the same
-   certificate, including cancel, installer confirmation, offline/failure and
-   install-readiness paths. No such release was created for this test.
+1. By owner decision, the updater's end-to-end install test moves to a later
+   phase with BOTTOM ONLY and dock use. Its host checks passed, but cancel,
+   installer confirmation, offline/failure and install-readiness paths have
+   not been exercised with a genuinely newer release on this Thor.
 2. The anti-loop Wake Guard limit was not retested on v1.5.20; it passed on
    v1.5.17. The external-display/dock case remains deferred by product choice.
 3. The known early firmware SurfaceFlinger abort still needs a separate

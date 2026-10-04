@@ -159,7 +159,7 @@ background service until you open the app again.
 
 ### Updating from inside the app
 
-From v1.5.18, while the dashboard is open, the app asks GitHub at most once an
+From v1.5.20, while the dashboard is open, the app asks GitHub at most once an
 hour for the latest **stable** release. A yellow **↑ UPDATE vX.Y.Z** button
 appears next to SUPPORT and GITHUB only when a newer version exists; the first
 time, a short summary of the release notes is shown with **Update** and
@@ -248,9 +248,10 @@ Documentation:
 [release integrity](docs/RELEASE-INTEGRITY.md)
 
 Testing a newer build?
-[v1.5.17](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.17)
-is currently a pre-release for supervised Thor validation.
-v1.5.16 remains the stable release.
+[v1.5.20](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.20)
+is a pre-release with supervised TOP boot and BOTH/TOP checks recorded in its
+[validation diary](docs/VALIDATION-1.5.20-PENDING.md). v1.5.16 remains the
+recommended stable release.
 
 ## License, provenance, and independence
 

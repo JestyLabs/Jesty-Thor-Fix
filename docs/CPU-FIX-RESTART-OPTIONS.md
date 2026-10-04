@@ -1,8 +1,9 @@
 # Dashboard CPU Fix: what was tested and what remains possible
 
-**Status (2026-10-04):** investigation and next-session preparation only.
-The installed v1.5.17 APK, Thor services, system files and saved preferences
-were not changed. Source history: Codex thread
+**Status (2026-10-05):** the early-write design below remains unimplemented.
+The signed v1.5.20 APK was physically tested with the existing compositor
+restart path; no pre-composer hook was installed or tested. Source history:
+Codex thread
 `01a0cbaa-8916-7ee0-8dfb-df13250c180c` (the v1.0.x-v1.2.0 CPU Fix
 experiments), [LIVE-RESULTS](LIVE-RESULTS.md), current code and the
 [v1.5.17 validation diary](VALIDATION-1.5.17-PENDING.md). Old message
@@ -24,7 +25,7 @@ The vendor composer init rule says `onrestart restart surfaceflinger`;
 SurfaceFlinger's init rule restarts zygote. Therefore an unchanged kernel
 `boot_id` does **not** mean apps and Android framework stayed running. Early
 thread messages described only a quick display/USB reset; later code and
-timing established the full cascade. Opening the Jesty app must not trigger
+timing established the full cascade. Opening the app must not trigger
 one automatically; the user-facing toggle explicitly confirms the restart.
 
 The old binary inspection found the runtime key but no `persist.vendor...`
@@ -79,7 +80,7 @@ Other routes remain limited:
   existing restart forward, not eliminate it. They carry separate boot and
   broadcast risks; see the [latency investigation](BOOT-RESTART-LATENCY-INVESTIGATION.md).
 
-## Next supervised session: one decision, at most one candidate cold boot
+## Future supervised trial: one decision, at most one candidate cold boot
 
 1. **No write, no reboot first.** Recheck installed version, battery, BOTH
    image/CRTCs, boot ID, CPU preference/property, composer/daemon PIDs and
@@ -94,7 +95,7 @@ Other routes remain limited:
    `getprop` already equals the desired value, so installing a possibly-late
    script against the current APK could falsely show success. Fix that check
    in a test candidate *before* a boot trial. If these requirements cannot be
-   met, stop with no trial reboot and continue the existing v1.5.17 plan.
+   met, stop with no trial reboot and keep the existing restart path.
 3. **If the candidate is ready:** install once in BOTH with the owner watching,
    preserve app data, verify no compositor restart on install, then use one
    supervised cold boot. Collect early logs, script write timestamp,

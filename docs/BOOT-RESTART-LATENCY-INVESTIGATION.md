@@ -1,10 +1,29 @@
 # Why the second visual boot starts late
 
-**Status (2026-10-04):** host analysis of saved v1.5.17 evidence. No APK,
-device setting or service was changed for this analysis. The Thor was not
-connected during it. Raw evidence stays outside Git in
+**Status (2026-10-05):** the v1.5.17 analysis below now has one supervised
+v1.5.20 TOP comparison. Raw v1.5.17 evidence stays outside Git in
 `C:\Temp\jesty-thor-1517-evidence\20261004-043420-sf-repro-one-reboot-early`
 and `C:\Temp\jesty-thor-1517-evidence\20261004-043813-sf-repro-postboot`.
+
+## v1.5.20 TOP comparison
+
+The signed v1.5.20 TOP cold boot retained the 10-second and five-second
+graces. Its first `sf_stop_bootanim` event carried uptime 18.210 s, while the
+second carried 57.844 s: **39.634 s between visible finishes**. The first
+phase's `-v monotonic` column was 2.656 s later than the event's own uptime;
+these figures use the event payloads. The app's first daemon started at
+33.656 s, requested the composer restart at 45.228 s, and the successor
+reached `BOOT_READY` at 60.539 s. The helper found the new services and
+launched one successor. The owner observed the expected two visual phases
+without flash or an extra cycle.
+
+This boot validates the current safe sequence and the short stale-socket
+launch wait (`74 ms`); it does **not** validate an earlier restart or a
+pre-composer property write. The property was unknown at daemon start,
+written at 44.897 s and applied only after the compositor restart. Avoiding
+that restart remains a separate opt-in investigation. Moving the existing
+restart earlier would need a CPU-only readiness gate while all display/sleep
+actions stay held, plus new host and physical tests. No grace was shortened.
 
 The reference boot is BOTH, kernel boot ID
 `599c48a0-4d31-4d90-91b0-287eb5c8577d`. Times below use the early
@@ -29,13 +48,13 @@ have a clock-conversion offset; see the SurfaceFlinger investigation.
 The log reports 88 `BOOT_COMPLETED` receivers, `dispatchLatency:8257`, and
 `completeLatency:18100`. The preceding `LOCKED_BOOT_COMPLETED` broadcast
 finished at 26.269 s after taking 8.502 s to complete. These measurements
-explain why a broadcast posted just after the first animation reached Jesty
+explain why a broadcast posted just after the first animation reached the app
 much later. They do not identify which individual receiver or service caused
-the 8.4 s within the `BOOT_COMPLETED` dispatch. The Jesty process had already
+the 8.4 s within the `BOOT_COMPLETED` dispatch. The app process had already
 started at 23.549 s, so its process creation is not that delay.
 
 **Correction to earlier analysis:** a saved `dumpsys activity broadcasts
-history` was captured after the Jesty compositor restart. Its receiver #82
+history` was captured after the app's compositor restart. Its receiver #82
 and 11.351 s completion belong to the *second* system_server, so they cannot
 be used to measure first-boot delivery. The pre-restart log above is the
 first-boot evidence.
