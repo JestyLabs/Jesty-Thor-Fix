@@ -157,6 +157,30 @@ installation, manual rooting procedure, or terminal setup required.
 Swiping it away from Recents is fine; Android **Force stop** pauses its
 background service until you open the app again.
 
+### Updating from inside the app
+
+From v1.5.20, while the dashboard is open, the app asks GitHub at most once an
+hour for the latest **stable** release. A yellow **↑ UPDATE vX.Y.Z** button
+appears next to SUPPORT and GITHUB only when a newer version exists; the first
+time, a short summary of the release notes is shown with **Update** and
+**Later**.
+
+Before anything is installed, the app checks the exact size and SHA-256 digest
+that GitHub publishes for `Jesty-Thor-Fix-X.Y.Z.apk`, and that the APK is this
+app, has that version and a higher version code, and is signed with the same
+certificate. Android then shows its own install confirmation; the first time
+it may ask you to allow installs from Jesty Thor Fix. Your saved switches are
+kept.
+
+The install waits while the boot transition or a switch change is running.
+After installing, open the app again: the new background service replaces the
+old one roughly 30 seconds later when both screens are on (**BOTH**). In TOP,
+the previous service keeps running until you open the app in BOTH or reboot.
+
+Network use is limited to this check and the download, only while the
+dashboard is open. **Long-press GITHUB** to check now, turn the automatic
+check off, or opt into test pre-releases.
+
 ## Compatibility
 
 | Device | Evidence |
@@ -224,9 +248,10 @@ Documentation:
 [release integrity](docs/RELEASE-INTEGRITY.md)
 
 Testing a newer build?
-[v1.5.17](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.17)
-is currently a pre-release for supervised Thor validation.
-v1.5.16 remains the stable release.
+[v1.5.20](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.20)
+is a pre-release with supervised TOP boot and BOTH/TOP checks recorded in its
+[validation diary](docs/VALIDATION-1.5.20-PENDING.md). v1.5.16 remains the
+recommended stable release.
 
 ## License, provenance, and independence
 

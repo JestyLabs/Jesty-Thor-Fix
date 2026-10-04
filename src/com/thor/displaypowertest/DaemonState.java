@@ -58,6 +58,7 @@ public final class DaemonState {
         String bottomCrtc = Telemetry.bottomCrtcActive();
         return "ok=1"
                 + ";boot_phase=" + clean(BootSafety.phase()).replace(' ', '_')
+                + ";boot_phase_ms=" + BootSafety.phaseAgeMs()
                 + ";display_actions_held=" + (BootSafety.isHeld() ? "1" : "0")
                 + ";lid=" + LidGuard.lid()
                 + ";lid_guard=" + (LidGuard.isEnabled() ? "1" : "0")

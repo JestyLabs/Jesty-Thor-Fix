@@ -4,13 +4,33 @@ Jesty Thor Fix is split between a normal Android dashboard and a privileged root
 
 ## Android side
 
-- `MainActivity` renders the dashboard, controls the persistent fix and guard settings,
-  and polls telemetry once per second only while visible.
+- `MainActivity` owns the dashboard lifecycle and wires its parts (from
+  v1.5.19): `DashboardLayout` builds the views once, `DashboardSettingsController`
+  owns the three persistent switches and their daemon commands,
+  `TelemetryPoller` polls telemetry once per second only while visible,
+  `DashboardRenderer` applies `DashboardStateModel`/`CpuWarningModel` results
+  to the views, `BackgroundMediaController` owns the background art and video,
+  and `UpdateReadiness` keeps the evidence for the updater's install decision.
+  The dashboard host test rejects daemon requests or view construction in
+  `MainActivity`.
 - `AutoService` starts or reconnects to the daemon, migrates the old protocol
   once, and reconciles saved settings after a normal boot. From v1.5.16 it
   classifies an unreachable socket pathname before waiting (see *Daemon launch
   and stale sockets*).
 - `BootReceiver` starts that service after a normal boot.
+- `AppUpdater` checks GitHub releases only while the dashboard is open (at most
+  hourly), shows the top-bar UPDATE button, and downloads, verifies and hands
+  a newer APK to `PackageInstaller`; `UpdateInstallReceiver` (not exported)
+  receives the installer status. `UpdateVersion` holds the pure version,
+  asset, digest, signer and install-readiness rules. The installer is never
+  committed while `display_actions_held=1` (a boot hold seen earlier is kept if
+  the daemon stops answering), while a switch command is in flight, or without
+  a dashboard sample from the current telemetry generation that is under 3.5 s
+  old. From the Download tap until commit, the switches are reserved. Android's
+  confirmation is opened only from a resumed activity, otherwise on the next
+  resume; stale sessions are abandoned. After replacement, the old
+  daemon keeps running until `AutoService` replaces it through the existing
+  `PreviousSecureDaemonIdentity` gate (BOTH only) or the next boot.
 - `SocketClient` sends one-byte commands over a filesystem Unix socket in the
   app's private `files/` directory. It checks the kernel-reported server UID
   before trusting the reply; `ok=1` indicates command handling, not identity.
@@ -51,6 +71,34 @@ occupied filesystem socket pathname on a second bind. From v1.5.11 the daemon
 therefore holds a cross-process private file lock before socket cleanup and
 bind; physical lock-contention validation remains pending.
 
+## Daemon objects (from v1.5.19)
+
+`D` is only the `app_process` entry point; its class name and default package
+are part of the launch and identity checks. `DaemonRuntime` parses `DaemonArgs`
+and builds the daemon's objects with explicit constructor dependencies:
+
+- `BootSession`: boot-hold state, phase deadline and the saved CPU and Wake
+  Guard intents passed on the command line;
+- `BootTrace`: the sanitized trace writer (one lock per daemon);
+- `SystemProbe`: bounded `getprop`, `pidof` and `service check` reads;
+- `BootCoordinator`: the staged gate and boot reconciliation, plus in-place
+  recovery after a handover in which the compositor never restarted;
+- `CpuFixController`: the CPU property, the one-shot compositor restart, its
+  `TransitionWakeLock`, the relaunch helper and its observer. Its monitor
+  replaces the former `D.class` lock;
+- `DaemonCommandHandler`: the closed one-byte command set;
+- `DaemonIpcServer`: the private socket listener (two workers, four queued
+  connections, 1.5 s read timeout, app UID check before reading);
+- `AndroidRecoveryTrace`: post-restart observability only.
+
+`BootCoordinator` and `CpuFixController` reference each other through
+`CpuFixController.HandoffRecovery`, connected once by `DaemonRuntime`.
+`BootSafety`, `DaemonState`, `DisplayActionCoordinator`, `LidGuard`,
+`WatcherSupervisor`, `DisplayHardware` and `Telemetry` stay static: the smali
+watcher, display callback and wake repair call them directly, and replacing
+those calls belongs with any later smali/hidden-API work. The split moved code
+without changing commands, replies, trace lines, waits or the helper script.
+
 ## Daemon launch and stale sockets
 
 The filesystem socket inode survives power-off, so after a cold boot it exists
@@ -84,6 +132,72 @@ holds the lock. Only a daemon that scheduled a compositor restart hands the
 timed wake-lock to its successor; every other boot coordinator ending releases
 it.
 
+### Failed handovers and stalled phases (from v1.5.18)
+
+Up to v1.5.17 a boot daemon that scheduled the compositor restart stayed in
+`APPLYING CPU FIX`, with display actions held, until the helper replaced it.
+If the helper aborted, nothing ended that state before the next reboot, and
+`AutoService` accepted it as `STARTING`. Two independent paths now close it:
+
+1. **Helper observer.** The daemon keeps the helper's `Process` and waits for
+   it on a separate thread. On the normal path the helper stops the daemon
+   before exiting, so an exit is only observed when the handover did not
+   happen. Each abort reason has its own exit status (10-14, see
+   `HandoffRecoveryModel`). The decision depends on whether the framework may
+   have restarted underneath the daemon:
+   - `COMPOSER_NOT_RESTARTED` (10) with a `RUNNING` watcher proves that the
+     old compositor, `system_server` and therefore the daemon's watcher and
+     display callback are still current. A boot daemon that is still held
+     then runs the post-restart gate itself (five-second grace, fresh
+     60-second deadline, no second compositor restart) and reconciles exactly
+     as a successor would; a timeout stays held as `BOOT SAFETY TIMEOUT`. A
+     runtime toggle only releases the transition wake lock. The CPU phase
+     reports `ERROR` and, while the old compositor PID still runs, the
+     previous property value is restored, as after a failed `ctl.restart`.
+   - Any other exit (11-14, or a shell status) happens after the compositor
+     restart, which also restarts SurfaceFlinger, zygote and `system_server`.
+     The surviving daemon's watcher still uses the cached activity-manager
+     binder and its display callback belongs to the old `system_server`, so
+     its mode can no longer be trusted. It sets the held phase
+     `HANDOFF FAILED`, releases the wake lock and stops every display and
+     Wake Guard action. `AutoService` replaces it immediately the next time it
+     runs: the second `BOOT_COMPLETED` after the restart, or the next
+     dashboard open, which requests `AutoService` at most once a minute while
+     the phase is visible. The same applies to exit 10 when the watcher is no
+     longer `RUNNING`.
+   - If the helper itself cannot be started, `ctl.restart` is never sent and
+     a held boot daemon recovers in place with the same rule.
+
+   Only one helper may run at a time; the dashboard shows CPU `PENDING` until
+   it exits. `Q` reports
+   `handoff=NONE|SCHEDULED|RECOVERING|RECOVERED|RECOVERY_FAILED|ABORTED|FAILED`
+   and `boot_phase_ms`.
+2. **Stalled phase.** `I` adds `phase_ms`, the time since the current boot
+   phase was entered. `DaemonLaunchModel.replaceablePid` accepts a
+   same-version, same-intent daemon in `HANDOFF_FAILED`, or in a `STARTING`
+   phase that has not changed for 90 seconds. `AutoService` then stops only
+   that PID after the usual root-UID and command-line checks and launches a
+   successor in hold, which runs the full boot gate. Every gate phase has its
+   own 60-second timeout, so this path is for states without one. A daemon
+   older than v1.5.18 sends no `phase_ms` and is never classified as stalled.
+   `BOOT SAFETY TIMEOUT` is never replaced by this path.
+
+Neither path changes the gate, its waits or its sample rules. The helper-abort
+and stalled-phase decisions have host tests; a helper abort must not be
+provoked on a physical Thor. Limits that remain:
+
+- If the compositor never restarted but the property already matches, a
+  successor's gate sees the CPU setting as already applied. The helper
+  observer covers that case in the same daemon; the stalled-phase replacement
+  does not.
+- If the CPU property cannot be applied persistently, each successor can
+  schedule one more compositor restart, so every dashboard open after a
+  failure can restart the interface once. The per-daemon single restart still
+  applies; the trace shows each `HANDOFF_FAILED`.
+- Exit 10 is decided from the PID observed by the helper. A compositor restart
+  that `init` performs only after the helper gave up is not detected until the
+  watcher fails.
+
 ### Boot trace marks
 
 `/data/local/tmp/jesty-thor-boot-trace.log` uses the boot clock
@@ -114,6 +228,19 @@ so `GATE_BOOT_COMPLETED` in the post-restart phase does not show Android's
 second boot; these marks do not gate any action. The trace rotates to
 `jesty-thor-boot-trace.log.1` above 256 KiB.
 
+From v1.5.18 the daemon adds `HELPER_EXIT_OBSERVED` (exit, reason, action),
+`HANDOFF_RECOVERY_BEGIN` and `HANDOFF_RECOVERED`/`HANDOFF_RECOVERY_FAILED`.
+`/data/local/tmp` belongs to the shell user, while these files are written by
+root. `RootLogFiles` therefore opens the trace with `O_NOFOLLOW`, appends only
+to a regular, single-link, root-owned file, sets mode 0644 on that descriptor
+and rotates only such a file. The helper and the daemon launch use an mksh
+builtin check (`safe_log`) before each redirection and discard output for a
+link or foreign file. A shell check cannot fully close a race with a
+concurrent swap; it narrows it and turns a planted link into a skipped line.
+The location and world-readable mode are kept so the read-only ADB collector
+(`adb shell cat`) keeps working; the files contain no secrets. Moving them to
+the app's private directory would require an in-app export path first.
+
 Bounded command waits use `ProcessWait` (5 ms polling). The inherited timed
 `Process.waitFor` implementation can poll at 100 ms, and the v1.5.16 trace
 showed similar gaps around short commands. The exact Thor timing benefit
@@ -135,7 +262,11 @@ idempotently. At 60 seconds without readiness, it remains held and reports
 `BOOT SAFETY TIMEOUT` without forcing a display or sleep action.
 
 The optional `LidGuard` reads Linux `EV_SW/SW_LID` events from `hall_switch`
-directly. Unknown Hall, external display, unknown dock/interactive state, or
+directly. From v1.5.18 `HallNodeModel` keeps that named device first; only if
+no input device has that name does it accept the single device whose
+`capabilities/sw` reports `SW_LID`. Two named devices, or several `SW_LID`
+devices without the name, leave Wake Guard unavailable. The fallback is not
+reached on the tested Thor and has no physical validation. Unknown Hall, external display, unknown dock/interactive state, or
 an open lid inhibit sleep. It waits 1.5 seconds after closure or 500 ms after
 a closed-lid wake and rechecks before `KEYCODE_SLEEP`. After three sleep
 attempts in ten seconds it pauses until the lid opens. It does not require
@@ -143,6 +274,38 @@ Device Admin, Accessibility, SensorManager, or another foreground service.
 The current review covers BOTH and TOP with at most two observed cold boots.
 BOTTOM ONLY and physical dock behavior are deferred to future improvements by
 user decision; neither is a gate for the current BOTH/TOP review.
+
+## Thor hardware profile
+
+`ThorHardwareProfile` holds every measured Thor identifier: the lower panel's
+physical display ID `0x40446d4a32a16584`, its logical display `4`, top/bottom
+CRTCs `181`/`243`, the DRM debugfs state path and the `hall_switch` device
+name. `DisplayEventCallback.smali` repeats the logical display ID as a literal;
+`scripts/test-boot-lid.ps1` fails if that literal or any Java copy of these
+identifiers drifts from the profile. A new hardware revision or firmware must
+be checked against all of them before any value changes.
+
+## Target SDK 25
+
+`targetSdkVersion` stays at 25 deliberately; it is not merely inherited. Known
+dependencies on that level:
+
+- `BootReceiver` starts `AutoService` with `startService` from the
+  background. Apps targeting 26 or higher are subject to background-service
+  limits, so the boot path would need a foreground service and notification.
+- The app side reaches `ServiceManager.getService("PServerBinder")` through
+  reflection. Android's hidden-API restrictions depend on the target SDK, so a
+  higher target could block that call. The root daemon runs under
+  `app_process`, not as the installed app, but it is launched only through
+  that call.
+- The in-app updater relies on the pre-26 install-permission model;
+  `canRequestPackageInstalls()` applies only from target 26.
+- Targets 31 and higher add explicit `android:exported` and `PendingIntent`
+  mutability requirements; the manifest and updater already declare them.
+
+None of this has been tested above 25 on a Thor. A raise must be its own
+release, verified for boot launch, the privileged bridge, updates and
+Android's compatibility warnings.
 
 ## Why Java and smali are both present
 

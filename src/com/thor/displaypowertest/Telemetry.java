@@ -7,6 +7,10 @@ import java.io.InputStreamReader;
 import java.util.Locale;
 
 public final class Telemetry {
+    private static final String TOP = ThorHardwareProfile.TOP_CRTC_ID;
+    private static final String BOTTOM = ThorHardwareProfile.BOTTOM_CRTC_ID;
+    private static final String TOP_CRTC_HEADER = "crtc[" + TOP + "]";
+    private static final String BOTTOM_CRTC_HEADER = "crtc[" + BOTTOM + "]";
     private static long previousTotal = -1L;
     private static long previousIdle = -1L;
 
@@ -73,7 +77,7 @@ public final class Telemetry {
     }
 
     public static String verifyDrm() {
-        File state = new File("/sys/kernel/debug/dri/0/state");
+        File state = new File(ThorHardwareProfile.DRM_STATE_PATH);
         if (!state.canRead()) return "ok=0;error=DRM_STATE_UNREADABLE";
         StringBuilder out = new StringBuilder("ok=1");
         try {
@@ -83,8 +87,8 @@ public final class Telemetry {
             int remaining = 0;
             while ((line = reader.readLine()) != null) {
                 String trimmed = line.trim();
-                if (trimmed.startsWith("crtc[181]")) { crtc = "181"; remaining = 14; }
-                else if (trimmed.startsWith("crtc[243]")) { crtc = "243"; remaining = 14; }
+                if (trimmed.startsWith(TOP_CRTC_HEADER)) { crtc = TOP; remaining = 14; }
+                else if (trimmed.startsWith(BOTTOM_CRTC_HEADER)) { crtc = BOTTOM; remaining = 14; }
                 if (crtc != null && trimmed.startsWith("active=")) {
                     out.append(";crtc").append(crtc).append("=").append(trimmed.substring(7));
                     crtc = null;
@@ -94,8 +98,8 @@ public final class Telemetry {
                 }
             }
             reader.close();
-            if (out.indexOf("crtc181=") < 0) out.append(";crtc181=NOT_FOUND");
-            if (out.indexOf("crtc243=") < 0) out.append(";crtc243=NOT_FOUND");
+            if (out.indexOf("crtc" + TOP + "=") < 0) out.append(";crtc" + TOP + "=NOT_FOUND");
+            if (out.indexOf("crtc" + BOTTOM + "=") < 0) out.append(";crtc" + BOTTOM + "=NOT_FOUND");
             return out.toString();
         } catch (Throwable error) {
             return "ok=0;error=" + error.getClass().getSimpleName().toUpperCase(Locale.US);
@@ -103,11 +107,11 @@ public final class Telemetry {
     }
 
     public static String bottomCrtcActive() {
-        return crtcActive("243");
+        return crtcActive(BOTTOM);
     }
 
     public static String topCrtcActive() {
-        return crtcActive("181");
+        return crtcActive(TOP);
     }
 
     /**
@@ -116,7 +120,7 @@ public final class Telemetry {
      * Returns {top, bottom}; each element is "0", "1" or "?".
      */
     public static String[] crtcActivePair() {
-        File state = new File("/sys/kernel/debug/dri/0/state");
+        File state = new File(ThorHardwareProfile.DRM_STATE_PATH);
         if (!state.canRead()) return new String[] {"?", "?"};
         try (BufferedReader reader = new BufferedReader(new FileReader(state))) {
             return parseCrtcPair(reader);
@@ -135,8 +139,8 @@ public final class Telemetry {
         while (found < 2 && (line = reader.readLine()) != null) {
             String trimmed = line.trim();
             if (trimmed.startsWith("crtc[")) {
-                if (trimmed.startsWith("crtc[181]")) current = 0;
-                else if (trimmed.startsWith("crtc[243]")) current = 1;
+                if (trimmed.startsWith(TOP_CRTC_HEADER)) current = 0;
+                else if (trimmed.startsWith(BOTTOM_CRTC_HEADER)) current = 1;
                 else current = -1;
                 remaining = current >= 0 ? 14 : 0;
             }
@@ -157,7 +161,7 @@ public final class Telemetry {
     }
 
     private static String crtcActive(String target) {
-        File state = new File("/sys/kernel/debug/dri/0/state");
+        File state = new File(ThorHardwareProfile.DRM_STATE_PATH);
         if (!state.canRead()) return "?";
         try {
             BufferedReader reader = new BufferedReader(new FileReader(state));

@@ -1,6 +1,112 @@
 # Changelog
 
-## 1.5.17 (candidate, not yet validated on the Thor)
+## 1.5.20 (signed testing pre-release candidate)
+
+- Shorten the root bridge daemon launch command and bound it to 255 characters.
+  Four timing environment variables become one compact `JT` value; the daemon
+  expands it back into the existing trace fields. The root log pathname still
+  rejects links and files not owned by the launcher before redirection.
+- Add a pure command/metadata test including the longest possible timing values.
+  The 1.5.19 candidate's command was substantially longer and the root bridge
+  reported submission but no successor daemon started. A bridge command-size
+  limit is a hypothesis, not a confirmed root cause. The signed v1.5.20 APK
+  passed the supervised in-place handover that failed on v1.5.19.
+- Include 1.5.19 in the narrow older-daemon migration allowlist. The installed
+  Thor was safely returned to 1.5.17 after the failed 1.5.19 migration.
+- On the Thor, BOTH/TOP switching, TOP wake, one TOP cold boot with one expected
+  compositor restart, and the available closed-lid Wake Guard checks passed.
+  No green flash or wrong final panel was seen. The known early firmware
+  SurfaceFlinger abort still occurred before the app started. Updater install
+  and adversarial helper recovery remain untested on hardware; see the
+  [validation diary](docs/VALIDATION-1.5.20-PENDING.md).
+
+## 1.5.19 (failed supervised in-place migration; not suitable for release)
+
+The 1.5.18 safety changes remain a separate local commit for review. A
+supervised 1.5.19 install in BOTH on 2026-10-04 did not launch the new daemon
+after replacing the 1.5.17 daemon. The display and compositor stayed normal,
+but the app had no active root daemon. The 1.5.17 APK was reinstalled without
+clearing data; its daemon became healthy again without a reboot. Do not promote
+or install 1.5.19 again. See the 1.5.19 validation diary for evidence.
+
+- The root daemon's former static `D` code is split into objects with explicit
+  constructor dependencies, built by `DaemonRuntime`: `BootSession`,
+  `BootTrace`, `SystemProbe`, `BootCoordinator`, `CpuFixController`,
+  `TransitionWakeLock`, `DaemonCommandHandler`, `DaemonIpcServer` and
+  `AndroidRecoveryTrace`. `D` is a thin entry point. Commands, replies, trace
+  lines, gate waits and the helper script are unchanged. The static classes
+  called from smali stay static.
+- `MainActivity` keeps lifecycle and wiring only. New `DashboardLayout`,
+  `DashboardViews`, `DashboardStyle`, `DashboardRenderer`,
+  `DashboardSettingsController`, `TelemetryPoller`, `TelemetryValues`,
+  `BackgroundMediaController` and `UpdateReadiness` hold the former code.
+- `DaemonArgs` parses the daemon command line, with a host test. Host checks
+  keep `D` thin and keep daemon requests and view building out of
+  `MainActivity`; the IPC checks now read `DaemonIpcServer`.
+- v1.5.18 joins the replaceable-version allowlist.
+- Physical check before release: BOTH/TOP switches, CPU Fix on/off, Wake Guard,
+  cold boot in BOTH and TOP, app update from 1.5.18, and the dashboard texts
+  during boot hold.
+
+## 1.5.18 (host-built safety candidate; not validated on the Thor)
+
+Safety:
+
+- A boot daemon whose compositor-restart helper aborts no longer stays in
+  `APPLYING CPU FIX` with display actions held until reboot. The daemon now
+  observes the helper. When the compositor provably never restarted (exit 10,
+  watcher still running), a held boot daemon runs the post-restart gate
+  itself, with the unchanged five-second grace and 60-second timeout; a
+  runtime toggle only releases the transition wake lock. The CPU phase reports
+  `ERROR` and the previous property is restored while the old compositor still
+  runs.
+- Every other helper abort can follow a framework restart, after which the old
+  daemon's watcher and display callback are stale. That daemon now holds as
+  `HANDOFF FAILED`, releases the wake lock, takes no display or Wake Guard
+  action and is replaced by `AutoService` on the next boot broadcast or
+  dashboard open. Helper aborts use distinct exit codes (10-14). Only one
+  helper can run at a time.
+- `I` reports `phase_ms`; `Q` reports `boot_phase_ms` and `handoff`.
+  `AutoService` also replaces a same-version daemon whose starting phase has
+  not changed for 90 seconds, after the usual root-UID and command-line
+  checks, with a successor launched in hold. v1.5.17 joins the
+  replaceable-version allowlist.
+- No gate wait, sample rule or timeout changed. These paths have host-model
+  tests only; do not provoke a helper abort on a physical Thor. If the CPU
+  property cannot be applied, each replacement may restart the interface once.
+
+Hardening:
+
+- Root-written boot trace and launch log in `/data/local/tmp` no longer follow
+  links: `O_NOFOLLOW` plus regular-file, owner and link-count checks in Java,
+  and a builtin-only `safe_log` check in the shell. The world-readable trace
+  for the ADB collector is kept; `setReadable(true, false)` is gone.
+- `ThorHardwareProfile` centralizes the Thor display, CRTC, DRM and Hall
+  identifiers; the boot/lid test script rejects copies elsewhere and checks
+  the smali logical display literal.
+- Wake Guard keeps `hall_switch` first and falls back only to a single
+  `SW_LID` input device. Not reachable on the tested Thor.
+- SECURITY.md describes the current Unix-socket channel instead of the old
+  loopback listener; ARCHITECTURE.md documents why the target SDK stays at 25.
+
+In-app updates:
+
+- While the dashboard is open, check this repository's latest stable GitHub
+  release at most once an hour. A yellow UPDATE button appears beside SUPPORT
+  and GITHUB only when a newer verifiable release exists; the first detection
+  shows a short release-notes prompt.
+- Download only `Jesty-Thor-Fix-<version>.apk` from that tag, verify GitHub's
+  size and SHA-256 digest, package name, version name, higher version code and
+  signing certificate, then use Android's `PackageInstaller` confirmation.
+- Do not commit an install during the boot transition, while a switch command
+  is in flight, or without a fresh daemon sample; switches are locked from the
+  Download tap until commit, and Cancel abandons the session. Explain the
+  BOTH-only daemon handover.
+- Long-press GITHUB to check now, disable automatic checks, or opt into test
+  pre-releases. Adds `REQUEST_INSTALL_PACKAGES` and a non-exported install
+  status receiver. The updater never uses the root daemon or a shell.
+
+## 1.5.17 (installed pre-release; supervised BOTH and TOP boots recorded)
 
 - Replace every timed `Process.waitFor` with a 5 ms bounded poll. The v1.5.16
   trace showed 102-103 ms gaps around short commands and 702-713 ms sample

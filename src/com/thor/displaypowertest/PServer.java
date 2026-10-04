@@ -29,26 +29,19 @@ public final class PServer {
                 -1L, -1L, "?", -1L);
     }
 
-    /**
-     * Timing fields travel as environment variables so the identity-checked
-     * command line keeps its existing shape. All values are numeric or an enum name.
-     */
+    /** Timing fields use one compact environment value; argv identity stays fixed. */
     public static boolean startDaemon(boolean enabled, boolean bootHold,
             boolean dashboardFix, boolean lidGuard, long receiverAtMs, long serviceAtMs,
             String socketState, long launchWaitMs) {
-        String state = enabled ? "1" : "0";
-        String safeSocket = socketState != null && socketState.matches("[A-Z_]{1,32}")
-                ? socketState : "UNKNOWN";
-        String command = "A=$(pm path com.thor.displaypowertest | head -n 1);A=${A#*:};"
-                + "JESTY_RECEIVER_MS=" + Math.max(-1L, receiverAtMs)
-                + " JESTY_SERVICE_MS=" + Math.max(-1L, serviceAtMs)
-                + " JESTY_SOCKET_STATE=" + safeSocket
-                + " JESTY_LAUNCH_WAIT_MS=" + Math.max(-1L, launchWaitMs)
-                + " CLASSPATH=$A "
-                + "app_process / D " + state + (bootHold ? " hold " : " run ")
-                + (dashboardFix ? "1" : "0") + " " + (lidGuard ? "1" : "0")
-                + " >>/data/local/tmp/td032.log 2>&1 &";
-        return send(command, "daemon launch submitted enabled=" + enabled);
+        try {
+            String command = DaemonLaunchScript.command(RootLogFiles.DAEMON_LOG,
+                    enabled, bootHold, dashboardFix, lidGuard,
+                    receiverAtMs, serviceAtMs, socketState, launchWaitMs);
+            return send(command, "daemon launch submitted enabled=" + enabled);
+        } catch (IllegalArgumentException error) {
+            Log.e(TAG, "daemon launch rejected before bridge call", error);
+            return false;
+        }
     }
 
     public static boolean stopLegacyDaemon() {
@@ -75,16 +68,42 @@ public final class PServer {
             String snapshot = SocketClient.request('Q', 2500);
             int pid = PreviousSecureDaemonIdentity.safePid(health, snapshot);
             if (pid < 1) return false;
-            String command = "P=" + pid + ";"
-                    + "[ \"$(stat -c %u /proc/$P)\" = 0 ]||exit 1;"
-                    + "tr '\\000' ' ' </proc/$P/cmdline|"
-                    + "grep -Eq '^app_process / D [01] (hold|run) [01] [01]( |$)'||exit 1;"
-                    + "kill \"$P\"";
-            return send(command, "identified older secure daemon stop submitted pid=" + pid);
+            return send(identifiedDaemonKill(pid),
+                    "identified older secure daemon stop submitted pid=" + pid);
         } catch (Throwable error) {
             Log.e(TAG, "older daemon identity check failed", error);
             return false;
         }
+    }
+
+    /**
+     * Replaces only an authenticated same-version, same-intent daemon that is
+     * held after a failed compositor handover, or whose starting phase has not
+     * changed for {@link DaemonLaunchModel#STUCK_PHASE_MS}. Display actions are
+     * held in both cases, so no BOTH requirement applies; the successor is
+     * launched in hold and runs the full boot gate.
+     */
+    public static boolean stopReplaceableSecureDaemonIfSafe(boolean expectedFix) {
+        try {
+            String health = SocketClient.request('I', 700);
+            int pid = DaemonLaunchModel.replaceablePid(health, DaemonIdentity.VERSION,
+                    expectedFix);
+            if (pid < 1) return false;
+            Log.w(TAG, "replaceable daemon: " + health);
+            return send(identifiedDaemonKill(pid),
+                    "identified held same-version daemon stop submitted pid=" + pid);
+        } catch (Throwable error) {
+            Log.e(TAG, "held daemon identity check failed", error);
+            return false;
+        }
+    }
+
+    private static String identifiedDaemonKill(int pid) {
+        return "P=" + pid + ";"
+                + "[ \"$(stat -c %u /proc/$P)\" = 0 ]||exit 1;"
+                + "tr '\\000' ' ' </proc/$P/cmdline|"
+                + "grep -Eq '^app_process / D [01] (hold|run) [01] [01]( |$)'||exit 1;"
+                + "kill \"$P\"";
     }
 
     /** Read-only legacy fingerprint; never sends a power-changing command. */

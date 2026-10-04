@@ -1,6 +1,24 @@
 # Release integrity
 
-## 1.5.17 testing pre-release (Thor validation pending)
+## 1.5.20 testing pre-release candidate
+
+- Package: `com.thor.displaypowertest`
+- Version code/name: `69` / `1.5.20`
+- APK: `Jesty-Thor-Fix-1.5.20.apk`
+- Local signed APK SHA-256: `AC4EC453863935F8ECA674CE5F6F2B0418C1AEFEC081987B247AE7E6A10C79C6`
+- Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`
+- Alignment, v1/v2/v3 signatures and host suites passed. The exact APK was
+  installed over v1.5.17 without clearing data. Its supervised in-place
+  handover, BOTH/TOP changes, TOP wake, one TOP cold boot and available
+  Wake Guard checks passed on the Thor. No green flash or wrong final panel
+  was observed. The known early SurfaceFlinger abort remained before the app
+  started; updater installation and adversarial helper recovery were not
+  physically exercised. See `VALIDATION-1.5.20-PENDING.md`.
+- Before publishing, verify the uploaded GitHub asset size, SHA-256 and
+  reported asset digest against the exact local APK. The binary and signing
+  material stay outside Git. v1.5.16 remains Latest stable.
+
+## 1.5.17 testing pre-release (Thor validation recorded)
 
 - Package: `com.thor.displaypowertest`
 - Version code/name: `66` / `1.5.17`
@@ -8,9 +26,10 @@
 - Local signed APK SHA-256: `6E9BE2F4076FAB75753CD742D64D5027CFBF8C07275EF61119E67CFE93EDC550`
 - Signing certificate SHA-256: `727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC`
 - Alignment and v1/v2/v3 signatures passed. Host suites passed after the
-  patch and local corrections. The exact APK has **not** been installed or
-  boot-tested on the Thor. The GitHub pre-release asset was downloaded after
-  upload and matched the local SHA-256 and 9,151,581-byte size.
+  patch and local corrections. The exact APK was subsequently installed and
+  completed supervised BOTH and TOP boots on the Thor; see its validation
+  diary. The GitHub pre-release asset was downloaded after upload and matched
+  the local SHA-256 and 9,151,581-byte size.
 
 v1.5.16 remains Latest stable. No APK, signing material or device log is
 committed to Git.
