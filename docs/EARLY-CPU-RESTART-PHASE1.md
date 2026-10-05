@@ -1,6 +1,6 @@
 # Jesty Thor Fix — Early CPU restart, phase 1
 
-Status: model + secure persistent store + CpuFixController runtime provenance integration implemented. The restart still sits behind the existing full display gate; moving it earlier is the next phase.
+Status: phase 1 provenance is merged; phase 2 moves the CPU reconcile ahead of the display gate while preserving the existing display/CRTC/grace rules.
 
 ## Goal
 
@@ -150,11 +150,34 @@ never issues a second automatic restart for that attempt. The post-restart boot 
 calls the controller when the global property already matches so the successor can persist
 `APPLIED` from PID provenance instead of trusting `getprop` alone.
 
-## Next implementation step
+## Phase 2 boot ordering
 
-Move the **initial** CPU reconcile ahead of `BootGateModel` using CPU-only prerequisites while
-leaving the existing display readiness gate, stable CRTC samples, grace period, display
-reconciliation and Wake Guard ordering unchanged.
+The boot coordinator now treats CPU and display readiness as independent phases:
 
-This phase deliberately does **not** move the restart earlier yet, so physical behavior/timing
-should remain on the existing v1.5.20-style gate until that next change.
+```text
+boot hold
+  -> sys.boot_completed
+  -> composer running + valid PID
+  -> watcher RUNNING
+  -> valid boot_id + CPU property observation
+  -> CpuFixController provenance reconcile
+       -> no restart needed: continue
+       -> restart required: hand off immediately
+  -> existing BootGateModel
+       -> known AYN mode
+       -> valid top/bottom CRTC
+       -> 3 stable samples
+       -> unchanged 10 s initial / 5 s post-restart grace
+  -> display reconciliation
+  -> Wake Guard enable
+  -> BOOT_READY
+```
+
+The CPU-only gate deliberately does not read mode/CRTC state or issue display/lid actions.
+`BootSafety` remains held throughout both phases. A current `APPLIED` marker can also prove
+post-restart compositor provenance if a replacement daemon loses the explicit `post` argv token,
+so the post-restart display gate retains its 5-second semantics.
+
+The expected physical effect on a normal cold boot with the CPU fix enabled is to move the
+composer restart from roughly the end of the 10-second display grace to immediately after the
+CPU-only prerequisites become ready. The display gate itself is not shortened.

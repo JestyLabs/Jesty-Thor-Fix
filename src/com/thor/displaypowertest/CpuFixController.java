@@ -47,6 +47,30 @@ public final class CpuFixController {
     public void setHandoffState(String state) { handoffState = state; }
 
     /**
+     * True only when a boot-scoped APPLIED marker proves that the current
+     * composer is the successor that consumed the desired vendor property.
+     * BootCoordinator uses this to recover post-restart display-gate semantics
+     * even if a later daemon relaunch loses the explicit "post" argv token.
+     */
+    public boolean currentComposerHasAppliedAttempt() {
+        synchronized (lock) {
+            CpuBootAttemptStore.ReadResult stored = CpuBootAttemptStore.read();
+            if (stored.state != CpuBootAttemptStore.State.VALID
+                    || stored.attempt.phase != CpuBootAttemptModel.Phase.APPLIED) {
+                return false;
+            }
+            CpuBootAttemptModel.Attempt attempt = stored.attempt;
+            String bootId = SecureChannel.currentBootId();
+            String property = Telemetry.systemLoadFixObservation();
+            String composerPid = probe.composerPid();
+            String desiredValue = desired ? "1" : "0";
+            return CpuBootAttemptModel.decide(attempt, bootId, desiredValue,
+                    property, composerPid, SystemClock.elapsedRealtime())
+                    == CpuBootAttemptModel.Action.PROCEED;
+        }
+    }
+
+    /**
      * Releases the transition wake lock unless a compositor restart now owns
      * it. Returns true when the release was sent.
      */
@@ -124,7 +148,7 @@ public final class CpuFixController {
                     releaseWakeLockUnlessRestartScheduled();
                     return;
                 }
-                if (!retryableResumeResult(result)) {
+                if (!retryableAttemptResult(result)) {
                     // Terminal recovery failure also releases a predecessor's
                     // named lock when no restart is currently scheduled.
                     releaseWakeLockUnlessRestartScheduled();
@@ -493,7 +517,7 @@ public final class CpuFixController {
         }
     }
 
-    private static boolean retryableResumeResult(String result) {
+    static boolean retryableAttemptResult(String result) {
         return result != null && (result.contains("WATCHER_NOT_READY")
                 || result.contains("COMPOSER_NOT_READY")
                 || result.contains("COMPOSER_PID_UNKNOWN")
