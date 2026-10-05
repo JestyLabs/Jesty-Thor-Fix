@@ -133,6 +133,15 @@ public final class BootCoordinator implements CpuFixController.HandoffRecovery {
                 return CpuPhaseResult.STOP;
             }
 
+            if (gateResult == EarlyCpuGateModel.Result.WAIT) {
+                try { Thread.sleep(EarlyCpuGateModel.POLL_MS); }
+                catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                    return CpuPhaseResult.STOP;
+                }
+                continue;
+            }
+
             BootGateModel.CpuAction cpuAction = BootGateModel.cpuAction(
                     session.cpuFixDesired(), property, afterComposerRestart);
 
@@ -186,11 +195,6 @@ public final class BootCoordinator implements CpuFixController.HandoffRecovery {
                         : CpuPhaseResult.CONTINUE;
             }
 
-            try { Thread.sleep(EarlyCpuGateModel.POLL_MS); }
-            catch (InterruptedException ignored) {
-                Thread.currentThread().interrupt();
-                return CpuPhaseResult.STOP;
-            }
         }
     }
 
