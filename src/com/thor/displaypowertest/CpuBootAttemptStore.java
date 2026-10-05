@@ -191,7 +191,7 @@ public final class CpuBootAttemptStore {
             if (!trustedMarker(stat, dirs.appUid)) {
                 throw new IOException("Refusing to delete untrusted CPU boot attempt marker");
             }
-            Os.unlink(MARKER_PATH);
+            Os.remove(MARKER_PATH);
             fsyncDirectory();
         } catch (Throwable error) {
             if (error instanceof IOException) throw (IOException) error;
@@ -241,13 +241,13 @@ public final class CpuBootAttemptStore {
         if (!trustedMarker(temp, dirs.appUid)) {
             throw new IOException("Refusing to remove untrusted CPU boot attempt temp file");
         }
-        Os.unlink(TEMP_PATH);
+        Os.remove(TEMP_PATH);
     }
 
     private static void fsyncDirectory() throws Exception {
         FileDescriptor dir = null;
         try {
-            dir = Os.open(FILES_DIR, OsConstants.O_RDONLY | OsConstants.O_DIRECTORY
+            dir = Os.open(FILES_DIR, OsConstants.O_RDONLY
                     | OsConstants.O_CLOEXEC | OsConstants.O_NOFOLLOW, 0);
             Os.fsync(dir);
         } finally {
