@@ -8,9 +8,10 @@ TOP cold boot and Wake Guard checks on the Thor. See its
 this release rather than installed separately. The pre-compositor property
 write and an earlier compositor restart remain untested proposals.
 
-The order is: measure, correct safety failures, investigate the largest boot
-gain, then consider shorter waits. Keep each performance behavior change in
-its own version. No safety wait is reduced from estimates alone.
+The order is: measure, correct safety failures, seek a runtime vendor-state
+reload that avoids the second visual boot, then consider moving the existing
+CPU restart earlier. Keep each performance behavior change in its own version.
+No safety wait is reduced from estimates alone.
 
 ## 0. Measure the exact v1.5.17 APK
 
@@ -42,6 +43,16 @@ frame-time A/B using SurfaceFlinger `--timestats` needs separate approval and
 must restore the initial state.
 
 ## 1. Investigate avoiding the compositor restart (read-only first)
+
+First trace the property consumer inside the Thor's vendor display stack and
+check whether a callable runtime path refreshes the effective state without a
+process restart. The initial read-only binary finding and the evidence needed
+before any trial are in [CPU Fix restart options](CPU-FIX-RESTART-OPTIONS.md).
+If no safe path exists, develop the CPU-only early gate in a separate version:
+move the property/restart earlier, keep display actions held, and run the
+unchanged full mode/CRTC gate in the successor. Direct Boot is a later study.
+The pre-compositor hook stays research-only until timing, fallback, boot-loop
+escape and uninstall cleanup can all be proved.
 
 The historical runtime property, panel-cycle and composer-restart experiments
 have now been recovered from thread `01a0cbaa-8916-7ee0-8dfb-df13250c180c`.
@@ -145,7 +156,6 @@ watcher cost, CPU OFF/unset warning, hardcoded display IDs, fork frequency,
 migration/TOP upgrade, display callback health, socket permissions,
 synchronization and dashboard telemetry. Physical BOTTOM ONLY, dock use and
 the updater's end-to-end installation test are deferred by owner decision.
-Replacing `LID UNKNOWN` with a Wake Guard OFF label is also deferred. The next
-active investigation is whether the CPU property can be set before the first
-compositor starts, with a reversible boot path and one supervised trial only
-after the design and host checks pass.
+Replacing `LID UNKNOWN` with a Wake Guard OFF label is also deferred. The
+next active work is read-only analysis of the vendor property consumer; an
+early restart candidate follows only if dynamic reload has no safe path.

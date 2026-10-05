@@ -70,8 +70,8 @@ visual gap. The current 10-second gate was introduced after display races and
 green flashes; reverting to the old sequence would discard that protection.
 
 The known early SurfaceFlinger EGL/ANGLE abort occurs at ~4.325 s in this
-boot, before Jesty or even the first system_server. It is a separate firmware
-problem, not the late Jesty restart request.
+boot, before the app or even the first system_server. It is a separate firmware
+problem, not the late app restart request.
 
 ## Options and required proof
 
@@ -107,10 +107,15 @@ problem, not the late Jesty restart request.
    toggle semantics are in [CPU Fix restart options](CPU-FIX-RESTART-OPTIONS.md).
    No persistent system change is authorized by this analysis.
 
-Raising the priority of Jesty's ordered `BOOT_COMPLETED` receiver could also
+Raising the priority of the app's ordered `BOOT_COMPLETED` receiver could also
 move it earlier in the queue, but an earlier compositor restart might
 interrupt other apps' boot receivers. The log does not establish a safe
 priority. We should not use that as a shortcut.
 
-For now v1.5.17 remains a pre-release. The measured delay is real, but this
-analysis does not validate an earlier restart or shorten the safety grace.
+The v1.5.20 release still uses the existing restart path. Its TOP boot had a
+39.634 s interval between the two visual finishes, with 12.616 s from restart
+request to the second finish. These are observations from that boot, not a
+prediction for a changed gate. The next priority is the read-only
+vendor-state reload investigation in [CPU Fix restart options](CPU-FIX-RESTART-OPTIONS.md),
+followed by a separate CPU-only early-gate candidate if no safe runtime update
+exists. Neither result justifies shortening the display safety grace.

@@ -32,6 +32,43 @@ The old binary inspection found the runtime key but no `persist.vendor...`
 equivalent or exposed dynamic API. This limits the tested routes; it does not
 prove that no proprietary mechanism could ever exist.
 
+## Next investigation: reload the vendor state without a restart
+
+The product goal is one visual Android startup on a cold boot. Before building
+an early boot hook, inspect the actual consumer of the property and look for
+a supported, callable way to update its effective state in a running composer.
+This investigation is read-only; do not issue a display command merely because
+a method name suggests it could work.
+
+On 2026-10-05, a read-only search of likely Thor vendor display binaries found
+`vendor.display.disable_system_load_check` in
+`/vendor/lib64/libsdmextension.so` (local copy SHA-256
+`B23AC200FAA14F81DAC69AC3C83CF922A02C237E3FC7A3202B00137622862370`).
+That binary also contains the symbol `sdm::ResourceImpl::CheckSystemLoad`.
+These are search leads, **not** proof of which function reads the property or
+whether it can be reloaded. The composer executable copied earlier did not
+contain the property string. Next, resolve the property string's code
+references, trace the value into ResourceImpl and QOS state, then inspect any
+public or private display-config call that reaches the same state. A host
+finding must identify exact call semantics and access checks before a single
+supervised runtime trial could be considered. The late `setprop` and TOP/BOTH
+cycle have already failed, so repeating them alone adds no evidence.
+
+If no safe dynamic call is found, a separate candidate may restart the composer
+earlier through a CPU-only readiness gate while `BOOT HOLD` still blocks every
+display and sleep action. The successor must still run the full existing
+mode/CRTC stability and grace gate before reconciliation. This could move the
+second visual phase earlier, but cannot remove it. Do not shorten the display
+gate or infer safety from a known CPU property alone.
+
+Only after that should a tiny Direct Boot prelude be considered. It needs
+device-protected CPU intent, proof that the vendor bridge works before normal
+`BOOT_COMPLETED`, and idempotence across both broadcasts. The pre-composer
+property write remains a parallel research question: the observed window
+between `qti_display_boot` and composer start was roughly 0.37 s, and no
+automatic uninstall cleanup for a persistent `/data/adb` hook is established.
+Without a demonstrably removable, recoverable mechanism, do not install one.
+
 ## If a pre-composer boot write is viable
 
 The intended user behavior is straightforward:
