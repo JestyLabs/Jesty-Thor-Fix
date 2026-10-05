@@ -148,7 +148,7 @@ public final class CpuFixController {
                     releaseWakeLockUnlessRestartScheduled();
                     return;
                 }
-                if (!retryableResumeResult(result)) {
+                if (!retryableAttemptResult(result)) {
                     // Terminal recovery failure also releases a predecessor's
                     // named lock when no restart is currently scheduled.
                     releaseWakeLockUnlessRestartScheduled();
@@ -517,7 +517,7 @@ public final class CpuFixController {
         }
     }
 
-    private static boolean retryableResumeResult(String result) {
+    static boolean retryableAttemptResult(String result) {
         return result != null && (result.contains("WATCHER_NOT_READY")
                 || result.contains("COMPOSER_NOT_READY")
                 || result.contains("COMPOSER_PID_UNKNOWN")
