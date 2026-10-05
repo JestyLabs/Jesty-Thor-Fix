@@ -55,6 +55,10 @@ public final class CpuBootAttemptModelTest {
                 Action.PROCEED, "applied marker and successor composer proceed");
         eq(CpuBootAttemptModel.decide(applied, BOOT, "1", "1", "100", 3100),
                 Action.FAIL_SAFE, "APPLIED cannot point at the baseline composer");
+        eq(CpuBootAttemptModel.decide(applied, BOOT, "0", "1", "200", 3200),
+                Action.START_NEW, "completed attempt may start a new explicit desired state");
+        eq(CpuBootAttemptModel.decide(requested, BOOT, "0", "1", "100", 2200),
+                Action.FAIL_SAFE, "in-flight attempt suppresses a second desired restart");
 
         Attempt stale = new Attempt(OLD_BOOT, "1", "UNSET", "100", Phase.RESTART_REQUESTED, 1);
         eq(CpuBootAttemptModel.decide(stale, BOOT, "1", "1", "100", 3100),

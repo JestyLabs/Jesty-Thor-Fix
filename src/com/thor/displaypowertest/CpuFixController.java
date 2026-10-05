@@ -61,6 +61,37 @@ public final class CpuFixController {
     public String phase() {
         if (restartFailed) return "ERROR";
         if (restartScheduled || helperAlive || BootSafety.isHeld()) return "PENDING";
+
+        CpuBootAttemptStore.ReadResult stored = CpuBootAttemptStore.read();
+        if (stored.state == CpuBootAttemptStore.State.CORRUPT) return "ERROR";
+        if (stored.state == CpuBootAttemptStore.State.VALID) {
+            CpuBootAttemptModel.Attempt attempt = stored.attempt;
+            String bootId = SecureChannel.currentBootId();
+            if (CpuBootAttemptModel.validBootId(bootId)
+                    && bootId.equalsIgnoreCase(attempt.bootId)) {
+                switch (attempt.phase) {
+                    case PREPARED:
+                    case PROPERTY_VERIFIED:
+                    case RESTART_REQUESTED:
+                        return "PENDING";
+                    case FAILED:
+                        return "ERROR";
+                    case APPLIED:
+                        String actual = Telemetry.systemLoadFixObservation();
+                        String composerPid = probe.composerPid();
+                        if (attempt.desired.equals(actual)
+                                && CpuBootAttemptModel.pid(composerPid)
+                                && !attempt.baselineComposerPid.equals(composerPid)) {
+                            return (desired ? "1" : "0").equals(actual)
+                                    ? "CONFIRMED" : "MISMATCH";
+                        }
+                        return "ERROR";
+                    default:
+                        return "ERROR";
+                }
+            }
+        }
+
         String actual = Telemetry.systemLoadFixState();
         if (!"0".equals(actual) && !"1".equals(actual)) return "UNKNOWN";
         if (!probe.composerRunning()) return "PENDING";
@@ -75,12 +106,39 @@ public final class CpuFixController {
         }
     }
 
+    /**
+     * A normal (non-boot-hold) daemon can be the successor of a daemon that
+     * died in the property/restart window. Resume only when a durable marker
+     * exists; an ordinary daemon start with no marker remains side-effect free.
+     */
+    public void resumePersistedAttempt() {
+        CpuBootAttemptStore.ReadResult initial = CpuBootAttemptStore.read();
+        if (initial.state == CpuBootAttemptStore.State.ABSENT) return;
+        Thread resume = new Thread(() -> {
+            for (int poll = 0; poll < 130; poll++) {
+                String result = apply(desired);
+                if (result.startsWith("ok=1")) return;
+                if (!retryableResumeResult(result)) {
+                    Log.e("ThorDisplayDaemon", "CPU attempt resume stopped: " + result);
+                    return;
+                }
+                try {
+                    Thread.sleep(200L);
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
+            Log.e("ThorDisplayDaemon", "CPU attempt resume exceeded bounded wait");
+        }, "cpu-fix-attempt-resume");
+        resume.setDaemon(true);
+        resume.start();
+    }
+
     private String applyLocked(boolean enabled) {
         final String desiredValue = enabled ? "1" : "0";
-        final String actual = Telemetry.systemLoadFixObservation();
-        boolean unsetEnable = enabled && PropertyState.UNSET.equals(actual);
-        if (!unsetEnable && !"0".equals(actual) && !"1".equals(actual)) {
-            return "ok=0;error=CPU_FIX_STATE_UNKNOWN";
+        if (restartScheduled || helperAlive) {
+            return "ok=0;error=COMPOSER_RESTART_BUSY";
         }
         if (!probe.composerRunning()) {
             return "ok=0;error=COMPOSER_NOT_READY";
@@ -88,46 +146,209 @@ public final class CpuFixController {
         if (!"RUNNING".equals(WatcherSupervisor.health())) {
             return "ok=0;error=WATCHER_NOT_READY";
         }
-        final String beforeComposerPid = probe.composerPid();
-        if ("?".equals(beforeComposerPid)) return "ok=0;error=COMPOSER_PID_UNKNOWN";
-        if (desiredValue.equals(actual) && !restartFailed) {
-            desired = enabled;
-            return "ok=1;system_load_fix=" + desiredValue + ";composer_restart=not_needed";
+
+        final String bootId = SecureChannel.currentBootId();
+        if (!CpuBootAttemptModel.validBootId(bootId)) {
+            return "ok=0;error=BOOT_ID_UNKNOWN";
         }
-        if (restartScheduled || helperAlive) {
-            return "ok=0;error=COMPOSER_RESTART_BUSY";
+
+        boolean wakeHeld = false;
+        for (int step = 0; step < 10; step++) {
+            final String actual = Telemetry.systemLoadFixObservation();
+            boolean unsetEnable = enabled && PropertyState.UNSET.equals(actual);
+            if (!unsetEnable && !"0".equals(actual) && !"1".equals(actual)) {
+                if (wakeHeld) wakeLock.release();
+                return "ok=0;error=CPU_FIX_STATE_UNKNOWN";
+            }
+
+            final String composerPid = probe.composerPid();
+            if (!CpuBootAttemptModel.pid(composerPid)) {
+                if (wakeHeld) wakeLock.release();
+                return "ok=0;error=COMPOSER_PID_UNKNOWN";
+            }
+
+            CpuBootAttemptStore.ReadResult stored = CpuBootAttemptStore.read();
+            if (stored.state == CpuBootAttemptStore.State.CORRUPT) {
+                if (wakeHeld) wakeLock.release();
+                restartFailed = true;
+                return "ok=0;error=CPU_ATTEMPT_MARKER_CORRUPT";
+            }
+            CpuBootAttemptModel.Attempt attempt =
+                    stored.state == CpuBootAttemptStore.State.VALID ? stored.attempt : null;
+            if (restartFailed && attempt == null) {
+                if (wakeHeld) wakeLock.release();
+                return "ok=0;error=COMPOSER_RESTART_FAILED";
+            }
+
+            CpuBootAttemptModel.Action action = CpuBootAttemptModel.decide(
+                    attempt, bootId, desiredValue, actual, composerPid,
+                    SystemClock.elapsedRealtime());
+            switch (action) {
+                case DELETE_STALE:
+                    try {
+                        CpuBootAttemptStore.deleteTrusted();
+                        trace.mark("CPU_ATTEMPT_STALE_DELETED", null);
+                    } catch (Throwable error) {
+                        if (wakeHeld) wakeLock.release();
+                        restartFailed = true;
+                        Log.e("ThorDisplayDaemon", "cannot delete stale CPU attempt", error);
+                        return "ok=0;error=CPU_ATTEMPT_STALE_DELETE_FAILED";
+                    }
+                    continue;
+
+                case START_NEW:
+                    CpuBootAttemptModel.Attempt started = CpuBootAttemptModel.start(
+                            bootId, desiredValue, actual, composerPid,
+                            SystemClock.elapsedRealtime());
+                    if (!persistAttempt(started, "CPU_ATTEMPT_PREPARED", null)) {
+                        if (wakeHeld) wakeLock.release();
+                        return "ok=0;error=CPU_ATTEMPT_STORE_WRITE_FAILED";
+                    }
+                    continue;
+
+                case WRITE_PROPERTY:
+                    if (!wakeHeld) {
+                        if (!wakeLock.acquire()) {
+                            failPersistedAttempt(attempt.baselineComposerPid,
+                                    "wake_lock_failed");
+                            return "ok=0;error=WAKE_LOCK_FAILED";
+                        }
+                        wakeHeld = true;
+                    }
+                    String propertyResult = setSystemLoadCheckValue(desiredValue);
+                    if (!propertyResult.startsWith("ok=1")) {
+                        failPersistedAttempt(attempt.baselineComposerPid,
+                                "setprop_failed");
+                        wakeLock.release();
+                        return propertyResult;
+                    }
+                    if (session.active()) {
+                        trace.mark("CPU_PROP_WRITTEN", "value=" + desiredValue);
+                    }
+                    if (!desiredValue.equals(Telemetry.systemLoadFixObservation())) {
+                        if (attempt.baselineComposerPid.equals(probe.composerPid())) {
+                            restoreSystemLoadCheckState(attempt.previous);
+                        }
+                        failPersistedAttempt(attempt.baselineComposerPid,
+                                "setprop_unconfirmed");
+                        wakeLock.release();
+                        return "ok=0;error=SETPROP_UNCONFIRMED";
+                    }
+                    CpuBootAttemptModel.Attempt verified = attempt.withPhase(
+                            CpuBootAttemptModel.Phase.PROPERTY_VERIFIED,
+                            SystemClock.elapsedRealtime());
+                    if (!persistAttempt(verified, "CPU_ATTEMPT_PROPERTY_VERIFIED",
+                            "recovered=0")) {
+                        if (attempt.baselineComposerPid.equals(probe.composerPid())) {
+                            restoreSystemLoadCheckState(attempt.previous);
+                        }
+                        wakeLock.release();
+                        return "ok=0;error=CPU_ATTEMPT_STORE_WRITE_FAILED";
+                    }
+                    if (session.active()) {
+                        trace.mark("CPU_PROP_VERIFIED", "value=" + desiredValue);
+                    }
+                    continue;
+
+                case CONFIRM_PROPERTY:
+                    CpuBootAttemptModel.Attempt recovered = attempt.withPhase(
+                            CpuBootAttemptModel.Phase.PROPERTY_VERIFIED,
+                            SystemClock.elapsedRealtime());
+                    if (!persistAttempt(recovered, "CPU_ATTEMPT_PROPERTY_VERIFIED",
+                            "recovered=1")) {
+                        if (wakeHeld) wakeLock.release();
+                        return "ok=0;error=CPU_ATTEMPT_STORE_WRITE_FAILED";
+                    }
+                    continue;
+
+                case REQUEST_RESTART:
+                    if (!wakeHeld) {
+                        if (!wakeLock.acquire()) {
+                            failPersistedAttempt(attempt.baselineComposerPid,
+                                    "wake_lock_failed_before_restart");
+                            return "ok=0;error=WAKE_LOCK_FAILED";
+                        }
+                        wakeHeld = true;
+                    }
+                    CpuBootAttemptModel.Attempt requested = attempt.withPhase(
+                            CpuBootAttemptModel.Phase.RESTART_REQUESTED,
+                            SystemClock.elapsedRealtime());
+                    // Durability boundary: this write MUST complete before any
+                    // helper/thread can reach ctl.restart.
+                    if (!persistAttempt(requested, "CPU_ATTEMPT_RESTART_REQUESTED",
+                            null)) {
+                        if (attempt.baselineComposerPid.equals(probe.composerPid())) {
+                            restoreSystemLoadCheckState(attempt.previous);
+                        }
+                        wakeLock.release();
+                        return "ok=0;error=CPU_ATTEMPT_STORE_WRITE_FAILED";
+                    }
+                    desired = enabled;
+                    restartFailed = false;
+                    restartScheduled = true;
+                    final boolean bootTrace = session.active();
+                    new Thread(() -> runRestart(bootTrace, attempt.baselineComposerPid,
+                            attempt.previous, desiredValue),
+                            "composer-restart-once").start();
+                    wakeHeld = false;
+                    return "ok=1;system_load_fix=" + desiredValue
+                            + ";composer_restart=scheduled_once";
+
+                case WAIT_FOR_RESTART:
+                    desired = enabled;
+                    if (wakeHeld) wakeLock.release();
+                    return "ok=0;error=COMPOSER_RESTART_PENDING";
+
+                case MARK_APPLIED:
+                    CpuBootAttemptModel.Attempt applied = attempt.withPhase(
+                            CpuBootAttemptModel.Phase.APPLIED,
+                            SystemClock.elapsedRealtime());
+                    if (!persistAttempt(applied, "CPU_ATTEMPT_APPLIED",
+                            "composer_pid=" + composerPid)) {
+                        if (wakeHeld) wakeLock.release();
+                        return "ok=0;error=CPU_ATTEMPT_STORE_WRITE_FAILED";
+                    }
+                    desired = enabled;
+                    restartFailed = false;
+                    if (wakeHeld) wakeLock.release();
+                    return "ok=1;system_load_fix=" + desiredValue
+                            + ";composer_restart=applied";
+
+                case PROCEED:
+                    desired = enabled;
+                    if (restartFailed) {
+                        if (wakeHeld) wakeLock.release();
+                        return "ok=0;error=COMPOSER_RESTART_FAILED";
+                    }
+                    if (wakeHeld) wakeLock.release();
+                    return "ok=1;system_load_fix=" + desiredValue
+                            + ";composer_restart=not_needed";
+
+                case FAIL_SAFE:
+                default:
+                    if (attempt != null && bootId.equalsIgnoreCase(attempt.bootId)
+                            && attempt.phase != CpuBootAttemptModel.Phase.FAILED) {
+                        failPersistedAttempt(attempt.baselineComposerPid,
+                                "model_fail_safe");
+                    }
+                    if (attempt != null) restartFailed = true;
+                    if (wakeHeld) wakeLock.release();
+                    return "ok=0;error=CPU_RESTART_ATTEMPT_FAILED";
+            }
         }
-        if (!wakeLock.acquire()) {
-            return "ok=0;error=WAKE_LOCK_FAILED";
-        }
-        final boolean bootTrace = session.active();
-        String propertyResult = setSystemLoadCheckValue(desiredValue);
-        if (!propertyResult.startsWith("ok=1")) {
-            wakeLock.release();
-            return propertyResult;
-        }
-        if (bootTrace) trace.mark("CPU_PROP_WRITTEN", "value=" + desiredValue);
-        if (!desiredValue.equals(Telemetry.systemLoadFixObservation())) {
-            restoreSystemLoadCheckState(actual);
-            wakeLock.release();
-            return "ok=0;error=SETPROP_UNCONFIRMED";
-        }
-        if (bootTrace) trace.mark("CPU_PROP_VERIFIED", "value=" + desiredValue);
-        desired = enabled;
-        restartFailed = false;
-        restartScheduled = true;
-        new Thread(() -> runRestart(bootTrace, beforeComposerPid, actual),
-                "composer-restart-once").start();
-        return "ok=1;system_load_fix=" + desiredValue + ";composer_restart=scheduled_once";
+        if (wakeHeld) wakeLock.release();
+        restartFailed = true;
+        return "ok=0;error=CPU_RESTART_STATE_LOOP";
     }
 
-    private void runRestart(boolean bootTrace, String beforeComposerPid, String previousCpu) {
+    private void runRestart(boolean bootTrace, String beforeComposerPid, String previousCpu,
+            String desiredValue) {
         Process helper = null;
         try {
             Thread.sleep(300L);
             helper = scheduleTransitionCleanupAndDaemonRestart(beforeComposerPid);
             handoffState = "SCHEDULED";
-            observeHelper(helper, bootTrace, beforeComposerPid, previousCpu);
+            observeHelper(helper, bootTrace, beforeComposerPid, previousCpu, desiredValue);
             if (bootTrace) trace.mark("HELPER_SCHEDULED", "old_composer=" + beforeComposerPid);
             if (bootTrace) trace.mark("CTL_RESTART_SENT", null);
             int exit = new ProcessBuilder("setprop", "ctl.restart",
@@ -136,17 +357,19 @@ public final class CpuFixController {
             if (exit != 0) throw new IllegalStateException("composer restart exit=" + exit);
             Thread.sleep(3000L);
         } catch (Throwable error) {
-            restartFailed = true;
-            if (beforeComposerPid.equals(probe.composerPid())) {
-                restoreSystemLoadCheckState(previousCpu);
+            boolean applied = markAppliedIfComposerReplaced(beforeComposerPid, desiredValue);
+            restartFailed = !applied;
+            if (!applied) {
+                failPersistedAttempt(beforeComposerPid, "restart_failed");
+                if (beforeComposerPid.equals(probe.composerPid())) {
+                    restoreSystemLoadCheckState(previousCpu);
+                }
             }
             Log.e("ThorDisplayDaemon", "composer restart failed", error);
             wakeLock.release();
         } finally {
             synchronized (lock) { restartScheduled = false; }
         }
-        // No helper started, so ctl.restart was never sent either: the
-        // framework did not restart and this daemon's watcher is current.
         if (helper == null && bootTrace && BootSafety.isHeld()) {
             recovery.recoverInPlace("HELPER_START_FAILED");
         }
@@ -158,7 +381,8 @@ public final class CpuFixController {
      * daemon stayed in APPLYING CPU FIX with display actions held until reboot.
      */
     private void observeHelper(final Process helper, final boolean bootHandoff,
-            final String beforeComposerPid, final String previousCpu) {
+            final String beforeComposerPid, final String previousCpu,
+            final String desiredValue) {
         helperAlive = true;
         Thread observer = new Thread(() -> {
             int exit;
@@ -171,14 +395,14 @@ public final class CpuFixController {
             } finally {
                 helperAlive = false;
             }
-            onHelperExit(exit, bootHandoff, beforeComposerPid, previousCpu);
+            onHelperExit(exit, bootHandoff, beforeComposerPid, previousCpu, desiredValue);
         }, "thor-helper-observer");
         observer.setDaemon(true);
         observer.start();
     }
 
     private void onHelperExit(int exit, boolean bootHandoff, String beforeComposerPid,
-            String previousCpu) {
+            String previousCpu, String desiredValue) {
         HandoffRecoveryModel.Action action = HandoffRecoveryModel.afterHelperExit(
                 exit, bootHandoff, BootSafety.isHeld(),
                 "RUNNING".equals(WatcherSupervisor.health()));
@@ -190,9 +414,12 @@ public final class CpuFixController {
             // Same rule as a failed ctl.restart: report ERROR and restore
             // the previous property only while the old compositor still runs.
             restartFailed = true;
+            failPersistedAttempt(beforeComposerPid, "helper_composer_not_restarted");
             if (beforeComposerPid.equals(probe.composerPid())) {
                 restoreSystemLoadCheckState(previousCpu);
             }
+        } else if (markAppliedIfComposerReplaced(beforeComposerPid, desiredValue)) {
+            restartFailed = false;
         }
         if (action == HandoffRecoveryModel.Action.HOLD_FOR_REPLACEMENT) {
             // Hold first, before any wait, so no display action uses a
@@ -224,6 +451,80 @@ public final class CpuFixController {
     private void waitForRestartBookkeeping() {
         for (int poll = 0; poll < 100 && restartScheduled; poll++) {
             try { Thread.sleep(100L); } catch (InterruptedException ignored) { return; }
+        }
+    }
+
+    private static boolean retryableResumeResult(String result) {
+        return result != null && (result.contains("WATCHER_NOT_READY")
+                || result.contains("COMPOSER_NOT_READY")
+                || result.contains("COMPOSER_PID_UNKNOWN")
+                || result.contains("CPU_FIX_STATE_UNKNOWN")
+                || result.contains("BOOT_ID_UNKNOWN")
+                || result.contains("COMPOSER_RESTART_PENDING")
+                || result.contains("COMPOSER_RESTART_BUSY"));
+    }
+
+    private boolean persistAttempt(CpuBootAttemptModel.Attempt attempt,
+            String action, String detail) {
+        try {
+            CpuBootAttemptStore.write(attempt);
+            String suffix = "phase=" + attempt.phase.name()
+                    + ";baseline_pid=" + attempt.baselineComposerPid;
+            if (detail != null && !detail.isEmpty()) suffix += ";" + detail;
+            trace.mark(action, suffix);
+            return true;
+        } catch (Throwable error) {
+            Log.e("ThorDisplayDaemon", "cannot persist CPU boot attempt "
+                    + attempt.phase.name(), error);
+            return false;
+        }
+    }
+
+    private void failPersistedAttempt(String baselineComposerPid, String detail) {
+        try {
+            CpuBootAttemptStore.ReadResult stored = CpuBootAttemptStore.read();
+            if (stored.state != CpuBootAttemptStore.State.VALID) return;
+            CpuBootAttemptModel.Attempt attempt = stored.attempt;
+            String bootId = SecureChannel.currentBootId();
+            if (!CpuBootAttemptModel.validBootId(bootId)
+                    || !bootId.equalsIgnoreCase(attempt.bootId)
+                    || !baselineComposerPid.equals(attempt.baselineComposerPid)
+                    || attempt.phase == CpuBootAttemptModel.Phase.APPLIED
+                    || attempt.phase == CpuBootAttemptModel.Phase.FAILED) {
+                return;
+            }
+            persistAttempt(attempt.withPhase(CpuBootAttemptModel.Phase.FAILED,
+                    SystemClock.elapsedRealtime()), "CPU_ATTEMPT_FAILED", detail);
+        } catch (Throwable error) {
+            Log.e("ThorDisplayDaemon", "cannot fail CPU boot attempt", error);
+        }
+    }
+
+    private boolean markAppliedIfComposerReplaced(String baselineComposerPid,
+            String desiredValue) {
+        try {
+            CpuBootAttemptStore.ReadResult stored = CpuBootAttemptStore.read();
+            if (stored.state != CpuBootAttemptStore.State.VALID) return false;
+            CpuBootAttemptModel.Attempt attempt = stored.attempt;
+            if (!baselineComposerPid.equals(attempt.baselineComposerPid)) return false;
+            String bootId = SecureChannel.currentBootId();
+            String property = Telemetry.systemLoadFixObservation();
+            String composerPid = probe.composerPid();
+            CpuBootAttemptModel.Action action = CpuBootAttemptModel.decide(
+                    attempt, bootId, desiredValue, property, composerPid,
+                    SystemClock.elapsedRealtime());
+            if (action == CpuBootAttemptModel.Action.PROCEED
+                    && attempt.phase == CpuBootAttemptModel.Phase.APPLIED) {
+                return true;
+            }
+            if (action != CpuBootAttemptModel.Action.MARK_APPLIED) return false;
+            CpuBootAttemptModel.Attempt applied = attempt.withPhase(
+                    CpuBootAttemptModel.Phase.APPLIED, SystemClock.elapsedRealtime());
+            return persistAttempt(applied, "CPU_ATTEMPT_APPLIED",
+                    "composer_pid=" + composerPid);
+        } catch (Throwable error) {
+            Log.e("ThorDisplayDaemon", "cannot confirm CPU boot attempt", error);
+            return false;
         }
     }
 

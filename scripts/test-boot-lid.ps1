@@ -92,8 +92,23 @@ if ($attemptStore -match '/data/local/tmp|/data/adb') {
 }
 $cpuFixSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'CpuFixController.java') -Raw
 $commandSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'DaemonCommandHandler.java') -Raw
+$runtimeSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'DaemonRuntime.java') -Raw
 if ($cpuFixSource -notmatch 'observeHelper\(' -or $commandSource -notmatch '";phase_ms="') {
     throw 'The daemon must observe its compositor helper and report its phase age.'
+}
+if ($cpuFixSource -notmatch 'CpuBootAttemptStore\.read\(' -or
+    $cpuFixSource -notmatch 'CpuBootAttemptStore\.write\(' -or
+    $cpuFixSource -notmatch 'Phase\.RESTART_REQUESTED' -or
+    $cpuFixSource -notmatch 'CPU_ATTEMPT_APPLIED' -or
+    $runtimeSource -notmatch 'if \(!coordinating\) cpuFix\.resumePersistedAttempt\(\)') {
+    throw 'CPU restart provenance must be integrated into the runtime and normal-daemon recovery.'
+}
+$restartRequestedAt = $cpuFixSource.IndexOf('attempt.withPhase(' +
+    [Environment]::NewLine + '                            CpuBootAttemptModel.Phase.RESTART_REQUESTED')
+$restartLaunchAt = $cpuFixSource.IndexOf('new Thread(() -> runRestart')
+if ($restartRequestedAt -lt 0 -or $restartLaunchAt -lt 0 -or
+    $restartRequestedAt -ge $restartLaunchAt) {
+    throw 'RESTART_REQUESTED must be constructed and persisted before the restart thread exists.'
 }
 # Thor identifiers belong to ThorHardwareProfile; smali repeats one of them.
 $hardwareLiterals = @(Get-ChildItem -LiteralPath (Join-Path $repository 'src') -Filter '*.java' -Recurse |
