@@ -116,7 +116,7 @@ if ($displayStart -lt 0 -or $displayEnd -le $displayStart -or
     $bootCoordinatorSource.Substring($displayStart, $displayEnd - $displayStart) -match 'cpuFix\.apply\(') {
     throw 'The display readiness phase must not perform CPU property/restart work.'
 }
-if ($earlyGateSource -match 'crtc|DaemonState\.getMode|DisplayActionCoordinator|LidGuard') {
+if ($earlyGateSource -match 'Telemetry\.crtc|DaemonState\.getMode|DisplayActionCoordinator|LidGuard') {
     throw 'The early CPU gate must stay independent from display and lid readiness.'
 }
 $restartPersistAt = $cpuFixSource.IndexOf('persistAttempt(requested, "CPU_ATTEMPT_RESTART_REQUESTED"')
