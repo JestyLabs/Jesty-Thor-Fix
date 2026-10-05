@@ -125,17 +125,33 @@ public final class BootCoordinator implements CpuFixController.HandoffRecovery {
             DaemonState.setLastAction("BOOT_CPU_FIX_NOT_APPLIED");
             trace.boot("BOOT_CPU_FIX_NOT_APPLIED");
             Log.w("ThorDisplayDaemon", "CPU fix not confirmed; continuing safe display reconcile");
-        }
-        if (cpuAction == BootGateModel.CpuAction.RESTART_ONCE) {
-            BootSafety.phase("APPLYING CPU FIX");
-            trace.boot("APPLY_CPU_FIX");
+        } else {
+            if (cpuAction == BootGateModel.CpuAction.RESTART_ONCE) {
+                BootSafety.phase("APPLYING CPU FIX");
+                trace.boot("APPLY_CPU_FIX");
+            }
+            // Even when the global property already matches, CpuFixController
+            // must inspect the boot-scoped marker. A post-restart successor
+            // proves the cached vendor state by seeing a new composer PID and
+            // persists APPLIED here.
             String result = cpuFix.apply(session.cpuFixDesired());
-            if (result.contains("composer_restart=scheduled_once")) return true;
-            BootSafety.timeout();
-            DaemonState.setLastAction("BOOT_CPU_FIX_FAILED");
-            Log.e("ThorDisplayDaemon", "boot CPU reconcile failed: " + result);
-            trace.boot("BOOT_CPU_FIX_FAILED");
-            return false;
+            if (result.contains("composer_restart=scheduled_once")) {
+                if (cpuAction != BootGateModel.CpuAction.RESTART_ONCE) {
+                    BootSafety.phase("APPLYING CPU FIX");
+                    trace.boot("RESUME_CPU_FIX");
+                }
+                return true;
+            }
+            if (!result.startsWith("ok=1")) {
+                DaemonState.setLastAction("BOOT_CPU_FIX_NOT_APPLIED");
+                trace.boot("BOOT_CPU_FIX_NOT_APPLIED");
+                Log.e("ThorDisplayDaemon", "boot CPU reconcile not applied: " + result);
+                if (cpuAction == BootGateModel.CpuAction.RESTART_ONCE) {
+                    BootSafety.timeout();
+                    trace.boot("BOOT_CPU_FIX_FAILED");
+                    return false;
+                }
+            }
         }
         BootSafety.phase("RECONCILING DISPLAY");
         trace.boot("RECONCILE_DISPLAY");

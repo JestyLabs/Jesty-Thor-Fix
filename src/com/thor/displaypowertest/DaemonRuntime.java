@@ -54,6 +54,7 @@ public final class DaemonRuntime {
         WatcherSupervisor.start();
         DisplayEventManager.register();
         if (coordinating) trace.mark("SERVICES_REGISTERED", null);
+        if (!coordinating) cpuFix.resumePersistedAttempt();
         DaemonIpcServer server = new DaemonIpcServer(listener, commands);
         if (coordinating) {
             final boolean afterComposerRestart = args.afterComposerRestart;

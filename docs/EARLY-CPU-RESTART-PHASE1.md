@@ -1,6 +1,6 @@
 # Jesty Thor Fix — Early CPU restart, phase 1
 
-Status: model + secure persistent store implemented. No CPU Fix runtime integration yet.
+Status: model + secure persistent store + CpuFixController runtime provenance integration implemented. The restart still sits behind the existing full display gate; moving it earlier is the next phase.
 
 ## Goal
 
@@ -128,12 +128,33 @@ The store deliberately fails closed and enforces:
 The marker is not stored in `/data/local/tmp` or `/data/adb`, so uninstall/data-clear removes
 the state with the application instead of leaving a persistent root hook.
 
+## Runtime integration now in place
+
+`CpuFixController` now reads the durable marker before trusting a matching global property and
+persists the transition sequence around the actual property write/restart path:
+
+```text
+PREPARED
+  -> setprop + readback
+PROPERTY_VERIFIED
+  -> durable boundary before any restart thread
+RESTART_REQUESTED
+  -> ctl.restart
+successor composer PID != baseline PID
+APPLIED
+```
+
+A non-boot-hold daemon resumes a current in-flight marker after a daemon crash. Once
+`RESTART_REQUESTED` exists, the state model only waits for a new composer PID or fails safe; it
+never issues a second automatic restart for that attempt. The post-restart boot coordinator also
+calls the controller when the global property already matches so the successor can persist
+`APPLIED` from PID provenance instead of trusting `getprop` alone.
+
 ## Next implementation step
 
-Integrate the store/model into `CpuFixController` so phase transitions are persisted around the
-property write and compositor restart, then move the initial CPU reconcile before
-`BootGateModel` in `BootCoordinator`.
+Move the **initial** CPU reconcile ahead of `BootGateModel` using CPU-only prerequisites while
+leaving the existing display readiness gate, stable CRTC samples, grace period, display
+reconciliation and Wake Guard ordering unchanged.
 
-In particular, `RESTART_REQUESTED` must be durably written before `ctl.restart`.
-
-The existing display gate timings remain unchanged.
+This phase deliberately does **not** move the restart earlier yet, so physical behavior/timing
+should remain on the existing v1.5.20-style gate until that next change.
