@@ -71,18 +71,25 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ inputs.candidate_run_id }}
-          SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
         run: |
+          # pull_request workflows build GitHub's synthetic merge ref, while
+          # actions/runs exposes the PR head as run.head_sha. Therefore the
+          # artifact's embedded CI SHA is validated from the artifact that
+          # belongs to this exact run, rather than compared to run.head_sha.
           $payload = gh api "repos/${{ github.repository }}/actions/runs/$env:RUN_ID/artifacts?per_page=100" | ConvertFrom-Json
           $matches = @($payload.artifacts | Where-Object {
               -not $_.expired -and
-              $_.name -match '^unsigned-build-v.+-[0-9a-f]{40}$' -and
-              $_.name.EndsWith("-$env:SOURCE_SHA")
+              $_.name -match '^unsigned-build-v.+-[0-9a-f]{40}$'
           })
           if ($matches.Count -ne 1) {
-              throw "Expected exactly one unsigned artifact for source SHA; found $($matches.Count)"
+              throw "Expected exactly one unsigned CI artifact in the selected run; found $($matches.Count)"
           }
-          "artifact_name=$($matches[0].name)" >> $env:GITHUB_OUTPUT
+          $artifactName = $matches[0].name
+          if ($artifactName -notmatch '-([0-9a-f]{40})$') {
+              throw 'Unsigned artifact did not expose its CI build SHA'
+          }
+          "artifact_name=$artifactName" >> $env:GITHUB_OUTPUT
+          "ci_build_sha=$($Matches[1])" >> $env:GITHUB_OUTPUT
 
       - name: Download exact unsigned artifact
         shell: pwsh
@@ -145,7 +152,7 @@ jobs:
           THOR_KEYSTORE_PASSWORD: ${{ secrets.THOR_KEYSTORE_PASSWORD }}
         run: |
           New-Item -ItemType Directory -Path output | Out-Null
-          $signed = Join-Path (Resolve-Path output) "Jesty-Thor-Fix-${{ steps.app.outputs.version }}-test-${{ steps.source.outputs.source_sha }}.apk"
+          $signed = Join-Path (Resolve-Path output) "Jesty-Thor-Fix-${{ steps.app.outputs.version }}-test-${{ steps.artifact.outputs.ci_build_sha }}.apk"
           $apksigner = Join-Path $env:ANDROID_SDK_ROOT 'build-tools\35.0.0\apksigner.bat'
 
           & $apksigner sign `
@@ -192,8 +199,10 @@ jobs:
           $metadata = [ordered]@{
               kind = 'signed-test-candidate'
               sourceRunId = '${{ inputs.candidate_run_id }}'
-              sourceCommit = '${{ steps.source.outputs.source_sha }}'
+              sourceHeadCommit = '${{ steps.source.outputs.source_sha }}'
+              ciBuildCommit = '${{ steps.artifact.outputs.ci_build_sha }}'
               sourceBranch = '${{ steps.source.outputs.source_branch }}'
+              sourceArtifact = '${{ steps.artifact.outputs.artifact_name }}'
               package = 'com.thor.displaypowertest'
               version = '${{ steps.app.outputs.version }}'
               versionCode = '${{ steps.app.outputs.version_code }}'
@@ -209,7 +218,7 @@ jobs:
       - name: Upload signed test candidate
         uses: actions/upload-artifact@v4
         with:
-          name: signed-test-candidate-v${{ steps.app.outputs.version }}-${{ steps.source.outputs.source_sha }}
+          name: signed-test-candidate-v${{ steps.app.outputs.version }}-${{ steps.artifact.outputs.ci_build_sha }}
           path: |
             ${{ env.SIGNED_APK }}
             output/test-candidate-metadata.json
