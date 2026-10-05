@@ -1,28 +1,186 @@
-name: Host model tests
+name: CI
 
 on:
+  pull_request:
   push:
     branches: [main]
-  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
+env:
+  APKTOOL_VERSION: '3.0.3'
+  APKTOOL_SHA256: 'DBF930B076C6B9BE08D57C449CACEFC3BDD6B71EBD59B3066FC0E1F5B14F9423'
+  EXPECTED_SIGNER_SHA256: '727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC'
+
 jobs:
-  host-tests:
+  build:
     runs-on: windows-latest
+
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
+
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+
+      - name: Install Android SDK packages
+        shell: pwsh
+        run: |
+          sdkmanager "platforms;android-34" "build-tools;35.0.0"
+
+      - name: Download pinned apktool
+        shell: pwsh
+        run: |
+          $jar = Join-Path $env:RUNNER_TEMP 'apktool.jar'
+          $url = "https://github.com/iBotPeaches/Apktool/releases/download/v$env:APKTOOL_VERSION/apktool_$env:APKTOOL_VERSION.jar"
+          Invoke-WebRequest -Uri $url -OutFile $jar
+          $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $jar).Hash.ToUpperInvariant()
+          if ($actual -ne $env:APKTOOL_SHA256) {
+              throw "apktool SHA-256 mismatch: $actual"
+          }
+          "APKTOOL_JAR=$jar" >> $env:GITHUB_ENV
+
+      - name: Read app version
+        id: app
+        shell: pwsh
+        run: |
+          $manifest = Get-Content -LiteralPath 'apk/AndroidManifest.xml' -Raw
+          $version = [regex]::Match($manifest, 'android:versionName="([^"]+)"').Groups[1].Value
+          $versionCode = [regex]::Match($manifest, 'android:versionCode="([^"]+)"').Groups[1].Value
+          if (-not $version -or -not $versionCode) {
+              throw 'Could not read versionName/versionCode from AndroidManifest.xml'
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "version_code=$versionCode" >> $env:GITHUB_OUTPUT
+
       - name: Boot, lid and IPC models
         shell: pwsh
         run: ./scripts/test-boot-lid.ps1
+
       - name: Dashboard models
         shell: pwsh
         run: ./scripts/test-dashboard.ps1
+
+      - name: Build unsigned APK
+        shell: pwsh
+        run: |
+          ./build.ps1 -ArtifactBaseName "Jesty-Thor-Fix-${{ steps.app.outputs.version }}"
+
+      - name: Upload unsigned APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-build-v${{ steps.app.outputs.version }}-${{ github.sha }}
+          path: dist/Jesty-Thor-Fix-${{ steps.app.outputs.version }}-unsigned.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Prepare signing material
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          KEYSTORE_B64: ${{ secrets.THOR_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.THOR_KEYSTORE_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:KEYSTORE_B64)) {
+              throw 'Missing repository secret THOR_KEYSTORE_B64'
+          }
+          if ([string]::IsNullOrWhiteSpace($env:KEYSTORE_PASSWORD)) {
+              throw 'Missing repository secret THOR_KEYSTORE_PASSWORD'
+          }
+
+          $keystore = Join-Path $env:RUNNER_TEMP 'thor-release.keystore'
+          try {
+              [IO.File]::WriteAllBytes($keystore, [Convert]::FromBase64String($env:KEYSTORE_B64))
+          } catch {
+              throw 'THOR_KEYSTORE_B64 is not valid Base64'
+          }
+
+          # build.ps1 already accepts a DPAPI-protected password file. Create it
+          # only on this ephemeral Windows runner so the plain password never
+          # appears in a command-line argument or repository file.
+          $passwordFile = Join-Path $env:RUNNER_TEMP 'thor-signing-password.txt'
+          $secure = ConvertTo-SecureString -String $env:KEYSTORE_PASSWORD.TrimEnd("`r", "`n") -AsPlainText -Force
+          ConvertFrom-SecureString -SecureString $secure | Set-Content -LiteralPath $passwordFile -NoNewline
+
+          "JESTY_KEYSTORE=$keystore" >> $env:GITHUB_ENV
+          "JESTY_PASSWORD_FILE=$passwordFile" >> $env:GITHUB_ENV
+
+      - name: Build signed main candidate
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        run: |
+          ./build.ps1 -Sign `
+            -KeystorePath $env:JESTY_KEYSTORE `
+            -PasswordFile $env:JESTY_PASSWORD_FILE `
+            -ArtifactBaseName "Jesty-Thor-Fix-${{ steps.app.outputs.version }}"
+
+      - name: Verify signed candidate and write metadata
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        run: |
+          $apk = Get-Item -LiteralPath "dist/Jesty-Thor-Fix-${{ steps.app.outputs.version }}.apk"
+          $apksigner = Join-Path $env:ANDROID_SDK_ROOT 'build-tools\35.0.0\apksigner.bat'
+          $verify = (& $apksigner verify --verbose --print-certs $apk.FullName 2>&1 | Out-String)
+          if ($LASTEXITCODE -ne 0) {
+              throw 'apksigner verification failed'
+          }
+          $signer = [regex]::Match($verify, 'Signer #1 certificate SHA-256 digest:\s*([0-9a-fA-F]{64})').Groups[1].Value.ToUpperInvariant()
+          if ($verify -notmatch 'Number of signers:\s*1\b' -or $signer -ne $env:EXPECTED_SIGNER_SHA256) {
+              throw 'Signed candidate certificate does not match the established release certificate'
+          }
+
+          $aapt = Join-Path $env:ANDROID_SDK_ROOT 'build-tools\35.0.0\aapt.exe'
+          $packageLine = (& $aapt dump badging $apk.FullName 2>&1 | Select-Object -First 1)
+          if ($LASTEXITCODE -ne 0 -or $packageLine -notmatch "^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'") {
+              throw 'Could not read signed APK package/version'
+          }
+          if ($Matches[1] -ne 'com.thor.displaypowertest' -or
+              $Matches[2] -ne '${{ steps.app.outputs.version_code }}' -or
+              $Matches[3] -ne '${{ steps.app.outputs.version }}') {
+              throw 'Signed APK package/version differs from the source manifest'
+          }
+
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $apk.FullName).Hash.ToUpperInvariant()
+          $metadata = [ordered]@{
+              version = '${{ steps.app.outputs.version }}'
+              versionCode = '${{ steps.app.outputs.version_code }}'
+              commit = '${{ github.sha }}'
+              apk = $apk.Name
+              sha256 = $hash
+              signerSha256 = $env:EXPECTED_SIGNER_SHA256
+          }
+          $metadata | ConvertTo-Json | Set-Content -LiteralPath 'dist/candidate-metadata.json' -Encoding utf8
+          "$hash  $($apk.Name)" | Set-Content -LiteralPath 'dist/candidate-sha256.txt' -Encoding ascii
+
+          "Signed candidate: $($apk.Name)"
+          "SHA-256: $hash"
+
+      - name: Upload signed main candidate
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-candidate-v${{ steps.app.outputs.version }}-${{ github.sha }}
+          path: |
+            dist/Jesty-Thor-Fix-${{ steps.app.outputs.version }}.apk
+            dist/candidate-metadata.json
+            dist/candidate-sha256.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Cleanup signing material
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        run: |
+          if ($env:JESTY_KEYSTORE -and (Test-Path -LiteralPath $env:JESTY_KEYSTORE)) {
+              Remove-Item -LiteralPath $env:JESTY_KEYSTORE -Force
+          }
+          if ($env:JESTY_PASSWORD_FILE -and (Test-Path -LiteralPath $env:JESTY_PASSWORD_FILE)) {
+              Remove-Item -LiteralPath $env:JESTY_PASSWORD_FILE -Force
+          }

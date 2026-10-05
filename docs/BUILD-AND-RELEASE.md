@@ -1,5 +1,10 @@
 # Build and release (maintainer quick guide)
 
+The primary CI candidate and manual publication flow is documented in
+[GITHUB-ACTIONS.md](GITHUB-ACTIONS.md). It signs a candidate on `main`, stores
+the exact APK as an Actions artifact, and publishes that same file only after
+physical validation. The commands below remain the local build/recovery route.
+
 This project builds on Windows with PowerShell, JDK, Android SDK build-tools
 35.0.0, and `tools/apktool.jar`. Keep the keystore and password file outside
 the repository. Never commit either of them or an APK.
