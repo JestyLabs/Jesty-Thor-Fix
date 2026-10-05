@@ -94,7 +94,9 @@ public final class CpuBootAttemptModel {
         }
 
         if (!currentBootId.equalsIgnoreCase(attempt.bootId)) return Action.DELETE_STALE;
-        if (!desired.equals(attempt.desired)) return Action.FAIL_SAFE;
+        if (!desired.equals(attempt.desired)) {
+            return attempt.phase == Phase.APPLIED ? Action.START_NEW : Action.FAIL_SAFE;
+        }
 
         boolean sameComposer = composerPid.equals(attempt.baselineComposerPid);
         boolean desiredVisible = desired.equals(property);
