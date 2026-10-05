@@ -1,6 +1,6 @@
 # Jesty Thor Fix — Early CPU restart, phase 1
 
-Status: design/model only. No APK runtime change yet.
+Status: model + secure persistent store implemented. No CPU Fix runtime integration yet.
 
 ## Goal
 
@@ -102,23 +102,38 @@ current composer PID != baseline composer PID
 - FAILED suppresses retries
 - strict marker serialization/parser
 
+## Secure store
+
+`CpuBootAttemptStore` now persists the attempt under the app-private `files/` directory:
+
+```text
+/data/user/0/com.thor.displaypowertest/files/jesty-thor-cpu-boot-attempt-v1
+```
+
+The store deliberately fails closed and enforces:
+
+- app-owned trusted data/files directories;
+- final-component `O_NOFOLLOW` opens;
+- regular-file + single-link checks;
+- owner limited to root or the app UID, normalized to the app UID on write;
+- mode `0600`;
+- strict 512-byte maximum;
+- strict canonical model parsing;
+- `O_EXCL` temp-file creation;
+- file `fsync` before atomic `rename`;
+- parent-directory `fsync` after replace/delete;
+- unexpected target/temp objects are never followed or silently removed;
+- corrupt current markers are returned as `CORRUPT`, never as `ABSENT`.
+
+The marker is not stored in `/data/local/tmp` or `/data/adb`, so uninstall/data-clear removes
+the state with the application instead of leaving a persistent root hook.
+
 ## Next implementation step
 
-Add a small production `CpuBootAttemptStore` under the app-private `files/` directory.
-
-Required storage properties:
-
-- final component opened with `O_NOFOLLOW`
-- regular file, single link
-- mode `0600`
-- owner root or app UID, normalize to app UID
-- strict size bound
-- strict parser
-- durable write before `ctl.restart`
-- atomic temp-file + rename update preferred
-- corrupt current marker => fail safe, never treat as "absent"
-
-Then integrate it into `CpuFixController` and move the initial CPU reconcile before
+Integrate the store/model into `CpuFixController` so phase transitions are persisted around the
+property write and compositor restart, then move the initial CPU reconcile before
 `BootGateModel` in `BootCoordinator`.
 
-The existing display gate timings are not changed in this phase.
+In particular, `RESTART_REQUESTED` must be durably written before `ctl.restart`.
+
+The existing display gate timings remain unchanged.
