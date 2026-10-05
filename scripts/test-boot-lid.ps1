@@ -145,6 +145,7 @@ $sources = @(
     (Join-Path $repository 'src\com\thor\displaypowertest\HandoffRecoveryModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\DaemonArgs.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\CpuBootAttemptModel.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\EarlyCpuGateModel.java'),
     (Join-Path $repository 'tests\BootAndLidModelTest.java'),
     (Join-Path $repository 'tests\BootLatencyTest.java'),
     (Join-Path $repository 'tests\DaemonLaunchModelTest.java'),
@@ -158,7 +159,8 @@ $sources = @(
     (Join-Path $repository 'tests\HallNodeModelTest.java'),
     (Join-Path $repository 'tests\HandoffRecoveryModelTest.java'),
     (Join-Path $repository 'tests\DaemonArgsTest.java'),
-    (Join-Path $repository 'tests\CpuBootAttemptModelTest.java')
+    (Join-Path $repository 'tests\CpuBootAttemptModelTest.java'),
+    (Join-Path $repository 'tests\EarlyCpuGateModelTest.java')
 )
 & javac -source 8 -target 8 -d $output $sources
 if ($LASTEXITCODE -ne 0) { throw 'Boot/lid test compilation failed.' }
@@ -166,6 +168,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Boot/lid test compilation failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Boot/lid tests failed.' }
 & java -cp $output CpuBootAttemptModelTest
 if ($LASTEXITCODE -ne 0) { throw 'CPU boot attempt model tests failed.' }
+& java -cp $output EarlyCpuGateModelTest
+if ($LASTEXITCODE -ne 0) { throw 'Early CPU gate model tests failed.' }
 & java -cp $output BootLatencyTest
 if ($LASTEXITCODE -ne 0) { throw 'Boot latency tests failed.' }
 & java -cp $output DaemonLaunchModelTest
