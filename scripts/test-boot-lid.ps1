@@ -103,6 +103,22 @@ if ($cpuFixSource -notmatch 'CpuBootAttemptStore\.read\(' -or
     $runtimeSource -notmatch 'if \(!coordinating\) cpuFix\.resumePersistedAttempt\(\)') {
     throw 'CPU restart provenance must be integrated into the runtime and normal-daemon recovery.'
 }
+$bootCoordinatorSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'BootCoordinator.java') -Raw
+$earlyGateSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'EarlyCpuGateModel.java') -Raw
+if ($bootCoordinatorSource -notmatch 'reconcileCpuPhase\(afterComposerRestart\)' -or
+    $bootCoordinatorSource -notmatch 'currentComposerHasAppliedAttempt\(\)' -or
+    $bootCoordinatorSource -notmatch 'reconcileDisplayPhase\(effectiveAfterComposerRestart\)') {
+    throw 'BootCoordinator must run the CPU-only phase before the independent display gate.'
+}
+$displayStart = $bootCoordinatorSource.IndexOf('private boolean reconcileDisplayPhase')
+$displayEnd = $bootCoordinatorSource.IndexOf('private Boolean gateEdge', $displayStart)
+if ($displayStart -lt 0 -or $displayEnd -le $displayStart -or
+    $bootCoordinatorSource.Substring($displayStart, $displayEnd - $displayStart) -match 'cpuFix\.apply\(') {
+    throw 'The display readiness phase must not perform CPU property/restart work.'
+}
+if ($earlyGateSource -match 'crtc|DaemonState\.getMode|DisplayActionCoordinator|LidGuard') {
+    throw 'The early CPU gate must stay independent from display and lid readiness.'
+}
 $restartPersistAt = $cpuFixSource.IndexOf('persistAttempt(requested, "CPU_ATTEMPT_RESTART_REQUESTED"')
 $restartStartAt = $cpuFixSource.IndexOf('restartThread.start()')
 if ($restartPersistAt -lt 0 -or $restartStartAt -lt 0 -or
