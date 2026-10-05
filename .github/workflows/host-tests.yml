@@ -28,7 +28,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         with:
           packages: platform-tools
 
@@ -76,7 +76,7 @@ jobs:
           ./build.ps1 -ArtifactBaseName "Jesty-Thor-Fix-${{ steps.app.outputs.version }}"
 
       - name: Upload unsigned APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: unsigned-build-v${{ steps.app.outputs.version }}-${{ github.sha }}
           path: dist/Jesty-Thor-Fix-${{ steps.app.outputs.version }}-unsigned.apk
@@ -166,7 +166,7 @@ jobs:
 
       - name: Upload signed main candidate
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: signed-candidate-v${{ steps.app.outputs.version }}-${{ github.sha }}
           path: |
