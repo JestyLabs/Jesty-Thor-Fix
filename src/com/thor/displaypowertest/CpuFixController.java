@@ -266,6 +266,9 @@ public final class CpuFixController {
                         if (!wakeLock.acquire()) {
                             failPersistedAttempt(attempt.baselineComposerPid,
                                     "wake_lock_failed_before_restart");
+                            if (attempt.baselineComposerPid.equals(probe.composerPid())) {
+                                restoreSystemLoadCheckState(attempt.previous);
+                            }
                             return "ok=0;error=WAKE_LOCK_FAILED";
                         }
                         wakeHeld = true;
@@ -287,9 +290,25 @@ public final class CpuFixController {
                     restartFailed = false;
                     restartScheduled = true;
                     final boolean bootTrace = session.active();
-                    new Thread(() -> runRestart(bootTrace, attempt.baselineComposerPid,
-                            attempt.previous, desiredValue),
-                            "composer-restart-once").start();
+                    Thread restartThread = new Thread(
+                            () -> runRestart(bootTrace, attempt.baselineComposerPid,
+                                    attempt.previous, desiredValue),
+                            "composer-restart-once");
+                    try {
+                        restartThread.start();
+                    } catch (Throwable error) {
+                        restartScheduled = false;
+                        restartFailed = true;
+                        failPersistedAttempt(attempt.baselineComposerPid,
+                                "restart_thread_start_failed");
+                        if (attempt.baselineComposerPid.equals(probe.composerPid())) {
+                            restoreSystemLoadCheckState(attempt.previous);
+                        }
+                        wakeLock.release();
+                        wakeHeld = false;
+                        Log.e("ThorDisplayDaemon", "cannot start composer restart thread", error);
+                        return "ok=0;error=COMPOSER_RESTART_THREAD_FAILED";
+                    }
                     wakeHeld = false;
                     return "ok=1;system_load_fix=" + desiredValue
                             + ";composer_restart=scheduled_once";
