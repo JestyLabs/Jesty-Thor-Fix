@@ -90,7 +90,7 @@ public final class CpuBootAttemptModel {
                 return Action.START_NEW;
             }
             if ("0".equals(desired) && "1".equals(property)) return Action.START_NEW;
-            return Action.FAIL_SAFE;
+            return Action.FAIL_SAFE; // notably desired=0 + UNSET, preserving current behavior
         }
 
         if (!currentBootId.equalsIgnoreCase(attempt.bootId)) return Action.DELETE_STALE;
