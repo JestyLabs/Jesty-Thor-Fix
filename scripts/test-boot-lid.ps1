@@ -119,6 +119,16 @@ if ($displayStart -lt 0 -or $displayEnd -le $displayStart -or
 if ($earlyGateSource -match 'Telemetry\.crtc|DaemonState\.getMode|DisplayActionCoordinator|LidGuard') {
     throw 'The early CPU gate must stay independent from display and lid readiness.'
 }
+# Phase 3A research: any boot-animation suppression must stay transient,
+# boot-scoped, best-effort and restored by the independent handoff helper.
+if ($cpuFixSource -notmatch 'BOOT_ANIMATION_DISABLE_PROPERTY = "debug\.sf\.nobootanimation"' -or
+    $cpuFixSource -notmatch 'previousBootAnimation = armBootAnimationSuppression\(bootTrace\)' -or
+    $cpuFixSource -notmatch 'if \(!bootTrace\) return null;' -or
+    $cpuFixSource -notmatch 'trap restore_ba EXIT' -or
+    $cpuFixSource -notmatch '"restore_ba"' -or
+    $cpuFixSource -notmatch '"trap - EXIT"') {
+    throw 'Phase 3A boot-animation suppression must remain boot-scoped and restore its property.'
+}
 $restartPersistAt = $cpuFixSource.IndexOf('persistAttempt(requested, "CPU_ATTEMPT_RESTART_REQUESTED"')
 $restartStartAt = $cpuFixSource.IndexOf('restartThread.start()')
 if ($restartPersistAt -lt 0 -or $restartStartAt -lt 0 -or
