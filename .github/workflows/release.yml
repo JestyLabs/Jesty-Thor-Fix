@@ -1,0 +1,277 @@
+name: Publish tested candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: 'Successful CI run ID that produced the signed candidate'
+        required: true
+        type: string
+      channel:
+        description: 'Publish as a pre-release or stable release'
+        required: true
+        default: prerelease
+        type: choice
+        options:
+          - prerelease
+          - stable
+
+permissions:
+  actions: read
+  contents: write
+
+env:
+  EXPECTED_SIGNER_SHA256: '727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC'
+
+jobs:
+  publish:
+    runs-on: windows-latest
+
+    steps:
+      - name: Resolve candidate run
+        id: source
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+        run: |
+          if ($env:CANDIDATE_RUN_ID -notmatch '^\d+$') {
+              throw 'candidate_run_id must be a numeric GitHub Actions run ID'
+          }
+
+          $run = gh api "repos/${{ github.repository }}/actions/runs/$env:CANDIDATE_RUN_ID" | ConvertFrom-Json
+          if ($run.conclusion -ne 'success') {
+              throw "Candidate run conclusion is '$($run.conclusion)', expected success"
+          }
+          if ($run.event -ne 'push' -or $run.head_branch -ne 'main') {
+              throw "Candidate must come from a successful push to main; got event=$($run.event), branch=$($run.head_branch)"
+          }
+          if ($run.status -ne 'completed' -or
+              $run.path -ne '.github/workflows/host-tests.yml' -or
+              $run.repository.full_name -ne '${{ github.repository }}') {
+              throw 'Candidate run is not the completed CI workflow in this repository'
+          }
+
+          "sha=$($run.head_sha)" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.source.outputs.sha }}
+          persist-credentials: false
+
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          packages: platform-tools
+
+      - name: Install apksigner
+        shell: pwsh
+        run: sdkmanager "build-tools;35.0.0"
+
+      - name: Download exact signed candidate
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.candidate_run_id }}
+          pattern: signed-candidate-*
+          path: candidate
+          merge-multiple: true
+
+      - name: Verify candidate provenance
+        id: candidate
+        shell: pwsh
+        run: |
+          $metadataFiles = @(Get-ChildItem -LiteralPath 'candidate' -Filter 'candidate-metadata.json' -Recurse)
+          if ($metadataFiles.Count -ne 1) {
+              throw "Expected exactly one candidate-metadata.json, found $($metadataFiles.Count)"
+          }
+          $metadata = Get-Content -LiteralPath $metadataFiles[0].FullName -Raw | ConvertFrom-Json
+
+          $apks = @(Get-ChildItem -LiteralPath 'candidate' -Filter '*.apk' -Recurse)
+          if ($apks.Count -ne 1) {
+              throw "Expected exactly one signed APK, found $($apks.Count)"
+          }
+          $apk = $apks[0]
+
+          $manifest = Get-Content -LiteralPath 'apk/AndroidManifest.xml' -Raw
+          $version = [regex]::Match($manifest, 'android:versionName="([^"]+)"').Groups[1].Value
+          $versionCode = [regex]::Match($manifest, 'android:versionCode="([^"]+)"').Groups[1].Value
+          if (-not $version -or -not $versionCode) {
+              throw 'Could not read version from the candidate commit manifest'
+          }
+
+          if ($metadata.commit -ne '${{ steps.source.outputs.sha }}') {
+              throw "Artifact commit mismatch: $($metadata.commit)"
+          }
+          if ($metadata.version -ne $version -or [string]$metadata.versionCode -ne [string]$versionCode) {
+              throw "Artifact version mismatch: metadata=$($metadata.version)/$($metadata.versionCode), source=$version/$versionCode"
+          }
+
+          $expectedName = "Jesty-Thor-Fix-$version.apk"
+          if ($apk.Name -ne $expectedName -or $metadata.apk -ne $expectedName) {
+              throw "Unexpected APK name: $($apk.Name)"
+          }
+
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $apk.FullName).Hash.ToUpperInvariant()
+          if ($hash -ne [string]$metadata.sha256) {
+              throw "Candidate SHA-256 mismatch: $hash"
+          }
+
+          $apksigner = Join-Path $env:ANDROID_SDK_ROOT 'build-tools\35.0.0\apksigner.bat'
+          $verify = (& $apksigner verify --verbose --print-certs $apk.FullName 2>&1 | Out-String)
+          if ($LASTEXITCODE -ne 0) {
+              throw 'apksigner verification failed'
+          }
+          $signer = [regex]::Match($verify, 'Signer #1 certificate SHA-256 digest:\s*([0-9a-fA-F]{64})').Groups[1].Value.ToUpperInvariant()
+          if ($verify -notmatch 'Number of signers:\s*1\b' -or $signer -ne $env:EXPECTED_SIGNER_SHA256) {
+              throw 'Candidate signer does not match the established release certificate'
+          }
+          if ([string]$metadata.signerSha256 -ne $env:EXPECTED_SIGNER_SHA256) {
+              throw 'Candidate metadata signer mismatch'
+          }
+
+          $aapt = Join-Path $env:ANDROID_SDK_ROOT 'build-tools\35.0.0\aapt.exe'
+          $packageLine = (& $aapt dump badging $apk.FullName 2>&1 | Select-Object -First 1)
+          if ($LASTEXITCODE -ne 0 -or $packageLine -notmatch "^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'") {
+              throw 'Could not read candidate APK package/version'
+          }
+          if ($Matches[1] -ne 'com.thor.displaypowertest' -or
+              $Matches[2] -ne $versionCode -or $Matches[3] -ne $version) {
+              throw 'Candidate APK package/version differs from the source manifest'
+          }
+
+          $notes = "docs/RELEASE-NOTES-$version.md"
+          if (-not (Test-Path -LiteralPath $notes)) {
+              throw "Missing release notes: $notes"
+          }
+
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=v$version" >> $env:GITHUB_OUTPUT
+          "apk=$($apk.FullName)" >> $env:GITHUB_OUTPUT
+          "apk_name=$($apk.Name)" >> $env:GITHUB_OUTPUT
+          "notes=$notes" >> $env:GITHUB_OUTPUT
+          "sha256=$hash" >> $env:GITHUB_OUTPUT
+
+      - name: Create or promote release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANNEL: ${{ inputs.channel }}
+          VERSION: ${{ steps.candidate.outputs.version }}
+          TAG: ${{ steps.candidate.outputs.tag }}
+          APK: ${{ steps.candidate.outputs.apk }}
+          APK_NAME: ${{ steps.candidate.outputs.apk_name }}
+          NOTES: ${{ steps.candidate.outputs.notes }}
+          CANDIDATE_SHA256: ${{ steps.candidate.outputs.sha256 }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          $repo = '${{ github.repository }}'
+          $existing = $null
+          $oldPreference = $ErrorActionPreference
+          $ErrorActionPreference = 'SilentlyContinue'
+          $existingJson = gh api "repos/$repo/releases/tags/$env:TAG" 2>$null
+          $exit = $LASTEXITCODE
+          $ErrorActionPreference = $oldPreference
+          if ($exit -eq 0) {
+              $existing = $existingJson | ConvertFrom-Json
+          }
+
+          if ($existing) {
+              $tagRef = gh api "repos/$repo/git/ref/tags/$env:TAG" | ConvertFrom-Json
+              if ($LASTEXITCODE -ne 0) {
+                  throw 'Could not resolve the existing release tag'
+              }
+              $tagObject = $tagRef.object
+              if ($tagObject.type -eq 'tag') {
+                  $tagObject = (gh api "repos/$repo/git/tags/$($tagObject.sha)" | ConvertFrom-Json).object
+                  if ($LASTEXITCODE -ne 0) { throw 'Could not resolve annotated release tag' }
+              }
+              if ($tagObject.type -ne 'commit' -or $tagObject.sha -ne $env:SOURCE_SHA) {
+                  throw 'Existing release tag does not point to the candidate commit'
+              }
+
+              $download = Join-Path $env:RUNNER_TEMP 'existing-release'
+              New-Item -ItemType Directory -Path $download -Force | Out-Null
+              gh release download $env:TAG --repo $repo --pattern $env:APK_NAME --dir $download --clobber
+              if ($LASTEXITCODE -ne 0) {
+                  throw 'Could not download the existing release asset'
+              }
+              $existingApk = Join-Path $download $env:APK_NAME
+              $existingHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $existingApk).Hash.ToUpperInvariant()
+              if ($existingHash -ne $env:CANDIDATE_SHA256) {
+                  throw "Existing release asset differs from the tested candidate: $existingHash"
+              }
+
+              if (-not [bool]$existing.prerelease -and $env:CHANNEL -eq 'prerelease') {
+                  throw 'Refusing to demote an existing stable release back to pre-release'
+              }
+
+              $notesBody = Get-Content -LiteralPath $env:NOTES -Raw
+              $isPrerelease = $env:CHANNEL -eq 'prerelease'
+              $makeLatest = if ($isPrerelease) { 'false' } else { 'true' }
+              $payload = @{
+                  name = "Jesty Thor Fix v$env:VERSION"
+                  body = $notesBody
+                  draft = $false
+                  prerelease = $isPrerelease
+                  make_latest = $makeLatest
+              } | ConvertTo-Json -Compress
+
+              $payload | gh api -X PATCH "repos/$repo/releases/$($existing.id)" --input - | Out-Null
+              if ($LASTEXITCODE -ne 0) {
+                  throw 'Could not update the existing release'
+              }
+          } else {
+              # Refuse an unexpected pre-existing tag. A release must either be
+              # created here from this exact commit or already have the exact APK.
+              $oldPreference = $ErrorActionPreference
+              $ErrorActionPreference = 'SilentlyContinue'
+              gh api "repos/$repo/git/ref/tags/$env:TAG" *> $null
+              $tagExit = $LASTEXITCODE
+              $ErrorActionPreference = $oldPreference
+              if ($tagExit -eq 0) {
+                  throw "Tag $env:TAG already exists without a release; inspect it manually"
+              }
+
+              $args = @(
+                  'release', 'create', $env:TAG, $env:APK,
+                  '--repo', $repo,
+                  '--target', $env:SOURCE_SHA,
+                  '--title', "Jesty Thor Fix v$env:VERSION",
+                  '--notes-file', $env:NOTES
+              )
+              if ($env:CHANNEL -eq 'prerelease') {
+                  $args += @('--prerelease', '--latest=false')
+              } else {
+                  $args += '--latest'
+              }
+
+              & gh @args
+              if ($LASTEXITCODE -ne 0) {
+                  throw 'GitHub release creation failed'
+              }
+          }
+
+      - name: Verify published asset is unchanged
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.candidate.outputs.tag }}
+          APK_NAME: ${{ steps.candidate.outputs.apk_name }}
+          EXPECTED_SHA256: ${{ steps.candidate.outputs.sha256 }}
+        run: |
+          $verifyDir = Join-Path $env:RUNNER_TEMP 'published-release'
+          New-Item -ItemType Directory -Path $verifyDir -Force | Out-Null
+          gh release download $env:TAG --repo '${{ github.repository }}' `
+            --pattern $env:APK_NAME --dir $verifyDir --clobber
+          if ($LASTEXITCODE -ne 0) {
+              throw 'Could not download the published release asset'
+          }
+
+          $published = Join-Path $verifyDir $env:APK_NAME
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $published).Hash.ToUpperInvariant()
+          if ($hash -ne $env:EXPECTED_SHA256) {
+              throw "Published APK SHA-256 mismatch: $hash"
+          }
+
+          "Published $env:TAG with unchanged APK SHA-256 $hash"
