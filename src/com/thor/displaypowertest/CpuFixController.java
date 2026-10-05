@@ -3,6 +3,9 @@ package com.thor.displaypowertest;
 import android.os.SystemClock;
 import android.util.Log;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+
 /**
  * AYN Dashboard CPU Fix: the vendor system-load-check property, the one-shot
  * compositor restart, its timed wake lock and the helper that relaunches the
@@ -12,6 +15,7 @@ import android.util.Log;
  * {@link #lock}, the former D.class monitor.
  */
 public final class CpuFixController {
+    private static final String BOOT_ANIMATION_DISABLE_PROPERTY = "debug.sf.nobootanimation";
     /** Runs the post-restart gate in this daemon; see BootCoordinator. */
     public interface HandoffRecovery {
         void recoverInPlace(String reason);
@@ -407,9 +411,17 @@ public final class CpuFixController {
     private void runRestart(boolean bootTrace, String beforeComposerPid, String previousCpu,
             String desiredValue) {
         Process helper = null;
+        String previousBootAnimation = null;
         try {
             Thread.sleep(300L);
-            helper = scheduleTransitionCleanupAndDaemonRestart(beforeComposerPid);
+            // Phase 3A research experiment: the first cold-boot animation has
+            // already finished before the CPU-only gate can reach this path.
+            // Suppress only the bootanim process spawned by the replacement
+            // SurfaceFlinger. If this opt-out is unavailable, keep the already
+            // validated visible-second-animation behavior.
+            previousBootAnimation = armBootAnimationSuppression(bootTrace);
+            helper = scheduleTransitionCleanupAndDaemonRestart(
+                    beforeComposerPid, previousBootAnimation);
             handoffState = "SCHEDULED";
             observeHelper(helper, bootTrace, beforeComposerPid, previousCpu, desiredValue);
             if (bootTrace) trace.mark("HELPER_SCHEDULED", "old_composer=" + beforeComposerPid);
@@ -420,6 +432,9 @@ public final class CpuFixController {
             if (exit != 0) throw new IllegalStateException("composer restart exit=" + exit);
             Thread.sleep(3000L);
         } catch (Throwable error) {
+            if (helper == null && previousBootAnimation != null) {
+                restoreBootAnimationSuppression(previousBootAnimation, bootTrace);
+            }
             boolean applied = markAppliedIfComposerReplaced(beforeComposerPid, desiredValue);
             restartFailed = !applied;
             if (!applied) {
@@ -591,6 +606,68 @@ public final class CpuFixController {
         }
     }
 
+    /**
+     * Arms Android's bootanimation opt-out only for a boot-scoped compositor
+     * restart. Returns the exact previous value when armed; null means fall
+     * back to the existing visible-animation behavior.
+     */
+    private String armBootAnimationSuppression(boolean bootTrace) {
+        if (!bootTrace) return null;
+        String previous = readProperty(BOOT_ANIMATION_DISABLE_PROPERTY);
+        if (previous == null || !previous.matches("[0-9]{0,3}")) {
+            trace.mark("BOOTANIM_SUPPRESS_SKIPPED", "reason=PREVIOUS_VALUE_UNSAFE");
+            return null;
+        }
+        if (!writeProperty(BOOT_ANIMATION_DISABLE_PROPERTY, "1")
+                || !"1".equals(readProperty(BOOT_ANIMATION_DISABLE_PROPERTY))) {
+            restoreBootAnimationSuppression(previous, true);
+            trace.mark("BOOTANIM_SUPPRESS_SKIPPED", "reason=SET_OR_READBACK_FAILED");
+            return null;
+        }
+        trace.mark("BOOTANIM_SUPPRESS_ARMED",
+                "previous=" + (previous.isEmpty() ? "UNSET" : previous));
+        return previous;
+    }
+
+    private void restoreBootAnimationSuppression(String previous, boolean bootTrace) {
+        if (previous == null || !previous.matches("[0-9]{0,3}")) return;
+        boolean ok = writeProperty(BOOT_ANIMATION_DISABLE_PROPERTY, previous);
+        if (bootTrace) {
+            trace.mark(ok ? "BOOTANIM_SUPPRESS_RESTORED"
+                            : "BOOTANIM_SUPPRESS_RESTORE_FAILED",
+                    "value=" + (previous.isEmpty() ? "UNSET" : previous));
+        }
+    }
+
+    private String readProperty(String name) {
+        Process process = null;
+        try {
+            process = new ProcessBuilder("getprop", name).start();
+            if (!ProcessWait.exited(process, 2000L) || process.exitValue() != 0) return null;
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream()))) {
+                String line = reader.readLine();
+                return line == null ? "" : line.trim();
+            }
+        } catch (Throwable ignored) {
+            return null;
+        } finally {
+            if (process != null) process.destroy();
+        }
+    }
+
+    private boolean writeProperty(String name, String value) {
+        Process process = null;
+        try {
+            process = new ProcessBuilder("setprop", name, value).start();
+            return ProcessWait.exited(process, 2000L) && process.exitValue() == 0;
+        } catch (Throwable ignored) {
+            return false;
+        } finally {
+            if (process != null) process.destroy();
+        }
+    }
+
     private String setSystemLoadCheckValue(String value) {
         Process process = null;
         try {
@@ -615,14 +692,16 @@ public final class CpuFixController {
         }
     }
 
-    private Process scheduleTransitionCleanupAndDaemonRestart(String beforeComposerPid)
-            throws Exception {
+    private Process scheduleTransitionCleanupAndDaemonRestart(String beforeComposerPid,
+            String previousBootAnimation) throws Exception {
         String enabled = DaemonState.isEnabled() ? "1" : "0";
         String desiredCpu = desired ? "1" : "0";
         // During BOOT HOLD the Hall watcher has not been enabled yet. Preserve
         // its saved preference rather than sampling the inactive watcher.
         String desiredLidGuard = (session.active() ? session.lidGuardDesired()
                 : LidGuard.isEnabled()) ? "1" : "0";
+        boolean suppressBootAnimation = previousBootAnimation != null;
+        String bootAnimationPrevious = suppressBootAnimation ? previousBootAnimation : "";
         // A compositor restart starts a second readiness phase. Do not reuse
         // the initial boot's 60-second deadline for its five-second grace.
         long phaseStartedAt = SystemClock.elapsedRealtime();
@@ -641,12 +720,19 @@ public final class CpuFixController {
                         + " else exec </dev/null >/dev/null 2>&1; fi",
                 "TR=" + BootTrace.PATH,
                 "BID=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)",
+                "BAS=" + (suppressBootAnimation ? "1" : "0"),
+                "BAPREV=\'" + bootAnimationPrevious + "\'",
                 "cs(){ read U X </proc/uptime; S=${U%.*}; F=${U#*.}; F=${F#0};"
                         + " echo $((S*100+${F:-0})); }",
                 // A trace line is skipped, never redirected, if the path is unsafe.
                 "T(){ safe_log \"$TR\" || return 0;"
                         + " echo \"elapsed_ms=$(cs)0;action=$1;${2:+$2;}pid=$$;"
                         + "boot_id=${BID:-?};source=helper\" >>\"$TR\"; }",
+                "restore_ba(){ [ \"$BAS\" = 1 ] || return 0;"
+                        + " setprop debug.sf.nobootanimation \"$BAPREV\" >/dev/null 2>&1;"
+                        + " V=$BAPREV; [ -n \"$V\" ] || V=UNSET;"
+                        + " T BOOTANIM_SUPPRESS_RESTORED \"value=$V\"; BAS=0; }",
+                "trap restore_ba EXIT",
                 "OLD='" + beforeComposerPid + "'",
                 "DP=" + daemonPid,
                 "SF0=$(pidof surfaceflinger); Z0=$(pidof zygote64); SS0=$(pidof system_server)",
@@ -748,7 +834,9 @@ public final class CpuFixController {
                 "CLASSPATH=$A app_process / D " + enabled
                         + " hold " + desiredCpu
                         + " " + desiredLidGuard + " " + phaseStartedAt
-                        + " post &");
+                        + " post &",
+                "restore_ba",
+                "trap - EXIT");
         ProcessBuilder helper = new ProcessBuilder("sh", "-c", command);
         // Launch timing belongs to this daemon only; never pass it to the successor.
         helper.environment().keySet().removeIf(name -> name.startsWith("JESTY_"));
