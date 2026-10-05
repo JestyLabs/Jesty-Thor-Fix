@@ -75,6 +75,19 @@ $rootRedirects = @(Get-ChildItem -LiteralPath (Join-Path $repository 'src') -Fil
 if ($rootRedirects.Count -gt 0) {
     throw "Root diagnostics must use RootLogFiles: $($rootRedirects[0].Path):$($rootRedirects[0].LineNumber)"
 }
+$attemptStore = Get-Content -LiteralPath (Join-Path $daemonPackage 'CpuBootAttemptStore.java') -Raw
+if ($attemptStore -notmatch '/data/user/0/com\.thor\.displaypowertest/files/jesty-thor-cpu-boot-attempt-v1' -or
+    $attemptStore -notmatch 'O_NOFOLLOW' -or
+    $attemptStore -notmatch 'O_EXCL' -or
+    $attemptStore -notmatch 'Os\.fsync\(' -or
+    $attemptStore -notmatch 'Os\.rename\(' -or
+    $attemptStore -notmatch 'st_nlink != 1' -or
+    $attemptStore -notmatch '\(stat\.st_mode & 0777\) == 0600') {
+    throw 'CPU boot attempt persistence must stay app-private, no-follow, atomic and durable.'
+}
+if ($attemptStore -match '/data/local/tmp|/data/adb') {
+    throw 'CPU boot attempt marker must never live in a shell-writable or persistent root-hook directory.'
+}
 $cpuFixSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'CpuFixController.java') -Raw
 $commandSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'DaemonCommandHandler.java') -Raw
 if ($cpuFixSource -notmatch 'observeHelper\(' -or $commandSource -notmatch '";phase_ms="') {
