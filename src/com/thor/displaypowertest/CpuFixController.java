@@ -117,8 +117,17 @@ public final class CpuFixController {
         Thread resume = new Thread(() -> {
             for (int poll = 0; poll < 130; poll++) {
                 String result = apply(desired);
-                if (result.startsWith("ok=1")) return;
+                if (result.startsWith("ok=1")) {
+                    // A predecessor may have died while holding the named
+                    // transition wake lock. A newly scheduled restart still
+                    // owns it; any other terminal success may release it.
+                    releaseWakeLockUnlessRestartScheduled();
+                    return;
+                }
                 if (!retryableResumeResult(result)) {
+                    // Terminal recovery failure also releases a predecessor's
+                    // named lock when no restart is currently scheduled.
+                    releaseWakeLockUnlessRestartScheduled();
                     Log.e("ThorDisplayDaemon", "CPU attempt resume stopped: " + result);
                     return;
                 }
@@ -347,6 +356,17 @@ public final class CpuFixController {
                 default:
                     if (attempt != null && bootId.equalsIgnoreCase(attempt.bootId)
                             && attempt.phase != CpuBootAttemptModel.Phase.FAILED) {
+                        // If RESTART_REQUESTED timed out while the original
+                        // composer is still alive, the restart provably did
+                        // not take effect. Restore the global property to the
+                        // state that compositor actually cached before sealing
+                        // the attempt as FAILED. This preserves the no-retry
+                        // invariant without leaving getprop/effective state
+                        // deliberately split for the rest of the boot.
+                        if (attempt.phase == CpuBootAttemptModel.Phase.RESTART_REQUESTED
+                                && attempt.baselineComposerPid.equals(composerPid)) {
+                            restoreSystemLoadCheckState(attempt.previous);
+                        }
                         failPersistedAttempt(attempt.baselineComposerPid,
                                 "model_fail_safe");
                     }
