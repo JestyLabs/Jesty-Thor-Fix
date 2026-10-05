@@ -122,12 +122,13 @@ public final class CpuBootAttemptStore {
             }
 
             StructStat temp = Os.fstat(fd);
+            // Keep the temp inode root-owned while its contents are prepared.
+            // The unprivileged app must never get a writable race against the
+            // privileged daemon before the atomic rename.
             if (!OsConstants.S_ISREG(temp.st_mode) || temp.st_nlink != 1
-                    || (temp.st_uid != 0 && temp.st_uid != dirs.appUid)) {
+                    || temp.st_uid != 0 || (temp.st_mode & 0777) != 0600) {
                 throw new IOException("Untrusted CPU boot attempt temp inode");
             }
-            Os.fchown(fd, dirs.appUid, dirs.filesGid);
-            Os.fchmod(fd, 0600);
 
             int offset = 0;
             while (offset < data.length) {
@@ -136,16 +137,28 @@ public final class CpuBootAttemptStore {
                 offset += written;
             }
             Os.fsync(fd);
-            Os.close(fd);
-            fd = null;
 
             checkReplaceableTarget(dirs);
             Os.rename(TEMP_PATH, MARKER_PATH);
 
-            StructStat marker = Os.lstat(MARKER_PATH);
-            if (!trustedMarker(marker, dirs.appUid)) {
+            // Finalize ownership only after the root-owned temp inode is at
+            // the marker path. The still-open fd refers to that exact inode.
+            Os.fchown(fd, dirs.appUid, dirs.filesGid);
+            Os.fchmod(fd, 0600);
+            Os.fsync(fd);
+
+            StructStat marker = Os.fstat(fd);
+            StructStat pathMarker = Os.lstat(MARKER_PATH);
+            if (!trustedMarker(marker, dirs.appUid)
+                    || marker.st_uid != dirs.appUid
+                    || !trustedMarker(pathMarker, dirs.appUid)
+                    || pathMarker.st_uid != dirs.appUid
+                    || marker.st_ino != pathMarker.st_ino
+                    || marker.st_dev != pathMarker.st_dev) {
                 throw new IOException("CPU boot attempt marker verification failed");
             }
+            Os.close(fd);
+            fd = null;
             fsyncDirectory();
         } catch (Throwable error) {
             if (error instanceof IOException) throw (IOException) error;
