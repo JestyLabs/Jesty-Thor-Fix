@@ -13,7 +13,7 @@ conclusions are treated as observations, not proof of untested boot designs.
 
 | Experiment | Observed result | Conclusion |
 | --- | --- | --- |
-| BOTH, AYN Dashboard open, fix OFF | LITTLE 2.016 GHz and BIG 2.707 GHz at their maximum in 20/20 samples; after closing the Dashboard, 0/30 maximum samples with the same display mode and fix setting | The Dashboard is the additional trigger in dual-screen use; Jesty being foreground was not the trigger. |
+| BOTH, AYN Dashboard open, fix OFF | LITTLE 2.016 GHz and BIG 2.707 GHz at their maximum in 20/20 samples; after closing the Dashboard, 0/30 maximum samples with the same display mode and fix setting | The Dashboard is the additional trigger in dual-screen use; the fix app being foreground was not the trigger. |
 | Write `vendor.display.disable_system_load_check=1` with Dashboard still open, without composer restart | LITTLE/BIG stayed pinned through 15 samples; composer PID and visual state did not change | A late property write alone does not apply the fix in this firmware. |
 | Write `1`, then restart the vendor composer once | Kernel boot ID remained unchanged; display/USB disappeared temporarily. After recovery and reopening Dashboard, LITTLE/BIG had 0/35 maximum samples and low CPU load | Starting a new composer with `1` applied the fix. The kernel did not reboot. |
 | Write property back to `0`, then switch TOP to BOTH and reopen Dashboard, without composer restart | 0/30 maximum samples while the same composer process remained alive | A panel recreation does not make the composer reread the property. The effective state can differ from the current `getprop` value until the next composer start. |
@@ -99,7 +99,7 @@ Other routes remain limited:
 3. **If the candidate is ready:** install once in BOTH with the owner watching,
    preserve app data, verify no compositor restart on install, then use one
    supervised cold boot. Collect early logs, script write timestamp,
-   `ro.boottime`/composer PID, Jesty trace, first/second visual-finish events,
+   `ro.boottime`/composer PID, app trace, first/second visual-finish events,
    physical CRTCs and Dashboard time-in-state after settling. Success means
    property write demonstrably precedes first composer start, no Jesty
    compositor restart, no second visual phase, correct display state and
