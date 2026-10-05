@@ -4,9 +4,9 @@ import android.os.SystemClock;
 import android.util.Log;
 
 /**
- * Staged boot gate: waits for Android, the compositor, a known mode and three
- * consistent CRTC samples, then applies the CPU Fix once or reconciles the
- * display. Formerly static code in D; the gate rules live in BootGateModel.
+ * Staged boot coordinator. CPU-fix provenance is reconciled as soon as its
+ * CPU-only prerequisites are ready; display and lid actions remain behind the
+ * existing BootGateModel mode/CRTC stability gate and grace period.
  */
 public final class BootCoordinator implements CpuFixController.HandoffRecovery {
     private final BootSession session;
