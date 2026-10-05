@@ -115,18 +115,34 @@ jobs:
         shell: pwsh
         run: |
           $aapt = Join-Path $env:ANDROID_SDK_ROOT 'build-tools\35.0.0\aapt.exe'
-          $line = (& $aapt dump badging $env:UNSIGNED_APK 2>&1 | Select-Object -First 1)
-          if ($LASTEXITCODE -ne 0 -or
-              $line -notmatch "^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'") {
+          $badging = @(& $aapt dump badging $env:UNSIGNED_APK 2>&1)
+          $aaptExit = $LASTEXITCODE
+          $line = @($badging | Where-Object { $_ -match '^package:\s' } | Select-Object -First 1)
+
+          if ($aaptExit -ne 0 -or $line.Count -ne 1) {
+              $badging | ForEach-Object { Write-Host $_ }
               throw 'Could not read APK package/version'
           }
 
-          if ($Matches[1] -ne 'com.thor.displaypowertest') {
-              throw "Unexpected package: $($Matches[1])"
+          $packageMatch = [regex]::Match(
+              [string]$line[0],
+              "^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'"
+          )
+          if (-not $packageMatch.Success) {
+              $badging | ForEach-Object { Write-Host $_ }
+              throw 'Could not parse APK package/version'
           }
 
-          "version=$($Matches[3])" >> $env:GITHUB_OUTPUT
-          "version_code=$($Matches[2])" >> $env:GITHUB_OUTPUT
+          $packageName = $packageMatch.Groups[1].Value
+          $versionCode = $packageMatch.Groups[2].Value
+          $versionName = $packageMatch.Groups[3].Value
+
+          if ($packageName -ne 'com.thor.displaypowertest') {
+              throw "Unexpected package: $packageName"
+          }
+
+          "version=$versionName" >> $env:GITHUB_OUTPUT
+          "version_code=$versionCode" >> $env:GITHUB_OUTPUT
           "unsigned_sha256=$((Get-FileHash -Algorithm SHA256 -LiteralPath $env:UNSIGNED_APK).Hash.ToUpperInvariant())" >> $env:GITHUB_OUTPUT
 
       - name: Prepare signing material
@@ -184,14 +200,26 @@ jobs:
           }
 
           $aapt = Join-Path $env:ANDROID_SDK_ROOT 'build-tools\35.0.0\aapt.exe'
-          $line = (& $aapt dump badging $env:SIGNED_APK 2>&1 | Select-Object -First 1)
-          if ($LASTEXITCODE -ne 0 -or
-              $line -notmatch "^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'") {
+          $badging = @(& $aapt dump badging $env:SIGNED_APK 2>&1)
+          $aaptExit = $LASTEXITCODE
+          $line = @($badging | Where-Object { $_ -match '^package:\s' } | Select-Object -First 1)
+          if ($aaptExit -ne 0 -or $line.Count -ne 1) {
+              $badging | ForEach-Object { Write-Host $_ }
               throw 'Could not read signed APK package/version'
           }
-          if ($Matches[1] -ne 'com.thor.displaypowertest' -or
-              $Matches[2] -ne '${{ steps.app.outputs.version_code }}' -or
-              $Matches[3] -ne '${{ steps.app.outputs.version }}') {
+
+          $packageMatch = [regex]::Match(
+              [string]$line[0],
+              "^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'"
+          )
+          if (-not $packageMatch.Success) {
+              $badging | ForEach-Object { Write-Host $_ }
+              throw 'Could not parse signed APK package/version'
+          }
+
+          if ($packageMatch.Groups[1].Value -ne 'com.thor.displaypowertest' -or
+              $packageMatch.Groups[2].Value -ne '${{ steps.app.outputs.version_code }}' -or
+              $packageMatch.Groups[3].Value -ne '${{ steps.app.outputs.version }}') {
               throw 'Signed APK package/version differs from the unsigned CI artifact'
           }
 
