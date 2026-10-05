@@ -94,8 +94,8 @@ public final class CpuBootAttemptModel {
         }
 
         if (!currentBootId.equalsIgnoreCase(attempt.bootId)) return Action.DELETE_STALE;
-        if (!desired.equals(attempt.desired)) {
-            return attempt.phase == Phase.APPLIED ? Action.START_NEW : Action.FAIL_SAFE;
+        if (!desired.equals(attempt.desired) && attempt.phase != Phase.APPLIED) {
+            return Action.FAIL_SAFE;
         }
 
         boolean sameComposer = composerPid.equals(attempt.baselineComposerPid);
@@ -119,7 +119,16 @@ public final class CpuBootAttemptModel {
                         ? Action.WAIT_FOR_RESTART : Action.FAIL_SAFE;
 
             case APPLIED:
-                return desiredVisible && !sameComposer ? Action.PROCEED : Action.FAIL_SAFE;
+                // A completed attempt may seed a new explicit transition, but
+                // only while we can still prove we are on the successor
+                // composer. A changed preference or late property drift both
+                // require a fresh restart because the running composer caches
+                // the value it saw at initialization.
+                if (sameComposer) return Action.FAIL_SAFE;
+                if (!desired.equals(attempt.desired) || !desiredVisible) {
+                    return Action.START_NEW;
+                }
+                return Action.PROCEED;
 
             case FAILED:
             default:
