@@ -63,6 +63,30 @@ packaging validation only; it cannot replace the installed release build.
 The workflow downloads Apktool 3.0.3 from its upstream GitHub release and
 checks the pinned SHA-256 before using it.
 
+## Signed test candidates from pull requests
+
+A pull-request CI run deliberately builds only an unsigned APK. To install an experimental
+candidate over an existing release-signed installation without merging experimental code to
+`main`, use the manual **Sign test candidate** workflow after that PR CI run succeeds.
+
+The signing workflow itself lives on trusted `main` and does not check out or execute the PR
+source while signing secrets are available. It accepts a `candidate_run_id`, then requires:
+
+- workflow name `CI`;
+- event `pull_request`;
+- completed successful run;
+- the same repository, never a fork;
+- exactly one non-expired unsigned artifact whose name ends in the source commit SHA.
+
+It downloads that exact unsigned APK, verifies the package/version, signs those same APK bytes
+with the established release key, verifies the certificate/package/version again, records both
+unsigned and signed SHA-256 values, and uploads a separate
+`signed-test-candidate-...` artifact for 14 days.
+
+This artifact is for supervised device testing only. It is not eligible for
+`Publish tested candidate`; the release path still requires the signed candidate produced by a
+successful push to `main`.
+
 ## Pushes to main
 
 A successful push to `main` performs the same checks, then:
