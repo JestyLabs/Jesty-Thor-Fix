@@ -103,12 +103,11 @@ if ($cpuFixSource -notmatch 'CpuBootAttemptStore\.read\(' -or
     $runtimeSource -notmatch 'if \(!coordinating\) cpuFix\.resumePersistedAttempt\(\)') {
     throw 'CPU restart provenance must be integrated into the runtime and normal-daemon recovery.'
 }
-$restartRequestedAt = $cpuFixSource.IndexOf('CpuBootAttemptModel.Phase.RESTART_REQUESTED')
 $restartPersistAt = $cpuFixSource.IndexOf('persistAttempt(requested, "CPU_ATTEMPT_RESTART_REQUESTED"')
-$restartLaunchAt = $cpuFixSource.IndexOf('new Thread(() -> runRestart')
-if ($restartRequestedAt -lt 0 -or $restartPersistAt -lt 0 -or $restartLaunchAt -lt 0 -or
-    $restartRequestedAt -ge $restartPersistAt -or $restartPersistAt -ge $restartLaunchAt) {
-    throw 'RESTART_REQUESTED must be persisted before the restart thread exists.'
+$restartStartAt = $cpuFixSource.IndexOf('restartThread.start()')
+if ($restartPersistAt -lt 0 -or $restartStartAt -lt 0 -or
+    $restartPersistAt -ge $restartStartAt) {
+    throw 'RESTART_REQUESTED must be durably persisted before the restart thread starts.'
 }
 # Thor identifiers belong to ThorHardwareProfile; smali repeats one of them.
 $hardwareLiterals = @(Get-ChildItem -LiteralPath (Join-Path $repository 'src') -Filter '*.java' -Recurse |
