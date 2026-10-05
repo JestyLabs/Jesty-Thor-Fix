@@ -75,6 +75,21 @@ $rootRedirects = @(Get-ChildItem -LiteralPath (Join-Path $repository 'src') -Fil
 if ($rootRedirects.Count -gt 0) {
     throw "Root diagnostics must use RootLogFiles: $($rootRedirects[0].Path):$($rootRedirects[0].LineNumber)"
 }
+$attemptStore = Get-Content -LiteralPath (Join-Path $daemonPackage 'CpuBootAttemptStore.java') -Raw
+if ($attemptStore -notmatch 'DATA_DIR\s*=\s*"/data/user/0/com\.thor\.displaypowertest"' -or
+    $attemptStore -notmatch 'FILES_DIR\s*=\s*DATA_DIR\s*\+\s*"/files"' -or
+    $attemptStore -notmatch 'jesty-thor-cpu-boot-attempt-v1' -or
+    $attemptStore -notmatch 'O_NOFOLLOW' -or
+    $attemptStore -notmatch 'O_EXCL' -or
+    $attemptStore -notmatch 'Os\.fsync\(' -or
+    $attemptStore -notmatch 'Os\.rename\(' -or
+    $attemptStore -notmatch 'st_nlink != 1' -or
+    $attemptStore -notmatch '& 0777\) != 0600') {
+    throw 'CPU boot attempt persistence must stay app-private, no-follow, atomic and durable.'
+}
+if ($attemptStore -match '/data/local/tmp|/data/adb') {
+    throw 'CPU boot attempt marker must never live in a shell-writable or persistent root-hook directory.'
+}
 $cpuFixSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'CpuFixController.java') -Raw
 $commandSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'DaemonCommandHandler.java') -Raw
 if ($cpuFixSource -notmatch 'observeHelper\(' -or $commandSource -notmatch '";phase_ms="') {
@@ -129,6 +144,7 @@ $sources = @(
     (Join-Path $repository 'src\com\thor\displaypowertest\HallNodeModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\HandoffRecoveryModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\DaemonArgs.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\CpuBootAttemptModel.java'),
     (Join-Path $repository 'tests\BootAndLidModelTest.java'),
     (Join-Path $repository 'tests\BootLatencyTest.java'),
     (Join-Path $repository 'tests\DaemonLaunchModelTest.java'),
@@ -141,12 +157,15 @@ $sources = @(
     (Join-Path $repository 'tests\PropertyStateTest.java'),
     (Join-Path $repository 'tests\HallNodeModelTest.java'),
     (Join-Path $repository 'tests\HandoffRecoveryModelTest.java'),
-    (Join-Path $repository 'tests\DaemonArgsTest.java')
+    (Join-Path $repository 'tests\DaemonArgsTest.java'),
+    (Join-Path $repository 'tests\CpuBootAttemptModelTest.java')
 )
 & javac -source 8 -target 8 -d $output $sources
 if ($LASTEXITCODE -ne 0) { throw 'Boot/lid test compilation failed.' }
 & java -cp $output BootAndLidModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Boot/lid tests failed.' }
+& java -cp $output CpuBootAttemptModelTest
+if ($LASTEXITCODE -ne 0) { throw 'CPU boot attempt model tests failed.' }
 & java -cp $output BootLatencyTest
 if ($LASTEXITCODE -ne 0) { throw 'Boot latency tests failed.' }
 & java -cp $output DaemonLaunchModelTest
