@@ -8,6 +8,7 @@ package com.thor.displaypowertest;
  */
 public final class EarlyCpuGateModel {
     public static final long TIMEOUT_MS = 60_000L;
+    public static final long POLL_MS = 200L;
 
     public enum Result {
         WAIT,
