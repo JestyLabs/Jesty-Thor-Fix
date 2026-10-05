@@ -76,13 +76,15 @@ if ($rootRedirects.Count -gt 0) {
     throw "Root diagnostics must use RootLogFiles: $($rootRedirects[0].Path):$($rootRedirects[0].LineNumber)"
 }
 $attemptStore = Get-Content -LiteralPath (Join-Path $daemonPackage 'CpuBootAttemptStore.java') -Raw
-if ($attemptStore -notmatch '/data/user/0/com\.thor\.displaypowertest/files/jesty-thor-cpu-boot-attempt-v1' -or
+if ($attemptStore -notmatch 'DATA_DIR\s*=\s*"/data/user/0/com\.thor\.displaypowertest"' -or
+    $attemptStore -notmatch 'FILES_DIR\s*=\s*DATA_DIR\s*\+\s*"/files"' -or
+    $attemptStore -notmatch 'jesty-thor-cpu-boot-attempt-v1' -or
     $attemptStore -notmatch 'O_NOFOLLOW' -or
     $attemptStore -notmatch 'O_EXCL' -or
     $attemptStore -notmatch 'Os\.fsync\(' -or
     $attemptStore -notmatch 'Os\.rename\(' -or
     $attemptStore -notmatch 'st_nlink != 1' -or
-    $attemptStore -notmatch '\(stat\.st_mode & 0777\) == 0600') {
+    $attemptStore -notmatch '& 0777\) != 0600') {
     throw 'CPU boot attempt persistence must stay app-private, no-follow, atomic and durable.'
 }
 if ($attemptStore -match '/data/local/tmp|/data/adb') {
