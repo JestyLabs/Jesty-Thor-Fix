@@ -1,8 +1,8 @@
-# Jesty Thor Fix v1.5.20 — testing pre-release
+# Jesty Thor Fix v1.5.20
 
-This build brings the v1.5.18 safety work, the v1.5.19 code reorganization and
-the corrected daemon launch to one test candidate. **v1.5.16 remains the
-recommended stable release.**
+This release brings the v1.5.18 safety work, the v1.5.19 code reorganization
+and the corrected daemon launch together. The exact signed APK passed the
+scoped supervised Thor checks below.
 
 - The boot daemon can recover from a failed CPU Fix handoff instead of holding
   display actions indefinitely. A stalled same-version boot phase can be

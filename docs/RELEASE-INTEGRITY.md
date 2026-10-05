@@ -1,6 +1,6 @@
 # Release integrity
 
-## 1.5.20 testing pre-release candidate
+## 1.5.20 stable release
 
 - Package: `com.thor.displaypowertest`
 - Version code/name: `69` / `1.5.20`
@@ -14,9 +14,9 @@
   was observed. The known early SurfaceFlinger abort remained before the app
   started; updater installation and adversarial helper recovery were not
   physically exercised. See `VALIDATION-1.5.20-PENDING.md`.
-- Before publishing, verify the uploaded GitHub asset size, SHA-256 and
-  reported asset digest against the exact local APK. The binary and signing
-  material stay outside Git. v1.5.16 remains Latest stable.
+- GitHub asset: 9,176,157 bytes. Its reported SHA-256 and a downloaded copy
+  matched the exact local APK. The binary and signing material stay outside
+  Git. The same tested artifact was promoted from pre-release to Latest.
 
 ## 1.5.17 testing pre-release (Thor validation recorded)
 
@@ -31,7 +31,7 @@
   diary. The GitHub pre-release asset was downloaded after upload and matched
   the local SHA-256 and 9,151,581-byte size.
 
-v1.5.16 remains Latest stable. No APK, signing material or device log is
+No APK, signing material or device log is
 committed to Git.
 
 

@@ -1,11 +1,13 @@
-# v1.5.20 daemon launch repair candidate
+# v1.5.20 daemon launch repair validation
 
-**Status (2026-10-05): signed in-place handover, BOTH/TOP, TOP wake, one
-supervised TOP cold boot and available Wake Guard checks passed.** The Thor
-finished awake in BOTH with v1.5.20, CPU Fix active and Wake Guard OFF. This
-is not yet stable-release validation.
+**Status (2026-10-05): accepted for stable release with explicit limits.** The
+signed APK passed an in-place handover, BOTH/TOP, TOP wake, one supervised TOP
+cold boot and available Wake Guard checks. The Thor finished awake in BOTH,
+CPU Fix active and Wake Guard OFF. The owner accepted targeted tests instead
+of a fixed boot quota and deferred investigation of the known early firmware
+SurfaceFlinger abort.
 
-## Reason for this candidate
+## Reason for the launch repair
 
 The supervised 1.5.19 installation stopped the authenticated 1.5.17 daemon,
 then submitted two new-daemon launch commands through the vendor bridge.

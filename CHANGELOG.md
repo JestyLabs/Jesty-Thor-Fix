@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.5.20 (signed testing pre-release candidate)
+## 1.5.20 (stable release; scoped Thor validation)
 
 - Shorten the root bridge daemon launch command and bound it to 255 characters.
   Four timing environment variables become one compact `JT` value; the daemon

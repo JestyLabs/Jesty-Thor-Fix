@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.16"><strong>Download v1.5.16</strong></a>
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.20"><strong>Download v1.5.20</strong></a>
   · <a href="#the-three-controls">What it does</a>
   · <a href="#measured-behavior">Measurements</a>
   · <a href="https://www.buymeacoffee.com/jesty">☕ Support development</a>
@@ -55,7 +55,7 @@ state, so you can tell whether a fix is active.
 </p>
 
 <p align="center">
-  <sub>Jesty dashboard on the Thor's upper screen. Physical v1.5.15 capture; the interface is unchanged in v1.5.16.</sub>
+  <sub>Jesty Thor Fix on the Thor's upper screen. Physical v1.5.15 capture; current layout may differ slightly.</sub>
 </p>
 
 ## Why true off matters
@@ -64,7 +64,7 @@ An OLED showing black pixels can consume very little panel power, but a black
 image is not the same thing as powering down the display hardware.
 
 On the tested Thor, native TOP mode can leave the lower display pipeline active
-behind the black lower screen. Jesty verifies the physical state and powers
+behind the black lower screen. The app verifies the physical state and powers
 that lower pipeline down.
 
 The investigation also uncovered a separate AYN Dashboard behavior that can
@@ -147,7 +147,7 @@ measurements and the [roadmap](docs/ROADMAP-AFTER-1.5.17.md) for later changes.
 
 ## Get started
 
-1. [Download the latest signed APK](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.16) and install it on an **AYN Thor**.
+1. [Download the latest signed APK](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.20) and install it on an **AYN Thor**.
 2. Open Jesty Thor Fix and enable the controls you want.
 3. Close the app or switch to a game. Your choices are saved and restored after boot.
 
@@ -243,15 +243,14 @@ Jesty Thor Fix is free and open source. No feature is locked behind donations.
 Documentation:
 [architecture](docs/ARCHITECTURE.md) ·
 [benchmarks](docs/BENCHMARKS.md) ·
-[release notes](docs/RELEASE-NOTES-1.5.16.md) ·
+[release notes](docs/RELEASE-NOTES-1.5.20.md) ·
 [build and release](docs/BUILD-AND-RELEASE.md) ·
 [release integrity](docs/RELEASE-INTEGRITY.md)
 
-Testing a newer build?
-[v1.5.20](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.20)
-is a pre-release with supervised TOP boot and BOTH/TOP checks recorded in its
-[validation diary](docs/VALIDATION-1.5.20-PENDING.md). v1.5.16 remains the
-recommended stable release.
+The [v1.5.20 validation diary](docs/VALIDATION-1.5.20-PENDING.md) records the
+supervised upgrade, BOTH/TOP checks, TOP cold boot, Wake Guard and known
+early firmware SurfaceFlinger abort. The updater's end-to-end installation
+test, BOTTOM ONLY and dock use are deferred.
 
 ## License, provenance, and independence
 

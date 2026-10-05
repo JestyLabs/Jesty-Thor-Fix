@@ -1,11 +1,11 @@
 # Thor roadmap after the v1.5.17 pre-release
 
-**Status (2026-10-05):** v1.5.16 remains Latest stable. The combined v1.5.19
+**Status (2026-10-05):** v1.5.20 is Latest stable. The combined v1.5.19
 candidate failed daemon migration and was rolled back without clearing data.
 The corrected, signed v1.5.20 passed an in-place upgrade, BOTH/TOP checks, one
 TOP cold boot and Wake Guard checks on the Thor. See its
 [validation diary](VALIDATION-1.5.20-PENDING.md). v1.5.18 was incorporated in
-this candidate rather than installed separately. The pre-compositor property
+this release rather than installed separately. The pre-compositor property
 write and an earlier compositor restart remain untested proposals.
 
 The order is: measure, correct safety failures, investigate the largest boot
@@ -82,7 +82,7 @@ system change requires the owner's explicit decision before implementation.
 ## 2. v1.5.18 safety correction
 
 **Source status:** the helper observer, `phase_ms` and stalled-phase
-replacement were integrated into the signed v1.5.20 candidate. The normal
+replacement were integrated into the signed v1.5.20 release. The normal
 handoff passed on the Thor; adversarial recovery remains host-tested only.
 The post-restart readiness signal is not included. The source narrows the plan
 below: only an abort that proves the compositor never restarted (exit 10, with
@@ -133,7 +133,8 @@ upgrade, BOTH/TOP and sleep/wake, one TOP boot, correct final CRTCs, and
 Wake Guard with a controlled false wake. Additional boots require a concrete
 open question. The known early SurfaceFlinger abort occurred before the app
 started; it is recorded as an explicit exception to the old zero-aborts gate,
-not counted as zero aborts. Stable promotion requires a separate decision.
+not counted as zero aborts. The owner accepted this explicit exception and
+promoted the same signed APK after the targeted checks.
 Validation files use explicit status fields; release notes must not call a
 stable version a candidate. Keep logs, tombstones, APKs and signing keys out
 of Git. Do not increase logcat buffers without the owner's approval.

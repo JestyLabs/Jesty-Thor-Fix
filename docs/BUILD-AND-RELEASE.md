@@ -69,5 +69,6 @@ For a testing build, publish a clearly labelled **pre-release** with
 The exact v1.5.20 APK has supervised physical results in
 `VALIDATION-1.5.20-PENDING.md`; the owner approved targeted checks in place of
 the old fixed boot quota. The known early firmware SurfaceFlinger abort must
-remain explicit in the notes. Stable promotion requires a separate maintainer
-decision for this exact APK and its remaining limitations.
+remain explicit in the notes. The owner accepted those results and promoted
+the unchanged signed APK to Latest stable; the updater's end-to-end test is
+deferred to a later phase.
