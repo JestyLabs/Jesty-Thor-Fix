@@ -753,7 +753,7 @@ public final class CpuFixController {
                         + " com.thor.displaypowertest.RecoverySplash"
                         + " \"$OLD\" \"$SC\" \"$SF0\" \"$SS\""
                         + " >/dev/null 2>&1 & SP=$!;"
-                        + " T SPLASH_SHOW_REQUESTED"
+                        + " T SPLASH_RENDERER_STARTED"
                         + " \"composer_pid=$SC;sf_pid=$SS;splash_pid=$SP\"; }",
                 "restore_ba(){ [ \"$BAS\" = 1 ] || return 0;"
                         + " setprop debug.sf.nobootanimation \"$BAPREV\" >/dev/null 2>&1;"
