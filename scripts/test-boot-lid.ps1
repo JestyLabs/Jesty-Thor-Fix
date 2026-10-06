@@ -145,6 +145,44 @@ if ($successorPidSource -notmatch 'AMBIGUOUS' -or
     throw 'Successor PID resolver must reject ambiguous multi-successor observations.'
 }
 
+# Surface runtime prototype: explicit opt-in, app-window-independent and fail-open.
+$recoverySplashRuntime = Get-Content -LiteralPath (Join-Path $daemonPackage 'RecoverySplash.java') -Raw
+$recoverySplashProbe = Get-Content -LiteralPath (Join-Path $daemonPackage 'RecoverySplashProbe.java') -Raw
+if ($recoverySplashRuntime -match 'import\s+android\.app\.Activity|import\s+android\.view\.WindowManager|ctl\.restart|CpuBootAttemptStore|BootSafety|DisplayHardware\.apply') {
+    throw 'Recovery splash runtime must not acquire app-window or restart/display authority.'
+}
+if ($recoverySplashRuntime -match 'import\s+android\.view\.SurfaceControl') {
+    throw 'Recovery splash must access hidden SurfaceControl APIs reflectively.'
+}
+if ($recoverySplashRuntime -notmatch 'TARGET_WAIT_MS = 4500L' -or
+    $recoverySplashRuntime -notmatch 'Class\.forName\(SURFACE_CONTROL\)' -or
+    $recoverySplashRuntime -notmatch 'SuccessorPidModel\.resolve' -or
+    $recoverySplashRuntime -notmatch 'service\.bootanim\.exit' -or
+    $recoverySplashRuntime -notmatch 'SPLASH_TARGET_READY' -or
+    $recoverySplashRuntime -notmatch 'SPLASH_BOOTANIM_EXIT' -or
+    $recoverySplashRuntime -notmatch 'transactionReparentToNull' -or
+    $recoverySplashRuntime -notmatch 'TRANSACTION_COMMITTED_LISTENER') {
+    throw 'Recovery splash runtime lost bounded target wait, exact successor or cleanup semantics.'
+}
+if ($cpuFixSource -notmatch '/data/local/tmp/thor-recovery-splash-prototype' -or
+    $cpuFixSource -notmatch 'succ\(\)\{' -or
+    $cpuFixSource -notmatch 'RecoverySplash' -or
+    $cpuFixSource -notmatch 'start_splash' -or
+    $cpuFixSource -notmatch 'pid=\$\$;') {
+    throw 'Recovery splash prototype must stay explicit and preserve helper trace identity.'
+}
+$sfTraceAt = $cpuFixSource.IndexOf('HELPER_SF_NEW_PID')
+$splashCallAt = $cpuFixSource.LastIndexOf('start_splash')
+if ($sfTraceAt -lt 0 -or $splashCallAt -le $sfTraceAt) {
+    throw 'Recovery splash may only launch after replacement SurfaceFlinger observation.'
+}
+if ($recoverySplashProbe -notmatch 'args\.length != 0' -or
+    $recoverySplashProbe -notmatch 'PServerBinder' -or
+    $recoverySplashProbe -notmatch 'RecoverySplash' -or
+    $recoverySplashProbe -match 'args\[[0-9]+\].*command|Runtime\.getRuntime\(\)\.exec') {
+    throw 'No-reboot splash probe must remain argument-free with a fixed bridge command.'
+}
+
 # Boot-animation suppression is transient, boot-scoped, best-effort and
 # independently restored by the helper on every exit path.
 if ($cpuFixSource -notmatch 'BOOT_ANIMATION_DISABLE_PROPERTY = "debug\.sf\.nobootanimation"' -or
@@ -164,7 +202,7 @@ if ($restartPersistAt -lt 0 -or $restartStartAt -lt 0 -or
 # Thor identifiers belong to ThorHardwareProfile; smali repeats one of them.
 $hardwareLiterals = @(Get-ChildItem -LiteralPath (Join-Path $repository 'src') -Filter '*.java' -Recurse |
     Where-Object { $_.Name -ne 'ThorHardwareProfile.java' } |
-    Select-String -Pattern '0x40446d4a32a16584|crtc\[(181|243)\]|"(181|243)"|"hall_switch"|dri/0/state')
+    Select-String -Pattern '0x40446d40c8d6b683|0x40446d4a32a16584|crtc\[(181|243)\]|"(181|243)"|"hall_switch"|dri/0/state')
 if ($hardwareLiterals.Count -gt 0) {
     throw "Thor hardware IDs must come from ThorHardwareProfile: $($hardwareLiterals[0].Path):$($hardwareLiterals[0].LineNumber)"
 }
