@@ -16,9 +16,16 @@ body:
     validations:
       required: true
   - type: input
+    id: device
+    attributes:
+      label: Device model
+      placeholder: "AYN Thor"
+    validations:
+      required: true
+  - type: input
     id: firmware
     attributes:
-      label: Thor firmware
+      label: Android / firmware build
       description: Build identifier only. Do not include a device serial.
     validations:
       required: true
@@ -30,6 +37,7 @@ body:
         - TOP
         - BOTH
         - BOTTOM
+        - Not applicable / unsupported device
         - Unknown
     validations:
       required: true
@@ -54,8 +62,8 @@ body:
   - type: textarea
     id: state
     attributes:
-      label: Redacted Q / V output
-      description: Paste only the relevant daemon snapshot and one-shot scanout result.
+      label: Redacted diagnostics
+      description: On a supported Thor, include the relevant Q / V output. On an unsupported device, include only the read-only diagnostics requested for that test.
       render: text
   - type: textarea
     id: logs
