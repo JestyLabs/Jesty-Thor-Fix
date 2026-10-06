@@ -37,7 +37,7 @@ public final class DaemonCommandHandler {
                 }
                 // healthyResponse in PServer requires this to end with ";watcher=".
                 return "ok=1;protocol=" + SecureChannel.PROTOCOL
-                    + ";version=" + DaemonIdentity.VERSION + ";pid=" + pid
+                    + ";version=" + DaemonIdentity.RUNTIME_ID + ";pid=" + pid
                     + ";boot_phase=" + BootSafety.phase().replace(' ', '_')
                     + ";phase_ms=" + BootSafety.phaseAgeMs()
                     + ";fix=" + (DaemonState.isEnabled() ? "1" : "0")
