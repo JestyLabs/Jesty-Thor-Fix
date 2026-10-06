@@ -6,6 +6,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PixelFormat;
+import android.graphics.PorterDuff;
 import android.graphics.RectF;
 import android.os.Build;
 import android.os.IBinder;
@@ -92,6 +93,7 @@ public final class RecoverySplash {
         Surface surface = null;
         boolean curtainShown = false;
         boolean shown = false;
+        long shownAt = 0L;
         boolean removalRequested = false;
         boolean removed = false;
         try {
@@ -106,18 +108,14 @@ public final class RecoverySplash {
             // 0->1 bootanim exit edge is not lost while the buffer is created.
             boolean bootanimZeroSeen = "0".equals(property("service.bootanim.exit"));
 
-            long topId = resolveKnownTopPhysicalId();
-            if (topId == 0L) {
-                trace("SPLASH_FAIL_OPEN", "reason=TOPOLOGY_UNAVAILABLE");
-                return;
-            }
-
-            // Cover the recovery gap before dynamic display metadata is ready.
-            // A square, solid-color buffer is intentionally orientation-agnostic:
-            // the tested Thor can briefly transition through portrait projection.
+            // Cover the recovery gap immediately. PR #27 proved that waiting for
+            // getPhysicalDisplayIds() here costs roughly 2.8 s on the replacement
+            // SurfaceFlinger. Stack 0 is physically proven to route to TOP once the
+            // Thor is stable, while early boot can temporarily expose stack 0 on both
+            // panels. A black curtain is harmless in that ambiguous interval.
             curtainControl = buildSurfaceControl(
                     ThorHardwareProfile.RECOVERY_CURTAIN_SIZE,
-                    ThorHardwareProfile.RECOVERY_CURTAIN_SIZE);
+                    ThorHardwareProfile.RECOVERY_CURTAIN_SIZE, true);
             activeCurtainControl = curtainControl;
             curtainSurface = surfaceFromControl(curtainControl);
             drawCurtain(curtainSurface);
@@ -126,10 +124,11 @@ public final class RecoverySplash {
 
             CountDownLatch curtainCommit = new CountDownLatch(1);
             trace("SPLASH_CURTAIN_SHOW_REQUESTED", "composer_pid=" + expectedComposer
-                    + ";sf_pid=" + expectedSf);
+                    + ";sf_pid=" + expectedSf + ";layer_stack=0");
             Object curtainTransaction = newTransaction();
             try {
                 transactionSetLayer(curtainTransaction, curtainControl, SPLASH_LAYER - 1);
+                transactionSetLayerStack(curtainTransaction, curtainControl, 0);
                 transactionShow(curtainTransaction, curtainControl);
                 transactionAddCommittedListener(curtainTransaction, curtainCommit);
                 transactionApply(curtainTransaction);
@@ -142,34 +141,35 @@ public final class RecoverySplash {
                 return;
             }
             curtainShown = true;
-            trace("SPLASH_CURTAIN_SHOWN", "evidence=TRANSACTION_COMMITTED");
+            trace("SPLASH_CURTAIN_SHOWN",
+                    "evidence=TRANSACTION_COMMITTED;layer_stack=0");
 
-            DisplayTarget target = waitForTarget(topId, processStartedAt + PROCESS_TTL_MS);
-            if (target == null) {
-                trace("SPLASH_FAIL_OPEN", "reason=TARGET_UNAVAILABLE");
-                return;
-            }
-            if (!successorStillExact(oldComposer, expectedComposer,
-                    "vendor.qti.hardware.display.composer-service")
-                    || !successorStillExact(oldSf, expectedSf, "surfaceflinger")) {
-                trace("SPLASH_FAIL_OPEN", "reason=SUCCESSOR_CHANGED");
-                return;
-            }
-
-            control = buildSurfaceControl(target.surfaceWidth, target.surfaceHeight);
+            // Brand before topology enumeration too, but keep every non-transparent
+            // pixel in the measured x-range that exists on TOP (1920 wide) and lies
+            // outside BOTTOM's 1240-wide layer-stack space. This is a prototype
+            // routing experiment, not a display projection mutation.
+            control = buildSurfaceControl(
+                    ThorHardwareProfile.TOP_RECOVERY_WIDTH,
+                    ThorHardwareProfile.TOP_RECOVERY_HEIGHT, false);
             activeBrandControl = control;
             surface = surfaceFromControl(control);
-            trace("SPLASH_DRAW_BEGIN", "width=" + target.surfaceWidth
-                    + ";height=" + target.surfaceHeight);
-            String drawBackend = draw(surface, target.surfaceWidth, target.surfaceHeight);
-            trace("SPLASH_DRAW_READY", "backend=" + drawBackend);
+            trace("SPLASH_DRAW_BEGIN", "width=" + ThorHardwareProfile.TOP_RECOVERY_WIDTH
+                    + ";height=" + ThorHardwareProfile.TOP_RECOVERY_HEIGHT
+                    + ";exclusive_left=" + ThorHardwareProfile.BOTTOM_RECOVERY_WIDTH);
+            String drawBackend = drawTopExclusiveBrand(surface,
+                    ThorHardwareProfile.TOP_RECOVERY_WIDTH,
+                    ThorHardwareProfile.TOP_RECOVERY_HEIGHT);
+            trace("SPLASH_DRAW_READY", "backend=" + drawBackend
+                    + ";placement=TOP_EXCLUSIVE_RIGHT");
 
             CountDownLatch shownCommit = new CountDownLatch(1);
             trace("SPLASH_SHOW_REQUESTED", "composer_pid=" + expectedComposer
-                    + ";sf_pid=" + expectedSf + ";backend=SURFACECONTROL");
+                    + ";sf_pid=" + expectedSf
+                    + ";backend=SURFACECONTROL;layer_stack=0;placement=TOP_EXCLUSIVE_RIGHT");
             Object showTransaction = newTransaction();
             try {
                 transactionSetLayer(showTransaction, control, SPLASH_LAYER);
+                transactionSetLayerStack(showTransaction, control, 0);
                 transactionShow(showTransaction, control);
                 transactionAddCommittedListener(showTransaction, shownCommit);
                 transactionApply(showTransaction);
@@ -183,13 +183,39 @@ public final class RecoverySplash {
             }
 
             shown = true;
-            long shownAt = SystemClock.elapsedRealtime();
+            shownAt = SystemClock.elapsedRealtime();
             trace("SPLASH_SHOWN", "evidence=TRANSACTION_COMMITTED"
                     + ";composer_pid=" + expectedComposer
                     + ";sf_pid=" + expectedSf
-                    + ";display_id=" + Long.toUnsignedString(target.physicalId)
-                    + ";width=" + target.surfaceWidth
-                    + ";height=" + target.surfaceHeight);
+                    + ";layer_stack=0;placement=TOP_EXCLUSIVE_RIGHT"
+                    + ";width=" + ThorHardwareProfile.TOP_RECOVERY_WIDTH
+                    + ";height=" + ThorHardwareProfile.TOP_RECOVERY_HEIGHT);
+
+            // Topology and mode metadata remain mandatory, but they are now
+            // post-show validation rather than a prerequisite for first pixels.
+            long topId = resolveKnownTopPhysicalId();
+            if (topId == 0L) {
+                trace("SPLASH_FAIL_OPEN", "reason=TOPOLOGY_UNAVAILABLE;cleanup_requested=1");
+                return;
+            }
+
+            DisplayTarget target = waitForTarget(topId, processStartedAt + PROCESS_TTL_MS);
+            if (target == null) {
+                trace("SPLASH_FAIL_OPEN", "reason=TARGET_UNAVAILABLE;cleanup_requested=1");
+                return;
+            }
+            if (!successorStillExact(oldComposer, expectedComposer,
+                    "vendor.qti.hardware.display.composer-service")
+                    || !successorStillExact(oldSf, expectedSf, "surfaceflinger")) {
+                trace("SPLASH_FAIL_OPEN", "reason=SUCCESSOR_CHANGED;cleanup_requested=1");
+                return;
+            }
+            trace("SPLASH_TARGET_VALIDATED",
+                    "display_id=" + Long.toUnsignedString(target.physicalId)
+                            + ";native_width=" + target.nativeWidth
+                            + ";native_height=" + target.nativeHeight
+                            + ";surface_width=" + target.surfaceWidth
+                            + ";surface_height=" + target.surfaceHeight);
 
             long visibleDeadline = Math.min(shownAt + MAX_VISIBLE_MS,
                     processStartedAt + PROCESS_TTL_MS);
@@ -429,7 +455,8 @@ public final class RecoverySplash {
         }
     }
 
-    private static Object buildSurfaceControl(int width, int height) throws Exception {
+    private static Object buildSurfaceControl(int width, int height, boolean opaque)
+            throws Exception {
         Class<?> builderClass = Class.forName(SURFACE_CONTROL_BUILDER);
         Object builder = builderClass.getDeclaredConstructor().newInstance();
         builder = invokeBuilder(builder, "setName", new Class<?>[] { String.class },
@@ -438,7 +465,8 @@ public final class RecoverySplash {
                 new Class<?>[] { int.class, int.class }, width, height);
         builder = invokeBuilder(builder, "setFormat", new Class<?>[] { int.class },
                 PixelFormat.RGBA_8888);
-        builder = invokeBuilder(builder, "setOpaque", new Class<?>[] { boolean.class }, true);
+        builder = invokeBuilder(builder, "setOpaque",
+                new Class<?>[] { boolean.class }, opaque);
         builder = invokeBuilder(builder, "setHidden", new Class<?>[] { boolean.class }, true);
         Method build = builderClass.getMethod("build");
         return build.invoke(builder);
@@ -470,6 +498,14 @@ public final class RecoverySplash {
         Method method = transaction.getClass().getMethod(
                 "setLayer", surfaceControlClass, int.class);
         method.invoke(transaction, control, layer);
+    }
+
+    private static void transactionSetLayerStack(
+            Object transaction, Object control, int layerStack) throws Exception {
+        Class<?> surfaceControlClass = Class.forName(SURFACE_CONTROL);
+        Method method = transaction.getClass().getMethod(
+                "setLayerStack", surfaceControlClass, int.class);
+        method.invoke(transaction, control, layerStack);
     }
 
     private static void transactionShow(Object transaction, Object control) throws Exception {
@@ -545,24 +581,34 @@ public final class RecoverySplash {
      * Text rendering aborts natively in Typeface::resolveDefault(). Keep
      * this recovery renderer bitmap/primitive only.
      */
-    private static String draw(Surface surface, int width, int height) throws Exception {
+    private static String drawTopExclusiveBrand(
+            Surface surface, int width, int height) throws Exception {
         Canvas canvas = null;
         Bitmap brand = null;
         String backend = "PRIMITIVE_FALLBACK";
         try {
             canvas = surface.lockCanvas(null);
-            canvas.drawColor(Color.rgb(14, 11, 24));
+            canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
+
+            final float margin = 28f;
+            final float exclusiveLeft =
+                    Math.min(width, ThorHardwareProfile.BOTTOM_RECOVERY_WIDTH + margin);
+            final float exclusiveRight = Math.max(exclusiveLeft, width - margin);
+            final float exclusiveWidth = exclusiveRight - exclusiveLeft;
+            if (exclusiveWidth < 64f) {
+                throw new IllegalStateException("TOP_EXCLUSIVE_REGION_TOO_SMALL");
+            }
 
             brand = loadBrandBitmap();
             if (brand != null && brand.getWidth() > 0 && brand.getHeight() > 0) {
-                float maxWidth = width * 0.62f;
-                float maxHeight = height * 0.20f;
+                float maxWidth = exclusiveWidth;
+                float maxHeight = height * 0.18f;
                 float scale = Math.min(maxWidth / brand.getWidth(),
                         maxHeight / brand.getHeight());
                 scale = Math.min(scale, 1.0f);
                 float drawWidth = Math.max(1f, brand.getWidth() * scale);
                 float drawHeight = Math.max(1f, brand.getHeight() * scale);
-                float left = (width - drawWidth) / 2f;
+                float left = exclusiveLeft + (exclusiveWidth - drawWidth) / 2f;
                 float top = (height - drawHeight) / 2f - height * 0.04f;
 
                 Paint bitmapPaint = new Paint(Paint.ANTI_ALIAS_FLAG
@@ -572,25 +618,27 @@ public final class RecoverySplash {
                         bitmapPaint);
                 backend = "PACKAGED_LOCKUP";
             } else {
-                // Obvious dependency-free fallback for prototype validation.
+                // Dependency-free fallback kept entirely in the TOP-exclusive band.
                 Paint panel = new Paint(Paint.ANTI_ALIAS_FLAG);
                 panel.setColor(Color.rgb(124, 58, 237));
-                float size = Math.min(width, height) * 0.20f;
-                float cx = width / 2f;
+                float size = Math.min(exclusiveWidth * 0.32f, height * 0.14f);
+                float cx = exclusiveLeft + exclusiveWidth / 2f;
                 float cy = height / 2f;
                 canvas.drawRoundRect(new RectF(cx - size, cy - size,
                         cx + size, cy + size), size * 0.18f, size * 0.18f, panel);
 
                 Paint cut = new Paint(Paint.ANTI_ALIAS_FLAG);
-                cut.setColor(Color.rgb(14, 11, 24));
+                cut.setColor(Color.TRANSPARENT);
+                cut.setXfermode(new android.graphics.PorterDuffXfermode(
+                        PorterDuff.Mode.CLEAR));
                 float bar = size * 0.22f;
                 canvas.drawRect(cx - bar, cy - size * 0.55f,
                         cx + bar, cy + size * 0.55f, cut);
                 canvas.drawRect(cx - size * 0.55f, cy - bar,
                         cx + size * 0.55f, cy + bar, cut);
+                cut.setXfermode(null);
             }
 
-            // No fixed progress bar: recovery duration is event-driven, not a percentage.
             return backend;
         } finally {
             if (canvas != null) surface.unlockCanvasAndPost(canvas);
