@@ -249,26 +249,63 @@ boot evidence shows that physical-display layer-stack assignment changes during
 boot and can temporarily converge, so a cold-gap implementation must not
 promote the stable result directly without recovery-time evidence.
 
-A retained BOTH boot log makes that risk concrete. During framework bring-up,
-system_server logged at 35.674 s:
+The **same boot in which PR #27 visibly duplicated the brand onto both panels**
+preserves the physical-routing sequence in logcat (boot ID
+`9bf75612-8acd-4b55-98f3-b01b05585573`):
 
-```text
-DisplayDevice: [0] Layerstack set to 0 for local:4630946441858561667
-DisplayDevice: [0] Layerstack set to 0 for local:4630946482288158084
-```
+| Uptime | Event |
+| ---: | --- |
+| 35.820 s | replacement SurfaceFlinger detected; splash renderer starts |
+| 38.830 s | logical TOP added, advertised layer stack 0 |
+| 38.840 s | logical BOTTOM added, advertised layer stack 4 |
+| 38.948 s | PR #27 curtain committed |
+| 39.446 s | PR #27 centered brand committed and was physically seen on BOTH |
+| 39.512 s | physical TOP is set to stack 0 |
+| 39.512 s | physical BOTTOM is also set to stack 0 |
+| 40.633 s | physical BOTTOM is finally moved to stack 4 |
+| 41.082 s | boot-animation exit edge |
+| 41.145 s | PR #27 surfaces removed |
 
-The BOTTOM physical display was not switched to logical stack 4 until 37.143 s:
+The important distinction is that the logical model already advertised BOTTOM
+as layer stack 4 at 38.840 s, yet the physical DisplayDevice was still assigned
+stack 0 at 39.512 s and did not move to stack 4 until 40.633 s. Logical
+`DisplayInfo.layerStack=4` is therefore **not a sufficient recovery-time
+readiness signal** for TOP-only branding.
 
-```text
-DisplayDevice: [4] Layerstack set to 4 for local:4630946482288158084
-```
+The physical dual-stack interval itself lasted about 1.12 s. More importantly,
+the centered PR #27 brand was already visible on both panels before the explicit
+39.512 s assignments, so an unparented/default early layer can duplicate even
+earlier than that log line. Waiting for the 40.633 s split would leave only
+~449 ms before boot-animation exit, which is too late to solve the black-gap UX.
 
-That is about a 1.47 s interval where an explicit stack-0 layer can legitimately
-be consumed by both physical panels. Therefore the stable `STACK_0 -> TOP`
-result is **not authority to show branding immediately** after replacement
-SurfaceFlinger. A future recovery prototype may use an unbranded black curtain
-during that ambiguous interval, but branded pixels need a separately proven
-TOP-only readiness signal.
+An independent retained BOTH boot showed the same temporary convergence
+(35.674 s both on stack 0, 37.143 s BOTTOM -> stack 4), so this is not a
+one-log anomaly.
+
+### Geometry-separated prototype
+
+The next prototype does **not** treat stack 0 alone as TOP-only during early
+recovery. Instead it separates coverage from branding:
+
+- an opaque black curtain is shown immediately on layer stack 0; duplication
+  onto BOTTOM during the ambiguous interval is visually harmless;
+- the brand layer is transparent and also uses layer stack 0;
+- every non-transparent brand pixel is constrained to the measured TOP-only
+  x-range above BOTTOM's 1240-pixel layer-stack width;
+- TOP's measured recovery layer-stack width is 1920 pixels, leaving a
+  680-pixel exclusive band on the right;
+- `getPhysicalDisplayIds()` and dynamic mode validation run **after** those
+  first pixels commit;
+- any topology/geometry mismatch still detaches both layers and fails open.
+
+This is intentionally a prototype geometry isolation test. It does not claim
+that clipping/scaling behavior during the ambiguous phase is proven until a
+supervised cold boot verifies that the right-side brand remains absent from
+BOTTOM.
+
+Branch:
+
+`work/thor-recovery-splash-top-exclusive-prototype`
 
 ## Decision gate
 
