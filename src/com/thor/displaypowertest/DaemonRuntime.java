@@ -47,6 +47,10 @@ public final class DaemonRuntime {
                     + ";process_start_ms=" + probe.processStartMs());
         }
         BootSafety.begin(coordinating);
+        String earlyAttempt = cpuFix.adoptEarlyAttempt();
+        if (!earlyAttempt.startsWith("ok=1")) {
+            Log.e("ThorDisplayDaemon", "early CPU attempt rejected: " + earlyAttempt);
+        }
         DaemonState.setEnabled(args.displayFixEnabled);
         if (!coordinating) LidGuard.setEnabled(session.lidGuardDesired());
         LocalServerSocket listener = SecureChannel.listen();
