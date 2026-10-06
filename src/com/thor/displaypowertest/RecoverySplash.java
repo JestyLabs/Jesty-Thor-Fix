@@ -60,7 +60,8 @@ public final class RecoverySplash {
     };
 
     private static volatile boolean finished;
-    private static volatile Object activeControl;
+    private static volatile Object activeCurtainControl;
+    private static volatile Object activeBrandControl;
 
     private RecoverySplash() {}
 
@@ -85,8 +86,11 @@ public final class RecoverySplash {
 
     private static void run(String oldComposer, String expectedComposer,
             String oldSf, String expectedSf, long processStartedAt) {
+        Object curtainControl = null;
+        Surface curtainSurface = null;
         Object control = null;
         Surface surface = null;
+        boolean curtainShown = false;
         boolean shown = false;
         boolean removalRequested = false;
         boolean removed = false;
@@ -102,7 +106,45 @@ public final class RecoverySplash {
             // 0->1 bootanim exit edge is not lost while the buffer is created.
             boolean bootanimZeroSeen = "0".equals(property("service.bootanim.exit"));
 
-            DisplayTarget target = waitForTarget(processStartedAt + PROCESS_TTL_MS);
+            long topId = resolveKnownTopPhysicalId();
+            if (topId == 0L) {
+                trace("SPLASH_FAIL_OPEN", "reason=TOPOLOGY_UNAVAILABLE");
+                return;
+            }
+
+            // Cover the recovery gap before dynamic display metadata is ready.
+            // A square, solid-color buffer is intentionally orientation-agnostic:
+            // the tested Thor can briefly transition through portrait projection.
+            curtainControl = buildSurfaceControl(
+                    ThorHardwareProfile.RECOVERY_CURTAIN_SIZE,
+                    ThorHardwareProfile.RECOVERY_CURTAIN_SIZE);
+            activeCurtainControl = curtainControl;
+            curtainSurface = surfaceFromControl(curtainControl);
+            drawCurtain(curtainSurface);
+            trace("SPLASH_CURTAIN_DRAW_READY", "size="
+                    + ThorHardwareProfile.RECOVERY_CURTAIN_SIZE);
+
+            CountDownLatch curtainCommit = new CountDownLatch(1);
+            trace("SPLASH_CURTAIN_SHOW_REQUESTED", "composer_pid=" + expectedComposer
+                    + ";sf_pid=" + expectedSf);
+            Object curtainTransaction = newTransaction();
+            try {
+                transactionSetLayer(curtainTransaction, curtainControl, SPLASH_LAYER - 1);
+                transactionShow(curtainTransaction, curtainControl);
+                transactionAddCommittedListener(curtainTransaction, curtainCommit);
+                transactionApply(curtainTransaction);
+            } finally {
+                closeTransactionQuietly(curtainTransaction);
+            }
+            if (!curtainCommit.await(SHOW_COMMIT_MS, TimeUnit.MILLISECONDS)) {
+                trace("SPLASH_TIMEOUT", "phase=CURTAIN_SHOW");
+                trace("SPLASH_FAIL_OPEN", "reason=CURTAIN_SHOW_TIMEOUT;cleanup_requested=1");
+                return;
+            }
+            curtainShown = true;
+            trace("SPLASH_CURTAIN_SHOWN", "evidence=TRANSACTION_COMMITTED");
+
+            DisplayTarget target = waitForTarget(topId, processStartedAt + PROCESS_TTL_MS);
             if (target == null) {
                 trace("SPLASH_FAIL_OPEN", "reason=TARGET_UNAVAILABLE");
                 return;
@@ -115,7 +157,7 @@ public final class RecoverySplash {
             }
 
             control = buildSurfaceControl(target.surfaceWidth, target.surfaceHeight);
-            activeControl = control;
+            activeBrandControl = control;
             surface = surfaceFromControl(control);
             trace("SPLASH_DRAW_BEGIN", "width=" + target.surfaceWidth
                     + ";height=" + target.surfaceHeight);
@@ -168,6 +210,9 @@ public final class RecoverySplash {
             Object removeTransaction = newTransaction();
             try {
                 transactionReparentToNull(removeTransaction, control);
+                if (curtainControl != null) {
+                    transactionReparentToNull(removeTransaction, curtainControl);
+                }
                 transactionAddCommittedListener(removeTransaction, removedCommit);
                 transactionApply(removeTransaction);
             } finally {
@@ -190,17 +235,23 @@ public final class RecoverySplash {
                     + (shown ? "1" : "0")
                     + ";type=" + safeToken(error.getClass().getSimpleName()));
         } finally {
-            if (control != null && !removed) {
-                if (!removalRequested && shown) {
+            if (!removed) {
+                if (!removalRequested && (shown || curtainShown)) {
                     trace("SPLASH_REMOVE_REQUESTED", "reason=FAILURE");
                 }
-                detachBestEffort(control);
+                if (control != null) detachBestEffort(control);
+                if (curtainControl != null) detachBestEffort(curtainControl);
             }
             if (surface != null) {
                 try { surface.release(); } catch (Throwable ignored) {}
             }
+            if (curtainSurface != null) {
+                try { curtainSurface.release(); } catch (Throwable ignored) {}
+            }
             releaseControlQuietly(control);
-            activeControl = null;
+            releaseControlQuietly(curtainControl);
+            activeBrandControl = null;
+            activeCurtainControl = null;
         }
     }
 
@@ -221,10 +272,12 @@ public final class RecoverySplash {
 
                 trace("SPLASH_TIMEOUT", "phase=PROCESS_TTL;age_ms="
                         + (SystemClock.elapsedRealtime() - processStartedAt));
-                Object control = activeControl;
-                if (control != null) detachBestEffort(control);
+                Object brand = activeBrandControl;
+                Object curtain = activeCurtainControl;
+                if (brand != null) detachBestEffort(brand);
+                if (curtain != null) detachBestEffort(curtain);
                 trace("SPLASH_FAIL_OPEN", "reason=PROCESS_TTL;cleanup_requested="
-                        + (control == null ? "0" : "1"));
+                        + (brand == null && curtain == null ? "0" : "1"));
                 System.exit(0);
             }
         }, "thor-recovery-splash-ttl");
@@ -239,7 +292,7 @@ public final class RecoverySplash {
                 && expected.equals(result.successorPid);
     }
 
-    private static DisplayTarget waitForTarget(long processDeadline)
+    private static DisplayTarget waitForTarget(long topId, long processDeadline)
             throws InterruptedException {
         long deadline = Math.min(SystemClock.elapsedRealtime() + TARGET_WAIT_MS,
                 processDeadline);
@@ -248,7 +301,7 @@ public final class RecoverySplash {
         do {
             attempts++;
             try {
-                DisplayTarget target = resolvePrimaryTopTarget();
+                DisplayTarget target = resolvePrimaryTopTarget(topId);
                 if (target != null) {
                     trace("SPLASH_TARGET_READY", "attempts=" + attempts
                             + ";native_width=" + target.nativeWidth
@@ -274,31 +327,51 @@ public final class RecoverySplash {
     }
 
     /**
-     * No layer-stack mutation in the first prototype. The measured lower-panel
-     * physical ID is excluded and ambiguous topology fails open.
+     * Confirms that SurfaceFlinger exposes only the measured Thor physical
+     * displays before any recovery layer is shown. This remains read-only.
      */
-    private static DisplayTarget resolvePrimaryTopTarget() throws Exception {
+    private static long resolveKnownTopPhysicalId() throws Exception {
         Class<?> surfaceControlClass = Class.forName(SURFACE_CONTROL);
         Method idsMethod = surfaceControlClass.getDeclaredMethod("getPhysicalDisplayIds");
         idsMethod.setAccessible(true);
+        long started = SystemClock.elapsedRealtime();
         long[] ids = (long[]) idsMethod.invoke(null);
-        if (ids == null || ids.length == 0) return null;
+        long duration = SystemClock.elapsedRealtime() - started;
 
         boolean topFound = false;
-        for (long id : ids) {
-            if (id == ThorHardwareProfile.TOP_PHYSICAL_DISPLAY_ID) {
-                if (topFound) return null;
-                topFound = true;
-            } else if (id != ThorHardwareProfile.BOTTOM_PHYSICAL_DISPLAY_ID) {
-                // Unknown physical topology: do not guess which display should
-                // own the prototype layer.
-                return null;
+        int count = ids == null ? 0 : ids.length;
+        if (ids != null) {
+            for (long id : ids) {
+                if (id == ThorHardwareProfile.TOP_PHYSICAL_DISPLAY_ID) {
+                    if (topFound) {
+                        trace("SPLASH_TARGET_STEP", "step=PHYSICAL_IDS;duration_ms="
+                                + duration + ";count=" + count + ";known=0;reason=DUPLICATE_TOP");
+                        return 0L;
+                    }
+                    topFound = true;
+                } else if (id != ThorHardwareProfile.BOTTOM_PHYSICAL_DISPLAY_ID) {
+                    trace("SPLASH_TARGET_STEP", "step=PHYSICAL_IDS;duration_ms="
+                            + duration + ";count=" + count + ";known=0;reason=UNKNOWN_ID");
+                    return 0L;
+                }
             }
         }
-        if (!topFound) return null;
+        trace("SPLASH_TARGET_STEP", "step=PHYSICAL_IDS;duration_ms=" + duration
+                + ";count=" + count + ";known=" + (topFound ? "1" : "0"));
+        return topFound ? ThorHardwareProfile.TOP_PHYSICAL_DISPLAY_ID : 0L;
+    }
 
-        long topId = ThorHardwareProfile.TOP_PHYSICAL_DISPLAY_ID;
+    /**
+     * Dynamic mode metadata validates the measured geometry before the branded
+     * layer is drawn. The early curtain does not depend on this late metadata.
+     */
+    private static DisplayTarget resolvePrimaryTopTarget(long topId) throws Exception {
+        Class<?> surfaceControlClass = Class.forName(SURFACE_CONTROL);
+        long started = SystemClock.elapsedRealtime();
         Object info = dynamicDisplayInfo(surfaceControlClass, topId);
+        long duration = SystemClock.elapsedRealtime() - started;
+        trace("SPLASH_TARGET_STEP", "step=DYNAMIC_INFO;duration_ms=" + duration
+                + ";ready=" + (info == null ? "0" : "1"));
         if (info == null) return null;
 
         Field activeIdField = info.getClass().getField("activeDisplayModeId");
@@ -315,22 +388,17 @@ public final class RecoverySplash {
             if (modeClass.getField("id").getInt(mode) != activeId) continue;
             int width = modeClass.getField("width").getInt(mode);
             int height = modeClass.getField("height").getInt(mode);
-            if (width < 320 || height < 240 || width > 4096 || height > 4096) {
+            if (width != ThorHardwareProfile.TOP_NATIVE_WIDTH
+                    || height != ThorHardwareProfile.TOP_NATIVE_HEIGHT) {
+                trace("SPLASH_TARGET_STEP", "step=GEOMETRY_VALIDATE;known=0;width="
+                        + width + ";height=" + height);
                 return null;
             }
-
-            int surfaceWidth = width;
-            int surfaceHeight = height;
-            if (ThorHardwareProfile.TOP_LAYER_STACK_SWAPS_MODE_AXES) {
-                // Measured on the tested Thor: DynamicDisplayInfo reports the
-                // panel's natural 1080x1920 mode while the active layer stack
-                // is 1920x1080. Fail open rather than guessing if that measured
-                // relationship changes on another firmware/hardware revision.
-                if (height <= width) return null;
-                surfaceWidth = height;
-                surfaceHeight = width;
-            }
-            return new DisplayTarget(topId, width, height, surfaceWidth, surfaceHeight);
+            trace("SPLASH_TARGET_STEP", "step=GEOMETRY_VALIDATE;known=1;width="
+                    + width + ";height=" + height);
+            return new DisplayTarget(topId, width, height,
+                    ThorHardwareProfile.TOP_RECOVERY_WIDTH,
+                    ThorHardwareProfile.TOP_RECOVERY_HEIGHT);
         }
         return null;
     }
@@ -459,6 +527,16 @@ public final class RecoverySplash {
         } catch (Throwable ignored) {}
     }
 
+    private static void drawCurtain(Surface surface) throws Exception {
+        Canvas canvas = null;
+        try {
+            canvas = surface.lockCanvas(null);
+            canvas.drawColor(Color.rgb(14, 11, 24));
+        } finally {
+            if (canvas != null) surface.unlockCanvasAndPost(canvas);
+        }
+    }
+
     /**
      * Draws without any Typeface/font dependency.
      *
@@ -512,20 +590,7 @@ public final class RecoverySplash {
                         cx + size * 0.55f, cy + bar, cut);
             }
 
-            Paint progressTrack = new Paint(Paint.ANTI_ALIAS_FLAG);
-            progressTrack.setColor(Color.rgb(52, 45, 70));
-            Paint progress = new Paint(Paint.ANTI_ALIAS_FLAG);
-            progress.setColor(Color.rgb(196, 181, 253));
-            float trackWidth = width * 0.34f;
-            float trackHeight = Math.max(6f, Math.min(width, height) * 0.010f);
-            float trackLeft = (width - trackWidth) / 2f;
-            float trackTop = height * 0.66f;
-            canvas.drawRoundRect(new RectF(trackLeft, trackTop,
-                    trackLeft + trackWidth, trackTop + trackHeight),
-                    trackHeight / 2f, trackHeight / 2f, progressTrack);
-            canvas.drawRoundRect(new RectF(trackLeft, trackTop,
-                    trackLeft + trackWidth * 0.72f, trackTop + trackHeight),
-                    trackHeight / 2f, trackHeight / 2f, progress);
+            // No fixed progress bar: recovery duration is event-driven, not a percentage.
             return backend;
         } finally {
             if (canvas != null) surface.unlockCanvasAndPost(canvas);
