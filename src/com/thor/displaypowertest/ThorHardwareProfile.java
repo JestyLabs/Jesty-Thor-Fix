@@ -26,6 +26,13 @@ public final class ThorHardwareProfile {
     public static final int TOP_NATIVE_HEIGHT = 1920;
     public static final int TOP_RECOVERY_WIDTH = 1920;
     public static final int TOP_RECOVERY_HEIGHT = 1080;
+    /**
+     * Measured lower-panel layer-stack space after rotation. The early recovery
+     * prototype uses only the TOP-exclusive x range above this width for brand
+     * pixels; it does not mutate the lower display projection.
+     */
+    public static final int BOTTOM_RECOVERY_WIDTH = 1240;
+    public static final int BOTTOM_RECOVERY_HEIGHT = 1080;
     /** Square early-recovery curtain covers either portrait or landscape projection. */
     public static final int RECOVERY_CURTAIN_SIZE = 1920;
     /** Logical display ID of the lower panel, reported as an EXTERNAL viewport. */
