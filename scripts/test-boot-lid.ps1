@@ -125,6 +125,19 @@ if ($restartPersistAt -lt 0 -or $restartStartAt -lt 0 -or
     $restartPersistAt -ge $restartStartAt) {
     throw 'RESTART_REQUESTED must be durably persisted before the restart thread starts.'
 }
+$faultSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'CpuRestartFaultInjection.java') -Raw
+$faultHookAt = $cpuFixSource.IndexOf('CpuRestartFaultInjection.triggerAfterPropertyVerifiedIfArmed')
+$verifiedPersistAt = $cpuFixSource.IndexOf('persistAttempt(verified, "CPU_ATTEMPT_PROPERTY_VERIFIED"')
+if ($faultHookAt -lt 0 -or $verifiedPersistAt -lt 0 -or
+    $verifiedPersistAt -ge $faultHookAt -or $faultHookAt -ge $restartPersistAt) {
+    throw 'Fault injection must occur after durable PROPERTY_VERIFIED and before RESTART_REQUESTED.'
+}
+if ($faultSource -notmatch 'AFTER_PROPERTY_VERIFIED_ONCE' -or
+    $faultSource -notmatch 'O_NOFOLLOW' -or
+    $faultSource -notmatch 'Os\.remove\(TRIGGER_PATH\)' -or
+    $faultSource -notmatch 'app_process / D') {
+    throw 'Fault injection harness must stay one-shot, no-follow and relaunch a normal daemon.'
+}
 # Thor identifiers belong to ThorHardwareProfile; smali repeats one of them.
 $hardwareLiterals = @(Get-ChildItem -LiteralPath (Join-Path $repository 'src') -Filter '*.java' -Recurse |
     Where-Object { $_.Name -ne 'ThorHardwareProfile.java' } |
