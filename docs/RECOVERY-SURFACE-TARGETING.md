@@ -65,6 +65,27 @@ ID to establish a display-specific parent.
 Before another cold boot, prove whether a temporary layer can be routed to one
 panel using only **layer-local** state.
 
+## Restart boundary facts
+
+The existing restart investigation constrains which rendering approaches are
+even viable during the recovery gap:
+
+- the Qualcomm property is consumed during the composer/core resource lifetime;
+- applying a changed value requires a new composer/resource lifetime on the
+  tested firmware;
+- the vendor composer restart cascades into SurfaceFlinger restart;
+- the Thor's `surfaceflinger.rc` restarts zygote when SurfaceFlinger restarts.
+
+Therefore an Activity, WindowManager overlay or other framework-owned window
+cannot be the primary mechanism for covering the gap: the framework process
+tree itself is being replaced. The recovery visual must live below the app
+window stack and must tolerate the replacement SurfaceFlinger lifetime.
+
+This also means a pre-restart SurfaceControl cannot simply be assumed to
+survive the restart. Any cold-boot implementation must create its rendering
+state against the replacement SurfaceFlinger and prove that its targeting
+metadata is available early enough.
+
 ## No-reboot targeting probe
 
 Branch:
@@ -164,6 +185,49 @@ Mandatory safety result:
 Do not make another cold-boot splash change until this probe produces evidence
 for a TOP-only layer-local routing strategy.
 
-If no phase is TOP-only, abandon layer-stack guessing and move to a
-display-specific parent/container investigation. Do not escalate to physical
-display mutation merely to make the splash work.
+Interpret the physical probe as follows:
+
+| Result | Meaning | Next action |
+| --- | --- | --- |
+| exactly one phase is TOP-only | a layer-local discriminator exists in the stable system | isolate that mechanism in a second no-reboot probe and remove the other candidates |
+| stack 0 and/or stack 4 select different physical panels | layer-stack routing is usable after framework recovery | measure whether the selected routing metadata is already valid immediately after replacement SurfaceFlinger, without calling `getPhysicalDisplayIds()` |
+| every visible phase appears on BOTH | raw layer-stack assignment cannot separate the panels in the observed topology | stop layer-stack guessing and investigate a TOP-specific parent/container |
+| a phase appears on NONE | the candidate stack is not consumed by either active physical display | treat it as negative evidence, not as a hidden TOP-only success |
+| composer or SurfaceFlinger PID changes | probe violated the intended runtime boundary | stop; do not use the result for splash design |
+| cleanup is not committed | temporary-surface lifetime is not sufficiently bounded | fix cleanup before any further physical experiment |
+
+### If a TOP-only layer-local route exists
+
+The next cold-gap prototype must **not** call `getPhysicalDisplayIds()` before
+showing the early visual. PR #27 proved that call can block for ~2.8 seconds
+during replacement-SurfaceFlinger startup.
+
+The preferred sequence becomes:
+
+```text
+helper observes exact replacement composer + SurfaceFlinger
+    -> create temporary layer using only pre-proven static Thor routing data
+    -> show early recovery visual
+    -> asynchronously/read-only revalidate physical topology when the APIs unblock
+    -> if validation matches, continue to branded phase
+    -> otherwise detach and fail open
+```
+
+The early route must be derived from a physically proven stable-system result
+and must remain subordinate to exact successor-PID checks. The later topology
+query is validation, not a prerequisite for first pixels.
+
+### If no TOP-only layer-local route exists
+
+Move to a display-specific parent/container investigation. Do not escalate to
+`setDisplayLayerStack`, display projection, display-surface replacement or
+display-power mutation merely to make the splash work.
+
+Candidate approaches must still satisfy all of these:
+
+- no dependency on Activity/WindowManager survival;
+- no assumption that an old SurfaceControl survives SurfaceFlinger death;
+- no physical-display configuration mutation;
+- no weakening of CPU restart provenance;
+- bounded cleanup and fail-open behavior.
+
