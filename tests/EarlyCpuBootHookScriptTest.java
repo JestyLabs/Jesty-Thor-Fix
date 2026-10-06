@@ -43,11 +43,11 @@ public final class EarlyCpuBootHookScriptTest {
                 "same-boot attempt must be one-shot");
 
         int consume = script.indexOf("rm -f \"$GATE\"");
-        int prepared = script.indexOf("write_attempt PREPARED");
-        int setprop = script.indexOf("setprop \"$PROP\" 1");
-        int verified = script.indexOf("write_attempt PROPERTY_VERIFIED");
-        int requested = script.indexOf("write_attempt RESTART_REQUESTED");
-        int restart = script.indexOf("setprop ctl.restart \"$COMP\"");
+        int prepared = script.indexOf("write_attempt PREPARED", consume + 1);
+        int setprop = script.indexOf("setprop \"$PROP\" 1", prepared + 1);
+        int verified = script.indexOf("write_attempt PROPERTY_VERIFIED", setprop + 1);
+        int requested = script.indexOf("write_attempt RESTART_REQUESTED", verified + 1);
+        int restart = script.indexOf("setprop ctl.restart \"$COMP\"", requested + 1);
         require(consume >= 0 && prepared > consume && setprop > prepared
                         && verified > setprop && requested > verified && restart > requested,
                 "gate/provenance/restart ordering must be strict");
