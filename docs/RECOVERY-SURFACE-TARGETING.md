@@ -103,11 +103,14 @@ The worker:
 
 1. validates that the stable physical topology is exactly the measured Thor
    TOP + BOTTOM IDs;
-2. records timing/availability for read-only SurfaceControl entry points;
-3. creates one temporary font-free probe surface;
-4. shows three visual phases;
-5. removes the surface with transaction-commit evidence;
-6. verifies composer and SurfaceFlinger PIDs did not change.
+2. requires one DRM snapshot with **TOP CRTC = 1 and BOTTOM CRTC = 1** so a
+   visually one-panel result cannot be caused merely by the other panel being
+   powered off;
+3. records timing/availability for read-only SurfaceControl entry points;
+4. creates one temporary font-free probe surface;
+5. shows three visual phases;
+6. removes the surface with transaction-commit evidence;
+7. verifies composer and SurfaceFlinger PIDs did not change.
 
 ### Visual phases
 
@@ -146,6 +149,10 @@ Host tests guard these constraints.
 ## Physical-test sequence
 
 Do **not** arm the recovery-splash prototype marker and do **not** reboot.
+
+Put the Thor in its normal **BOTH** display mode first. The probe now verifies
+the measured DRM CRTCs itself and fails open with
+`REQUIRES_BOTH_ACTIVE` unless both are active in the same snapshot.
 
 After installing a signed candidate from this branch:
 
