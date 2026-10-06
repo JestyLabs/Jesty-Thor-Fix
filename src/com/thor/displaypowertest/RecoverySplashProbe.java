@@ -35,18 +35,23 @@ public final class RecoverySplashProbe {
                 return;
             }
 
-            // Everything is constant or resolved inside the privileged shell.
+            // Keep the vendor-bridge command below the same conservative
+            // 255-character ceiling used by DaemonLaunchScript. The previous
+            // probe exceeded that budget, so binder transact could succeed
+            // while the vendor bridge never executed the complete shell.
+            //
             // Fake baselines 1/2 make the fully recovered current PIDs satisfy
             // the exact-successor check without needing a framework restart.
-            String command = String.join("\n",
-                    "A=$(pm path com.thor.displaypowertest 2>/dev/null);A=${A#*:}",
-                    "case \"$A\" in /data/app/*/base.apk) ;; *) exit 31;; esac",
-                    "C=$(pidof vendor.qti.hardware.display.composer-service)",
-                    "S=$(pidof surfaceflinger)",
-                    "case \"$C:$S\" in *[!0-9:]*|:*|*:) exit 32;; esac",
-                    "[ \"$C\" != 1 ] && [ \"$S\" != 2 ] || exit 33",
-                    "CLASSPATH=$A app_process / com.thor.displaypowertest.RecoverySplash"
-                            + " 1 \"$C\" 2 \"$S\" >/dev/null 2>&1 &");
+            String command = "A=$(pm path com.thor.displaypowertest);A=${A#*:};"
+                    + "C=$(pidof vendor.qti.hardware.display.composer-service);"
+                    + "S=$(pidof surfaceflinger);"
+                    + "CLASSPATH=$A app_process / com.thor.displaypowertest.RecoverySplash"
+                    + " 1 $C 2 $S >/dev/null 2>&1 &";
+            if (command.length() > DaemonLaunchScript.MAX_COMMAND_CHARS) {
+                System.out.println("submitted=0;reason=COMMAND_TOO_LONG;chars="
+                        + command.length());
+                return;
+            }
 
             data = Parcel.obtain();
             reply = Parcel.obtain();
