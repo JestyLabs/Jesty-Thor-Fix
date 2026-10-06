@@ -123,7 +123,7 @@ public final class EarlyCpuBootHookStore {
                     | OsConstants.O_EXCL | OsConstants.O_CLOEXEC | OsConstants.O_NOFOLLOW,
                     0600);
             StructStat stat = Os.fstat(fd);
-            if (!trusted(stat, data.length, data.length)) {
+            if (!trustedMetadata(stat) || stat.st_size != 0L) {
                 throw new IOException("Untrusted hook temp inode");
             }
             int offset = 0;
@@ -134,7 +134,7 @@ public final class EarlyCpuBootHookStore {
             }
             Os.fsync(fd);
             StructStat complete = Os.fstat(fd);
-            if (!trusted(complete, data.length, data.length)) {
+            if (!trustedMetadata(complete) || complete.st_size != data.length) {
                 throw new IOException("Hook temp verification failed");
             }
         } catch (Throwable error) {
@@ -169,13 +169,17 @@ public final class EarlyCpuBootHookStore {
     }
 
     private static boolean trusted(StructStat stat, long minSize, long maxSize) {
+        return trustedMetadata(stat)
+                && stat.st_size >= minSize
+                && stat.st_size <= maxSize;
+    }
+
+    private static boolean trustedMetadata(StructStat stat) {
         return OsConstants.S_ISREG(stat.st_mode)
                 && stat.st_nlink == 1
                 && stat.st_uid == 0
                 && stat.st_gid == 0
-                && (stat.st_mode & 0777) == 0600
-                && stat.st_size >= minSize
-                && stat.st_size <= maxSize;
+                && (stat.st_mode & 0777) == 0600;
     }
 
     private static boolean exists(String path) throws IOException {
@@ -223,8 +227,13 @@ public final class EarlyCpuBootHookStore {
         }
     }
 
-    private static String sha256(byte[] data) throws Exception {
-        byte[] digest = MessageDigest.getInstance("SHA-256").digest(data);
+    private static String sha256(byte[] data) {
+        final byte[] digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256").digest(data);
+        } catch (java.security.NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("SHA-256 unavailable", impossible);
+        }
         StringBuilder out = new StringBuilder(64);
         for (byte value : digest) {
             out.append(Character.forDigit((value >>> 4) & 0x0f, 16));
