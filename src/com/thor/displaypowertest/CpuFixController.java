@@ -807,6 +807,10 @@ public final class CpuFixController {
                 "case \"$SCP\" in /data/app/*/base.apk) ;; *) SCP='';; esac",
                 "BAS=" + (suppressBootAnimation ? "1" : "0"),
                 "BAPREV='" + bootAnimationPrevious + "'",
+                "NBA=" + (nativeBootAnimation ? "1" : "0"),
+                "NBPREV='" + nativeBootAnimationPrevious + "'",
+                "NBPATH='" + RecoveryBootAnimationAsset.OUTPUT + "'",
+                "[ \"$NBA\" = 1 ] && RSP=0",
                 "cs(){ read U X </proc/uptime; S=${U%.*}; F=${U#*.}; F=${F#0};"
                         + " echo $((S*100+${F:-0})); }",
                 // A trace line is skipped, never redirected, if the path is unsafe.
@@ -836,7 +840,17 @@ public final class CpuFixController {
                         + " setprop debug.sf.nobootanimation \"$BAPREV\" >/dev/null 2>&1;"
                         + " V=$BAPREV; [ -n \"$V\" ] || V=UNSET;"
                         + " T BOOTANIM_SUPPRESS_RESTORED \"value=$V\"; BAS=0; }",
-                "trap restore_ba EXIT",
+                "restore_native(){ [ \"$NBA\" = 1 ] || return 0;"
+                        + " setprop " + RecoveryBootAnimationAsset.CUSTOM_PROPERTY
+                        + " \"$NBPREV\" >/dev/null 2>&1;"
+                        + " V=$(getprop " + RecoveryBootAnimationAsset.CUSTOM_PROPERTY + ");"
+                        + " if [ \"$V\" = \"$NBPREV\" ]; then"
+                        + " X=$NBPREV; [ -n \"$X\" ] || X=UNSET;"
+                        + " T NATIVE_BOOTANIM_RESTORED \"value=$X\";"
+                        + " else T NATIVE_BOOTANIM_RESTORE_FAILED reason=READBACK; fi;"
+                        + " rm -f \"$NBPATH\" >/dev/null 2>&1; NBA=0; }",
+                "cleanup_bootanim(){ restore_native; restore_ba; }",
+                "trap cleanup_bootanim EXIT",
                 "OLD='" + beforeComposerPid + "'",
                 "DP=" + daemonPid,
                 "SF0=$(pidof surfaceflinger); Z0=$(pidof zygote64); SS0=$(pidof system_server)",
@@ -844,7 +858,10 @@ public final class CpuFixController {
                         + "old_system_server=${SS0:--};daemon_pid=$DP\"",
                 "[ \"$RSP\" = 1 ] && T SPLASH_ARMED prototype=1",
                 "[ \"$RSP\" = 1 ] && T SPLASH_WAIT_SF \"old_sf=${SF0:--}\"",
-                "B=$(cs); N=0; NC=''; NS=''; NZ=''; NSS=''; PKS=''; STS=''; SC=''; SS=''",
+                "[ \"$NBA\" = 1 ] && T NATIVE_BOOTANIM_WAIT_SF"
+                        + " \"path=$NBPATH;display_route=INTERNAL_DEFAULT\"",
+                "B=$(cs); N=0; NC=''; NS=''; NZ=''; NSS=''; PKS=''; STS=''; SC=''; SS='';"
+                        + " NBSEEN=''; NBDONE=''",
                 "while [ $(($(cs)-B)) -lt 800 ] && [ $N -lt 60 ]; do",
                 "  P=$(pidof vendor.qti.hardware.display.composer-service)",
                 "  if [ -z \"$NC\" ] && [ -n \"$P\" ] && [ \"$P\" != \"$OLD\" ]; then"
@@ -857,6 +874,12 @@ public final class CpuFixController {
                 "  if [ -z \"$SS\" ]; then Q=$(succ \"$SF0\" $P);"
                         + " [ -n \"$Q\" ] && SS=$Q; fi",
                 "  [ -n \"$SC\" ] && [ -n \"$SS\" ] && start_splash",
+                "  if [ \"$NBA\" = 1 ]; then BP=$(pidof bootanimation);"
+                        + " if [ -z \"$NBSEEN\" ] && [ -n \"$BP\" ]; then"
+                        + " NBSEEN=1; T NATIVE_BOOTANIM_STARTED \"pid=$BP\";"
+                        + " elif [ \"$NBSEEN\" = 1 ] && [ -z \"$NBDONE\" ]"
+                        + " && [ -z \"$BP\" ]; then NBDONE=1;"
+                        + " T NATIVE_BOOTANIM_EXITED; fi; fi",
                 "  P=$(pidof zygote64)",
                 "  if [ -z \"$NZ\" ] && [ -n \"$P\" ] && [ \"$P\" != \"$Z0\" ]; then"
                         + " NZ=$P; T HELPER_ZYGOTE_NEW_PID \"zygote_pid=$P\"; fi",
@@ -946,7 +969,7 @@ public final class CpuFixController {
                         + " hold " + desiredCpu
                         + " " + desiredLidGuard + " " + phaseStartedAt
                         + " post &",
-                "restore_ba",
+                "cleanup_bootanim",
                 "trap - EXIT");
         ProcessBuilder helper = new ProcessBuilder("sh", "-c", command);
         // Launch timing belongs to this daemon only; never pass it to the successor.
