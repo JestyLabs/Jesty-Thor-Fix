@@ -120,6 +120,16 @@ if ($preComposerProofSource -notmatch 'WRITE_NOT_BEFORE_COMPOSER' -or
     $preComposerProofSource -notmatch 'currentBootId\.equalsIgnoreCase\(proof\.bootId\)') {
     throw 'Pre-composer proof must require boot identity, ordering, composer absence and readback.'
 }
+$earlyHookModelSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'EarlyCpuBootHookModel.java') -Raw
+if ($earlyHookModelSource -match 'ProcessBuilder|setprop|ctl\.restart|/data/boot_start\.sh|DisplayActionCoordinator|SurfaceControl|LidGuard') {
+    throw 'Early CPU boot-hook model must stay pure and must not install or execute the hook.'
+}
+if ($earlyHookModelSource -notmatch 'OCCUPIED_UNKNOWN' -or
+    $earlyHookModelSource -notmatch 'REFUSE_OCCUPIED' -or
+    $earlyHookModelSource -notmatch 'FALLBACK_AFTER_PROVEN_FAILURE' -or
+    $earlyHookModelSource -notmatch 'attempt\.previous\.equals\(observedProperty\)') {
+    throw 'Early CPU hook policy must preserve global-hook ownership and proven-failure fallback.'
+}
 $bootCoordinatorSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'BootCoordinator.java') -Raw
 $earlyGateSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'EarlyCpuGateModel.java') -Raw
 if ($bootCoordinatorSource -notmatch 'reconcileCpuPhase\(afterComposerRestart\)' -or
@@ -193,6 +203,7 @@ $sources = @(
     (Join-Path $repository 'src\com\thor\displaypowertest\DaemonArgs.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\CpuBootAttemptModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\PreComposerCpuProofModel.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\EarlyCpuBootHookModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\EarlyCpuGateModel.java'),
     (Join-Path $repository 'tests\BootAndLidModelTest.java'),
     (Join-Path $repository 'tests\BootLatencyTest.java'),
@@ -209,6 +220,7 @@ $sources = @(
     (Join-Path $repository 'tests\DaemonArgsTest.java'),
     (Join-Path $repository 'tests\CpuBootAttemptModelTest.java'),
     (Join-Path $repository 'tests\PreComposerCpuProofModelTest.java'),
+    (Join-Path $repository 'tests\EarlyCpuBootHookModelTest.java'),
     (Join-Path $repository 'tests\EarlyCpuGateModelTest.java')
 )
 & javac -source 8 -target 8 -d $output $sources
@@ -219,6 +231,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Boot/lid tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'CPU boot attempt model tests failed.' }
 & java -cp $output PreComposerCpuProofModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Pre-composer CPU proof model tests failed.' }
+& java -cp $output EarlyCpuBootHookModelTest
+if ($LASTEXITCODE -ne 0) { throw 'Early CPU boot-hook model tests failed.' }
 & java -cp $output EarlyCpuGateModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Early CPU gate model tests failed.' }
 & java -cp $output BootLatencyTest
