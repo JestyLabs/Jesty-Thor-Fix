@@ -124,6 +124,25 @@ The phases are intentionally text-free:
 
 The test is useful even if a phase appears nowhere.
 
+The `0` and `4` candidates are evidence-driven rather than arbitrary. In
+AOSP Android 13, WindowManager's `DisplayContent.configureSurfaces()` assigns
+its root SurfaceControl with `setLayerStack(mDisplayId)`. On the tested Thor,
+the upper/default logical display is 0 and the lower logical display is 4.
+
+The read-only token probes are also intentionally separated:
+
+- `getInternalDisplayToken()` is not a promising early-boot escape in AOSP
+  because its implementation first calls `getPhysicalDisplayIds()`;
+- `getPhysicalDisplayToken(TOP_PHYSICAL_DISPLAY_ID)` accepts the already known
+  ID directly and is therefore worth timing independently;
+- `getPrimaryPhysicalDisplayId()`, when present on the device build, is also
+  worth timing independently because it does not require our code to enumerate
+  all physical IDs first.
+
+Stable-system speed alone is not enough to promote either direct lookup into
+cold boot; a later instrumented recovery test would still need to prove that
+it returns promptly against the replacement SurfaceFlinger.
+
 For each phase record:
 
 - TOP only
