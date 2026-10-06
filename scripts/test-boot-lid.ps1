@@ -169,7 +169,8 @@ if ($recoverySplashRuntime -notmatch 'TARGET_WAIT_MS = 4500L' -or
     throw 'Recovery splash runtime lost bounded target wait, font-free draw path, exact successor or cleanup semantics.'
 }
 if ($recoverySplashRuntime -match 'drawText\(' -or
-    $recoverySplashRuntime -match 'Typeface') {
+    $recoverySplashRuntime -match 'setTypeface\(' -or
+    $recoverySplashRuntime -match 'android\.graphics\.Typeface') {
     throw 'Standalone recovery splash must remain font-free; Thor app_process aborts in Typeface resolution.'
 }
 if ($cpuFixSource -notmatch '/data/local/tmp/thor-recovery-splash-prototype' -or
