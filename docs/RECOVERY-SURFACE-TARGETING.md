@@ -249,6 +249,27 @@ boot evidence shows that physical-display layer-stack assignment changes during
 boot and can temporarily converge, so a cold-gap implementation must not
 promote the stable result directly without recovery-time evidence.
 
+A retained BOTH boot log makes that risk concrete. During framework bring-up,
+system_server logged at 35.674 s:
+
+```text
+DisplayDevice: [0] Layerstack set to 0 for local:4630946441858561667
+DisplayDevice: [0] Layerstack set to 0 for local:4630946482288158084
+```
+
+The BOTTOM physical display was not switched to logical stack 4 until 37.143 s:
+
+```text
+DisplayDevice: [4] Layerstack set to 4 for local:4630946482288158084
+```
+
+That is about a 1.47 s interval where an explicit stack-0 layer can legitimately
+be consumed by both physical panels. Therefore the stable `STACK_0 -> TOP`
+result is **not authority to show branding immediately** after replacement
+SurfaceFlinger. A future recovery prototype may use an unbranded black curtain
+during that ambiguous interval, but branded pixels need a separately proven
+TOP-only readiness signal.
+
 ## Decision gate
 
 Do not make another cold-boot splash change until this probe produces evidence
