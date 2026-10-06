@@ -616,9 +616,9 @@ public final class CpuFixController {
     }
 
     /**
-     * Arms Android's bootanimation opt-out only for a boot-scoped compositor
-     * restart. Returns the exact previous value when armed; null means fall
-     * back to the visible second animation.
+     * Arms the tested Thor firmware's native bootanimation custom-ZIP path only
+     * for a boot-scoped compositor restart. Returns the exact previous custom
+     * path when armed; null means retain the validated suppression fallback.
      */
     private String armNativeRecoveryBootAnimation(boolean bootTrace) {
         if (!bootTrace || !RecoveryBootAnimationAsset.prototypeArmed()) return null;
