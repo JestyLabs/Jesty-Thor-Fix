@@ -166,6 +166,11 @@ if ($recoverySplashRuntime -notmatch 'TARGET_WAIT_MS = 4500L' -or
     $recoverySplashRuntime -notmatch 'SPLASH_CURTAIN_SHOWN' -or
     $recoverySplashRuntime -notmatch 'RECOVERY_CURTAIN_SIZE' -or
     $recoverySplashRuntime -notmatch 'TOP_RECOVERY_WIDTH' -or
+    $recoverySplashRuntime -notmatch 'BOTTOM_RECOVERY_WIDTH' -or
+    $recoverySplashRuntime -notmatch 'transactionSetLayerStack' -or
+    $recoverySplashRuntime -notmatch 'TOP_EXCLUSIVE_RIGHT' -or
+    $recoverySplashRuntime -notmatch 'PorterDuff\.Mode\.CLEAR' -or
+    $recoverySplashRuntime -notmatch 'SPLASH_TARGET_VALIDATED' -or
     $recoverySplashRuntime -notmatch 'SPLASH_DRAW_BEGIN' -or
     $recoverySplashRuntime -notmatch 'SPLASH_DRAW_READY' -or
     $recoverySplashRuntime -notmatch 'PACKAGED_LOCKUP' -or
@@ -175,8 +180,13 @@ if ($recoverySplashRuntime -notmatch 'TARGET_WAIT_MS = 4500L' -or
     $recoverySplashRuntime -notmatch 'TRANSACTION_COMMITTED_LISTENER') {
     throw 'Recovery splash runtime lost bounded target wait, early curtain, Thor geometry, font-free draw path, exact successor or cleanup semantics.'
 }
-if ($recoverySplashRuntime -match 'setDisplayProjection|setMatrix|setBufferTransform') {
-    throw 'Recovery splash geometry fix must not mutate the display projection or add an unproven layer transform.'
+if ($recoverySplashRuntime -match 'setDisplayLayerStack|setDisplayProjection|setDisplaySurface|setDisplaySize|setDisplayPowerMode|setMatrix|setBufferTransform') {
+    throw 'Recovery splash geometry fix must not mutate a physical display or add an unproven layer transform.'
+}
+$earlySplashShownAt = $recoverySplashRuntime.IndexOf('trace("SPLASH_SHOWN"')
+$physicalEnumerationAt = $recoverySplashRuntime.IndexOf('long topId = resolveKnownTopPhysicalId();')
+if ($earlySplashShownAt -lt 0 -or $physicalEnumerationAt -le $earlySplashShownAt) {
+    throw 'Recovery splash must commit early pixels before physical display enumeration.'
 }
 if ($recoverySplashRuntime -match 'drawText\(' -or
     $recoverySplashRuntime -match 'setTypeface\(' -or
