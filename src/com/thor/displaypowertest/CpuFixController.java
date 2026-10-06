@@ -420,8 +420,18 @@ public final class CpuFixController {
             // SurfaceFlinger. If this opt-out is unavailable, keep the already
             // validated visible-second-animation behavior.
             previousBootAnimation = armBootAnimationSuppression(bootTrace);
+            String recoverySplashClasspath = System.getenv("CLASSPATH");
+            RecoverySplashGateModel.Decision splashDecision = RecoverySplashGateModel.decide(
+                    bootTrace, previousBootAnimation != null, RecoverySplashFlag.enabled(),
+                    RecoverySplashFlag.classPathUsable(recoverySplashClasspath));
+            boolean recoverySplash = splashDecision == RecoverySplashGateModel.Decision.ARMED;
+            if (bootTrace) {
+                trace.mark(recoverySplash ? "RECOVERY_SPLASH_ARMED" : "RECOVERY_SPLASH_SKIPPED",
+                        recoverySplash ? null : "reason=" + splashDecision.name());
+            }
             helper = scheduleTransitionCleanupAndDaemonRestart(
-                    beforeComposerPid, previousBootAnimation);
+                    beforeComposerPid, previousBootAnimation, recoverySplash,
+                    recoverySplash ? recoverySplashClasspath : null);
             handoffState = "SCHEDULED";
             observeHelper(helper, bootTrace, beforeComposerPid, previousCpu, desiredValue);
             if (bootTrace) trace.mark("HELPER_SCHEDULED", "old_composer=" + beforeComposerPid);
@@ -693,7 +703,8 @@ public final class CpuFixController {
     }
 
     private Process scheduleTransitionCleanupAndDaemonRestart(String beforeComposerPid,
-            String previousBootAnimation) throws Exception {
+            String previousBootAnimation, boolean recoverySplash,
+            String recoverySplashClasspath) throws Exception {
         String enabled = DaemonState.isEnabled() ? "1" : "0";
         String desiredCpu = desired ? "1" : "0";
         // During BOOT HOLD the Hall watcher has not been enabled yet. Preserve
@@ -702,6 +713,8 @@ public final class CpuFixController {
                 : LidGuard.isEnabled()) ? "1" : "0";
         boolean suppressBootAnimation = previousBootAnimation != null;
         String bootAnimationPrevious = suppressBootAnimation ? previousBootAnimation : "";
+        String splashClasspath = recoverySplash && recoverySplashClasspath != null
+                ? recoverySplashClasspath : "";
         // A compositor restart starts a second readiness phase. Do not reuse
         // the initial boot's 60-second deadline for its five-second grace.
         long phaseStartedAt = SystemClock.elapsedRealtime();
@@ -722,17 +735,36 @@ public final class CpuFixController {
                 "BID=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)",
                 "BAS=" + (suppressBootAnimation ? "1" : "0"),
                 "BAPREV=\'" + bootAnimationPrevious + "\'",
+                "RSA=" + (recoverySplash ? "1" : "0"),
+                "RCP=\'" + splashClasspath + "\'",
+                "SP=\'\'",
                 "cs(){ read U X </proc/uptime; S=${U%.*}; F=${U#*.}; F=${F#0};"
                         + " echo $((S*100+${F:-0})); }",
                 // A trace line is skipped, never redirected, if the path is unsafe.
                 "T(){ safe_log \"$TR\" || return 0;"
                         + " echo \"elapsed_ms=$(cs)0;action=$1;${2:+$2;}pid=$$;"
                         + "boot_id=${BID:-?};source=helper\" >>\"$TR\"; }",
+                "stop_splash(){ [ -n \"$SP\" ] || return 0; P=$SP; SP=\'\';"
+                        + " [ -d /proc/$P ] || { T RECOVERY_SPLASH_ALREADY_GONE \"reason=$1\";"
+                        + " return 0; };"
+                        + " if [ \"$(stat -c %u /proc/$P 2>/dev/null)\" = 0 ]"
+                        + " && tr \'\\000\' \' \' </proc/$P/cmdline 2>/dev/null"
+                        + " | grep -Eq \'^app_process / com\\.thor\\.displaypowertest"
+                        + "\\.RecoverySplashProcess( |$)\'; then"
+                        + " kill \"$P\" >/dev/null 2>&1 || true;"
+                        + " T RECOVERY_SPLASH_REMOVE_SENT \"reason=$1;pid=$P\";"
+                        + " else T RECOVERY_SPLASH_REMOVE_SKIPPED \"reason=$1;pid=$P\"; fi; }",
+                "start_splash(){ [ \"$RSA\" = 1 ] || return 0; [ -z \"$SP\" ] || return 0;"
+                        + " CLASSPATH=\"$RCP\" app_process /"
+                        + " com.thor.displaypowertest.RecoverySplashProcess "
+                        + RecoverySplashProcess.DEFAULT_TIMEOUT_MS
+                        + " >>\"$L\" 2>&1 & SP=$!;"
+                        + " T RECOVERY_SPLASH_START_REQUESTED \"pid=$SP\"; }",
                 "restore_ba(){ [ \"$BAS\" = 1 ] || return 0;"
                         + " setprop debug.sf.nobootanimation \"$BAPREV\" >/dev/null 2>&1;"
                         + " V=$BAPREV; [ -n \"$V\" ] || V=UNSET;"
                         + " T BOOTANIM_SUPPRESS_RESTORED \"value=$V\"; BAS=0; }",
-                "trap restore_ba EXIT",
+                "trap 'stop_splash HELPER_EXIT; restore_ba' EXIT",
                 "OLD='" + beforeComposerPid + "'",
                 "DP=" + daemonPid,
                 "SF0=$(pidof surfaceflinger); Z0=$(pidof zygote64); SS0=$(pidof system_server)",
@@ -745,7 +777,7 @@ public final class CpuFixController {
                         + " NC=$P; T HELPER_COMPOSER_NEW_PID \"composer_pid=$P\"; fi",
                 "  P=$(pidof surfaceflinger)",
                 "  if [ -z \"$NS\" ] && [ -n \"$P\" ] && [ \"$P\" != \"$SF0\" ]; then"
-                        + " NS=$P; T HELPER_SF_NEW_PID \"sf_pid=$P\"; fi",
+                        + " NS=$P; T HELPER_SF_NEW_PID \"sf_pid=$P\"; start_splash; fi",
                 "  P=$(pidof zygote64)",
                 "  if [ -z \"$NZ\" ] && [ -n \"$P\" ] && [ \"$P\" != \"$Z0\" ]; then"
                         + " NZ=$P; T HELPER_ZYGOTE_NEW_PID \"zygote_pid=$P\"; fi",
@@ -760,6 +792,8 @@ public final class CpuFixController {
                 "  if [ -n \"$NSS\" ] && [ -z \"$STS\" ]"
                         + " && service check settings 2>/dev/null | grep -q ': found$'; then"
                         + " STS=1; T HELPER_SETTINGS_SERVICE_FOUND; fi",
+                "  if [ -n \"$SP\" ] && [ -n \"$PKS\" ] && [ -n \"$STS\" ]; then"
+                        + " stop_splash FRAMEWORK_SERVICES_READY; fi",
                 "  N=$((N+1)); sleep 0.25",
                 "done",
                 // The eight-second floor holds even if fractional sleep is unsupported.
@@ -776,6 +810,7 @@ public final class CpuFixController {
                 "  A=''; sleep 1",
                 "done",
                 "[ -n \"$A\" ] && PM=1 || PM=0",
+                "stop_splash FRAMEWORK_CHECK_COMPLETE",
                 "T HELPER_SERVICES_CHECKED \"attempts=$I;pm=$PM\"",
                 "NEW=$(pidof vendor.qti.hardware.display.composer-service)",
                 "if [ -z \"$NEW\" ] || [ \"$NEW\" = \"$OLD\" ]; then"
