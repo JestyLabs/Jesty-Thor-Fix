@@ -733,7 +733,7 @@ public final class CpuFixController {
                         + " echo $((S*100+${F:-0})); }",
                 // A trace line is skipped, never redirected, if the path is unsafe.
                 "T(){ safe_log \"$TR\" || return 0;"
-                        + " echo \"elapsed_ms=$(cs)0;action=$1;${2:+$2;}pid=$;"
+                        + " echo \"elapsed_ms=$(cs)0;action=$1;${2:+$2;}pid=$$;"
                         + "boot_id=${BID:-?};source=helper\" >>\"$TR\"; }",
                 // Splash-only successor resolver. The existing provenance
                 // path is untouched; ambiguous observations simply do not arm
