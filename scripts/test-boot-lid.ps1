@@ -179,8 +179,10 @@ if ($sfTraceAt -lt 0 -or $splashCallAt -le $sfTraceAt) {
 if ($recoverySplashProbe -notmatch 'args\.length != 0' -or
     $recoverySplashProbe -notmatch 'PServerBinder' -or
     $recoverySplashProbe -notmatch 'RecoverySplash' -or
+    $recoverySplashProbe -notmatch 'DaemonLaunchScript\.MAX_COMMAND_CHARS' -or
+    $recoverySplashProbe -notmatch 'COMMAND_TOO_LONG' -or
     $recoverySplashProbe -match 'args\[[0-9]+\].*command|Runtime\.getRuntime\(\)\.exec') {
-    throw 'No-reboot splash probe must remain argument-free with a fixed bridge command.'
+    throw 'No-reboot splash probe must remain argument-free, fixed-command and vendor-limit bounded.'
 }
 
 # Boot-animation suppression is transient, boot-scoped, best-effort and
