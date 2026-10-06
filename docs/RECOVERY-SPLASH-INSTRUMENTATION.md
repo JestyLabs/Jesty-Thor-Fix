@@ -326,8 +326,10 @@ adb shell 'rm -f /data/local/tmp/thor-recovery-splash-prototype'
 ### Technical shape
 
 The runtime is a helper-spawned root `app_process` Java entry point,
-`com.thor.displaypowertest.RecoverySplash`. It does not start an Activity and
-does not use WindowManager. This matches the existing repo architecture and
+`com.thor.displaypowertest.RecoverySplash`. It does not start an Activity or
+use the normal app-window lifecycle. SurfaceControl remains hidden from the
+public SDK, so the prototype resolves its hidden compositor API reflectively,
+matching the already-proven hidden-API strategy in `DisplayHardware`. This
 avoids adding an NDK/native ABI + private SurfaceComposerClient dependency just
 for the prototype.
 
@@ -341,6 +343,9 @@ work is detached and best-effort:
   SurfaceFlinger PID before launching the renderer;
 - the renderer re-checks both observations with `SuccessorPidModel.resolve`
   before creating/showing a layer;
+- the helper records only diagnostic `SPLASH_RENDERER_STARTED`; canonical
+  `SPLASH_SHOW_REQUESTED` is emitted by the renderer immediately before the
+  show transaction, preserving the instrumentation contract;
 - no splash outcome feeds CPU-attempt state, the eight-second helper floor,
   old-daemon identity checks, successor-daemon launch, BootSafety or the
   display gate.
@@ -355,9 +360,15 @@ The renderer creates one buffer-backed `SurfaceControl`, constructs a
 `Surface` from it, draws a solid background plus:
 
 ```text
-JESTY THOR FIX
-Applying display fix...
+Jesty Thor Fix
+Finishing startup...
+This is expected during startup.
 ```
+
+This is deliberately the technical prototype frame, not the final Workstream C
+asset. Once the SurfaceControl mechanism is physically proven, integration
+should switch to the agreed flattened 1920x1080 branded PNG so the final path
+does not depend on runtime typography.
 
 It then shows the layer at `0x40000000`. Transaction committed callbacks are
 used for `SPLASH_SHOWN` and `SPLASH_REMOVED` evidence. A committed callback
@@ -410,7 +421,7 @@ Prototype ceilings are aligned with the current instrumentation policy:
 - show commit acknowledgement: 750 ms;
 - maximum visible lifetime: 6000 ms;
 - remove commit acknowledgement: 500 ms;
-- independent process TTL: 8000 ms;
+- independent process TTL: 8000 ms, enforced by a renderer-local watchdog;
 - bootanim edge polling: 250 ms.
 
 No minimum visible time is added.
