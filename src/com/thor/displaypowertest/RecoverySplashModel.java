@@ -6,7 +6,7 @@ package com.thor.displaypowertest;
  * This model deliberately owns no process, property, compositor restart or
  * display primitive. Runtime code may translate its transitions into trace
  * marks and best-effort splash operations, but CPU restart provenance remains
- * owned by CpuBootAttemptModel/CpuFixController.
+ * owned by the existing CPU restart provenance path.
  */
 public final class RecoverySplashModel {
     public enum State {
