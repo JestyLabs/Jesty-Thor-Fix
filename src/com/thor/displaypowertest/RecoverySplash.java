@@ -255,16 +255,20 @@ public final class RecoverySplash {
         long[] ids = (long[]) idsMethod.invoke(null);
         if (ids == null || ids.length == 0) return null;
 
-        long topId = 0L;
-        int topCandidates = 0;
+        boolean topFound = false;
         for (long id : ids) {
-            if (id != ThorHardwareProfile.BOTTOM_PHYSICAL_DISPLAY_ID) {
-                topId = id;
-                topCandidates++;
+            if (id == ThorHardwareProfile.TOP_PHYSICAL_DISPLAY_ID) {
+                if (topFound) return null;
+                topFound = true;
+            } else if (id != ThorHardwareProfile.BOTTOM_PHYSICAL_DISPLAY_ID) {
+                // Unknown physical topology: do not guess which display should
+                // own the prototype layer.
+                return null;
             }
         }
-        if (topCandidates != 1 || ids[0] != topId) return null;
+        if (!topFound) return null;
 
+        long topId = ThorHardwareProfile.TOP_PHYSICAL_DISPLAY_ID;
         Method infoMethod = surfaceControlClass.getDeclaredMethod(
                 "getDynamicDisplayInfo", long.class);
         infoMethod.setAccessible(true);
