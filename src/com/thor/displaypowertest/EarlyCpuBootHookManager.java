@@ -44,7 +44,8 @@ public final class EarlyCpuBootHookManager {
             }
 
             if (state == EarlyCpuBootHookStore.State.OWNED_EXACT
-                    || state == EarlyCpuBootHookStore.State.OWNED_STALE) {
+                    || state == EarlyCpuBootHookStore.State.OWNED_STALE
+                    || state == EarlyCpuBootHookStore.State.OWNED_OWNER_ONLY) {
                 EarlyCpuBootHookStore.removeManaged();
                 return "ok=1;early_hook=removed;gate=" + (gate ? "1" : "0")
                         + ";optin=" + (optIn ? "1" : "0");
