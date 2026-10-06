@@ -144,3 +144,50 @@ sys.boot_completed
 ```
 
 That clean boot is the measurement used to validate the expected ~10 second restart shift.
+
+
+## Physical validation — 2026-10-06
+
+Validated on a real Thor with signed test candidate built from the fault-injection branch.
+
+Observed boot:
+
+```text
+boot_id = 176cd515-f02f-4fd9-946c-f7df10b3534c
+initial daemon pid = 6789
+baseline composer pid = 1294
+successor daemon pid = 6991
+new composer pid = 7141
+post-restart daemon pid = 8305
+```
+
+Trace proved the intended crash window:
+
+```text
+34552  CPU_ATTEMPT_PREPARED
+34583  CPU_PROP_WRITTEN
+34591  CPU_ATTEMPT_PROPERTY_VERIFIED
+34591  CPU_PROP_VERIFIED
+34592  CPU_FAULT_INJECTION_ARMED
+34593  CPU_FAULT_INJECTION_TRIGGERED
+
+34895  CPU_ATTEMPT_RESTART_REQUESTED   # successor daemon pid 6991
+35240  HELPER_START old_composer=1294
+36190  HELPER_COMPOSER_NEW_PID composer_pid=7141
+
+43802  CPU_ATTEMPT_APPLIED baseline_pid=1294 composer_pid=7141
+49962  BOOT_READY
+```
+
+The one-shot trigger was consumed before recovery. For this boot there was exactly one
+`CPU_ATTEMPT_RESTART_REQUESTED`, one helper/composer replacement path, one APPLIED transition and
+one BOOT_READY. No `CPU_ATTEMPT_FAILED` or `CPU_RESTART_ATTEMPT_FAILED` was observed.
+
+The successor path did not emit `CTL_RESTART_SENT` because that trace point is currently
+conditional on an active boot session. The single helper start plus a single composer PID
+replacement, together with the state-model no-retry invariant after `RESTART_REQUESTED`, is
+sufficient to validate the intended provenance recovery. If exact restart-send counting is needed
+for a future fault test, make those trace markers unconditional before repeating the test.
+
+Result: **PASS**. The crash between durable property verification and restart no longer allows a
+plain matching `getprop` value to be mistaken for an already-applied compositor state.
