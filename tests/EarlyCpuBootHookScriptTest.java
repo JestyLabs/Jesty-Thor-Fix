@@ -43,6 +43,10 @@ public final class EarlyCpuBootHookScriptTest {
                 "opt-in must reject symlinks/non-regular files");
         require(script.contains("stat -c %u"), "opt-in owner must be verified");
         require(script.contains("stat -c %a"), "opt-in mode must be verified");
+        require(script.contains("stat -c %h"), "single-link identity must be verified");
+        require(script.contains("stat -c %a \"$GATE\""), "gate mode must be verified");
+        require(script.contains("= 644 ] || exit 0"), "gate must use canonical mode 0644");
+        require(script.contains("pidof \"$COMP_PROC\""), "PID lookup must use process identity");
         require(script.contains("[ ! -e \"$ATT\" ] || exit 0"),
                 "same-boot attempt must be one-shot");
 
