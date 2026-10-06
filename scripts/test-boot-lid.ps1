@@ -159,6 +159,9 @@ if ($recoverySplashRuntime -notmatch 'TARGET_WAIT_MS = 4500L' -or
     $recoverySplashRuntime -notmatch 'SuccessorPidModel\.resolve' -or
     $recoverySplashRuntime -notmatch 'service\.bootanim\.exit' -or
     $recoverySplashRuntime -notmatch 'SPLASH_TARGET_READY' -or
+    $recoverySplashRuntime -notmatch 'native_width=' -or
+    $recoverySplashRuntime -notmatch 'surface_width=' -or
+    $recoverySplashRuntime -notmatch 'TOP_LAYER_STACK_SWAPS_MODE_AXES' -or
     $recoverySplashRuntime -notmatch 'SPLASH_DRAW_BEGIN' -or
     $recoverySplashRuntime -notmatch 'SPLASH_DRAW_READY' -or
     $recoverySplashRuntime -notmatch 'PACKAGED_LOCKUP' -or
@@ -166,7 +169,10 @@ if ($recoverySplashRuntime -notmatch 'TARGET_WAIT_MS = 4500L' -or
     $recoverySplashRuntime -notmatch 'SPLASH_BOOTANIM_EXIT' -or
     $recoverySplashRuntime -notmatch 'transactionReparentToNull' -or
     $recoverySplashRuntime -notmatch 'TRANSACTION_COMMITTED_LISTENER') {
-    throw 'Recovery splash runtime lost bounded target wait, font-free draw path, exact successor or cleanup semantics.'
+    throw 'Recovery splash runtime lost bounded target wait, Thor geometry, font-free draw path, exact successor or cleanup semantics.'
+}
+if ($recoverySplashRuntime -match 'setDisplayProjection|setMatrix|setBufferTransform') {
+    throw 'Recovery splash geometry fix must not mutate the display projection or add an unproven layer transform.'
 }
 if ($recoverySplashRuntime -match 'drawText\(' -or
     $recoverySplashRuntime -match 'setTypeface\(' -or
@@ -218,6 +224,9 @@ if ($hardwareLiterals.Count -gt 0) {
     throw "Thor hardware IDs must come from ThorHardwareProfile: $($hardwareLiterals[0].Path):$($hardwareLiterals[0].LineNumber)"
 }
 $profile = Get-Content -LiteralPath (Join-Path $repository 'src\com\thor\displaypowertest\ThorHardwareProfile.java') -Raw
+if ($profile -notmatch 'TOP_LAYER_STACK_SWAPS_MODE_AXES = true') {
+    throw 'Thor profile must retain the measured top layer-stack axis swap used by the recovery splash.'
+}
 $logicalId = [int][regex]::Match($profile, 'BOTTOM_LOGICAL_DISPLAY_ID = (\d+);').Groups[1].Value
 $callback = Get-Content -LiteralPath (Join-Path $repository 'apk\smali\com\thor\displaypowertest\DisplayEventCallback.smali') -Raw
 $smaliIds = [regex]::Matches($callback, 'const/4 v[01], 0x([0-9a-f]+)\s+(?:if-ne p1|invoke-interface \{v0, v1\})')
