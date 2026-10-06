@@ -235,15 +235,33 @@ if ($surfaceTargetWorker -match 'drawText\(' -or
     throw 'Recovery surface targeting probe must remain font-free.'
 }
 
-# Boot-animation suppression is transient, boot-scoped, best-effort and
-# independently restored by the helper on every exit path.
+# Boot-animation suppression remains the validated fallback and the native
+# custom-ZIP path is a separate explicit prototype with independent cleanup.
+$nativeBootanimSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'RecoveryBootAnimationAsset.java') -Raw
 if ($cpuFixSource -notmatch 'BOOT_ANIMATION_DISABLE_PROPERTY = "debug\.sf\.nobootanimation"' -or
+    $cpuFixSource -notmatch 'previousNativeBootAnimation = armNativeRecoveryBootAnimation\(bootTrace\)' -or
+    $cpuFixSource -notmatch 'if \(previousNativeBootAnimation == null\)' -or
     $cpuFixSource -notmatch 'previousBootAnimation = armBootAnimationSuppression\(bootTrace\)' -or
-    $cpuFixSource -notmatch 'if \(!bootTrace\) return null;' -or
-    $cpuFixSource -notmatch 'trap restore_ba EXIT' -or
-    $cpuFixSource -notmatch '"restore_ba"' -or
+    $cpuFixSource -notmatch 'cleanup_bootanim\(\)\{ restore_native; restore_ba; \}' -or
+    $cpuFixSource -notmatch 'trap cleanup_bootanim EXIT' -or
+    $cpuFixSource -notmatch 'NATIVE_BOOTANIM_RESTORED' -or
+    $cpuFixSource -notmatch '\[ \"\$NBA\" = 1 \] && RSP=0' -or
     $cpuFixSource -notmatch '"trap - EXIT"') {
-    throw 'Boot-animation suppression must remain boot-scoped and restore its property.'
+    throw 'Native recovery bootanimation and suppression fallback lost mutual exclusion or cleanup.'
+}
+if ($nativeBootanimSource -notmatch '/data/local/tmp/thor-recovery-native-bootanim-prototype' -or
+    $nativeBootanimSource -notmatch '/dev/jesty-thor-recovery-bootanimation\.zip' -or
+    $nativeBootanimSource -notmatch 'persist\.sys\.customanim\.boot' -or
+    $nativeBootanimSource -notmatch 'persist\.service\.bootanim\.displays' -or
+    $nativeBootanimSource -notmatch 'ZipEntry\.STORED' -or
+    $nativeBootanimSource -notmatch '1920 1080 30' -or
+    $nativeBootanimSource -notmatch 'p 0 0 part0' -or
+    $nativeBootanimSource -notmatch 'jesty_thor_header_lockup\.png' -or
+    $nativeBootanimSource -notmatch 'Os\.chmod\(OUTPUT, 0644\)') {
+    throw 'Native recovery bootanimation asset must remain explicit, stored, centered-asset based and /dev-scoped.'
+}
+if ($nativeBootanimSource -match 'setDisplay|SurfaceControl|ctl\.restart|CpuBootAttemptStore|BootSafety') {
+    throw 'Native recovery bootanimation asset builder must not acquire display/restart/CPU authority.'
 }
 $restartPersistAt = $cpuFixSource.IndexOf('persistAttempt(requested, "CPU_ATTEMPT_RESTART_REQUESTED"')
 $restartStartAt = $cpuFixSource.IndexOf('restartThread.start()')
