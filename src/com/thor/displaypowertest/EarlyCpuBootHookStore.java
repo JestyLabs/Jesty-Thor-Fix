@@ -18,7 +18,9 @@ public final class EarlyCpuBootHookStore {
     private static final int MAX_HOOK_BYTES = 8192;
     private static final int MAX_OWNER_BYTES = 160;
 
-    public enum State { ABSENT, OWNED_EXACT, OWNED_STALE, OCCUPIED_UNKNOWN }
+    public enum State {
+        ABSENT, OWNED_EXACT, OWNED_STALE, OWNED_OWNER_ONLY, OCCUPIED_UNKNOWN
+    }
 
     private EarlyCpuBootHookStore() {}
 
@@ -27,10 +29,16 @@ public final class EarlyCpuBootHookStore {
             byte[] hook = readTrusted(EarlyCpuBootHookScript.HOOK_PATH, MAX_HOOK_BYTES);
             byte[] owner = readTrusted(OWNER_PATH, MAX_OWNER_BYTES);
             if (hook == null && owner == null) return State.ABSENT;
-            if (hook == null || owner == null) return State.OCCUPIED_UNKNOWN;
+            if (hook != null && owner == null) return State.OCCUPIED_UNKNOWN;
+
+            String ownerText = owner == null ? null
+                    : new String(owner, StandardCharsets.US_ASCII);
+            if (hook == null) {
+                return validOwnerRecord(ownerText)
+                        ? State.OWNED_OWNER_ONLY : State.OCCUPIED_UNKNOWN;
+            }
 
             String actualHash = sha256(hook);
-            String ownerText = new String(owner, StandardCharsets.US_ASCII);
             String canonical = "v1|" + EarlyCpuBootHookScript.MAGIC + "|" + actualHash + "\n";
             if (!canonical.equals(ownerText)) return State.OCCUPIED_UNKNOWN;
 
@@ -57,7 +65,7 @@ public final class EarlyCpuBootHookStore {
         if (state == State.OCCUPIED_UNKNOWN) {
             throw new IOException("Refusing occupied firmware-global boot hook");
         }
-        if (state == State.OWNED_STALE) removeManaged();
+        if (state == State.OWNED_STALE || state == State.OWNED_OWNER_ONLY) removeManaged();
 
         if (inspect(null) != State.ABSENT) {
             throw new IOException("Boot hook did not become absent before install");
@@ -105,8 +113,10 @@ public final class EarlyCpuBootHookStore {
             throw new IOException("Refusing to remove unknown boot hook");
         }
         try {
-            Os.unlink(EarlyCpuBootHookScript.HOOK_PATH);
-            fsyncDataDirectory();
+            if (state != State.OWNED_OWNER_ONLY) {
+                Os.unlink(EarlyCpuBootHookScript.HOOK_PATH);
+                fsyncDataDirectory();
+            }
             Os.unlink(OWNER_PATH);
             fsyncDataDirectory();
         } catch (Throwable error) {
@@ -166,6 +176,11 @@ public final class EarlyCpuBootHookStore {
         } finally {
             if (fd != null) try { Os.close(fd); } catch (Throwable ignored) {}
         }
+    }
+
+    private static boolean validOwnerRecord(String value) {
+        return value != null && value.matches("v1\\|" + EarlyCpuBootHookScript.MAGIC
+                + "\\|[0-9a-f]{64}\\n");
     }
 
     private static boolean trusted(StructStat stat, long minSize, long maxSize) {
