@@ -167,6 +167,19 @@ final class DashboardSettingsController {
                 if (!preferences.edit().putBoolean(CPU_FIX, requested).commit()) {
                     throw new IllegalStateException("CPU Fix preference could not be saved");
                 }
+                try {
+                    EarlyCpuOptIn.setEnabled(activity, requested);
+                } catch (Throwable error) {
+                    preferences.edit().putBoolean(CPU_FIX, previous).commit();
+                    try {
+                        EarlyCpuOptIn.setEnabled(activity, previous);
+                    } catch (Throwable rollbackError) {
+                        android.util.Log.e("ThorDisplay",
+                                "early CPU opt-in rollback failed", rollbackError);
+                    }
+                    throw new IllegalStateException(
+                            "ok=0;error=EARLY_CPU_OPTIN_SYNC_FAILED", error);
+                }
                 Map<String, String> result = TelemetryValues.parse(
                         SocketClient.request(requested ? 'R' : 'L', 1800));
                 if (!"1".equals(result.get("ok"))) throw new IllegalStateException("Command not accepted");
@@ -180,7 +193,15 @@ final class DashboardSettingsController {
                 });
             } catch (Throwable error) {
                 final boolean rejected = rejected(error);
-                if (rejected) preferences.edit().putBoolean(CPU_FIX, previous).commit();
+                if (rejected) {
+                    preferences.edit().putBoolean(CPU_FIX, previous).commit();
+                    try {
+                        EarlyCpuOptIn.setEnabled(activity, previous);
+                    } catch (Throwable rollbackError) {
+                        android.util.Log.e("ThorDisplay",
+                                "early CPU opt-in rollback failed", rollbackError);
+                    }
+                }
                 activity.runOnUiThread(() -> {
                     dashboardCommandInFlight = false;
                     dashboardFixToggle.setEnabled(true);
