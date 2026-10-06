@@ -114,11 +114,12 @@ public final class RecoverySplash {
                 return;
             }
 
-            control = buildSurfaceControl(target.width, target.height);
+            control = buildSurfaceControl(target.surfaceWidth, target.surfaceHeight);
             activeControl = control;
             surface = surfaceFromControl(control);
-            trace("SPLASH_DRAW_BEGIN", "width=" + target.width + ";height=" + target.height);
-            String drawBackend = draw(surface, target.width, target.height);
+            trace("SPLASH_DRAW_BEGIN", "width=" + target.surfaceWidth
+                    + ";height=" + target.surfaceHeight);
+            String drawBackend = draw(surface, target.surfaceWidth, target.surfaceHeight);
             trace("SPLASH_DRAW_READY", "backend=" + drawBackend);
 
             CountDownLatch shownCommit = new CountDownLatch(1);
@@ -145,7 +146,8 @@ public final class RecoverySplash {
                     + ";composer_pid=" + expectedComposer
                     + ";sf_pid=" + expectedSf
                     + ";display_id=" + Long.toUnsignedString(target.physicalId)
-                    + ";width=" + target.width + ";height=" + target.height);
+                    + ";width=" + target.surfaceWidth
+                    + ";height=" + target.surfaceHeight);
 
             long visibleDeadline = Math.min(shownAt + MAX_VISIBLE_MS,
                     processStartedAt + PROCESS_TTL_MS);
@@ -249,7 +251,10 @@ public final class RecoverySplash {
                 DisplayTarget target = resolvePrimaryTopTarget();
                 if (target != null) {
                     trace("SPLASH_TARGET_READY", "attempts=" + attempts
-                            + ";width=" + target.width + ";height=" + target.height);
+                            + ";native_width=" + target.nativeWidth
+                            + ";native_height=" + target.nativeHeight
+                            + ";surface_width=" + target.surfaceWidth
+                            + ";surface_height=" + target.surfaceHeight);
                     return target;
                 }
                 lastFailure = "METADATA_NOT_READY";
@@ -313,7 +318,19 @@ public final class RecoverySplash {
             if (width < 320 || height < 240 || width > 4096 || height > 4096) {
                 return null;
             }
-            return new DisplayTarget(topId, width, height);
+
+            int surfaceWidth = width;
+            int surfaceHeight = height;
+            if (ThorHardwareProfile.TOP_LAYER_STACK_SWAPS_MODE_AXES) {
+                // Measured on the tested Thor: DynamicDisplayInfo reports the
+                // panel's natural 1080x1920 mode while the active layer stack
+                // is 1920x1080. Fail open rather than guessing if that measured
+                // relationship changes on another firmware/hardware revision.
+                if (height <= width) return null;
+                surfaceWidth = height;
+                surfaceHeight = width;
+            }
+            return new DisplayTarget(topId, width, height, surfaceWidth, surfaceHeight);
         }
         return null;
     }
@@ -620,13 +637,18 @@ public final class RecoverySplash {
 
     private static final class DisplayTarget {
         final long physicalId;
-        final int width;
-        final int height;
+        final int nativeWidth;
+        final int nativeHeight;
+        final int surfaceWidth;
+        final int surfaceHeight;
 
-        DisplayTarget(long physicalId, int width, int height) {
+        DisplayTarget(long physicalId, int nativeWidth, int nativeHeight,
+                int surfaceWidth, int surfaceHeight) {
             this.physicalId = physicalId;
-            this.width = width;
-            this.height = height;
+            this.nativeWidth = nativeWidth;
+            this.nativeHeight = nativeHeight;
+            this.surfaceWidth = surfaceWidth;
+            this.surfaceHeight = surfaceHeight;
         }
     }
 }
