@@ -73,6 +73,10 @@ research-only and default OFF.
 
 Current A candidate characteristics:
 
+- measured top physical display ID is centralized in `ThorHardwareProfile`
+  (`0x40446d40c8d6b683`) alongside the already-known lower-panel ID;
+- renderer targeting requires that measured top ID and fails open on unknown
+  physical topology rather than guessing;
 - helper orchestration remains separate from detailed renderer lifecycle;
 - exact successor composer + exact successor SurfaceFlinger are required;
 - raw multi-PID `pidof` output is never accepted directly as successor proof;
