@@ -21,6 +21,13 @@ public final class ThorHardwareProfile {
      * be used to change the display projection.
      */
     public static final boolean TOP_LAYER_STACK_SWAPS_MODE_AXES = true;
+    /** Measured upper-panel geometry on the tested Thor. */
+    public static final int TOP_NATIVE_WIDTH = 1080;
+    public static final int TOP_NATIVE_HEIGHT = 1920;
+    public static final int TOP_RECOVERY_WIDTH = 1920;
+    public static final int TOP_RECOVERY_HEIGHT = 1080;
+    /** Square early-recovery curtain covers either portrait or landscape projection. */
+    public static final int RECOVERY_CURTAIN_SIZE = 1920;
     /** Logical display ID of the lower panel, reported as an EXTERNAL viewport. */
     public static final int BOTTOM_LOGICAL_DISPLAY_ID = 4;
     /** DRM CRTC object IDs in the debugfs state dump. */
