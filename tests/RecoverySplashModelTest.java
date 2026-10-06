@@ -39,9 +39,10 @@ public final class RecoverySplashModelTest {
         t = RecoverySplashModel.shown(t.session, true, 650L);
         eq(t.session.state, State.SHOWN, "confirmed show enters visible state");
         traces(t, Trace.SPLASH_SHOWN);
-        t = RecoverySplashModel.frameworkRecovered(t.session, 2400L);
-        eq(t.session.state, State.REMOVE_REQUESTED, "framework recovery requests removal");
-        traces(t, Trace.SPLASH_REMOVE_REQUESTED);
+        t = RecoverySplashModel.bootAnimationExitEdge(t.session, 2400L);
+        eq(t.session.state, State.REMOVE_REQUESTED,
+                "post-successor bootanim 0-to-1 edge requests removal");
+        traces(t, Trace.SPLASH_BOOTANIM_EXIT, Trace.SPLASH_REMOVE_REQUESTED);
         t = RecoverySplashModel.removed(t.session, true, 2440L);
         eq(t.session.state, State.REMOVED, "removal completes lifecycle");
         traces(t, Trace.SPLASH_REMOVED);
@@ -100,7 +101,7 @@ public final class RecoverySplashModelTest {
         t = RecoverySplashModel.waitForSurfaceFlinger(t.session, 10L);
         t = RecoverySplashModel.successorSurfaceFlinger(t.session, 20L);
         t = RecoverySplashModel.shown(t.session, true, 30L);
-        t = RecoverySplashModel.frameworkRecovered(t.session, 40L);
+        t = RecoverySplashModel.bootAnimationExitEdge(t.session, 40L);
         t = RecoverySplashModel.removed(t.session, false, 50L);
         eq(t.session.state, State.FAIL_OPEN, "remove failure fails open");
         eq(t.session.failure, Failure.REMOVE_FAILED, "remove failure reason");
@@ -119,7 +120,7 @@ public final class RecoverySplashModelTest {
         splash = RecoverySplashModel.waitForSurfaceFlinger(splash.session, 1110L);
         splash = RecoverySplashModel.successorSurfaceFlinger(splash.session, 1200L);
         splash = RecoverySplashModel.shown(splash.session, true, 1210L);
-        splash = RecoverySplashModel.frameworkRecovered(splash.session, 1400L);
+        splash = RecoverySplashModel.bootAnimationExitEdge(splash.session, 1400L);
         splash = RecoverySplashModel.removed(splash.session, true, 1410L);
         eq(splash.session.state, State.REMOVED, "splash lifecycle completes independently");
 
