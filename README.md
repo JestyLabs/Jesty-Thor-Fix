@@ -188,6 +188,7 @@ Jesty Thor Fix is free and open source. No features are locked behind donations.
 ### Documentation
 
 [Architecture](docs/ARCHITECTURE.md) · 
+[Compatibility](docs/COMPATIBILITY.md) · 
 [Benchmarks](docs/BENCHMARKS.md) · 
 [Release notes](docs/RELEASE-NOTES-1.5.20.md) · 
 [Build from source](docs/BUILD-AND-RELEASE.md) · 
