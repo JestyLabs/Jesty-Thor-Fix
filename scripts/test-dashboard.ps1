@@ -27,15 +27,19 @@ $model = Join-Path $repository 'src\com\thor\displaypowertest\DashboardStateMode
 $test = Join-Path $repository 'tests\DashboardStateModelTest.java'
 $warningModel = Join-Path $repository 'src\com\thor\displaypowertest\CpuWarningModel.java'
 $warningTest = Join-Path $repository 'tests\CpuWarningModelTest.java'
+$evidenceModel = Join-Path $repository 'src\com\thor\displaypowertest\CpuPinningEvidenceModel.java'
+$evidenceTest = Join-Path $repository 'tests\CpuPinningEvidenceModelTest.java'
 $updateModel = Join-Path $repository 'src\com\thor\displaypowertest\UpdateVersion.java'
 $updateTest = Join-Path $repository 'tests\UpdateVersionTest.java'
 
-& javac -source 8 -target 8 -d $output $model $test $warningModel $warningTest $updateModel $updateTest
+& javac -source 8 -target 8 -d $output $model $test $warningModel $warningTest $evidenceModel $evidenceTest $updateModel $updateTest
 if ($LASTEXITCODE -ne 0) { throw 'Dashboard test compilation failed.' }
 
 & java -cp $output DashboardStateModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Dashboard tests failed.' }
 & java -cp $output CpuWarningModelTest
 if ($LASTEXITCODE -ne 0) { throw 'CPU warning tests failed.' }
+& java -cp $output CpuPinningEvidenceModelTest
+if ($LASTEXITCODE -ne 0) { throw 'CPU evidence tests failed.' }
 & java -cp $output UpdateVersionTest
 if ($LASTEXITCODE -ne 0) { throw 'Update version tests failed.' }
