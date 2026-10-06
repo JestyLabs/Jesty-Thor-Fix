@@ -9,8 +9,8 @@ Actually turn off the lower screen in TOP mode · Stop unnecessary high CPU cloc
 
 <p align="center">
 <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.20"><strong>Download v1.5.20</strong></a>
-· <a href="#what-it-does">What it does</a>
-· <a href="#measured-results">Measured results</a>
+· <a href="#what-it-fixes">What it fixes</a>
+· <a href="#measured-on-a-real-thor">Measured results</a>
 · <a href="#roadmap">Roadmap</a>
 · <a href="https://www.buymeacoffee.com/jesty">☕ Support</a>
 </p>
@@ -22,8 +22,10 @@ Actually turn off the lower screen in TOP mode · Stop unnecessary high CPU cloc
 <img alt="GPL 3" src="https://img.shields.io/badge/code-GPL--3.0-8B5CF6?style=for-the-badge">
 </p>
 
-**Made for the AYN Thor.** No Magisk, no terminal, no rooting.  
-Set the switches once - the fixes keep working even after you close the app.
+**Made for the AYN Thor.** No Magisk, no terminal, no manual rooting.  
+Set the switches once - the fixes keep working after you close the app.
+
+<p align="center"><strong>Open source · signed releases · published hashes · hardware-tested</strong></p>
 
 <p align="center">
 <img width="1080" height="483" alt="Jesty Thor Fix dashboard" src="https://github.com/user-attachments/assets/d1f1d875-792b-4b84-8d52-41b307d11ae4" />
@@ -31,55 +33,86 @@ Set the switches once - the fixes keep working even after you close the app.
 
 ---
 
-### Why this exists
+### The big one: TOP mode does not fully turn the lower display off
 
-On the Thor, two things don’t work the way most people expect:
+A common question is:
 
-1. **TOP mode does not fully power down the lower display.**  
-   The screen looks black, but the display hardware can stay active behind it.
+> **"It's OLED. If the lower screen is black, isn't that basically the same as off?"**
 
-2. **AYN Dashboard can keep the LITTLE and BIG CPU clusters running near maximum** even under light load.
+For the pixels, black is cheap. But on the Thor, **black does not mean the display hardware is off**.
 
-Both behaviours waste power and generate extra heat.  
-Jesty Thor Fix corrects them and also adds an optional closed-lid protection.
+In stock TOP mode, Android still reports the lower display controller as active. With **True Bottom Screen Off**, that hardware path becomes inactive.
+
+```text
+Stock TOP mode        lower display: ACTIVE
+True Bottom Screen Off lower display: INACTIVE
+```
+
+Technically, this is verified from the DRM CRTC state — not inferred from whether the OLED pixels look black.
+
+That also matters beyond the pixels: keeping the second display path active can keep extra Qualcomm display/CPU work alive.
+
+---
+
+### What it fixes
+
+| Control | What it does |
+|---------|--------------|
+| **True Bottom Screen Off** | Powers down the lower physical display in TOP mode instead of leaving it active behind a black image. Repairs the state after sleep/wake. |
+| **AYN Dashboard CPU Fix** | Stops the Dashboard from keeping the main CPU clusters stuck near their top speeds under light load. Does **not** force CPU frequencies or change governors. |
+| **Closed-Lid Wake Guard** | Puts the Thor back to sleep if it wakes while the lid is still closed. Optional and **off by default**. |
+
+The dashboard is there to make this visible: it shows whether the lower hardware is really off, live CPU speed, power estimate and Wake Guard state.
+
+<p align="center">
+<img src="docs/images/dashboard-both-v1.5.15-review.png" alt="Jesty Thor Fix dashboard showing live display and CPU state" width="780">
+</p>
+<p align="center">
+<sub>Physical capture on the Thor. The dashboard reports live hardware state, not just the selected mode.</sub>
+</p>
+
+---
+
+### Measured on a real Thor
+
+Short controlled A/B/A test in TOP mode, same device/setup/workload:
+
+| Metric | Native TOP | True Bottom Off |
+|--------|------------:|----------------:|
+| Efficiency CPU cluster avg. | 2.016 GHz | 1.616 GHz |
+| Performance CPU cluster avg. | 2.707 GHz | 1.654 GHz |
+| Performance CPU samples near max | 75/75 | 0/45 |
+| System power proxy | ~2.03 W | ~1.24 W |
+
+The power number is a **system-level proxy**, not a panel-only measurement and not a battery-life promise. In this test, true-off also let the CPU scale down normally, so the reduction is the combined system effect. Android/Qualcomm commonly call these CPU groups LITTLE and BIG; the technical docs keep those names.
+
+<details>
+<summary><strong>Technical proof in one minute</strong></summary>
+
+- DRM/CRTC state confirms whether each physical display pipeline is active.
+- In stock TOP mode the lower CRTC remained active; with True Bottom Screen Off it became inactive.
+- The Thor's Qualcomm display stack also exposed a separate low-load CPU performance-hint problem when both display paths were active.
+- Controlled A/B/A captures are published with raw CSV samples.
+
+See [benchmarks](docs/BENCHMARKS.md), [architecture](docs/ARCHITECTURE.md) and [live results](docs/LIVE-RESULTS.md).
+
+</details>
+
+Full method + raw CSVs → [benchmarks](docs/BENCHMARKS.md)
+
+---
+
+### Why this project exists
+
+The original investigation started with two reproducible Thor behaviours:
+
+1. TOP mode left the lower physical display path active even though the screen looked black.
+2. The AYN Dashboard could keep LITTLE and BIG CPU clusters near maximum under light load.
+
+Jesty Thor Fix turns those observations into simple switches, keeps the fixes active in the background, and exposes enough telemetry to verify what the hardware is actually doing.
 
 Original investigation and discussion:  
 **[Reddit thread](https://www.reddit.com/r/AynThor/comments/1wrsmmo/found_two_weird_ayn_thor_issues_top_only_doesnt/)**
-
----
-
-### What it does
-
-| Control | What you get |
-|---------|--------------|
-| **True Bottom Screen Off** | In TOP mode the lower display is actually powered down (not just showing black). Automatically restores the correct state after sleep/wake. |
-| **AYN Dashboard CPU Fix** | Stops the Dashboard from pinning LITTLE/BIG clocks high under light load. Does **not** change governors or force frequencies. |
-| **Closed-Lid Wake Guard** | If the Thor wakes while the lid is still closed, it goes back to sleep. **Off by default.** |
-
-You can enable any combination. The dashboard shows the real display and CPU state so you can verify the fixes are active.
-
-<p align="center">
-<img src="docs/images/dashboard-both-v1.5.15-review.png" alt="Jesty Thor Fix dashboard" width="780">
-</p>
-<p align="center">
-<sub>Physical capture on the Thor (v1.5.15). Current layout may differ slightly.</sub>
-</p>
-
----
-
-### Measured results
-
-Short controlled A/B/A test on a physical Thor in TOP mode:
-
-| Metric | Native TOP | With True Bottom Off |
-|--------|------------|----------------------|
-| LITTLE mean | 2.016 GHz | 1.616 GHz |
-| BIG mean | 2.707 GHz | 1.654 GHz |
-| BIG samples near max | 75/75 | 0/45 |
-| System power proxy | ~2.03 W | ~1.24 W |
-
-These are short diagnostic measurements, **not a battery-life claim**.  
-Full methodology and raw data → [benchmarks](docs/BENCHMARKS.md)
 
 ---
 
