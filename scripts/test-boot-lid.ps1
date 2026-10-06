@@ -196,7 +196,7 @@ if ($restartPersistAt -lt 0 -or $restartStartAt -lt 0 -or
 # Thor identifiers belong to ThorHardwareProfile; smali repeats one of them.
 $hardwareLiterals = @(Get-ChildItem -LiteralPath (Join-Path $repository 'src') -Filter '*.java' -Recurse |
     Where-Object { $_.Name -ne 'ThorHardwareProfile.java' } |
-    Select-String -Pattern '0x40446d4a32a16584|crtc\[(181|243)\]|"(181|243)"|"hall_switch"|dri/0/state')
+    Select-String -Pattern '0x40446d40c8d6b683|0x40446d4a32a16584|crtc\[(181|243)\]|"(181|243)"|"hall_switch"|dri/0/state')
 if ($hardwareLiterals.Count -gt 0) {
     throw "Thor hardware IDs must come from ThorHardwareProfile: $($hardwareLiterals[0].Path):$($hardwareLiterals[0].LineNumber)"
 }
