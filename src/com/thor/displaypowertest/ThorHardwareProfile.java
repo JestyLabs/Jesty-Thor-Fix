@@ -9,6 +9,8 @@ package com.thor.displaypowertest;
  * (const/4 0x4); scripts/test-boot-lid.ps1 fails if the two disagree.
  */
 public final class ThorHardwareProfile {
+    /** SurfaceControl physical display ID of the upper/main panel. */
+    public static final long TOP_PHYSICAL_DISPLAY_ID = 0x40446d40c8d6b683L;
     /** SurfaceControl physical display ID of the lower panel. */
     public static final long BOTTOM_PHYSICAL_DISPLAY_ID = 0x40446d4a32a16584L;
     /** Logical display ID of the lower panel, reported as an EXTERNAL viewport. */
