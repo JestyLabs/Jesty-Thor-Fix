@@ -112,6 +112,7 @@ More details on resource use and known limitations are in the documentation belo
 | Device | Status |
 |--------|--------|
 | **AYN Thor** | Supported (tested on Android 13 firmware `TKQ1.231222.001`) |
+| **Retroid Pocket Duo** | Research / testers wanted — not supported yet |
 | Other devices | Unsupported |
 
 Power savings depend on usage, brightness, firmware and workload. **No fixed battery-life percentage is claimed.**
@@ -120,17 +121,17 @@ Power savings depend on usage, brightness, firmware and workload. **No fixed bat
 
 ### Roadmap
 
-Current development stays deliberately isolated from the stable release path. Items below are research or work in progress until they are physically validated.
-
 **Working on**
 
-- **Cleaner CPU Fix recovery UX** — keep the required compositor/framework restart and its existing provenance/fail-safe guarantees, while avoiding the confusing second vendor boot animation and replacing the black recovery gap with a bounded Jesty Thor Fix recovery splash.
-- **TOP-mode focus / input-routing investigation** — determine whether cases where Android loses focus are caused by the lower display remaining active in native TOP mode, and whether **True Bottom Screen Off** eliminates that condition. This is not claimed as fixed until reproduced and measured.
+- 🚀 **Cleaner CPU Fix startup/recovery** — keep the required Android display restart safe, remove the confusing second AYN boot animation, and show a short recovery splash instead of a black gap.
+- 🎯 **TOP-mode focus/input bug** — testing whether physically powering off the lower display also prevents games or apps from losing focus to the inactive screen.
 
 **Next investigations**
 
-- **Mixed-refresh / 120 Hz tearing** — trace how AYN exposes the physically 60 Hz lower panel when the system is switched to 120 Hz, then compare SurfaceFlinger, Qualcomm HWC/SDM and physical display timing. The goal is to understand whether the Thor can run the upper display at 120 Hz while keeping the lower panel on its native timing without tearing.
-- **Retroid Pocket Duo compatibility** — investigate compatibility feature by feature rather than assuming full support: True Bottom Screen Off, display telemetry, wake repair, lid/hall behaviour and whether the Thor-specific CPU Fix is applicable at all. No Pocket Duo support claim until tested on hardware.
+- 🖥️ **120 Hz screen tearing / mixed refresh** — investigate AYN's handling of the Thor's 120 Hz upper display and physically 60 Hz lower panel.
+- 🧪 **Retroid Pocket Duo compatibility** — preparing the codebase for device profiles and looking for Pocket Duo owners who want to help test dual-screen power, focus, wake and display behaviour. **No Pocket Duo support is claimed yet.**
+
+See the [current roadmap and research status](docs/ROADMAP.md) for technical details and deferred work.
 
 ---
 
@@ -179,6 +180,7 @@ See [Architecture](docs/ARCHITECTURE.md) for the full service, daemon, verificat
 - Source & build scripts: [GPL-3.0](LICENSE)
 - Branding & artwork: [ASSETS-LICENSE.md](ASSETS-LICENSE.md)
 - Third-party notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+- Project provenance & attribution: [NOTICE](NOTICE.md)
 - AI assistance: [full disclosure](AI_DISCLOSURE.md)
 
 Independent community project. Not affiliated with or endorsed by AYN.  
