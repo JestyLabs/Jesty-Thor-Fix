@@ -412,14 +412,19 @@ public final class CpuFixController {
             String desiredValue) {
         Process helper = null;
         String previousBootAnimation = null;
+        String previousNativeBootAnimation = null;
         try {
             Thread.sleep(300L);
-            // Suppress only the boot animation spawned by the replacement
-            // SurfaceFlinger. This is boot-scoped and best effort; runtime
-            // toggles keep the ordinary visible behavior.
-            previousBootAnimation = armBootAnimationSuppression(bootTrace);
+            previousNativeBootAnimation = armNativeRecoveryBootAnimation(bootTrace);
+            if (previousNativeBootAnimation == null) {
+                // Existing validated fallback: suppress the replacement
+                // SurfaceFlinger boot animation when the native prototype is
+                // absent or cannot be armed safely.
+                previousBootAnimation = armBootAnimationSuppression(bootTrace);
+            }
             helper = scheduleTransitionCleanupAndDaemonRestart(
-                    beforeComposerPid, previousBootAnimation);
+                    beforeComposerPid, previousBootAnimation,
+                    previousNativeBootAnimation);
             handoffState = "SCHEDULED";
             observeHelper(helper, bootTrace, beforeComposerPid, previousCpu, desiredValue);
             if (bootTrace) trace.mark("HELPER_SCHEDULED", "old_composer=" + beforeComposerPid);
@@ -430,8 +435,14 @@ public final class CpuFixController {
             if (exit != 0) throw new IllegalStateException("composer restart exit=" + exit);
             Thread.sleep(3000L);
         } catch (Throwable error) {
-            if (helper == null && previousBootAnimation != null) {
-                restoreBootAnimationSuppression(previousBootAnimation, bootTrace);
+            if (helper == null) {
+                if (previousNativeBootAnimation != null) {
+                    restoreNativeRecoveryBootAnimation(
+                            previousNativeBootAnimation, bootTrace);
+                }
+                if (previousBootAnimation != null) {
+                    restoreBootAnimationSuppression(previousBootAnimation, bootTrace);
+                }
             }
             boolean applied = markAppliedIfComposerReplaced(beforeComposerPid, desiredValue);
             restartFailed = !applied;
@@ -609,6 +620,69 @@ public final class CpuFixController {
      * restart. Returns the exact previous value when armed; null means fall
      * back to the visible second animation.
      */
+    private String armNativeRecoveryBootAnimation(boolean bootTrace) {
+        if (!bootTrace || !RecoveryBootAnimationAsset.prototypeArmed()) return null;
+
+        String displays = readProperty(RecoveryBootAnimationAsset.DISPLAYS_PROPERTY);
+        if (displays == null || !displays.isEmpty()) {
+            trace.mark("NATIVE_BOOTANIM_FAIL_OPEN",
+                    "reason=MULTI_DISPLAY_PROPERTY_NOT_EMPTY");
+            return null;
+        }
+
+        String disabled = readProperty(BOOT_ANIMATION_DISABLE_PROPERTY);
+        if (disabled == null || "1".equals(disabled)) {
+            trace.mark("NATIVE_BOOTANIM_FAIL_OPEN", "reason=BOOTANIM_DISABLED");
+            return null;
+        }
+
+        String previous = readProperty(RecoveryBootAnimationAsset.CUSTOM_PROPERTY);
+        if (previous == null
+                || !previous.matches("[A-Za-z0-9_./:@+\\-]{0,90}")) {
+            trace.mark("NATIVE_BOOTANIM_FAIL_OPEN",
+                    "reason=PREVIOUS_CUSTOM_PATH_UNSAFE");
+            return null;
+        }
+
+        if (!RecoveryBootAnimationAsset.prepare()) {
+            trace.mark("NATIVE_BOOTANIM_FAIL_OPEN", "reason=ASSET_PREPARE_FAILED");
+            return null;
+        }
+
+        if (!writeProperty(RecoveryBootAnimationAsset.CUSTOM_PROPERTY,
+                    RecoveryBootAnimationAsset.OUTPUT)
+                || !RecoveryBootAnimationAsset.OUTPUT.equals(
+                        readProperty(RecoveryBootAnimationAsset.CUSTOM_PROPERTY))) {
+            writeProperty(RecoveryBootAnimationAsset.CUSTOM_PROPERTY, previous);
+            RecoveryBootAnimationAsset.cleanup();
+            trace.mark("NATIVE_BOOTANIM_FAIL_OPEN",
+                    "reason=SET_OR_READBACK_FAILED");
+            return null;
+        }
+
+        trace.mark("NATIVE_BOOTANIM_ARMED",
+                "previous=" + (previous.isEmpty() ? "UNSET" : previous)
+                        + ";path=" + RecoveryBootAnimationAsset.OUTPUT
+                        + ";display_route=INTERNAL_DEFAULT");
+        return previous;
+    }
+
+    private void restoreNativeRecoveryBootAnimation(String previous, boolean bootTrace) {
+        if (previous == null
+                || !previous.matches("[A-Za-z0-9_./:@+\\-]{0,90}")) {
+            RecoveryBootAnimationAsset.cleanup();
+            return;
+        }
+        boolean propertyOk = writeProperty(
+                RecoveryBootAnimationAsset.CUSTOM_PROPERTY, previous);
+        RecoveryBootAnimationAsset.cleanup();
+        if (bootTrace) {
+            trace.mark(propertyOk ? "NATIVE_BOOTANIM_RESTORED"
+                            : "NATIVE_BOOTANIM_RESTORE_FAILED",
+                    "value=" + (previous.isEmpty() ? "UNSET" : previous));
+        }
+    }
+
     private String armBootAnimationSuppression(boolean bootTrace) {
         if (!bootTrace) return null;
         String previous = readProperty(BOOT_ANIMATION_DISABLE_PROPERTY);
@@ -691,7 +765,8 @@ public final class CpuFixController {
     }
 
     private Process scheduleTransitionCleanupAndDaemonRestart(String beforeComposerPid,
-            String previousBootAnimation) throws Exception {
+            String previousBootAnimation, String previousNativeBootAnimation)
+            throws Exception {
         String enabled = DaemonState.isEnabled() ? "1" : "0";
         String desiredCpu = desired ? "1" : "0";
         // During BOOT HOLD the Hall watcher has not been enabled yet. Preserve
@@ -700,6 +775,9 @@ public final class CpuFixController {
                 : LidGuard.isEnabled()) ? "1" : "0";
         boolean suppressBootAnimation = previousBootAnimation != null;
         String bootAnimationPrevious = suppressBootAnimation ? previousBootAnimation : "";
+        boolean nativeBootAnimation = previousNativeBootAnimation != null;
+        String nativeBootAnimationPrevious =
+                nativeBootAnimation ? previousNativeBootAnimation : "";
         // A compositor restart starts a second readiness phase. Do not reuse
         // the initial boot's 60-second deadline for its five-second grace.
         long phaseStartedAt = SystemClock.elapsedRealtime();
