@@ -86,7 +86,7 @@ public final class PServer {
     public static boolean stopReplaceableSecureDaemonIfSafe(boolean expectedFix) {
         try {
             String health = SocketClient.request('I', 700);
-            int pid = DaemonLaunchModel.replaceablePid(health, DaemonIdentity.VERSION,
+            int pid = DaemonLaunchModel.replaceablePid(health, DaemonIdentity.RUNTIME_ID,
                     expectedFix);
             if (pid < 1) return false;
             Log.w(TAG, "replaceable daemon: " + health);
@@ -129,7 +129,7 @@ public final class PServer {
     private static boolean healthyResponse(String response, boolean expectedFix) {
         return response.startsWith("ok=1;")
                 && response.contains(";protocol=" + SecureChannel.PROTOCOL + ";")
-                && response.contains(";version=" + DaemonIdentity.VERSION + ";")
+                && response.contains(";version=" + DaemonIdentity.RUNTIME_ID + ";")
                 && response.contains(";pid=")
                 && response.contains(";boot_phase=")
                 && response.contains(";boot_phase=READY;")
@@ -146,7 +146,7 @@ public final class PServer {
             return DaemonLaunchModel.Probe.UNREACHABLE;
         }
         if (healthyResponse(response, expectedFix)) return DaemonLaunchModel.Probe.HEALTHY;
-        if (DaemonLaunchModel.starting(response, DaemonIdentity.VERSION, expectedFix)) {
+        if (DaemonLaunchModel.starting(response, DaemonIdentity.RUNTIME_ID, expectedFix)) {
             return DaemonLaunchModel.Probe.STARTING;
         }
         return DaemonLaunchModel.Probe.UNHEALTHY;
