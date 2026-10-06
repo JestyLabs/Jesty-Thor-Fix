@@ -59,16 +59,20 @@ public final class RecoverySplash {
     public static void main(String[] args) {
         long processStartedAt = SystemClock.elapsedRealtime();
         startProcessTtlWatchdog(processStartedAt);
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            trace("SPLASH_FAIL_OPEN", "reason=UNSUPPORTED_API");
-            return;
+        try {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                trace("SPLASH_FAIL_OPEN", "reason=UNSUPPORTED_API");
+                return;
+            }
+            if (args.length != 4 || !positivePid(args[0]) || !positivePid(args[1])
+                    || !positivePid(args[2]) || !positivePid(args[3])) {
+                trace("SPLASH_FAIL_OPEN", "reason=INVALID_SUCCESSOR_ARGS");
+                return;
+            }
+            run(args[0], args[1], args[2], args[3], processStartedAt);
+        } finally {
+            finished = true;
         }
-        if (args.length != 4 || !positivePid(args[0]) || !positivePid(args[1])
-                || !positivePid(args[2]) || !positivePid(args[3])) {
-            trace("SPLASH_FAIL_OPEN", "reason=INVALID_SUCCESSOR_ARGS");
-            return;
-        }
-        run(args[0], args[1], args[2], args[3], processStartedAt);
     }
 
     private static void run(String oldComposer, String expectedComposer,
@@ -184,6 +188,7 @@ public final class RecoverySplash {
                 try { surface.release(); } catch (Throwable ignored) {}
             }
             releaseControlQuietly(control);
+            activeControl = null;
         }
     }
 
