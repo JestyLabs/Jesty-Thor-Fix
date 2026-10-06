@@ -44,20 +44,52 @@ The current early-restart work is already merged and physically validated.
 This project is not another attempt to move that same restart a few seconds
 earlier. Its goal is to avoid the cold-boot restart entirely.
 
-## Historical timing
+## Thor firmware evidence
 
-One retained boot showed approximately:
+Read-only inspection of the tested Thor exposed exact init boot times:
 
-- vendor `qti_display_boot` work at ~3.701 s;
-- first vendor composer start at ~4.074 s.
+- `ro.boottime.qti_display_boot = 3654991769` -> 3.654992 s;
+- `ro.boottime.vendor.qti.hardware.display.composer = 4038635987` -> 4.038636 s;
+- `ro.boottime.pservice = 4171782341` -> 4.171782 s.
 
-That gives only ~0.37 s in that observed boot. It is evidence that ordering is
-tight, not a timing guarantee.
+Therefore the stock `qti_display_boot` service starts about **383.644 ms
+before** the first vendor composer process, while `pservice` starts about
+**133.146 ms after** that composer process. These are measurements from one
+real boot, not timing guarantees.
 
-The vendor display boot script was previously observed to enable the target
-property for a different `subtype_id`; the tested Thor reports the path that
-leaves this property unset. Changing hardware subtype is not an acceptable
-solution.
+The firmware declaration is:
+
+```text
+service qti_display_boot /vendor/bin/init.qti.display_boot.sh
+   class main
+   user system
+   group system
+   disabled
+   oneshot
+
+on post-fs-data
+   start qti_display_boot
+```
+
+The vendor script reads `ro.board.platform`, SoC ID and
+`platform_subtype_id`. In its Kalama branch, for the supported Kalama SoC IDs,
+it explicitly does:
+
+```text
+if [ "$subtype_id" -eq 1 ]; then
+    setprop vendor.display.disable_system_load_check 1
+fi
+```
+
+This is direct firmware evidence that Qualcomm intentionally supports the
+target property being established **before the first display composer** on at
+least one hardware subtype. The zero-restart concept is therefore compatible
+with the vendor initialization model; the unresolved problem is how to opt in
+on the Thor without falsifying hardware identity or modifying immutable vendor
+files.
+
+Changing `platform_subtype_id`, patching `/vendor`, or replacing the vendor
+script is explicitly out of scope.
 
 ## Why matching getprop is insufficient
 
@@ -125,21 +157,30 @@ lifecycle.
 ## Existing Thor root bridge
 
 The stock Thor exposes `PServerBinder` / `pservice`, and the project already
-uses that bridge for privileged commands after Android starts.
+uses that bridge for privileged runtime commands.
 
-That fact alone does **not** prove it can solve pre-composer execution.
+Its init declaration is stock firmware:
 
-Before using it here we must establish:
+```text
+on boot
+    start pservice
 
-1. exact init service declaration;
-2. first-start time relative to the vendor composer;
-3. whether it has any vendor-supported startup/config mechanism;
-4. whether such a mechanism can run a tiny command before composer without an
-   app/framework process invoking Binder;
-5. cleanup/removal semantics.
+service pservice /system/bin/pservice
+    class core
+    disabled
+    user root
+    group root
+    seclabel u:r:pservice:s0
+```
 
-Do not turn ordinary Binder command execution into a persistent boot hook by
-assumption.
+Measured first-start timing places pservice at 4.171782 s, after the first
+composer start at 4.038636 s. Therefore PServer is **not an accepted
+pre-composer launch mechanism** based on current evidence.
+
+The firmware also probes `/data/boot_start.sh`, but an action launched by
+pservice inherits this late start and cannot be treated as pre-composer proof.
+Do not use `/data/boot_start.sh` for the zero-restart path unless new evidence
+shows execution before the first `ResourceImpl::Init()`.
 
 ## Read-only collector
 
