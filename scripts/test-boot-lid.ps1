@@ -159,10 +159,18 @@ if ($recoverySplashRuntime -notmatch 'TARGET_WAIT_MS = 4500L' -or
     $recoverySplashRuntime -notmatch 'SuccessorPidModel\.resolve' -or
     $recoverySplashRuntime -notmatch 'service\.bootanim\.exit' -or
     $recoverySplashRuntime -notmatch 'SPLASH_TARGET_READY' -or
+    $recoverySplashRuntime -notmatch 'SPLASH_DRAW_BEGIN' -or
+    $recoverySplashRuntime -notmatch 'SPLASH_DRAW_READY' -or
+    $recoverySplashRuntime -notmatch 'PACKAGED_LOCKUP' -or
+    $recoverySplashRuntime -notmatch 'BitmapFactory\.decodeStream' -or
     $recoverySplashRuntime -notmatch 'SPLASH_BOOTANIM_EXIT' -or
     $recoverySplashRuntime -notmatch 'transactionReparentToNull' -or
     $recoverySplashRuntime -notmatch 'TRANSACTION_COMMITTED_LISTENER') {
-    throw 'Recovery splash runtime lost bounded target wait, exact successor or cleanup semantics.'
+    throw 'Recovery splash runtime lost bounded target wait, font-free draw path, exact successor or cleanup semantics.'
+}
+if ($recoverySplashRuntime -match 'drawText\(' -or
+    $recoverySplashRuntime -match 'Typeface') {
+    throw 'Standalone recovery splash must remain font-free; Thor app_process aborts in Typeface resolution.'
 }
 if ($cpuFixSource -notmatch '/data/local/tmp/thor-recovery-splash-prototype' -or
     $cpuFixSource -notmatch 'succ\(\)\{' -or
