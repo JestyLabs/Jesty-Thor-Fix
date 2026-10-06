@@ -18,7 +18,9 @@ public final class EarlyCpuBootHookScript {
             "/dev/jesty-thor-early-cpu-trace.log";
     public static final String PROPERTY =
             "vendor.display.disable_system_load_check";
-    public static final String COMPOSER =
+    public static final String COMPOSER_SERVICE =
+            "vendor.qti.hardware.display.composer";
+    public static final String COMPOSER_PROCESS =
             "vendor.qti.hardware.display.composer-service";
     public static final String MAGIC = "JESTY_THOR_EARLY_CPU_HOOK_V1";
 
@@ -41,13 +43,14 @@ public final class EarlyCpuBootHookScript {
         line(s, "ATT='" + ATTEMPT_PATH + "'");
         line(s, "TRACE='" + TRACE_PATH + "'");
         line(s, "PROP='" + PROPERTY + "'");
-        line(s, "COMP='" + COMPOSER + "'");
+        line(s, "COMP_SVC='" + COMPOSER_SERVICE + "'");
+        line(s, "COMP_PROC='" + COMPOSER_PROCESS + "'");
         line(s, "APP_UID='" + appUid + "'");
         line(s, "TOKEN='" + installToken + "'");
         line(s, "");
         line(s, "now_ms(){ awk '{printf \"%d\", $1*1000}' /proc/uptime 2>/dev/null; }");
         line(s, "trace(){ T=$(now_ms); printf '%s;%s\\n' \"$T\" \"$1\" >>\"$TRACE\" 2>/dev/null; chmod 600 \"$TRACE\" 2>/dev/null; }");
-        line(s, "first_pid(){ pidof \"$COMP\" 2>/dev/null | awk '{print $1}'; }");
+        line(s, "first_pid(){ pidof \"$COMP_PROC\" 2>/dev/null | awk '{print $1}'; }");
         line(s, "valid_pid(){ case \"$1\" in ''|*[!0-9]*) return 1;; *) return 0;; esac; }");
         line(s, "write_attempt(){");
         line(s, "  PHASE=\"$1\"; T=$(now_ms); valid_pid \"$T\" || return 1");
@@ -114,7 +117,7 @@ public final class EarlyCpuBootHookScript {
         line(s, "write_attempt RESTART_REQUESTED || { recover_before_request STORE_REQUESTED; exit 0; }");
         line(s, "trace RESTART_REQUESTED");
         line(s, "");
-        line(s, "setprop ctl.restart \"$COMP\"");
+        line(s, "setprop ctl.restart \"$COMP_SVC\"");
         line(s, "RC=$?");
         line(s, "if [ \"$RC\" -ne 0 ]; then");
         line(s, "  trace CTL_RESTART_REJECTED");
