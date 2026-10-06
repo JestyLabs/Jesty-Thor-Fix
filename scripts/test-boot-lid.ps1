@@ -103,6 +103,23 @@ if ($cpuFixSource -notmatch 'CpuBootAttemptStore\.read\(' -or
     $runtimeSource -notmatch 'if \(!coordinating\) cpuFix\.resumePersistedAttempt\(\)') {
     throw 'CPU restart provenance must be integrated into the runtime and normal-daemon recovery.'
 }
+$preComposerInspect = Get-Content -LiteralPath (Join-Path $repository 'scripts\inspect-thor-precomposer.ps1') -Raw
+if ($preComposerInspect -match '(?im)\badb\s+(?:reboot|install|push|root|remount)\b' -or
+    $preComposerInspect -match '(?im)\bsetprop\b' -or
+    $preComposerInspect -match '(?im)\bctl\.(?:start|stop|restart)\b' -or
+    $preComposerInspect -match '(?im)\b(?:rm|mv|cp|chmod|chown|mkdir|touch)\s') {
+    throw 'Pre-composer collector must remain read-only and must not mutate the Thor.'
+}
+$preComposerProofSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'PreComposerCpuProofModel.java') -Raw
+if ($preComposerProofSource -match 'ProcessBuilder|setprop|ctl\.restart|DisplayActionCoordinator|SurfaceControl|LidGuard') {
+    throw 'Pre-composer proof model must stay pure and side-effect free.'
+}
+if ($preComposerProofSource -notmatch 'WRITE_NOT_BEFORE_COMPOSER' -or
+    $preComposerProofSource -notmatch 'COMPOSER_PRESENT_DURING_WRITE' -or
+    $preComposerProofSource -notmatch 'readbackVerified' -or
+    $preComposerProofSource -notmatch 'currentBootId\.equalsIgnoreCase\(proof\.bootId\)') {
+    throw 'Pre-composer proof must require boot identity, ordering, composer absence and readback.'
+}
 $bootCoordinatorSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'BootCoordinator.java') -Raw
 $earlyGateSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'EarlyCpuGateModel.java') -Raw
 if ($bootCoordinatorSource -notmatch 'reconcileCpuPhase\(afterComposerRestart\)' -or
@@ -175,6 +192,7 @@ $sources = @(
     (Join-Path $repository 'src\com\thor\displaypowertest\HandoffRecoveryModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\DaemonArgs.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\CpuBootAttemptModel.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\PreComposerCpuProofModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\EarlyCpuGateModel.java'),
     (Join-Path $repository 'tests\BootAndLidModelTest.java'),
     (Join-Path $repository 'tests\BootLatencyTest.java'),
@@ -190,6 +208,7 @@ $sources = @(
     (Join-Path $repository 'tests\HandoffRecoveryModelTest.java'),
     (Join-Path $repository 'tests\DaemonArgsTest.java'),
     (Join-Path $repository 'tests\CpuBootAttemptModelTest.java'),
+    (Join-Path $repository 'tests\PreComposerCpuProofModelTest.java'),
     (Join-Path $repository 'tests\EarlyCpuGateModelTest.java')
 )
 & javac -source 8 -target 8 -d $output $sources
@@ -198,6 +217,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Boot/lid test compilation failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Boot/lid tests failed.' }
 & java -cp $output CpuBootAttemptModelTest
 if ($LASTEXITCODE -ne 0) { throw 'CPU boot attempt model tests failed.' }
+& java -cp $output PreComposerCpuProofModelTest
+if ($LASTEXITCODE -ne 0) { throw 'Pre-composer CPU proof model tests failed.' }
 & java -cp $output EarlyCpuGateModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Early CPU gate model tests failed.' }
 & java -cp $output BootLatencyTest
