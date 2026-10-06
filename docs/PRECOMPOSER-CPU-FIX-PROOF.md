@@ -143,6 +143,37 @@ app-only feature on the inspected stock init configuration without one of:
 Options 2 is out of scope. Option 1 must be detected explicitly rather than
 assumed. Option 3 remains research-only.
 
+## Stock pservice binary result
+
+The tested `/system/bin/pservice` was statically inspected.
+
+- ELF: ARM32 PIE, Android 33;
+- SHA-256:
+  `8a0b75b44f0139843f2608f1ac7946ed1184cb126ed2777ee2bc2fb509357be4`;
+- embedded mini-debug symbols expose `main`, `cpu_init`,
+  `device_manager_start`, `BinderMainBlock` and related functions.
+
+Its `main()` invokes:
+
+```text
+sh /data/boot_start.sh &
+```
+
+unconditionally. Control-flow inspection shows this happens before the
+`cpu_init` thread, device-manager startup and the main Binder block. The
+trailing `&` means the script itself is asynchronous.
+
+This is useful for an **early restart** design, but it is not accepted as
+pre-composer proof: the measured pservice process start (4.171782 s) is already
+after the measured first composer process start (4.038636 s). No direct
+timestamp for the first `ResourceImpl::Init()` was recovered, so this is
+classified as **not proven early enough**, not as a mathematical impossibility.
+
+Accordingly, `/data/boot_start.sh` must not be used by this zero-restart
+workstream to claim that the first composer consumed the property. A separate
+research branch may evaluate it as a way to move the one required restart into
+the first ~4-5 seconds of boot.
+
 ## Why matching getprop is insufficient
 
 A later app process cannot conclude:
