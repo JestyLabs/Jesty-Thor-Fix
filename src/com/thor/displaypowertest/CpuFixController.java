@@ -281,6 +281,9 @@ public final class CpuFixController {
                     if (session.active()) {
                         trace.mark("CPU_PROP_VERIFIED", "value=" + desiredValue);
                     }
+                    CpuRestartFaultInjection.triggerAfterPropertyVerifiedIfArmed(
+                            trace, DaemonState.isEnabled(), enabled,
+                            session.lidGuardDesired());
                     continue;
 
                 case CONFIRM_PROPERTY:
