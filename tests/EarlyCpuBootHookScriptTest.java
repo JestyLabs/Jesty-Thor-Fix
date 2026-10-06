@@ -32,6 +32,10 @@ public final class EarlyCpuBootHookScriptTest {
                 "device-protected opt-in path");
         require(script.contains("ATT='" + EarlyCpuBootHookScript.ATTEMPT_PATH + "'"),
                 "boot-scoped attempt path");
+        require(script.contains("COMP_SVC='" + EarlyCpuBootHookScript.COMPOSER_SERVICE + "'"),
+                "init service identity must be explicit");
+        require(script.contains("COMP_PROC='" + EarlyCpuBootHookScript.COMPOSER_PROCESS + "'"),
+                "process identity must be explicit");
         require(script.contains("APP_UID='10163'"), "app UID must be pinned");
         require(script.contains("TOKEN='" + TOKEN + "'"), "install token must be pinned");
 
