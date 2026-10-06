@@ -144,18 +144,23 @@ if ($successorPidSource -notmatch 'AMBIGUOUS' -or
     $successorPidSource -notmatch 'successors\.size\(\) > 1') {
     throw 'Successor PID resolver must reject ambiguous multi-successor observations.'
 }
-# Surface runtime prototype: default-off, Activity-independent and fail-open.
+# Surface runtime prototype: default-off, app-window-independent and fail-open.
 $recoverySplashRuntime = Get-Content -LiteralPath (Join-Path $daemonPackage 'RecoverySplash.java') -Raw
-if ($recoverySplashRuntime -match 'android\.app\.Activity|WindowManager|ctl\.restart|CpuBootAttemptStore|BootSafety|DisplayHardware\.apply') {
+if ($recoverySplashRuntime -match 'import\s+android\.app\.Activity|import\s+android\.view\.WindowManager|ctl\.restart|CpuBootAttemptStore|BootSafety|DisplayHardware\.apply') {
     throw 'Recovery splash runtime must not acquire app-window or restart/display authority.'
 }
-if ($recoverySplashRuntime -notmatch 'SurfaceControl\.Builder' -or
+if ($recoverySplashRuntime -match 'import\s+android\.view\.SurfaceControl') {
+    throw 'Recovery splash must compile against the public SDK and access hidden SurfaceControl APIs reflectively.'
+}
+if ($recoverySplashRuntime -notmatch 'Class\.forName\(SURFACE_CONTROL\)' -or
     $recoverySplashRuntime -notmatch 'SuccessorPidModel\.resolve' -or
     $recoverySplashRuntime -notmatch 'service\.bootanim\.exit' -or
     $recoverySplashRuntime -notmatch 'SPLASH_BOOTANIM_EXIT' -or
-    $recoverySplashRuntime -notmatch 'reparent\(control, null\)' -or
-    $recoverySplashRuntime -notmatch 'addTransactionCommittedListener') {
-    throw 'Recovery splash runtime must keep exact-successor, bootanim-edge and bounded compositor cleanup.'
+    $recoverySplashRuntime -notmatch 'transactionReparentToNull' -or
+    $recoverySplashRuntime -notmatch 'TRANSACTION_COMMITTED_LISTENER' -or
+    $recoverySplashRuntime -notmatch 'Finishing startup' -or
+    $recoverySplashRuntime -notmatch 'This is expected during startup') {
+    throw 'Recovery splash runtime must keep exact-successor, bootanim-edge, agreed copy and bounded compositor cleanup.'
 }
 if ($cpuFixSource -notmatch '/data/local/tmp/thor-recovery-splash-prototype' -or
     $cpuFixSource -notmatch 'succ\(\)\{' -or
