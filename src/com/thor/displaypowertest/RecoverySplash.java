@@ -7,13 +7,15 @@ import android.graphics.PixelFormat;
 import android.os.Build;
 import android.os.SystemClock;
 import android.view.Surface;
-import android.view.SurfaceControl;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.lang.reflect.Array;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -21,10 +23,20 @@ import java.util.concurrent.TimeUnit;
 /**
  * Prototype-only compositor-owned recovery splash.
  *
- * app_process entry point: no Activity and no WindowManager dependency.
+ * app_process entry point: no Activity and no app-window dependency.
+ * SurfaceControl is hidden API on the SDK used to build this project, so the
+ * runtime uses the same reflection strategy already proven by DisplayHardware.
  * Every failure is UX-only and fails open.
  */
 public final class RecoverySplash {
+    private static final String SURFACE_CONTROL = "android.view.SurfaceControl";
+    private static final String SURFACE_CONTROL_BUILDER =
+            "android.view.SurfaceControl$Builder";
+    private static final String SURFACE_CONTROL_TRANSACTION =
+            "android.view.SurfaceControl$Transaction";
+    private static final String TRANSACTION_COMMITTED_LISTENER =
+            "android.view.SurfaceControl$TransactionCommittedListener";
+
     private static final int SPLASH_LAYER = 0x40000000;
     private static final long TARGET_WAIT_MS = 1500L;
     private static final long SHOW_COMMIT_MS = 750L;
@@ -57,7 +69,7 @@ public final class RecoverySplash {
 
     private static void run(String oldComposer, String expectedComposer,
             String oldSf, String expectedSf, long processStartedAt) {
-        SurfaceControl control = null;
+        Object control = null;
         Surface surface = null;
         boolean shown = false;
         boolean removalRequested = false;
@@ -86,27 +98,19 @@ public final class RecoverySplash {
                 return;
             }
 
-            control = new SurfaceControl.Builder()
-                    .setName("Thor recovery splash prototype")
-                    .setBufferSize(target.width, target.height)
-                    .setFormat(PixelFormat.RGBA_8888)
-                    .setOpaque(true)
-                    .setHidden(true)
-                    .build();
-            surface = new Surface(control);
+            control = buildSurfaceControl(target.width, target.height);
+            surface = surfaceFromControl(control);
             draw(surface, target.width, target.height);
 
             CountDownLatch shownCommit = new CountDownLatch(1);
-            try (SurfaceControl.Transaction transaction = new SurfaceControl.Transaction()) {
-                transaction.setLayer(control, SPLASH_LAYER)
-                        .setVisibility(control, true)
-                        .addTransactionCommittedListener(DIRECT_EXECUTOR,
-                                new SurfaceControl.TransactionCommittedListener() {
-                                    @Override public void onTransactionCommitted() {
-                                        shownCommit.countDown();
-                                    }
-                                })
-                        .apply();
+            Object showTransaction = newTransaction();
+            try {
+                transactionSetLayer(showTransaction, control, SPLASH_LAYER);
+                transactionShow(showTransaction, control);
+                transactionAddCommittedListener(showTransaction, shownCommit);
+                transactionApply(showTransaction);
+            } finally {
+                closeTransactionQuietly(showTransaction);
             }
             if (!shownCommit.await(SHOW_COMMIT_MS, TimeUnit.MILLISECONDS)) {
                 trace("SPLASH_TIMEOUT", "phase=SHOW");
@@ -138,15 +142,13 @@ public final class RecoverySplash {
             trace("SPLASH_REMOVE_REQUESTED", "reason=" + reason);
 
             CountDownLatch removedCommit = new CountDownLatch(1);
-            try (SurfaceControl.Transaction transaction = new SurfaceControl.Transaction()) {
-                transaction.reparent(control, null)
-                        .addTransactionCommittedListener(DIRECT_EXECUTOR,
-                                new SurfaceControl.TransactionCommittedListener() {
-                                    @Override public void onTransactionCommitted() {
-                                        removedCommit.countDown();
-                                    }
-                                })
-                        .apply();
+            Object removeTransaction = newTransaction();
+            try {
+                transactionReparentToNull(removeTransaction, control);
+                transactionAddCommittedListener(removeTransaction, removedCommit);
+                transactionApply(removeTransaction);
+            } finally {
+                closeTransactionQuietly(removeTransaction);
             }
             if (!removedCommit.await(REMOVE_COMMIT_MS, TimeUnit.MILLISECONDS)) {
                 trace("SPLASH_TIMEOUT", "phase=REMOVE");
@@ -162,7 +164,8 @@ public final class RecoverySplash {
                     + (shown ? "1" : "0"));
         } catch (Throwable error) {
             trace("SPLASH_FAIL_OPEN", "reason=RUNTIME_ERROR;cleanup_requested="
-                    + (shown ? "1" : "0"));
+                    + (shown ? "1" : "0")
+                    + ";type=" + safeToken(error.getClass().getSimpleName()));
         } finally {
             if (control != null && !removed) {
                 if (!removalRequested && shown) {
@@ -173,9 +176,7 @@ public final class RecoverySplash {
             if (surface != null) {
                 try { surface.release(); } catch (Throwable ignored) {}
             }
-            if (control != null) {
-                try { control.release(); } catch (Throwable ignored) {}
-            }
+            releaseControlQuietly(control);
         }
     }
 
@@ -208,7 +209,7 @@ public final class RecoverySplash {
      * physical ID is excluded and ambiguous topology fails open.
      */
     private static DisplayTarget resolvePrimaryTopTarget() throws Exception {
-        Class<?> surfaceControlClass = Class.forName("android.view.SurfaceControl");
+        Class<?> surfaceControlClass = Class.forName(SURFACE_CONTROL);
         Method idsMethod = surfaceControlClass.getDeclaredMethod("getPhysicalDisplayIds");
         idsMethod.setAccessible(true);
         long[] ids = (long[]) idsMethod.invoke(null);
@@ -252,29 +253,135 @@ public final class RecoverySplash {
         return null;
     }
 
+    private static Object buildSurfaceControl(int width, int height) throws Exception {
+        Class<?> builderClass = Class.forName(SURFACE_CONTROL_BUILDER);
+        Object builder = builderClass.getDeclaredConstructor().newInstance();
+        builder = invokeBuilder(builder, "setName", new Class<?>[] { String.class },
+                "Thor recovery splash prototype");
+        builder = invokeBuilder(builder, "setBufferSize",
+                new Class<?>[] { int.class, int.class }, width, height);
+        builder = invokeBuilder(builder, "setFormat", new Class<?>[] { int.class },
+                PixelFormat.RGBA_8888);
+        builder = invokeBuilder(builder, "setOpaque", new Class<?>[] { boolean.class }, true);
+        builder = invokeBuilder(builder, "setHidden", new Class<?>[] { boolean.class }, true);
+        Method build = builderClass.getMethod("build");
+        return build.invoke(builder);
+    }
+
+    private static Object invokeBuilder(Object builder, String method, Class<?>[] types,
+            Object... args) throws Exception {
+        Method call = builder.getClass().getMethod(method, types);
+        return call.invoke(builder, args);
+    }
+
+    private static Surface surfaceFromControl(Object control) throws Exception {
+        Class<?> surfaceControlClass = Class.forName(SURFACE_CONTROL);
+        Constructor<Surface> constructor = Surface.class.getDeclaredConstructor(surfaceControlClass);
+        constructor.setAccessible(true);
+        return constructor.newInstance(control);
+    }
+
+    private static Object newTransaction() throws Exception {
+        Class<?> transactionClass = Class.forName(SURFACE_CONTROL_TRANSACTION);
+        Constructor<?> constructor = transactionClass.getDeclaredConstructor();
+        constructor.setAccessible(true);
+        return constructor.newInstance();
+    }
+
+    private static void transactionSetLayer(Object transaction, Object control, int layer)
+            throws Exception {
+        Class<?> surfaceControlClass = Class.forName(SURFACE_CONTROL);
+        Method method = transaction.getClass().getMethod(
+                "setLayer", surfaceControlClass, int.class);
+        method.invoke(transaction, control, layer);
+    }
+
+    private static void transactionShow(Object transaction, Object control) throws Exception {
+        Class<?> surfaceControlClass = Class.forName(SURFACE_CONTROL);
+        Method method = transaction.getClass().getMethod("show", surfaceControlClass);
+        method.invoke(transaction, control);
+    }
+
+    private static void transactionReparentToNull(Object transaction, Object control)
+            throws Exception {
+        Class<?> surfaceControlClass = Class.forName(SURFACE_CONTROL);
+        Method method = transaction.getClass().getMethod(
+                "reparent", surfaceControlClass, surfaceControlClass);
+        method.invoke(transaction, control, null);
+    }
+
+    private static void transactionAddCommittedListener(
+            Object transaction, final CountDownLatch latch) throws Exception {
+        Class<?> listenerClass = Class.forName(TRANSACTION_COMMITTED_LISTENER);
+        InvocationHandler handler = new InvocationHandler() {
+            @Override public Object invoke(Object proxy, Method method, Object[] args) {
+                String name = method.getName();
+                if ("onTransactionCommitted".equals(name)) {
+                    latch.countDown();
+                    return null;
+                }
+                if ("hashCode".equals(name)) return System.identityHashCode(proxy);
+                if ("equals".equals(name)) return proxy == (args == null ? null : args[0]);
+                if ("toString".equals(name)) return "RecoverySplashTransactionListener";
+                return null;
+            }
+        };
+        Object listener = Proxy.newProxyInstance(
+                listenerClass.getClassLoader(), new Class<?>[] { listenerClass }, handler);
+        Method method = transaction.getClass().getMethod(
+                "addTransactionCommittedListener", Executor.class, listenerClass);
+        method.invoke(transaction, DIRECT_EXECUTOR, listener);
+    }
+
+    private static void transactionApply(Object transaction) throws Exception {
+        transaction.getClass().getMethod("apply").invoke(transaction);
+    }
+
+    private static void closeTransactionQuietly(Object transaction) {
+        if (transaction == null) return;
+        try {
+            transaction.getClass().getMethod("close").invoke(transaction);
+        } catch (Throwable ignored) {}
+    }
+
+    private static void releaseControlQuietly(Object control) {
+        if (control == null) return;
+        try {
+            control.getClass().getMethod("release").invoke(control);
+        } catch (Throwable ignored) {}
+    }
+
     private static void draw(Surface surface, int width, int height) throws Exception {
         Canvas canvas = null;
         try {
             canvas = surface.lockCanvas(null);
             canvas.drawColor(Color.rgb(14, 11, 24));
 
-            Paint title = new Paint(Paint.ANTI_ALIAS_FLAG);
-            title.setColor(Color.WHITE);
-            title.setTextAlign(Paint.Align.CENTER);
-            title.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-            title.setTextSize(Math.max(30f, Math.min(width, height) * 0.052f));
+            Paint brand = new Paint(Paint.ANTI_ALIAS_FLAG);
+            brand.setColor(Color.WHITE);
+            brand.setTextAlign(Paint.Align.CENTER);
+            brand.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+            brand.setTextSize(Math.max(28f, Math.min(width, height) * 0.045f));
+
+            Paint status = new Paint(Paint.ANTI_ALIAS_FLAG);
+            status.setColor(Color.WHITE);
+            status.setTextAlign(Paint.Align.CENTER);
+            status.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+            status.setTextSize(Math.max(32f, Math.min(width, height) * 0.052f));
 
             Paint detail = new Paint(Paint.ANTI_ALIAS_FLAG);
             detail.setColor(Color.rgb(196, 181, 253));
             detail.setTextAlign(Paint.Align.CENTER);
-            detail.setTextSize(Math.max(20f, Math.min(width, height) * 0.028f));
+            detail.setTextSize(Math.max(18f, Math.min(width, height) * 0.026f));
 
             float centerX = width / 2f;
             float centerY = height / 2f;
-            canvas.drawText("JESTY THOR FIX", centerX,
-                    centerY - title.getTextSize() * 0.25f, title);
-            canvas.drawText("Applying display fix...", centerX,
-                    centerY + detail.getTextSize() * 1.5f, detail);
+            canvas.drawText("Jesty Thor Fix", centerX,
+                    centerY - status.getTextSize() * 1.6f, brand);
+            canvas.drawText("Finishing startup\u2026", centerX,
+                    centerY, status);
+            canvas.drawText("This is expected during startup.", centerX,
+                    centerY + status.getTextSize() * 1.25f, detail);
         } finally {
             if (canvas != null) surface.unlockCanvasAndPost(canvas);
         }
@@ -320,10 +427,21 @@ public final class RecoverySplash {
         return value != null && value.matches("[1-9][0-9]*");
     }
 
-    private static void detachBestEffort(SurfaceControl control) {
-        try (SurfaceControl.Transaction transaction = new SurfaceControl.Transaction()) {
-            transaction.reparent(control, null).apply();
-        } catch (Throwable ignored) {}
+    private static void detachBestEffort(Object control) {
+        Object transaction = null;
+        try {
+            transaction = newTransaction();
+            transactionReparentToNull(transaction, control);
+            transactionApply(transaction);
+        } catch (Throwable ignored) {
+        } finally {
+            closeTransactionQuietly(transaction);
+        }
+    }
+
+    private static String safeToken(String value) {
+        if (value == null || value.isEmpty()) return "UNKNOWN";
+        return value.replaceAll("[^A-Za-z0-9_.-]", "_");
     }
 
     private static void trace(String action, String detail) {
