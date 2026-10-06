@@ -74,9 +74,9 @@ public final class EarlyCpuBootHookManager {
             if (!OsConstants.S_ISREG(stat.st_mode)
                     || stat.st_nlink != 1
                     || (stat.st_uid != 0 && stat.st_uid != 2000)
-                    || (mode & 0022) != 0
+                    || mode != 0644
                     || stat.st_size <= 0L
-                    || stat.st_size > 3L) {
+                    || stat.st_size > 2L) {
                 return false;
             }
             byte[] data = new byte[(int) stat.st_size];
