@@ -3,8 +3,8 @@ package com.thor.displaypowertest;
 /**
  * Pure policy model for a future stock-pservice early CPU-restart hook.
  *
- * This class does not install /data/boot_start.sh, write properties or restart
- * services. It only models ownership/cleanup decisions and whether a
+ * This class does not install or execute the stock boot hook, write properties
+ * or restart services. It only models ownership/cleanup decisions and whether a
  * boot-scoped early attempt may be handed to the existing CpuBootAttemptModel.
  */
 public final class EarlyCpuBootHookModel {
@@ -33,7 +33,7 @@ public final class EarlyCpuBootHookModel {
     private EarlyCpuBootHookModel() {}
 
     /**
-     * Never overwrite or remove an unknown /data/boot_start.sh.
+     * Never overwrite or remove an unknown firmware-global hook file.
      *
      * installationIdentityPresent is intentionally generic for now. A runtime
      * implementation must define a strong app-owned identity that survives
