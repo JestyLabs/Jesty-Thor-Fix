@@ -25,6 +25,8 @@ Actually turn off the lower screen in TOP mode · Stop unnecessary high CPU cloc
 **Made for the AYN Thor.** No Magisk, no terminal, no manual rooting.  
 Set the switches once - the fixes keep working after you close the app.
 
+**Open source · signed releases · published hashes · hardware-tested**
+
 <p align="center">
 <img width="1080" height="483" alt="Jesty Thor Fix dashboard" src="https://github.com/user-attachments/assets/d1f1d875-792b-4b84-8d52-41b307d11ae4" />
 </p>
@@ -77,12 +79,12 @@ Short controlled A/B/A test in TOP mode, same device/setup/workload:
 
 | Metric | Native TOP | True Bottom Off |
 |--------|------------:|----------------:|
-| LITTLE mean | 2.016 GHz | 1.616 GHz |
-| BIG mean | 2.707 GHz | 1.654 GHz |
-| Performance-cluster samples near max | 75/75 | 0/45 |
+| Efficiency CPU cluster avg. | 2.016 GHz | 1.616 GHz |
+| Performance CPU cluster avg. | 2.707 GHz | 1.654 GHz |
+| Performance CPU samples near max | 75/75 | 0/45 |
 | System power proxy | ~2.03 W | ~1.24 W |
 
-The power number is a **system-level proxy**, not a panel-only measurement and not a battery-life promise. In this test, true-off also let the CPU scale down normally, so the reduction is the combined system effect.
+The power number is a **system-level proxy**, not a panel-only measurement and not a battery-life promise. In this test, true-off also let the CPU scale down normally, so the reduction is the combined system effect. Android/Qualcomm commonly call these CPU groups LITTLE and BIG; the technical docs keep those names.
 
 <details>
 <summary><strong>Technical proof in one minute</strong></summary>
