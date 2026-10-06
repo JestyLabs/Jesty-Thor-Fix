@@ -219,6 +219,8 @@ if ($surfaceTargetWorker -notmatch 'TARGET_PROBE_PREFLIGHT' -or
     $surfaceTargetWorker -notmatch 'TARGET_PROBE_PHASE' -or
     $surfaceTargetWorker -notmatch 'TARGET_PROBE_SHOWN' -or
     $surfaceTargetWorker -notmatch 'TARGET_PROBE_REMOVED' -or
+    $surfaceTargetWorker -notmatch 'Telemetry\.crtcActivePair\(\)' -or
+    $surfaceTargetWorker -notmatch 'REQUIRES_BOTH_ACTIVE' -or
     $surfaceTargetWorker -notmatch 'transactionSetLayerStack' -or
     $surfaceTargetWorker -notmatch 'BOTTOM_LOGICAL_DISPLAY_ID' -or
     $surfaceTargetWorker -notmatch 'PROCESS_TTL_MS = 9000L') {
