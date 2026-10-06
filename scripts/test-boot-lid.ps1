@@ -204,6 +204,35 @@ if ($recoverySplashProbe -notmatch 'args\.length != 0' -or
     throw 'No-reboot splash probe must remain argument-free, fixed-command and vendor-limit bounded.'
 }
 
+# Recovery surface targeting probe: no reboot, fixed command and layer-only mutations.
+$surfaceTargetProbe = Get-Content -LiteralPath (Join-Path $daemonPackage 'RecoverySurfaceTargetProbe.java') -Raw
+$surfaceTargetWorker = Get-Content -LiteralPath (Join-Path $daemonPackage 'RecoverySurfaceTargetProbeWorker.java') -Raw
+if ($surfaceTargetProbe -notmatch 'args\.length != 0' -or
+    $surfaceTargetProbe -notmatch 'PServerBinder' -or
+    $surfaceTargetProbe -notmatch 'RecoverySurfaceTargetProbeWorker' -or
+    $surfaceTargetProbe -notmatch 'DaemonLaunchScript\.MAX_COMMAND_CHARS' -or
+    $surfaceTargetProbe -notmatch 'COMMAND_TOO_LONG' -or
+    $surfaceTargetProbe -match 'args\[[0-9]+\].*command|Runtime\.getRuntime\(\)\.exec') {
+    throw 'Recovery surface targeting launcher must remain argument-free and fixed-command.'
+}
+if ($surfaceTargetWorker -notmatch 'TARGET_PROBE_PREFLIGHT' -or
+    $surfaceTargetWorker -notmatch 'TARGET_PROBE_PHASE' -or
+    $surfaceTargetWorker -notmatch 'TARGET_PROBE_SHOWN' -or
+    $surfaceTargetWorker -notmatch 'TARGET_PROBE_REMOVED' -or
+    $surfaceTargetWorker -notmatch 'transactionSetLayerStack' -or
+    $surfaceTargetWorker -notmatch 'BOTTOM_LOGICAL_DISPLAY_ID' -or
+    $surfaceTargetWorker -notmatch 'PROCESS_TTL_MS = 9000L') {
+    throw 'Recovery surface targeting worker lost its bounded observation/visual phases.'
+}
+if ($surfaceTargetWorker -match 'setDisplayLayerStack|setDisplayProjection|setDisplaySurface|setDisplaySize|setDisplayPowerMode|ctl\.restart|CpuBootAttemptStore|DisplayHardware\.apply') {
+    throw 'Recovery surface targeting probe must never mutate a physical display or restart/CPU state.'
+}
+if ($surfaceTargetWorker -match 'drawText\(' -or
+    $surfaceTargetWorker -match 'setTypeface\(' -or
+    $surfaceTargetWorker -match 'android\.graphics\.Typeface') {
+    throw 'Recovery surface targeting probe must remain font-free.'
+}
+
 # Boot-animation suppression is transient, boot-scoped, best-effort and
 # independently restored by the helper on every exit path.
 if ($cpuFixSource -notmatch 'BOOT_ANIMATION_DISABLE_PROPERTY = "debug\.sf\.nobootanimation"' -or
