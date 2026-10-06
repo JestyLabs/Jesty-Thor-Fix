@@ -124,11 +124,42 @@ if ($earlyGateSource -match 'Telemetry\.crtc|DaemonState\.getMode|DisplayActionC
 if ($cpuFixSource -notmatch 'BOOT_ANIMATION_DISABLE_PROPERTY = "debug\.sf\.nobootanimation"' -or
     $cpuFixSource -notmatch 'previousBootAnimation = armBootAnimationSuppression\(bootTrace\)' -or
     $cpuFixSource -notmatch 'if \(!bootTrace\) return null;' -or
-    $cpuFixSource -notmatch 'trap restore_ba EXIT' -or
+    $cpuFixSource -notmatch "trap 'stop_splash HELPER_EXIT; restore_ba' EXIT" -or
     $cpuFixSource -notmatch '"restore_ba"' -or
     $cpuFixSource -notmatch '"trap - EXIT"') {
     throw 'Phase 3A boot-animation suppression must remain boot-scoped and restore its property.'
 }
+# Recovery splash prototype: opt-in only, direct SurfaceFlinger path, never a boot prerequisite.
+$splashSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'RecoverySplashProcess.java') -Raw
+$splashFlagSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'RecoverySplashFlag.java') -Raw
+$splashGateSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'RecoverySplashGateModel.java') -Raw
+if ($cpuFixSource -notmatch 'RecoverySplashGateModel\.decide\(' -or
+    $cpuFixSource -notmatch 'RECOVERY_SPLASH_ARMED' -or
+    $cpuFixSource -notmatch 'HELPER_SF_NEW_PID.*start_splash' -or
+    $cpuFixSource -notmatch 'FRAMEWORK_SERVICES_READY' -or
+    $cpuFixSource -notmatch 'stop_splash HELPER_EXIT') {
+    throw 'Recovery splash must stay opt-in and tied to the post-restart helper lifecycle.'
+}
+$suppressionAt = $cpuFixSource.IndexOf('previousBootAnimation = armBootAnimationSuppression(bootTrace)')
+$splashGateAt = $cpuFixSource.IndexOf('RecoverySplashGateModel.decide(')
+$sfAt = $cpuFixSource.IndexOf('HELPER_SF_NEW_PID')
+$splashShowAt = $cpuFixSource.IndexOf('start_splash; fi', $sfAt)
+if ($suppressionAt -lt 0 -or $splashGateAt -le $suppressionAt -or
+    $sfAt -lt 0 -or $splashShowAt -le $sfAt) {
+    throw 'Recovery splash arm/show ordering must remain after suppression and new SurfaceFlinger.'
+}
+if ($splashSource -match 'android\.app\.Activity|startActivity\(|android\.view\.WindowManager' -or
+    $splashSource -notmatch 'DEFAULT_TIMEOUT_MS = 8000' -or
+    $splashSource -notmatch 'RECOVERY_SPLASH_TIMEOUT' -or
+    $splashSource -notmatch 'setLayerStack') {
+    throw 'Recovery splash must be standalone, bounded and SurfaceControl-based.'
+}
+if ($splashFlagSource -notmatch 'jesty-thor-recovery-splash\.flag' -or
+    $splashFlagSource -notmatch 'SHELL_UID = 2000' -or
+    $splashFlagSource -notmatch 'Os\.lstat\(') {
+    throw 'Recovery splash feature flag must stay explicit, shell-owned and no-follow.'
+}
+
 $restartPersistAt = $cpuFixSource.IndexOf('persistAttempt(requested, "CPU_ATTEMPT_RESTART_REQUESTED"')
 $restartStartAt = $cpuFixSource.IndexOf('restartThread.start()')
 if ($restartPersistAt -lt 0 -or $restartStartAt -lt 0 -or
@@ -186,6 +217,7 @@ $sources = @(
     (Join-Path $repository 'src\com\thor\displaypowertest\DaemonArgs.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\CpuBootAttemptModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\EarlyCpuGateModel.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\RecoverySplashGateModel.java'),
     (Join-Path $repository 'tests\BootAndLidModelTest.java'),
     (Join-Path $repository 'tests\BootLatencyTest.java'),
     (Join-Path $repository 'tests\DaemonLaunchModelTest.java'),
@@ -200,7 +232,8 @@ $sources = @(
     (Join-Path $repository 'tests\HandoffRecoveryModelTest.java'),
     (Join-Path $repository 'tests\DaemonArgsTest.java'),
     (Join-Path $repository 'tests\CpuBootAttemptModelTest.java'),
-    (Join-Path $repository 'tests\EarlyCpuGateModelTest.java')
+    (Join-Path $repository 'tests\EarlyCpuGateModelTest.java'),
+    (Join-Path $repository 'tests\RecoverySplashGateModelTest.java')
 )
 & javac -source 8 -target 8 -d $output $sources
 if ($LASTEXITCODE -ne 0) { throw 'Boot/lid test compilation failed.' }
@@ -210,6 +243,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Boot/lid tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'CPU boot attempt model tests failed.' }
 & java -cp $output EarlyCpuGateModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Early CPU gate model tests failed.' }
+& java -cp $output RecoverySplashGateModelTest
+if ($LASTEXITCODE -ne 0) { throw 'Recovery splash gate model tests failed.' }
 & java -cp $output BootLatencyTest
 if ($LASTEXITCODE -ne 0) { throw 'Boot latency tests failed.' }
 & java -cp $output DaemonLaunchModelTest
