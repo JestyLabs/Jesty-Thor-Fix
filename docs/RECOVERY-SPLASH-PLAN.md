@@ -45,11 +45,51 @@ Therefore raw multi-PID `pidof` output is not valid successor proof. The splash 
 
 | Workstream | Purpose | Status |
 | --- | --- | --- |
-| A | Runtime renderer / SurfaceControl feasibility | ACTIVE |
+| A | Runtime renderer / SurfaceControl feasibility | ACTIVE IN DRAFT PR #18; host-CI candidate, physical validation pending |
 | B | Lifecycle, ownership, gating, removal | DESIGN ACCEPTED |
 | C | Visual asset and copy | DESIGN ACCEPTED |
-| D | Instrumentation and host-test coverage | IMPLEMENTED ON DRAFT PR #16; CI GREEN BEFORE latest refinements |
-| E | Final integration | MUST WAIT FOR A mechanism; may plan/review only |
+| D | Instrumentation and host-test coverage | IMPLEMENTED ON DRAFT PR #16 |
+| E | Final integration | ORIGINAL THREAD STOPPED; integration is coordinated here after A hardware evidence |
+
+## Current execution / coordination
+
+The original Workstream E attempt was stopped because it began integration before
+the accepted B/C/D contracts existed. Do not revive that implementation as the
+current candidate.
+
+Current stack:
+
+```text
+#15  second boot-animation suppression baseline
+  |
+  +-- #16  lifecycle/instrumentation models, exact successor PID contract, plan
+        |
+        +-- #18  SurfaceControl runtime prototype
+```
+
+PR #18 is now the only active runtime experiment. Its first job is to prove the
+smallest viable renderer backend on physical Thor hardware. It is deliberately
+research-only and default OFF.
+
+Current A candidate characteristics:
+
+- helper orchestration remains separate from detailed renderer lifecycle;
+- exact successor composer + exact successor SurfaceFlinger are required;
+- raw multi-PID `pidof` output is never accepted directly as successor proof;
+- the renderer is a bounded root `app_process` child;
+- hidden SurfaceControl APIs are resolved reflectively so the project still
+  builds against the public Android SDK;
+- canonical `SPLASH_SHOW_REQUESTED` belongs to the renderer immediately before
+  its show transaction; helper launch is diagnostic only;
+- normal removal remains post-successor `service.bootanim.exit 0 -> 1`;
+- renderer-local 8 s watchdog is the independent self-destruct path;
+- first technical frame uses the agreed copy but remains a Canvas prototype;
+  after visibility is proven, replace it with Workstream C's flattened branded
+  1920x1080 PNG.
+
+Do not begin a separate E implementation while #18 is unproven. Once #18 has
+physical BOTH evidence, reassess the backend and integrate the final asset and
+hardening in one controlled continuation.
 
 ## B — accepted lifecycle/ownership design
 
