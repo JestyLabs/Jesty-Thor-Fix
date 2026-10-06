@@ -47,21 +47,23 @@ public final class EarlyCpuBootHookScriptTest {
         require(script.contains("stat -c %a \"$GATE\""), "gate mode must be verified");
         require(script.contains("= 644 ] || exit 0"), "gate must use canonical mode 0644");
         require(script.contains("pidof \"$COMP_PROC\""), "PID lookup must use process identity");
-        require(script.contains("[ ! -e \"$ATT\" ] || exit 0"),
-                "same-boot attempt must be one-shot");
+        require(script.contains("[ ! -e \"$ATT\" ] && [ ! -L \"$ATT\" ] || exit 0"),
+                "same-boot attempt must reject existing objects and symlinks");
 
         int consume = script.indexOf("rm -f \"$GATE\"");
         int prepared = script.indexOf("write_attempt PREPARED", consume + 1);
         int setprop = script.indexOf("setprop \"$PROP\" 1", prepared + 1);
         int verified = script.indexOf("write_attempt PROPERTY_VERIFIED", setprop + 1);
         int requested = script.indexOf("write_attempt RESTART_REQUESTED", verified + 1);
-        int restart = script.indexOf("setprop ctl.restart \"$COMP\"", requested + 1);
+        int restart = script.indexOf("setprop ctl.restart \"$COMP_SVC\"", requested + 1);
         require(consume >= 0 && prepared > consume && setprop > prepared
                         && verified > setprop && requested > verified && restart > requested,
                 "gate/provenance/restart ordering must be strict");
 
-        require(count(script, "setprop ctl.restart \"$COMP\"") == 1,
+        require(count(script, "setprop ctl.restart \"$COMP_SVC\"") == 1,
                 "exactly one composer restart command may exist");
+        require(!script.contains("setprop ctl.restart \"$COMP_PROC\""),
+                "process identity must never be used as ctl.restart target");
         require(!script.contains("ctl.restart surfaceflinger"),
                 "hook must never restart SurfaceFlinger directly");
         require(!script.contains("ctl.restart zygote"),
