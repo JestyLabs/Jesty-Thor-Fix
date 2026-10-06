@@ -92,6 +92,19 @@ public final class RecoverySurfaceTargetProbeWorker {
                 return;
             }
 
+            String[] crtcs = Telemetry.crtcActivePair();
+            String topCrtc = crtcs.length > 0 ? crtcs[0] : "?";
+            String bottomCrtc = crtcs.length > 1 ? crtcs[1] : "?";
+            trace("TARGET_PROBE_PREFLIGHT",
+                    "step=CRTC_PAIR;top=" + safeToken(topCrtc)
+                            + ";bottom=" + safeToken(bottomCrtc));
+            if (!"1".equals(topCrtc) || !"1".equals(bottomCrtc)) {
+                trace("TARGET_PROBE_FAIL_OPEN",
+                        "reason=REQUIRES_BOTH_ACTIVE;top=" + safeToken(topCrtc)
+                                + ";bottom=" + safeToken(bottomCrtc));
+                return;
+            }
+
             probeReadOnlyEntryPoints(surfaceControlClass);
 
             control = buildSurfaceControl();
