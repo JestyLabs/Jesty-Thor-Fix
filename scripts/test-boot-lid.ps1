@@ -144,6 +144,34 @@ if ($successorPidSource -notmatch 'AMBIGUOUS' -or
     $successorPidSource -notmatch 'successors\.size\(\) > 1') {
     throw 'Successor PID resolver must reject ambiguous multi-successor observations.'
 }
+# Surface runtime prototype: default-off, Activity-independent and fail-open.
+$recoverySplashRuntime = Get-Content -LiteralPath (Join-Path $daemonPackage 'RecoverySplash.java') -Raw
+if ($recoverySplashRuntime -match 'android\.app\.Activity|WindowManager|ctl\.restart|CpuBootAttemptStore|BootSafety|DisplayHardware\.apply') {
+    throw 'Recovery splash runtime must not acquire app-window or restart/display authority.'
+}
+if ($recoverySplashRuntime -notmatch 'SurfaceControl\.Builder' -or
+    $recoverySplashRuntime -notmatch 'SuccessorPidModel\.resolve' -or
+    $recoverySplashRuntime -notmatch 'service\.bootanim\.exit' -or
+    $recoverySplashRuntime -notmatch 'SPLASH_BOOTANIM_EXIT' -or
+    $recoverySplashRuntime -notmatch 'reparent\(control, null\)' -or
+    $recoverySplashRuntime -notmatch 'addTransactionCommittedListener') {
+    throw 'Recovery splash runtime must keep exact-successor, bootanim-edge and bounded compositor cleanup.'
+}
+if ($cpuFixSource -notmatch '/data/local/tmp/thor-recovery-splash-prototype' -or
+    $cpuFixSource -notmatch 'succ\(\)\{' -or
+    $cpuFixSource -notmatch 'app_process /' -or
+    $cpuFixSource -notmatch 'RecoverySplash' -or
+    $cpuFixSource -notmatch 'start_splash') {
+    throw 'Recovery splash prototype must remain an explicit helper-side opt-in.'
+}
+if ($cpuFixSource -notmatch 'pid=\$\$;') {
+    throw 'Recovery splash integration must preserve helper trace PID semantics.'
+}
+$sfTraceAt = $cpuFixSource.IndexOf('HELPER_SF_NEW_PID')
+$splashCallAt = $cpuFixSource.LastIndexOf('start_splash')
+if ($sfTraceAt -lt 0 -or $splashCallAt -le $sfTraceAt) {
+    throw 'Recovery splash may only launch after replacement SurfaceFlinger observation.'
+}
 # Phase 3A research: any boot-animation suppression must stay transient,
 # boot-scoped, best-effort and restored by the independent handoff helper.
 if ($cpuFixSource -notmatch 'BOOT_ANIMATION_DISABLE_PROPERTY = "debug\.sf\.nobootanimation"' -or

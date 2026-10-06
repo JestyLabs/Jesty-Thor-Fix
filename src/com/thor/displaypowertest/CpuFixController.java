@@ -720,6 +720,14 @@ public final class CpuFixController {
                         + " else exec </dev/null >/dev/null 2>&1; fi",
                 "TR=" + BootTrace.PATH,
                 "BID=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)",
+                // Prototype-only opt-in. This never controls CPU/display recovery.
+                "RSPF=/data/local/tmp/thor-recovery-splash-prototype",
+                "RSP=0; [ -f \"$RSPF\" ] && [ ! -L \"$RSPF\" ]"
+                        + " && [ \"$(cat \"$RSPF\" 2>/dev/null)\" = 1 ] && RSP=1",
+                // The daemon was itself launched from this APK. Preserve that
+                // classpath across the framework gap instead of depending on pm.
+                "SCP=$CLASSPATH",
+                "case \"$SCP\" in /data/app/*/base.apk) ;; *) SCP='';; esac",
                 "BAS=" + (suppressBootAnimation ? "1" : "0"),
                 "BAPREV=\'" + bootAnimationPrevious + "\'",
                 "cs(){ read U X </proc/uptime; S=${U%.*}; F=${U#*.}; F=${F#0};"
@@ -728,6 +736,25 @@ public final class CpuFixController {
                 "T(){ safe_log \"$TR\" || return 0;"
                         + " echo \"elapsed_ms=$(cs)0;action=$1;${2:+$2;}pid=$$;"
                         + "boot_id=${BID:-?};source=helper\" >>\"$TR\"; }",
+                // Splash-only mirror of SuccessorPidModel: accept baseline
+                // + exactly one distinct positive successor; ambiguous samples
+                // return no result. Existing helper/provenance decisions stay unchanged.
+                "succ(){ B=$1; shift; case \"$B\" in ''|0|*[!0-9]*) return;; esac;"
+                        + " C=''; for X in \"$@\"; do"
+                        + " case \"$X\" in ''|0|*[!0-9]*) return;; esac;"
+                        + " [ \"$X\" = \"$B\" ] && continue;"
+                        + " [ -n \"$C\" ] && [ \"$X\" = \"$C\" ] && continue;"
+                        + " [ -n \"$C\" ] && return; C=$X; done;"
+                        + " [ -n \"$C\" ] && echo \"$C\"; }",
+                "start_splash(){ [ \"$RSP\" = 1 ] || return 0; RSP=0;"
+                        + " [ -n \"$SCP\" ] || { T SPLASH_FAIL_OPEN"
+                        + " reason=CLASSPATH_UNAVAILABLE; return 0; };"
+                        + " CLASSPATH=\"$SCP\" app_process /"
+                        + " com.thor.displaypowertest.RecoverySplash"
+                        + " \"$OLD\" \"$SC\" \"$SF0\" \"$SS\""
+                        + " >/dev/null 2>&1 & SP=$!;"
+                        + " T SPLASH_SHOW_REQUESTED"
+                        + " \"composer_pid=$SC;sf_pid=$SS;splash_pid=$SP\"; }",
                 "restore_ba(){ [ \"$BAS\" = 1 ] || return 0;"
                         + " setprop debug.sf.nobootanimation \"$BAPREV\" >/dev/null 2>&1;"
                         + " V=$BAPREV; [ -n \"$V\" ] || V=UNSET;"
@@ -738,14 +765,21 @@ public final class CpuFixController {
                 "SF0=$(pidof surfaceflinger); Z0=$(pidof zygote64); SS0=$(pidof system_server)",
                 "T HELPER_START \"old_composer=$OLD;old_sf=${SF0:--};old_zygote=${Z0:--};"
                         + "old_system_server=${SS0:--};daemon_pid=$DP\"",
-                "B=$(cs); N=0; NC=''; NS=''; NZ=''; NSS=''; PKS=''; STS=''",
+                "[ \"$RSP\" = 1 ] && T SPLASH_ARMED prototype=1",
+                "[ \"$RSP\" = 1 ] && T SPLASH_WAIT_SF \"old_sf=${SF0:--}\"",
+                "B=$(cs); N=0; NC=''; NS=''; NZ=''; NSS=''; PKS=''; STS=''; SC=''; SS=''",
                 "while [ $(($(cs)-B)) -lt 800 ] && [ $N -lt 60 ]; do",
                 "  P=$(pidof vendor.qti.hardware.display.composer-service)",
                 "  if [ -z \"$NC\" ] && [ -n \"$P\" ] && [ \"$P\" != \"$OLD\" ]; then"
                         + " NC=$P; T HELPER_COMPOSER_NEW_PID \"composer_pid=$P\"; fi",
+                "  if [ -z \"$SC\" ]; then Q=$(succ \"$OLD\" $P);"
+                        + " [ -n \"$Q\" ] && SC=$Q; fi",
                 "  P=$(pidof surfaceflinger)",
                 "  if [ -z \"$NS\" ] && [ -n \"$P\" ] && [ \"$P\" != \"$SF0\" ]; then"
                         + " NS=$P; T HELPER_SF_NEW_PID \"sf_pid=$P\"; fi",
+                "  if [ -z \"$SS\" ]; then Q=$(succ \"$SF0\" $P);"
+                        + " [ -n \"$Q\" ] && SS=$Q; fi",
+                "  [ -n \"$SC\" ] && [ -n \"$SS\" ] && start_splash",
                 "  P=$(pidof zygote64)",
                 "  if [ -z \"$NZ\" ] && [ -n \"$P\" ] && [ \"$P\" != \"$Z0\" ]; then"
                         + " NZ=$P; T HELPER_ZYGOTE_NEW_PID \"zygote_pid=$P\"; fi",

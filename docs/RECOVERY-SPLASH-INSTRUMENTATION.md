@@ -304,3 +304,135 @@ CPU restart correctness
     > framework recovery
     > splash UX
 ```
+
+
+## SurfaceControl runtime prototype
+
+Status: **research branch only, default OFF**. This section describes
+`research/thor-recovery-splash-surface-prototype`; it is not a release path.
+
+Enable for a signed prototype install:
+
+```sh
+adb shell 'echo 1 > /data/local/tmp/thor-recovery-splash-prototype'
+```
+
+Disable:
+
+```sh
+adb shell 'rm -f /data/local/tmp/thor-recovery-splash-prototype'
+```
+
+### Technical shape
+
+The runtime is a helper-spawned root `app_process` Java entry point,
+`com.thor.displaypowertest.RecoverySplash`. It does not start an Activity and
+does not use WindowManager. This matches the existing repo architecture and
+avoids adding an NDK/native ABI + private SurfaceComposerClient dependency just
+for the prototype.
+
+The existing handoff helper remains authoritative for boot progress. Splash
+work is detached and best-effort:
+
+- the feature is armed only by the explicit prototype sentinel;
+- the helper keeps its existing composer/SF observations untouched;
+- a splash-only shell resolver mirrors `SuccessorPidModel` and requires
+  exactly one non-baseline composer PID and exactly one non-baseline
+  SurfaceFlinger PID before launching the renderer;
+- the renderer re-checks both observations with `SuccessorPidModel.resolve`
+  before creating/showing a layer;
+- no splash outcome feeds CPU-attempt state, the eight-second helper floor,
+  old-daemon identity checks, successor-daemon launch, BootSafety or the
+  display gate.
+
+The renderer classpath is inherited from the already-running root daemon and
+accepted only when it has the expected `/data/app/*/base.apk` shape. It does
+not need package manager to locate the APK during the framework gap.
+
+### Surface creation and ownership
+
+The renderer creates one buffer-backed `SurfaceControl`, constructs a
+`Surface` from it, draws a solid background plus:
+
+```text
+JESTY THOR FIX
+Applying display fix...
+```
+
+It then shows the layer at `0x40000000`. Transaction committed callbacks are
+used for `SPLASH_SHOWN` and `SPLASH_REMOVED` evidence. A committed callback
+means SurfaceFlinger has applied the transaction and it is ready to be
+presented; actual physical scanout remains a Thor-only observation.
+
+The renderer process owns the `SurfaceControl`. Normal teardown first
+detaches it with `Transaction.reparent(control, null)`, waits only a bounded
+time for commit acknowledgement, then releases the `Surface` and
+`SurfaceControl`. Every exceptional path attempts the same detach best-effort
+in `finally`.
+
+### Display targeting: deliberately conservative
+
+The repo has a measured lower-panel physical display ID, but no measured
+top-panel layer-stack mapping. The first prototype therefore **does not** call
+`setDisplayLayerStack`, alter projection, power either panel, or mutate the
+display gate.
+
+The renderer proceeds only if SurfaceFlinger reports exactly one physical
+candidate other than the known lower-panel ID and that candidate is the first
+physical display. It reads that display's active mode for buffer dimensions.
+Anything ambiguous becomes `TARGET_UNAVAILABLE` and fails open.
+
+**Still a hypothesis:** a root layer on the default stack will land on the
+Thor's intended top/primary display through this recovery interval. AOSP's own
+boot animation uses compositor-owned surfaces, but modern multi-display code
+also configures layer stacks explicitly. If this prototype is invisible or
+lands on the wrong panel, stop and measure the Thor's actual layer-stack
+mapping first; do not guess by mutating display stacks.
+
+### Normal removal and deadlines
+
+Normal removal follows the instrumentation contract:
+
+```text
+exact successor composer + SurfaceFlinger
+    -> observe service.bootanim.exit == 0
+    -> later observe service.bootanim.exit == 1
+    -> SPLASH_BOOTANIM_EXIT
+    -> remove
+```
+
+A pre-existing/stale value of `1` is never sufficient. The renderer samples
+the post-successor property as early as possible so a fast edge is not missed.
+
+Prototype ceilings are aligned with the current instrumentation policy:
+
+- target/binder readiness: 1500 ms;
+- show commit acknowledgement: 750 ms;
+- maximum visible lifetime: 6000 ms;
+- remove commit acknowledgement: 500 ms;
+- independent process TTL: 8000 ms;
+- bootanim edge polling: 250 ms.
+
+No minimum visible time is added.
+
+### Fail-open and stop conditions
+
+Any classpath, successor, hidden-API, topology, SurfaceControl, drawing,
+transaction, property-polling or teardown failure is visual-only. It records
+`SPLASH_FAIL_OPEN` where possible, detaches/releases owned resources, exits,
+and never blocks the existing recovery path.
+
+In addition to the instrumentation stop conditions, immediately return to the
+suppression-only black interval if:
+
+- the layer is shown on the lower panel or on both panels;
+- a layer survives renderer exit or the 8 s TTL;
+- the renderer causes another compositor/framework cycle;
+- CPU restart count/provenance, BootSafety or display-gate ordering changes;
+- the post-successor `bootanim.exit 0 -> 1` edge is not reliable on the Thor;
+- SurfaceControl work measurably delays framework recovery;
+- exact successor re-validation fails or becomes ambiguous.
+
+Do not add layer-stack mutation, display projection changes, or a normal app
+window as a workaround until the physical evidence identifies the actual
+failure mode.
