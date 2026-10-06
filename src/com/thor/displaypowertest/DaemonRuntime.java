@@ -51,6 +51,14 @@ public final class DaemonRuntime {
         if (!earlyAttempt.startsWith("ok=1")) {
             Log.e("ThorDisplayDaemon", "early CPU attempt rejected: " + earlyAttempt);
         }
+        String earlyHook = EarlyCpuBootHookManager.reconcile(session.cpuFixDesired());
+        if (coordinating) {
+            trace.mark("EARLY_CPU_HOOK_RECONCILE",
+                    "result=" + earlyHook.replace(';', ','));
+        }
+        if (!earlyHook.startsWith("ok=1")) {
+            Log.e("ThorDisplayDaemon", "early CPU hook reconcile failed: " + earlyHook);
+        }
         DaemonState.setEnabled(args.displayFixEnabled);
         if (!coordinating) LidGuard.setEnabled(session.lidGuardDesired());
         LocalServerSocket listener = SecureChannel.listen();
