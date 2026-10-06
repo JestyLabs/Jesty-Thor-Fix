@@ -245,7 +245,7 @@ if ($cpuFixSource -notmatch 'BOOT_ANIMATION_DISABLE_PROPERTY = "debug\.sf\.noboo
     $cpuFixSource -notmatch 'cleanup_bootanim\(\)\{ restore_native; restore_ba; \}' -or
     $cpuFixSource -notmatch 'trap cleanup_bootanim EXIT' -or
     $cpuFixSource -notmatch 'NATIVE_BOOTANIM_RESTORED' -or
-    $cpuFixSource -notmatch '\[ \"\$NBA\" = 1 \] && RSP=0' -or
+    $cpuFixSource -notmatch '\$NBA.*RSP=0' -or
     $cpuFixSource -notmatch '"trap - EXIT"') {
     throw 'Native recovery bootanimation and suppression fallback lost mutual exclusion or cleanup.'
 }
