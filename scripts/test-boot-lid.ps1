@@ -103,6 +103,13 @@ if ($cpuFixSource -notmatch 'CpuBootAttemptStore\.read\(' -or
     $runtimeSource -notmatch 'if \(!coordinating\) cpuFix\.resumePersistedAttempt\(\)') {
     throw 'CPU restart provenance must be integrated into the runtime and normal-daemon recovery.'
 }
+$preComposerInspect = Get-Content -LiteralPath (Join-Path $repository 'scripts\inspect-thor-precomposer.ps1') -Raw
+if ($preComposerInspect -match '(?im)\badb\s+(?:reboot|install|push|root|remount)\b' -or
+    $preComposerInspect -match '(?im)\bsetprop\b' -or
+    $preComposerInspect -match '(?im)\bctl\.(?:start|stop|restart)\b' -or
+    $preComposerInspect -match '(?im)\b(?:rm|mv|cp|chmod|chown|mkdir|touch)\s') {
+    throw 'Pre-composer collector must remain read-only and must not mutate the Thor.'
+}
 $preComposerProofSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'PreComposerCpuProofModel.java') -Raw
 if ($preComposerProofSource -match 'ProcessBuilder|setprop|ctl\.restart|DisplayActionCoordinator|SurfaceControl|LidGuard') {
     throw 'Pre-composer proof model must stay pure and side-effect free.'
