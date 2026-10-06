@@ -447,7 +447,7 @@ public final class RecoverySplash {
      *
      * Standalone app_process does not initialize Android's default Typeface
      * environment like a normal app process. On the tested Thor firmware,
-     * Canvas.drawText() aborts natively in Typeface::resolveDefault(). Keep
+     * Text rendering aborts natively in Typeface::resolveDefault(). Keep
      * this recovery renderer bitmap/primitive only.
      */
     private static String draw(Surface surface, int width, int height) throws Exception {
