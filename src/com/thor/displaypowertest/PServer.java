@@ -67,7 +67,11 @@ public final class PServer {
             String health = SocketClient.request('I', 700);
             String snapshot = SocketClient.request('Q', 2500);
             int pid = PreviousSecureDaemonIdentity.safePid(health, snapshot);
-            if (pid < 1) return false;
+            if (pid < 1) {
+                Log.e(TAG, "older daemon safe-replace rejected; health=" + health
+                        + ";snapshot=" + snapshot);
+                return false;
+            }
             return send(identifiedDaemonKill(pid),
                     "identified older secure daemon stop submitted pid=" + pid);
         } catch (Throwable error) {
