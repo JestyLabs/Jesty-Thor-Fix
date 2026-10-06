@@ -126,7 +126,19 @@ device-specific behavior.
 ## Pocket Duo follow-up
 
 The Retroid Pocket Duo is the more useful behavioral comparison because it is a native dual-display
-product. Useful future artifacts include:
+product. It is also a candidate for future Jesty Thor Fix compatibility work, but **no support is
+claimed yet**.
+
+The safe order is:
+
+1. detect the device and collect read-only display topology;
+2. identify its physical/logical display IDs, CRTC mapping and hall/lid input;
+3. compare Qualcomm system-load-check behavior with the Thor;
+4. only then test individual features such as True Bottom Screen Off or wake repair.
+
+Do not reuse Thor IDs or write display power on a Duo until its own topology has been measured.
+
+Useful future artifacts include:
 
 ```text
 OTA zip
@@ -152,3 +164,13 @@ perf_lock_acq
 The public Retroid Dual Screen Add-on repository is useful background for Retroid's SurfaceFlinger
 customizations, but it is not the Pocket Duo firmware and should not be treated as proof of Duo
 vendor-display behavior.
+
+
+## Testers wanted
+
+Pocket Duo owners interested in helping can provide firmware/build identifiers and read-only
+SurfaceFlinger/DRM/vendor-display observations. The most useful early result is whether the Duo
+shows the same family of dual-screen focus, power, wake or Qualcomm composition issues as the Thor.
+
+Any test build must identify itself as experimental and keep unsupported write paths disabled until
+the target device profile is physically validated.

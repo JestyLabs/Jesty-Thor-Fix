@@ -17,4 +17,6 @@ evidence, not on AI output alone.
 
 AI assistance does not imply that generated material is free of third-party rights. Visual references, trademarks, and separately licensed assets are documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [ASSETS-LICENSE.md](ASSETS-LICENSE.md).
 
+The project's code/research provenance and downstream attribution expectations are documented separately in [NOTICE.md](NOTICE.md). AI assistance does not replace hardware evidence, authorship history, licensing or attribution.
+
 If you find an attribution, licensing, or provenance concern, open an issue before redistributing the affected asset.

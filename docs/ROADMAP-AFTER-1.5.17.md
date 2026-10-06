@@ -1,5 +1,7 @@
 # Thor roadmap after the v1.5.17 pre-release
 
+> **Historical planning document.** For the current active work, recovery-splash status, focus/input investigation, 120 Hz tearing research and Pocket Duo compatibility, see [ROADMAP.md](ROADMAP.md).
+
 **Status (2026-10-05):** v1.5.20 is Latest stable. The combined v1.5.19
 candidate failed daemon migration and was rolled back without clearing data.
 The corrected, signed v1.5.20 passed an in-place upgrade, BOTH/TOP checks, one

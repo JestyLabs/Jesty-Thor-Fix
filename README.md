@@ -11,6 +11,7 @@ Actually turn off the lower screen in TOP mode · Stop unnecessary high CPU cloc
 <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.20"><strong>Download v1.5.20</strong></a>
 · <a href="#what-it-does">What it does</a>
 · <a href="#measured-results">Measured results</a>
+· <a href="#roadmap">Roadmap</a>
 · <a href="https://www.buymeacoffee.com/jesty">☕ Support</a>
 </p>
 
@@ -111,9 +112,26 @@ More details on resource use and known limitations are in the documentation belo
 | Device | Status |
 |--------|--------|
 | **AYN Thor** | Supported (tested on Android 13 firmware `TKQ1.231222.001`) |
+| **Retroid Pocket Duo** | Research / testers wanted — not supported yet |
 | Other devices | Unsupported |
 
 Power savings depend on usage, brightness, firmware and workload. **No fixed battery-life percentage is claimed.**
+
+---
+
+### Roadmap
+
+**Working on**
+
+- 🚀 **Cleaner CPU Fix startup/recovery** — keep the required Android display restart safe, remove the confusing second AYN boot animation, and show a short recovery splash instead of a black gap.
+- 🎯 **TOP-mode focus/input bug** — testing whether physically powering off the lower display also prevents games or apps from losing focus to the inactive screen.
+
+**Next investigations**
+
+- 🖥️ **120 Hz screen tearing / mixed refresh** — investigate AYN's handling of the Thor's 120 Hz upper display and physically 60 Hz lower panel.
+- 🧪 **Retroid Pocket Duo compatibility** — preparing the codebase for device profiles and looking for Pocket Duo owners who want to help test dual-screen power, focus, wake and display behaviour. **No Pocket Duo support is claimed yet.**
+
+See the [current roadmap and research status](docs/ROADMAP.md) for technical details and deferred work.
 
 ---
 
@@ -145,7 +163,7 @@ Jesty Thor Fix is free and open source. No features are locked behind donations.
 <details>
 <summary><strong>Technical implementation</strong></summary>
 
-Jesty follows the physical TOP/BOTH switch. It waits for Android and both displays to settle, then verifies the hardware state (CRTC).
+Jesty Thor Fix follows the physical TOP/BOTH switch. It waits for Android and both displays to settle, then verifies the hardware state (CRTC).
 
 The CPU Fix only sets the vendor property `vendor.display.disable_system_load_check`.  
 Enabling it triggers one compositor restart.
@@ -162,6 +180,7 @@ See [Architecture](docs/ARCHITECTURE.md) for the full service, daemon, verificat
 - Source & build scripts: [GPL-3.0](LICENSE)
 - Branding & artwork: [ASSETS-LICENSE.md](ASSETS-LICENSE.md)
 - Third-party notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+- Project provenance & attribution: [NOTICE](NOTICE.md)
 - AI assistance: [full disclosure](AI_DISCLOSURE.md)
 
 Independent community project. Not affiliated with or endorsed by AYN.  
