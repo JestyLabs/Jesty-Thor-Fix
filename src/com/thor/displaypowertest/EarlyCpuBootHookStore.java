@@ -114,10 +114,14 @@ public final class EarlyCpuBootHookStore {
         }
         try {
             if (state != State.OWNED_OWNER_ONLY) {
-                Os.unlink(EarlyCpuBootHookScript.HOOK_PATH);
+                if (!new java.io.File(EarlyCpuBootHookScript.HOOK_PATH).delete()) {
+                    throw new IOException("Cannot remove managed boot hook");
+                }
                 fsyncDataDirectory();
             }
-            Os.unlink(OWNER_PATH);
+            if (!new java.io.File(OWNER_PATH).delete()) {
+                throw new IOException("Cannot remove managed hook owner");
+            }
             fsyncDataDirectory();
         } catch (Throwable error) {
             if (error instanceof IOException) throw (IOException) error;
@@ -213,7 +217,7 @@ public final class EarlyCpuBootHookStore {
             if (OsConstants.S_ISREG(stat.st_mode) && stat.st_nlink == 1
                     && stat.st_uid == 0 && stat.st_gid == 0
                     && (stat.st_mode & 0777) == 0600) {
-                Os.unlink(path);
+                new java.io.File(path).delete();
             }
         } catch (Throwable ignored) {}
     }
@@ -223,8 +227,9 @@ public final class EarlyCpuBootHookStore {
             byte[] data = readTrusted(OWNER_PATH, MAX_OWNER_BYTES);
             if (data != null && ownerText.equals(
                     new String(data, StandardCharsets.US_ASCII))) {
-                Os.unlink(OWNER_PATH);
-                fsyncDataDirectory();
+                if (new java.io.File(OWNER_PATH).delete()) {
+                    fsyncDataDirectory();
+                }
             }
         } catch (Throwable ignored) {}
     }
@@ -232,8 +237,11 @@ public final class EarlyCpuBootHookStore {
     private static void fsyncDataDirectory() throws IOException {
         FileDescriptor fd = null;
         try {
-            fd = Os.open("/data", OsConstants.O_RDONLY
-                    | OsConstants.O_CLOEXEC | OsConstants.O_DIRECTORY, 0);
+            fd = Os.open("/data", OsConstants.O_RDONLY | OsConstants.O_CLOEXEC, 0);
+            StructStat stat = Os.fstat(fd);
+            if (!OsConstants.S_ISDIR(stat.st_mode)) {
+                throw new IOException("/data is not a directory");
+            }
             Os.fsync(fd);
         } catch (Throwable error) {
             throw new IOException("Cannot fsync /data", error);
