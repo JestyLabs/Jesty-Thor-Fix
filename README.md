@@ -11,6 +11,7 @@ Actually turn off the lower screen in TOP mode · Stop unnecessary high CPU cloc
 <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.20"><strong>Download v1.5.20</strong></a>
 · <a href="#what-it-does">What it does</a>
 · <a href="#measured-results">Measured results</a>
+· <a href="#roadmap">Roadmap</a>
 · <a href="https://www.buymeacoffee.com/jesty">☕ Support</a>
 </p>
 
@@ -117,6 +118,22 @@ Power savings depend on usage, brightness, firmware and workload. **No fixed bat
 
 ---
 
+### Roadmap
+
+Current development stays deliberately isolated from the stable release path. Items below are research or work in progress until they are physically validated.
+
+**Working on**
+
+- **Cleaner CPU Fix recovery UX** — keep the required compositor/framework restart and its existing provenance/fail-safe guarantees, while avoiding the confusing second vendor boot animation and replacing the black recovery gap with a bounded Jesty Thor Fix recovery splash.
+- **TOP-mode focus / input-routing investigation** — determine whether cases where Android loses focus are caused by the lower display remaining active in native TOP mode, and whether **True Bottom Screen Off** eliminates that condition. This is not claimed as fixed until reproduced and measured.
+
+**Next investigations**
+
+- **Mixed-refresh / 120 Hz tearing** — trace how AYN exposes the physically 60 Hz lower panel when the system is switched to 120 Hz, then compare SurfaceFlinger, Qualcomm HWC/SDM and physical display timing. The goal is to understand whether the Thor can run the upper display at 120 Hz while keeping the lower panel on its native timing without tearing.
+- **Retroid Pocket Duo compatibility** — investigate compatibility feature by feature rather than assuming full support: True Bottom Screen Off, display telemetry, wake repair, lid/hall behaviour and whether the Thor-specific CPU Fix is applicable at all. No Pocket Duo support claim until tested on hardware.
+
+---
+
 ### Support the project
 
 Jesty Thor Fix is free and open source. No features are locked behind donations.
@@ -145,7 +162,7 @@ Jesty Thor Fix is free and open source. No features are locked behind donations.
 <details>
 <summary><strong>Technical implementation</strong></summary>
 
-Jesty follows the physical TOP/BOTH switch. It waits for Android and both displays to settle, then verifies the hardware state (CRTC).
+Jesty Thor Fix follows the physical TOP/BOTH switch. It waits for Android and both displays to settle, then verifies the hardware state (CRTC).
 
 The CPU Fix only sets the vendor property `vendor.display.disable_system_load_check`.  
 Enabling it triggers one compositor restart.
