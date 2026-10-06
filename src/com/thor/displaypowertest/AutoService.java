@@ -28,6 +28,11 @@ public final class AutoService extends Service {
         final android.content.SharedPreferences state = getSharedPreferences("state", MODE_PRIVATE);
         final boolean enabled = state.getBoolean("fix_enabled", true);
         final boolean dashboardFixEnabled = state.getBoolean("dashboard_cpu_fix_enabled", false);
+        try {
+            EarlyCpuOptIn.setEnabled(this, dashboardFixEnabled);
+        } catch (Throwable error) {
+            Log.e(TAG, "early CPU Direct-Boot opt-in sync failed; normal path retained", error);
+        }
         new Thread(new Runnable() {
             @Override public void run() {
                 try {
