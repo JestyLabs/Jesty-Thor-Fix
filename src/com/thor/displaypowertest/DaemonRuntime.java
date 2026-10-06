@@ -77,7 +77,7 @@ public final class DaemonRuntime {
             new Thread(new AndroidRecoveryTrace(probe, trace),
                     "thor-android-recovery-trace").start();
         }
-        Log.d("ThorDisplayDaemon", "READY " + DaemonIdentity.VERSION
+        Log.d("ThorDisplayDaemon", "READY " + DaemonIdentity.RUNTIME_ID
                 + " enabled=" + args.displayFixEnabled + " bootHold=" + coordinating);
         server.serveForever();
     }
