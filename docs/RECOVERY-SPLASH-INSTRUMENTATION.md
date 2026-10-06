@@ -383,15 +383,18 @@ in `finally`.
 
 ### Display targeting: deliberately conservative
 
-The repo has a measured lower-panel physical display ID, but no measured
-top-panel layer-stack mapping. The first prototype therefore **does not** call
-`setDisplayLayerStack`, alter projection, power either panel, or mutate the
-display gate.
+The repo now records both physical panel IDs measured from the Thor trace:
 
-The renderer proceeds only if SurfaceFlinger reports exactly one physical
-candidate other than the known lower-panel ID and that candidate is the first
-physical display. It reads that display's active mode for buffer dimensions.
-Anything ambiguous becomes `TARGET_UNAVAILABLE` and fails open.
+- top/main: `0x40446d40c8d6b683`;
+- lower: `0x40446d4a32a16584`.
+
+The first prototype still **does not** call `setDisplayLayerStack`, alter
+projection, power either panel, or mutate the display gate.
+
+The renderer requires the measured top ID to be present and rejects any
+unexpected physical display ID instead of guessing. It reads the top display's
+active mode for buffer dimensions. Anything ambiguous becomes
+`TARGET_UNAVAILABLE` and fails open.
 
 **Still a hypothesis:** a root layer on the default stack will land on the
 Thor's intended top/primary display through this recovery interval. AOSP's own
