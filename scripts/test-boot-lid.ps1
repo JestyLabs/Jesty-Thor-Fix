@@ -161,7 +161,11 @@ if ($recoverySplashRuntime -notmatch 'TARGET_WAIT_MS = 4500L' -or
     $recoverySplashRuntime -notmatch 'SPLASH_TARGET_READY' -or
     $recoverySplashRuntime -notmatch 'native_width=' -or
     $recoverySplashRuntime -notmatch 'surface_width=' -or
-    $recoverySplashRuntime -notmatch 'TOP_LAYER_STACK_SWAPS_MODE_AXES' -or
+    $recoverySplashRuntime -notmatch 'SPLASH_TARGET_STEP' -or
+    $recoverySplashRuntime -notmatch 'SPLASH_CURTAIN_DRAW_READY' -or
+    $recoverySplashRuntime -notmatch 'SPLASH_CURTAIN_SHOWN' -or
+    $recoverySplashRuntime -notmatch 'RECOVERY_CURTAIN_SIZE' -or
+    $recoverySplashRuntime -notmatch 'TOP_RECOVERY_WIDTH' -or
     $recoverySplashRuntime -notmatch 'SPLASH_DRAW_BEGIN' -or
     $recoverySplashRuntime -notmatch 'SPLASH_DRAW_READY' -or
     $recoverySplashRuntime -notmatch 'PACKAGED_LOCKUP' -or
@@ -169,7 +173,7 @@ if ($recoverySplashRuntime -notmatch 'TARGET_WAIT_MS = 4500L' -or
     $recoverySplashRuntime -notmatch 'SPLASH_BOOTANIM_EXIT' -or
     $recoverySplashRuntime -notmatch 'transactionReparentToNull' -or
     $recoverySplashRuntime -notmatch 'TRANSACTION_COMMITTED_LISTENER') {
-    throw 'Recovery splash runtime lost bounded target wait, Thor geometry, font-free draw path, exact successor or cleanup semantics.'
+    throw 'Recovery splash runtime lost bounded target wait, early curtain, Thor geometry, font-free draw path, exact successor or cleanup semantics.'
 }
 if ($recoverySplashRuntime -match 'setDisplayProjection|setMatrix|setBufferTransform') {
     throw 'Recovery splash geometry fix must not mutate the display projection or add an unproven layer transform.'
@@ -224,8 +228,13 @@ if ($hardwareLiterals.Count -gt 0) {
     throw "Thor hardware IDs must come from ThorHardwareProfile: $($hardwareLiterals[0].Path):$($hardwareLiterals[0].LineNumber)"
 }
 $profile = Get-Content -LiteralPath (Join-Path $repository 'src\com\thor\displaypowertest\ThorHardwareProfile.java') -Raw
-if ($profile -notmatch 'TOP_LAYER_STACK_SWAPS_MODE_AXES = true') {
-    throw 'Thor profile must retain the measured top layer-stack axis swap used by the recovery splash.'
+if ($profile -notmatch 'TOP_LAYER_STACK_SWAPS_MODE_AXES = true' -or
+    $profile -notmatch 'TOP_NATIVE_WIDTH = 1080' -or
+    $profile -notmatch 'TOP_NATIVE_HEIGHT = 1920' -or
+    $profile -notmatch 'TOP_RECOVERY_WIDTH = 1920' -or
+    $profile -notmatch 'TOP_RECOVERY_HEIGHT = 1080' -or
+    $profile -notmatch 'RECOVERY_CURTAIN_SIZE = 1920') {
+    throw 'Thor profile must retain the measured recovery geometry used by the splash prototype.'
 }
 $logicalId = [int][regex]::Match($profile, 'BOTTOM_LOGICAL_DISPLAY_ID = (\d+);').Groups[1].Value
 $callback = Get-Content -LiteralPath (Join-Path $repository 'apk\smali\com\thor\displaypowertest\DisplayEventCallback.smali') -Raw
