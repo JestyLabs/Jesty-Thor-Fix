@@ -206,6 +206,49 @@ Mandatory safety result:
 - `TARGET_PROBE_REMOVED` observed;
 - no stuck probe surface.
 
+## Physical result: stable BOTH mode
+
+**Tested 2026-10-06 on the Thor, no reboot.**
+
+Preflight:
+
+- recovery-splash prototype marker absent;
+- TOP CRTC 181 active = 1;
+- BOTTOM CRTC 243 active = 1;
+- physical topology count = 2 and exactly matches the known TOP/BOTTOM IDs.
+
+The visual probe was run twice in the same stable boot and produced the same
+routing result both times:
+
+| Phase | Layer-local routing | Physical observation |
+| --- | --- | --- |
+| `DEFAULT` | no explicit layer stack | TOP only |
+| `STACK_0` | probe layer -> stack 0 | TOP only |
+| `STACK_4` | probe layer -> stack 4 | BOTTOM only |
+
+Safety evidence from both runs:
+
+- composer PID stayed `7496`;
+- SurfaceFlinger PID stayed `7493`;
+- each phase reached `TRANSACTION_COMMITTED`;
+- final removal reached `TARGET_PROBE_REMOVED ... evidence=TRANSACTION_COMMITTED`;
+- `TARGET_PROBE_PIDS;unchanged=1`;
+- no residual probe SurfaceControl was reported after completion.
+
+Stable-system read-only timings were effectively immediate:
+
+- `getPhysicalDisplayIds()`: 1 ms;
+- `getPrimaryPhysicalDisplayId()`: 1 ms, and it matched the known TOP physical ID;
+- `getPhysicalDisplayToken(TOP)`: 0-1 ms;
+- `getPhysicalDisplayToken(BOTTOM)`: 0-1 ms;
+- `getInternalDisplayToken()`: 0 ms.
+
+This **proves stable-system layer-local routing only**. It does not prove that
+stack 0 is TOP-only immediately after replacement SurfaceFlinger starts. Prior
+boot evidence shows that physical-display layer-stack assignment changes during
+boot and can temporarily converge, so a cold-gap implementation must not
+promote the stable result directly without recovery-time evidence.
+
 ## Decision gate
 
 Do not make another cold-boot splash change until this probe produces evidence
