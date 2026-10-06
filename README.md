@@ -39,23 +39,16 @@ A common question is:
 
 For the pixels, black is cheap. But on the Thor, **black does not mean the display hardware is off**.
 
-In stock TOP mode we measured:
+In stock TOP mode, Android still reports the lower display controller as active. With **True Bottom Screen Off**, that hardware path becomes inactive.
 
 ```text
-TOP mode · stock
-upper CRTC:  active
-lower CRTC:  active   ← still running
+Stock TOP mode        lower display: ACTIVE
+True Bottom Screen Off lower display: INACTIVE
 ```
 
-With **True Bottom Screen Off**:
+Technically, this is verified from the DRM CRTC state — not inferred from whether the OLED pixels look black.
 
-```text
-TOP mode · Jesty Thor Fix
-upper CRTC:  active
-lower CRTC:  inactive ← physically powered down
-```
-
-That also matters beyond the OLED pixels: the extra active display path can keep Qualcomm display/CPU work alive.
+That also matters beyond the pixels: keeping the second display path active can keep extra Qualcomm display/CPU work alive.
 
 ---
 
@@ -64,10 +57,10 @@ That also matters beyond the OLED pixels: the extra active display path can keep
 | Control | What it does |
 |---------|--------------|
 | **True Bottom Screen Off** | Powers down the lower physical display in TOP mode instead of leaving it active behind a black image. Repairs the state after sleep/wake. |
-| **AYN Dashboard CPU Fix** | Prevents the dual-screen Dashboard path from keeping LITTLE/BIG CPU clocks pinned high under light load. Does **not** force CPU frequencies or change governors. |
+| **AYN Dashboard CPU Fix** | Stops the Dashboard from keeping the main CPU clusters stuck near their top speeds under light load. Does **not** force CPU frequencies or change governors. |
 | **Closed-Lid Wake Guard** | Puts the Thor back to sleep if it wakes while the lid is still closed. Optional and **off by default**. |
 
-The dashboard is there to make this visible: it shows whether the lower hardware is really off, the live CPU clocks, power estimate and Wake Guard state.
+The dashboard is there to make this visible: it shows whether the lower hardware is really off, live CPU speed, power estimate and Wake Guard state.
 
 <p align="center">
 <img src="docs/images/dashboard-both-v1.5.15-review.png" alt="Jesty Thor Fix dashboard showing live display and CPU state" width="780">
@@ -86,10 +79,22 @@ Short controlled A/B/A test in TOP mode, same device/setup/workload:
 |--------|------------:|----------------:|
 | LITTLE mean | 2.016 GHz | 1.616 GHz |
 | BIG mean | 2.707 GHz | 1.654 GHz |
-| BIG samples near max | 75/75 | 0/45 |
+| Performance-cluster samples near max | 75/75 | 0/45 |
 | System power proxy | ~2.03 W | ~1.24 W |
 
-The power number is a **system power proxy**, not a panel-only measurement and not a battery-life promise. In this test, true-off also released the CPU clock lock, so the reduction is the combined system effect.
+The power number is a **system-level proxy**, not a panel-only measurement and not a battery-life promise. In this test, true-off also let the CPU scale down normally, so the reduction is the combined system effect.
+
+<details>
+<summary><strong>Technical proof in one minute</strong></summary>
+
+- DRM/CRTC state confirms whether each physical display pipeline is active.
+- In stock TOP mode the lower CRTC remained active; with True Bottom Screen Off it became inactive.
+- The Thor's Qualcomm display stack also exposed a separate low-load CPU performance-hint problem when both display paths were active.
+- Controlled A/B/A captures are published with raw CSV samples.
+
+See [benchmarks](docs/BENCHMARKS.md), [architecture](docs/ARCHITECTURE.md) and [live results](docs/LIVE-RESULTS.md).
+
+</details>
 
 Full method + raw CSVs → [benchmarks](docs/BENCHMARKS.md)
 
