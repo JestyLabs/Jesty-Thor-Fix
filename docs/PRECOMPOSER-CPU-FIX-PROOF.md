@@ -91,6 +91,58 @@ files.
 Changing `platform_subtype_id`, patching `/vendor`, or replacing the vendor
 script is explicitly out of scope.
 
+
+## Offline init-tree audit
+
+A complete read-only pull of the Thor init trees was audited locally:
+
+- `/system/etc/init`;
+- `/system_ext/etc/init`;
+- `/product/etc/init`;
+- `/vendor/etc/init`.
+
+The current boot reports:
+
+- `ro.board.platform=kalama`;
+- `ro.vendor.qti.soc_id=603`;
+- `ro.product.model=AYN Thor`.
+
+The stock init sequence triggers `post-fs-data` before `early-boot` and
+`boot`. The Qualcomm display boot service is started from `post-fs-data`.
+The standard binderized HAL class, which contains
+`vendor.qti.hardware.display.composer`, is started later by
+`class_start hal` in the `on boot` action.
+
+No general writable-data execution hook suitable for this project was found in
+the pulled init tree:
+
+- no `import /data/...`;
+- no init service whose executable path is a writable `/data` script;
+- no `exec /data/...` pre-composer path;
+- no stock `post-fs-data.d` or `service.d` import;
+- no property trigger that maps a project-controlled persistent property to
+  `vendor.display.disable_system_load_check`;
+- no reference to `/data/boot_start.sh` in init rc files.
+
+The only occurrence of
+`vendor.display.disable_system_load_check` in the pulled firmware scripts is
+the Qualcomm `init.qti.display_boot.sh` Kalama/HHG branch itself.
+
+There are services which consume data files (for example perfetto configs), but
+none provide an acceptable arbitrary early command path for setting this
+property.
+
+This means a zero-restart implementation cannot currently be built as a normal
+app-only feature on the inspected stock init configuration without one of:
+
+1. an already-installed early-root framework/hook that runs before `boot`;
+2. modification/overlay of immutable init/vendor content;
+3. new evidence that an existing stock service executes a writable hook early
+   enough.
+
+Options 2 is out of scope. Option 1 must be detected explicitly rather than
+assumed. Option 3 remains research-only.
+
 ## Why matching getprop is insufficient
 
 A later app process cannot conclude:
