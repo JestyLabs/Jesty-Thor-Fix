@@ -36,13 +36,15 @@ public final class RecoverySplashModel {
         SPLASH_WAIT_SF,
         SPLASH_SHOW_REQUESTED,
         SPLASH_SHOWN,
+        SPLASH_BOOTANIM_EXIT,
+        SPLASH_HOME_VISIBLE,
         SPLASH_REMOVE_REQUESTED,
         SPLASH_REMOVED,
         SPLASH_TIMEOUT,
         SPLASH_FAIL_OPEN
     }
 
-    /** Injected policy: production values must come from measured Thor traces. */
+    /** Injected policy: prototype values must remain configurable and physically validated. */
     public static final class Policy {
         public final long sfWaitTimeoutMs;
         public final long showTimeoutMs;
@@ -105,6 +107,10 @@ public final class RecoverySplashModel {
                 Trace.SPLASH_WAIT_SF);
     }
 
+    /**
+     * Runtime may call this only after it has resolved exactly one replacement
+     * SurfaceFlinger PID relative to the captured baseline.
+     */
     public static Transition successorSurfaceFlinger(Session session, long nowMs) {
         requireTime(nowMs);
         if (!valid(session, State.WAITING_FOR_SF, nowMs)) return invalid(nowMs, session);
@@ -120,11 +126,19 @@ public final class RecoverySplashModel {
                 Trace.SPLASH_SHOWN);
     }
 
-    /** Framework recovery is the normal trigger to remove a confirmed splash. */
-    public static Transition frameworkRecovered(Session session, long nowMs) {
+    /**
+     * Normal removal trigger for the first prototype.
+     *
+     * The caller must have positively observed service.bootanim.exit == 0 after
+     * the successor SurfaceFlinger, followed by a later value of 1. A bare/stale
+     * value of 1 from the first boot is not sufficient.
+     */
+    public static Transition bootAnimationExitEdge(Session session, long nowMs) {
         requireTime(nowMs);
         if (!valid(session, State.SHOWN, nowMs)) return invalid(nowMs, session);
-        return requestRemoval(session, nowMs, false);
+        Transition removal = requestRemoval(session, nowMs, false);
+        return new Transition(removal.session,
+                Trace.SPLASH_BOOTANIM_EXIT, Trace.SPLASH_REMOVE_REQUESTED);
     }
 
     public static Transition removed(Session session, boolean success, long nowMs) {
