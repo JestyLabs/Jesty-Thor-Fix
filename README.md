@@ -9,8 +9,8 @@ Actually turn off the lower screen in TOP mode · Stop unnecessary high CPU cloc
 
 <p align="center">
 <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.20"><strong>Download v1.5.20</strong></a>
-· <a href="#what-it-does">What it does</a>
-· <a href="#measured-results">Measured results</a>
+· <a href="#what-it-fixes">What it fixes</a>
+· <a href="#measured-on-a-real-thor">Measured results</a>
 · <a href="#roadmap">Roadmap</a>
 · <a href="https://www.buymeacoffee.com/jesty">☕ Support</a>
 </p>
@@ -25,7 +25,7 @@ Actually turn off the lower screen in TOP mode · Stop unnecessary high CPU cloc
 **Made for the AYN Thor.** No Magisk, no terminal, no manual rooting.  
 Set the switches once - the fixes keep working after you close the app.
 
-**Open source · signed releases · published hashes · hardware-tested**
+<p align="center"><strong>Open source · signed releases · published hashes · hardware-tested</strong></p>
 
 <p align="center">
 <img width="1080" height="483" alt="Jesty Thor Fix dashboard" src="https://github.com/user-attachments/assets/d1f1d875-792b-4b84-8d52-41b307d11ae4" />
