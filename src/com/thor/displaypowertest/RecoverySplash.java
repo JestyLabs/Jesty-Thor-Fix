@@ -1,15 +1,19 @@
 package com.thor.displaypowertest;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PixelFormat;
+import android.graphics.RectF;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.SystemClock;
 import android.view.Surface;
 
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
@@ -17,9 +21,12 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.Enumeration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 /**
  * Prototype-only compositor-owned recovery splash.
@@ -110,7 +117,9 @@ public final class RecoverySplash {
             control = buildSurfaceControl(target.width, target.height);
             activeControl = control;
             surface = surfaceFromControl(control);
-            draw(surface, target.width, target.height);
+            trace("SPLASH_DRAW_BEGIN", "width=" + target.width + ";height=" + target.height);
+            String drawBackend = draw(surface, target.width, target.height);
+            trace("SPLASH_DRAW_READY", "backend=" + drawBackend);
 
             CountDownLatch shownCommit = new CountDownLatch(1);
             trace("SPLASH_SHOW_REQUESTED", "composer_pid=" + expectedComposer
@@ -433,40 +442,107 @@ public final class RecoverySplash {
         } catch (Throwable ignored) {}
     }
 
-    private static void draw(Surface surface, int width, int height) throws Exception {
+    /**
+     * Draws without any Typeface/font dependency.
+     *
+     * Standalone app_process does not initialize Android's default Typeface
+     * environment like a normal app process. On the tested Thor firmware,
+     * Canvas.drawText() aborts natively in Typeface::resolveDefault(). Keep
+     * this recovery renderer bitmap/primitive only.
+     */
+    private static String draw(Surface surface, int width, int height) throws Exception {
         Canvas canvas = null;
+        Bitmap brand = null;
+        String backend = "PRIMITIVE_FALLBACK";
         try {
             canvas = surface.lockCanvas(null);
             canvas.drawColor(Color.rgb(14, 11, 24));
 
-            Paint brand = new Paint(Paint.ANTI_ALIAS_FLAG);
-            brand.setColor(Color.WHITE);
-            brand.setTextAlign(Paint.Align.CENTER);
-            brand.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-            brand.setTextSize(Math.max(28f, Math.min(width, height) * 0.045f));
+            brand = loadBrandBitmap();
+            if (brand != null && brand.getWidth() > 0 && brand.getHeight() > 0) {
+                float maxWidth = width * 0.62f;
+                float maxHeight = height * 0.20f;
+                float scale = Math.min(maxWidth / brand.getWidth(),
+                        maxHeight / brand.getHeight());
+                scale = Math.min(scale, 1.0f);
+                float drawWidth = Math.max(1f, brand.getWidth() * scale);
+                float drawHeight = Math.max(1f, brand.getHeight() * scale);
+                float left = (width - drawWidth) / 2f;
+                float top = (height - drawHeight) / 2f - height * 0.04f;
 
-            Paint status = new Paint(Paint.ANTI_ALIAS_FLAG);
-            status.setColor(Color.WHITE);
-            status.setTextAlign(Paint.Align.CENTER);
-            status.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-            status.setTextSize(Math.max(32f, Math.min(width, height) * 0.052f));
+                Paint bitmapPaint = new Paint(Paint.ANTI_ALIAS_FLAG
+                        | Paint.FILTER_BITMAP_FLAG);
+                canvas.drawBitmap(brand, null,
+                        new RectF(left, top, left + drawWidth, top + drawHeight),
+                        bitmapPaint);
+                backend = "PACKAGED_LOCKUP";
+            } else {
+                // Obvious dependency-free fallback for prototype validation.
+                Paint panel = new Paint(Paint.ANTI_ALIAS_FLAG);
+                panel.setColor(Color.rgb(124, 58, 237));
+                float size = Math.min(width, height) * 0.20f;
+                float cx = width / 2f;
+                float cy = height / 2f;
+                canvas.drawRoundRect(new RectF(cx - size, cy - size,
+                        cx + size, cy + size), size * 0.18f, size * 0.18f, panel);
 
-            Paint detail = new Paint(Paint.ANTI_ALIAS_FLAG);
-            detail.setColor(Color.rgb(196, 181, 253));
-            detail.setTextAlign(Paint.Align.CENTER);
-            detail.setTextSize(Math.max(18f, Math.min(width, height) * 0.026f));
+                Paint cut = new Paint(Paint.ANTI_ALIAS_FLAG);
+                cut.setColor(Color.rgb(14, 11, 24));
+                float bar = size * 0.22f;
+                canvas.drawRect(cx - bar, cy - size * 0.55f,
+                        cx + bar, cy + size * 0.55f, cut);
+                canvas.drawRect(cx - size * 0.55f, cy - bar,
+                        cx + size * 0.55f, cy + bar, cut);
+            }
 
-            float centerX = width / 2f;
-            float centerY = height / 2f;
-            canvas.drawText("Jesty Thor Fix", centerX,
-                    centerY - status.getTextSize() * 1.6f, brand);
-            canvas.drawText("Finishing startup\u2026", centerX,
-                    centerY, status);
-            canvas.drawText("This is expected during startup.", centerX,
-                    centerY + status.getTextSize() * 1.25f, detail);
+            Paint progressTrack = new Paint(Paint.ANTI_ALIAS_FLAG);
+            progressTrack.setColor(Color.rgb(52, 45, 70));
+            Paint progress = new Paint(Paint.ANTI_ALIAS_FLAG);
+            progress.setColor(Color.rgb(196, 181, 253));
+            float trackWidth = width * 0.34f;
+            float trackHeight = Math.max(6f, Math.min(width, height) * 0.010f);
+            float trackLeft = (width - trackWidth) / 2f;
+            float trackTop = height * 0.66f;
+            canvas.drawRoundRect(new RectF(trackLeft, trackTop,
+                    trackLeft + trackWidth, trackTop + trackHeight),
+                    trackHeight / 2f, trackHeight / 2f, progressTrack);
+            canvas.drawRoundRect(new RectF(trackLeft, trackTop,
+                    trackLeft + trackWidth * 0.72f, trackTop + trackHeight),
+                    trackHeight / 2f, trackHeight / 2f, progress);
+            return backend;
         } finally {
             if (canvas != null) surface.unlockCanvasAndPost(canvas);
+            if (brand != null) brand.recycle();
         }
+    }
+
+    private static Bitmap loadBrandBitmap() {
+        String apk = System.getenv("CLASSPATH");
+        if (apk == null || !apk.matches("/data/app/.+/base\\.apk")) return null;
+
+        ZipFile zip = null;
+        try {
+            zip = new ZipFile(apk);
+            Enumeration<? extends ZipEntry> entries = zip.entries();
+            while (entries.hasMoreElements()) {
+                ZipEntry entry = entries.nextElement();
+                String name = entry.getName();
+                if (name == null || !name.startsWith("res/")
+                        || !name.endsWith("/jesty_thor_header_lockup.png")) {
+                    continue;
+                }
+                try (InputStream input = zip.getInputStream(entry)) {
+                    return BitmapFactory.decodeStream(input);
+                }
+            }
+        } catch (Throwable ignored) {
+            return null;
+        } finally {
+            if (zip != null) {
+                try { zip.close(); } catch (Throwable ignored) {}
+            }
+        }
+        return null;
     }
 
     private static boolean waitForBootAnimationExitEdge(boolean sawZero, long deadline)
