@@ -51,10 +51,14 @@ public final class RecoverySplash {
         }
     };
 
+    private static volatile boolean finished;
+    private static volatile Object activeControl;
+
     private RecoverySplash() {}
 
     public static void main(String[] args) {
         long processStartedAt = SystemClock.elapsedRealtime();
+        startProcessTtlWatchdog(processStartedAt);
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             trace("SPLASH_FAIL_OPEN", "reason=UNSUPPORTED_API");
             return;
@@ -99,10 +103,13 @@ public final class RecoverySplash {
             }
 
             control = buildSurfaceControl(target.width, target.height);
+            activeControl = control;
             surface = surfaceFromControl(control);
             draw(surface, target.width, target.height);
 
             CountDownLatch shownCommit = new CountDownLatch(1);
+            trace("SPLASH_SHOW_REQUESTED", "composer_pid=" + expectedComposer
+                    + ";sf_pid=" + expectedSf + ";backend=SURFACECONTROL");
             Object showTransaction = newTransaction();
             try {
                 transactionSetLayer(showTransaction, control, SPLASH_LAYER);
@@ -178,6 +185,34 @@ public final class RecoverySplash {
             }
             releaseControlQuietly(control);
         }
+    }
+
+    private static void startProcessTtlWatchdog(final long processStartedAt) {
+        Thread watchdog = new Thread(new Runnable() {
+            @Override public void run() {
+                long deadline = processStartedAt + PROCESS_TTL_MS;
+                while (!finished) {
+                    long remaining = deadline - SystemClock.elapsedRealtime();
+                    if (remaining <= 0L) break;
+                    try {
+                        Thread.sleep(Math.min(remaining, 250L));
+                    } catch (InterruptedException ignored) {
+                        return;
+                    }
+                }
+                if (finished) return;
+
+                trace("SPLASH_TIMEOUT", "phase=PROCESS_TTL;age_ms="
+                        + (SystemClock.elapsedRealtime() - processStartedAt));
+                Object control = activeControl;
+                if (control != null) detachBestEffort(control);
+                trace("SPLASH_FAIL_OPEN", "reason=PROCESS_TTL;cleanup_requested="
+                        + (control == null ? "0" : "1"));
+                System.exit(0);
+            }
+        }, "thor-recovery-splash-ttl");
+        watchdog.setDaemon(true);
+        watchdog.start();
     }
 
     private static boolean successorStillExact(String baseline, String expected, String process) {
