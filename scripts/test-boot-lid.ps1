@@ -119,6 +119,20 @@ if ($displayStart -lt 0 -or $displayEnd -le $displayStart -or
 if ($earlyGateSource -match 'Telemetry\.crtc|DaemonState\.getMode|DisplayActionCoordinator|LidGuard') {
     throw 'The early CPU gate must stay independent from display and lid readiness.'
 }
+$splashSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'RecoverySplashModel.java') -Raw
+if ($splashSource -match 'CpuFixController|ctl\.restart|vendor\.qti\.hardware\.display\.composer|setprop|ProcessBuilder') {
+    throw 'Recovery splash model must stay isolated from CPU restart and runtime side effects.'
+}
+if ($splashSource -notmatch 'SPLASH_ARMED' -or
+    $splashSource -notmatch 'SPLASH_WAIT_SF' -or
+    $splashSource -notmatch 'SPLASH_SHOW_REQUESTED' -or
+    $splashSource -notmatch 'SPLASH_SHOWN' -or
+    $splashSource -notmatch 'SPLASH_REMOVE_REQUESTED' -or
+    $splashSource -notmatch 'SPLASH_REMOVED' -or
+    $splashSource -notmatch 'SPLASH_TIMEOUT' -or
+    $splashSource -notmatch 'SPLASH_FAIL_OPEN') {
+    throw 'Recovery splash trace schema is incomplete.'
+}
 # Phase 3A research: any boot-animation suppression must stay transient,
 # boot-scoped, best-effort and restored by the independent handoff helper.
 if ($cpuFixSource -notmatch 'BOOT_ANIMATION_DISABLE_PROPERTY = "debug\.sf\.nobootanimation"' -or
@@ -186,6 +200,7 @@ $sources = @(
     (Join-Path $repository 'src\com\thor\displaypowertest\DaemonArgs.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\CpuBootAttemptModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\EarlyCpuGateModel.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\RecoverySplashModel.java'),
     (Join-Path $repository 'tests\BootAndLidModelTest.java'),
     (Join-Path $repository 'tests\BootLatencyTest.java'),
     (Join-Path $repository 'tests\DaemonLaunchModelTest.java'),
@@ -200,7 +215,8 @@ $sources = @(
     (Join-Path $repository 'tests\HandoffRecoveryModelTest.java'),
     (Join-Path $repository 'tests\DaemonArgsTest.java'),
     (Join-Path $repository 'tests\CpuBootAttemptModelTest.java'),
-    (Join-Path $repository 'tests\EarlyCpuGateModelTest.java')
+    (Join-Path $repository 'tests\EarlyCpuGateModelTest.java'),
+    (Join-Path $repository 'tests\RecoverySplashModelTest.java')
 )
 & javac -source 8 -target 8 -d $output $sources
 if ($LASTEXITCODE -ne 0) { throw 'Boot/lid test compilation failed.' }
@@ -210,6 +226,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Boot/lid tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'CPU boot attempt model tests failed.' }
 & java -cp $output EarlyCpuGateModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Early CPU gate model tests failed.' }
+& java -cp $output RecoverySplashModelTest
+if ($LASTEXITCODE -ne 0) { throw 'Recovery splash model tests failed.' }
 & java -cp $output BootLatencyTest
 if ($LASTEXITCODE -ne 0) { throw 'Boot latency tests failed.' }
 & java -cp $output DaemonLaunchModelTest
