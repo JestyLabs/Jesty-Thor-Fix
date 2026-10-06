@@ -8,7 +8,7 @@ import android.system.OsConstants;
 import android.system.StructStat;
 
 import java.io.File;
-import java.io.FileOutputStream;
+import java.io.FileDescriptor;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
@@ -101,47 +101,47 @@ public final class EarlyCpuOptIn {
     }
 
     private static Identity readIdentity(String path, int expectedUid) throws IOException {
-        StructStat stat;
+        FileDescriptor fd = null;
         try {
-            stat = Os.lstat(path);
-        } catch (ErrnoException error) {
-            if (error.errno == OsConstants.ENOENT) return null;
-            throw new IOException("Cannot stat Direct-Boot identity", error);
-        }
-        if (!OsConstants.S_ISREG(stat.st_mode)
-                || stat.st_nlink != 1
-                || stat.st_uid < 10000
-                || (expectedUid >= 10000 && stat.st_uid != expectedUid)
-                || (stat.st_mode & 0777) != 0600
-                || stat.st_size <= 0L
-                || stat.st_size > MAX_BYTES) {
-            throw new IOException("Untrusted Direct-Boot identity inode");
-        }
+            fd = Os.open(path, OsConstants.O_RDONLY
+                    | OsConstants.O_CLOEXEC | OsConstants.O_NOFOLLOW, 0);
+            StructStat stat = Os.fstat(fd);
+            if (!OsConstants.S_ISREG(stat.st_mode)
+                    || stat.st_nlink != 1
+                    || stat.st_uid < 10000
+                    || (expectedUid >= 10000 && stat.st_uid != expectedUid)
+                    || (stat.st_mode & 0777) != 0600
+                    || stat.st_size <= 0L
+                    || stat.st_size > MAX_BYTES) {
+                throw new IOException("Untrusted Direct-Boot identity inode");
+            }
 
-        byte[] data = new byte[(int) stat.st_size];
-        java.io.FileInputStream in = null;
-        try {
-            in = new java.io.FileInputStream(path);
+            byte[] data = new byte[(int) stat.st_size];
             int offset = 0;
             while (offset < data.length) {
-                int read = in.read(data, offset, data.length - offset);
+                int read = Os.read(fd, data, offset, data.length - offset);
                 if (read <= 0) throw new IOException("Short Direct-Boot identity read");
                 offset += read;
             }
-        } finally {
-            if (in != null) try { in.close(); } catch (IOException ignored) {}
-        }
 
-        String text = new String(data, StandardCharsets.US_ASCII);
-        String trimmed = text.endsWith("\n") ? text.substring(0, text.length() - 1) : text;
-        if (!trimmed.matches("v1:[0-9a-f]{64}")
-                || !(text.equals(trimmed) || text.equals(trimmed + "\n"))) {
-            throw new IOException("Invalid Direct-Boot identity contents");
+            String text = new String(data, StandardCharsets.US_ASCII);
+            String trimmed = text.endsWith("\n")
+                    ? text.substring(0, text.length() - 1) : text;
+            if (!trimmed.matches("v1:[0-9a-f]{64}")
+                    || !(text.equals(trimmed) || text.equals(trimmed + "\n"))) {
+                throw new IOException("Invalid Direct-Boot identity contents");
+            }
+            return new Identity((int) stat.st_uid, trimmed.substring(3));
+        } catch (ErrnoException error) {
+            if (error.errno == OsConstants.ENOENT) return null;
+            throw new IOException("Cannot open Direct-Boot identity", error);
+        } finally {
+            if (fd != null) try { Os.close(fd); } catch (Throwable ignored) {}
         }
-        return new Identity((int) stat.st_uid, trimmed.substring(3));
     }
 
-    private static void writePrivate(Context dp, String name, String text) throws IOException {
+    private static void writePrivate(Context dp, String name, String text)
+            throws IOException {
         File target = new File(dp.getFilesDir(), name);
         File temp = new File(dp.getFilesDir(), name + ".tmp");
         if (temp.exists()) {
@@ -156,22 +156,41 @@ public final class EarlyCpuOptIn {
             }
         }
 
-        FileOutputStream out = null;
+        byte[] data = text.getBytes(StandardCharsets.US_ASCII);
+        FileDescriptor fd = null;
         try {
-            out = new FileOutputStream(temp, false);
-            out.write(text.getBytes(StandardCharsets.US_ASCII));
-            out.flush();
-            out.getFD().sync();
-        } finally {
-            if (out != null) try { out.close(); } catch (IOException ignored) {}
-        }
-        try {
-            Os.chmod(temp.getAbsolutePath(), 0600);
+            fd = Os.open(temp.getAbsolutePath(),
+                    OsConstants.O_WRONLY | OsConstants.O_CREAT | OsConstants.O_EXCL
+                    | OsConstants.O_CLOEXEC | OsConstants.O_NOFOLLOW, 0600);
+            StructStat initial = Os.fstat(fd);
+            if (!OsConstants.S_ISREG(initial.st_mode)
+                    || initial.st_nlink != 1
+                    || initial.st_uid != Process.myUid()
+                    || (initial.st_mode & 0777) != 0600
+                    || initial.st_size != 0L) {
+                throw new IOException("Untrusted Direct-Boot temp inode");
+            }
+            int offset = 0;
+            while (offset < data.length) {
+                int written = Os.write(fd, data, offset, data.length - offset);
+                if (written <= 0) throw new IOException("Short Direct-Boot identity write");
+                offset += written;
+            }
+            Os.fsync(fd);
+            StructStat complete = Os.fstat(fd);
+            if (complete.st_size != data.length) {
+                throw new IOException("Direct-Boot temp verification failed");
+            }
         } catch (ErrnoException error) {
-            throw new IOException("Cannot chmod Direct-Boot temp file", error);
+            throw new IOException("Cannot create Direct-Boot temp file", error);
+        } finally {
+            if (fd != null) try { Os.close(fd); } catch (Throwable ignored) {}
         }
-        if (!temp.renameTo(target)) {
-            throw new IOException("Cannot atomically replace Direct-Boot identity");
+
+        try {
+            Os.rename(temp.getAbsolutePath(), target.getAbsolutePath());
+        } catch (ErrnoException error) {
+            throw new IOException("Cannot atomically replace Direct-Boot identity", error);
         }
     }
 
