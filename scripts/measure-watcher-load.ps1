@@ -18,7 +18,7 @@ function Invoke-AdbText {
 
 function Get-DaemonProcessId {
     $remote = 'for P in $(pidof app_process); do U=$(stat -c %u /proc/$P 2>/dev/null); C=$(tr "\000" " " </proc/$P/cmdline 2>/dev/null); if [ "$U" = 0 ] && echo "$C" | grep -Eq "^app_process / D [01] (hold|run) [01] [01]( |$)"; then echo $P; fi; done'
-    $raw = Invoke-AdbText @('shell', $remote)
+    $raw = Invoke-AdbText -Arguments @('shell', $remote)
     $processIds = @($raw -split '\s+' | Where-Object { $_ -match '^[1-9][0-9]*$' })
     if ($processIds.Count -ne 1) {
         throw "Expected exactly one root Thor daemon; found: $raw"
@@ -38,7 +38,7 @@ function Get-OptionalProcessId {
 function Get-ProcSnapshot {
     param([int] $ProcessId)
 
-    $stat = Invoke-AdbText @('shell', "cat /proc/$ProcessId/stat")
+    $stat = Invoke-AdbText -Arguments @('shell', "cat /proc/$ProcessId/stat")
     $close = $stat.LastIndexOf(')')
     if ($close -lt 0) { throw 'Could not parse /proc/PID/stat' }
     $fields = @($stat.Substring($close + 2) -split '\s+')
@@ -47,7 +47,7 @@ function Get-ProcSnapshot {
     # After stripping pid/comm, index 0 is field 3. utime/stime are fields 14/15.
     $ticks = [int64]$fields[11] + [int64]$fields[12]
 
-    $status = Invoke-AdbText @('shell', "cat /proc/$ProcessId/status")
+    $status = Invoke-AdbText -Arguments @('shell', "cat /proc/$ProcessId/status")
     $vol = [regex]::Match($status, '(?m)^voluntary_ctxt_switches:\s+(\d+)').Groups[1].Value
     $nonVol = [regex]::Match($status, '(?m)^nonvoluntary_ctxt_switches:\s+(\d+)').Groups[1].Value
 
@@ -59,6 +59,7 @@ function Get-ProcSnapshot {
     [pscustomobject]@{
         At = [DateTimeOffset]::Now
         Ticks = $ticks
+        StartTime = [int64]$fields[19]
         Voluntary = if ($vol) { [int64]$vol } else { $null }
         NonVoluntary = if ($nonVol) { [int64]$nonVol } else { $null }
         Rchar = if ($rchar) { [int64]$rchar } else { $null }
@@ -92,7 +93,7 @@ for T in $(ls /proc/__PID__/task 2>/dev/null); do
 done
 '@
     $remote = $remote.Replace('__PID__', [string]$ProcessId)
-    $raw = Invoke-AdbText @('shell', $remote)
+    $raw = Invoke-AdbText -Arguments @('shell', $remote)
     $lines = @($raw -split "\r?\n")
     $result = @{}
 
@@ -109,7 +110,7 @@ done
             continue
         }
         $fields = @($stat.Substring($close + 2) -split '\s+')
-        if ($fields.Count -lt 13) {
+        if ($fields.Count -lt 20) {
             $i += 4
             continue
         }
@@ -119,6 +120,7 @@ done
             Tid = $tid
             Name = $name
             Ticks = [int64]$fields[11] + [int64]$fields[12]
+            StartTime = [int64]$fields[19]
             Voluntary = if ($vol -match '^\d+$') { [int64]$vol } else { $null }
             NonVoluntary = if ($nonVol -match '^\d+$') { [int64]$nonVol } else { $null }
         }
@@ -142,6 +144,9 @@ function Show-ProcessDelta {
         $After
     )
 
+    if ($Before.StartTime -ne $After.StartTime) {
+        throw "$Target PID $ProcessId was recycled during measurement; refusing misleading deltas."
+    }
     $tickDelta = Delta-OrUnknown $After.Ticks $Before.Ticks
     [pscustomobject]@{
         Target = $Target
@@ -173,6 +178,10 @@ function Show-ThreadDeltas {
         if (-not $After.ContainsKey($tid)) { continue }
         $start = $Before[$tid]
         $end = $After[$tid]
+        if ($start.StartTime -ne $end.StartTime) {
+            Write-Warning "$Target TID $tid was reused during sample; excluding its deltas."
+            continue
+        }
         $ticks = Delta-OrUnknown $end.Ticks $start.Ticks
         $voluntary = Delta-OrUnknown $end.Voluntary $start.Voluntary
         $nonVoluntary = Delta-OrUnknown $end.NonVoluntary $start.NonVoluntary
@@ -209,15 +218,15 @@ function Show-ThreadDeltas {
     }
 }
 
-Invoke-AdbText @('wait-for-device') | Out-Null
-if ((Invoke-AdbText @('shell', 'getprop', 'sys.boot_completed')) -ne '1') {
+Invoke-AdbText -Arguments @('wait-for-device') | Out-Null
+if ((Invoke-AdbText -Arguments @('shell', 'getprop', 'sys.boot_completed')) -ne '1') {
     throw 'Android is not fully booted.'
 }
 
 $daemonProcessId = Get-DaemonProcessId
 $settingsProcessId = Get-OptionalProcessId 'com.android.providers.settings'
-$modeBefore = Invoke-AdbText @('shell', 'settings', 'get', 'system', 'dual_screen_display_mode')
-$powerBefore = Invoke-AdbText @('shell', 'getprop', 'display.power.state')
+$modeBefore = Invoke-AdbText -Arguments @('shell', 'settings', 'get', 'system', 'dual_screen_display_mode')
+$powerBefore = Invoke-AdbText -Arguments @('shell', 'getprop', 'display.power.state')
 $daemonStart = Get-ProcSnapshot $daemonProcessId
 $daemonThreadsStart = Get-ThreadSnapshots $daemonProcessId
 $settingsStart = if ($null -ne $settingsProcessId) {
@@ -233,6 +242,9 @@ if ($daemonProcessIdAfter -ne $daemonProcessId) {
     throw "Daemon changed during sample: $daemonProcessId -> $daemonProcessIdAfter"
 }
 $daemonEnd = Get-ProcSnapshot $daemonProcessId
+if ($daemonEnd.StartTime -ne $daemonStart.StartTime) {
+    throw "Thor daemon PID $daemonProcessId was recycled during the sample."
+}
 $daemonThreadsEnd = Get-ThreadSnapshots $daemonProcessId
 
 $settingsEnd = $null
@@ -240,13 +252,18 @@ if ($null -ne $settingsProcessId -and $null -ne $settingsStart) {
     $settingsProcessIdAfter = Get-OptionalProcessId 'com.android.providers.settings'
     if ($settingsProcessIdAfter -eq $settingsProcessId) {
         $settingsEnd = Get-OptionalProcSnapshot $settingsProcessId 'SettingsProvider'
+        if ($null -ne $settingsEnd -and
+                $settingsEnd.StartTime -ne $settingsStart.StartTime) {
+            Write-Warning 'SettingsProvider PID was reused during sample; provider deltas unavailable.'
+            $settingsEnd = $null
+        }
     } else {
         Write-Warning "SettingsProvider changed during sample: $settingsProcessId -> $settingsProcessIdAfter; provider deltas unavailable."
     }
 }
 
-$modeAfter = Invoke-AdbText @('shell', 'settings', 'get', 'system', 'dual_screen_display_mode')
-$powerAfter = Invoke-AdbText @('shell', 'getprop', 'display.power.state')
+$modeAfter = Invoke-AdbText -Arguments @('shell', 'settings', 'get', 'system', 'dual_screen_display_mode')
+$powerAfter = Invoke-AdbText -Arguments @('shell', 'getprop', 'display.power.state')
 $elapsed = [Math]::Max(0.001, ($daemonEnd.At - $daemonStart.At).TotalSeconds)
 
 [pscustomobject]@{
