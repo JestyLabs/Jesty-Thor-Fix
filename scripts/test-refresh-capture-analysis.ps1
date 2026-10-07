@@ -43,12 +43,12 @@ panel=ch13726a
 
     if ($summary.schema -ne 'THOR_REFRESH_CAPTURE_ANALYSIS_V2') { throw 'Unexpected capture-analysis schema.' }
     if ($summary.causalConclusion -ne $false) { throw 'Bundle-wide text analysis must never claim causality.' }
-    if (-not $summary.flags.has120Policy) { throw 'Synthetic 120 policy was not detected.' }
+    if (-not $summary.flags.has120PolicyMention) { throw 'Synthetic 120 policy mention was not detected.' }
     if (-not $summary.flags.inactiveDisplayEvidence) { throw 'Inactive-display evidence was not detected.' }
     if (-not $summary.flags.drm60Evidence) { throw '60 Hz DRM evidence was not detected.' }
     if (-not $summary.flags.aynLowerPathEvidence) { throw 'AYN lower-panel path evidence was not detected.' }
     if ($summary.flags.vendorConfigFailure) { throw 'Synthetic fixture must not invent a vendor failure.' }
-    if ($summary.stage -ne 'POLICY_120_WITHOUT_DESIRED_MODE_EVIDENCE') {
+    if ($summary.stage -ne 'POLICY_120_MENTION_WITHOUT_DESIRED_MODE_EVIDENCE') {
         throw "Unexpected synthetic evidence stage: $($summary.stage)"
     }
     if ($summary.reason -match '(?i)proves|therefore.*before|caused') {
