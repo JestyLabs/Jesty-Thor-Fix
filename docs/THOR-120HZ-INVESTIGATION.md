@@ -88,10 +88,29 @@ solely from log wording. The matching
 also increments the counter before `setActiveModeWithConstraints`.
 
 At policy rollback, the log reported `0 mode changes were performed under the
-previous policy` for **both** displays. Thus no mode-initiation call reached
-the HWC request in that 120/120 window, including failed HWC attempts counted
-by this path. This moves the immediate question upstream of Qualcomm SDM;
-the experiment did not test whether its 120 Hz config would succeed.
+previous policy` for **both** displays. That proves no mode-initiation call
+reached the HWC request **during the final 120/120 policy interval**, including
+failed HWC attempts counted by this path. It does **not** prove that no attempt
+occurred immediately before that interval.
+
+The safe raise sequence matters here:
+
+```text
+60/60
+  -> peak=120  => transient policy 60-120
+  -> min=120   => final policy 120-120
+```
+
+`DisplayDevice::setRefreshRatePolicy()` resets the per-display
+`mNumModeSwitchesInPolicy` counter whenever a changed policy is accepted.
+Therefore an initiation made under the transient 60-120 policy would be
+reported/reset when the 120-120 policy was installed, and would not appear in
+the later rollback's `0 mode changes` value.
+
+This is now the highest-value gap in the existing local logs: reconstruct the
+policy transition immediately **before 12:28:39.059** and extract the
+mode-change count associated with 60-120 -> 120-120 before drawing a broader
+"no HWC request at all" conclusion.
 
 The same dump lists both physical displays as `powerMode=On` and both DRM
 CRTCs as active, but marks the lower display **inactive** in SurfaceFlinger's
@@ -110,11 +129,39 @@ The same exact `surfaceflinger` binary has a pending-mode branch in
 `mDesiredActiveModeChanged` byte at `DisplayDevice + 0x281` is already set, it
 replaces the cached desired mode and returns false. The caller at `0x1af168`
 only schedules a new composition when that return is true. This matches the
-[AOSP pending-mode behavior](https://android.googlesource.com/platform/frameworks/native/+/refs/heads/android13-qpr3-c-s2-release/services/surfaceflinger/DisplayDevice.cpp)
-and is one possible explanation for a policy being accepted without a new HWC
-request. The captured dump does **not** expose that byte, so a stale pending
-mode is a hypothesis, not the diagnosed cause. The upper-display gate remains
-open.
+[AOSP pending-mode behavior](https://android.googlesource.com/platform/frameworks/native/+/refs/heads/android13-qpr3-c-s2-release/services/surfaceflinger/DisplayDevice.cpp).
+
+That branch becomes materially more interesting once the intermediate 60-120
+policy is considered. A plausible, still **unproven**, sequence is:
+
+```text
+peak=120 -> policy 60-120
+  -> upper desired 120 is created
+  -> mode initiation is attempted or left pending
+  -> min=120 installs policy 120-120 and resets the policy counter
+  -> desired-state flag is still set
+  -> new 120 request only replaces cached desired mode
+  -> setDesiredActiveMode returns false
+  -> no fresh scheduleComposite()
+  -> final 120-120 interval records zero mode initiations
+```
+
+Android 13's `setActiveModeInHwcIfNeeded()` also leaves the desired mode
+present when `initiateModeChange()` returns an error; it logs the failure and
+continues rather than clearing that desired state in the failure branch. That
+provides one concrete way an earlier attempt could feed the cached-request path.
+
+There is independent architectural corroboration that this class of state is
+fragile: a later SurfaceFlinger modesetting-state-machine rewrite explicitly
+describes the old implementation as carrying redundant desired/pending state
+that could become stale and says the previous `setDesiredMode` could fail to
+emit a mode-change event when a mode was already desired or pending. This is
+**not proof that the Thor hit that later-fixed bug**, but it makes the stale
+desired/pending mechanism a grounded hypothesis rather than a speculative one.
+
+The captured dump does **not** expose `mDesiredActiveModeChanged`, and the
+versioned notes do not contain the pre-12:28:39 policy-change block. The upper
+gate therefore remains open until the local raw log is checked.
 
 ### AYN framework path and the possible black blink
 
@@ -574,24 +621,37 @@ Stop before any state-changing experiment if:
 
 ## Next step
 
-Keep the Thor at the current safe 60/60 state and continue offline analysis.
+Keep the Thor at the current safe 60/60 state. **Do not repeat the refresh
+settings probe yet.**
 
-Priority order:
+The next pass is entirely local/offline and should start with the raw log from
+the already-completed second probe:
 
-1. resolve the **upper-panel gate** in the exact SurfaceFlinger binary: accepted
-   120 policy -> scheduler preferred mode -> desired active mode -> pending-mode
-   scheduling;
-2. use the updated read-only collector on a future natural capture to record
-   lower `bypass_ram`, lower brightness, live device-tree refresh properties,
-   display logcat and kernel display logs;
-3. compare the running Thor's device-tree evidence with the public stock-aligned
-   CH13726A description before treating those source files as exact-firmware
-   proof;
-4. only after the upper gate is understood, design one minimal supervised
-   physical measurement capable of distinguishing real 120 scanout from
-   policy-only state.
+1. locate the first `peak_refresh_rate=120` notification and the resulting
+   transient 60-120 policy, immediately before the final 120-120 policy at
+   ~12:28:39;
+2. extract every nearby SurfaceFlinger policy-change block per display:
+   `Previous`, `Current`, and
+   `N mode changes were performed under the previous policy`;
+3. search the same timestamp window for
+   `trying to switch to Scheduler preferred mode`,
+   `switching to Scheduler preferred display mode`,
+   `changing active mode to`, `initiateModeChange failed`,
+   `VsyncPeriodChange`, `SetActiveConfig`, and
+   `Active configuration changed`;
+4. correlate those entries by physical/logical display identity rather than
+   combining unrelated lines from the bundle;
+5. only if the intermediate policy also has zero initiation evidence should the
+   investigation move backward toward a pre-existing stale desired mode or a
+   vendor divergence before `setDesiredActiveMode`;
+6. if the intermediate policy shows an initiation/failure, reconstruct that
+   exact failure path before considering any new hardware experiment.
 
-Do not repeat the previous min/peak write probe merely to obtain more logs.
-The previous probe already established the key negative result: the normal
-SurfaceFlinger mode-change path was never initiated.
+Separately, the V2 read-only collector is now prepared for a future natural
+capture. It records the AYN lower-panel `bypass_ram` state, lower backlight,
+live device-tree refresh properties, display logcat/kernel evidence and a
+capture-completeness manifest.
 
+Only after the upper gate is explained should we design one minimal supervised
+physical measurement capable of distinguishing actual 120 scanout from
+policy-only state.
