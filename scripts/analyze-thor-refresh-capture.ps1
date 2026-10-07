@@ -113,6 +113,36 @@ function Get-PolicyTransitions {
     return $out
 }
 
+function Get-SfInvalidModeEvents {
+    # Individual SF validation errors, not Qualcomm rejections. The AOSP
+    # before-HWC guard is a reference until checked against the exact Thor ELF.
+    $events = @()
+    foreach ($file in $allFiles) {
+        $lines = @(Get-Content -LiteralPath $file.FullName -ErrorAction SilentlyContinue)
+        for ($i = 0; $i -lt $lines.Count; $i++) {
+            $line = [string]$lines[$i]
+            $match = [regex]::Match($line, 'Trying to initiate a mode change to invalid mode\s+(null|-?\d+)\s+on display\s+(.+?)\s*$')
+            if (-not $match.Success) { continue }
+            $token = $match.Groups[1].Value
+            $modeId = if ($token -eq 'null') { $null } else { [int]$token }
+            $timestamp = if ($line -match '^(\d\d-\d\d \d\d:\d\d:\d\d\.\d+)') { $Matches[1] } else { $null }
+            $events += [pscustomobject]@{
+                file = $file.FullName
+                line = $i + 1
+                timestamp = $timestamp
+                clockDomain = 'logcat-wall-clock-if-present'
+                reportedDisplay = $match.Groups[2].Value.Trim()
+                reportedModeToken = $token
+                reportedModeId = $modeId
+                source = 'SurfaceFlinger'
+                stage = 'SF_INVALID_MODE_LOG_ONLY'
+                sameInvocationAsHwcRequestProven = $false
+            }
+        }
+    }
+    return $events
+}
+
 $patterns = [ordered]@{
     policy = @(
         'DesiredDisplayModeSpecs','Setting desired display mode specs',
@@ -128,6 +158,7 @@ $patterns = [ordered]@{
         'changing active mode to','desired active mode','upcoming active mode',
         'DesiredActiveMode','UpcomingActiveMode'
     )
+    sfInvalidMode = @('Trying to initiate a mode change to invalid mode')
     frameworkFailure = @(
         'initiateModeChange failed','Desired display mode is no longer supported',
         'Desired display mode not allowed'
@@ -164,6 +195,7 @@ $flags = [ordered]@{
     has120PolicyMention = ((Has-Text $results.policy '120') -or (Has-Text $results.desiredMode '120'))
     inactiveDisplayEvidence = Has-Text $results.activeDisplay '(Inactive display|\(inactive\) HWC layers)'
     desired120Evidence = Has-Text $results.desiredMode '120'
+    sfInvalidModeEvidence = [bool]$results.sfInvalidMode.Count
     frameworkModeChangeFailure = [bool]$results.frameworkFailure.Count
     hwcConstraintEvidence = [bool]$results.hwcRequest.Count
     vendorConfigFailure = [bool]$results.vendorFailure.Count
@@ -183,7 +215,10 @@ $flags = [ordered]@{
 $stage = 'UNRESOLVED_EVIDENCE'
 $reason = 'No single request handoff boundary is proven by bundle-wide text matches.'
 
-if ($flags.frameworkModeChangeFailure) {
+if ($flags.sfInvalidModeEvidence) {
+    $stage = 'SURFACEFLINGER_INVALID_MODE_EVIDENCE'
+    $reason = 'SurfaceFlinger invalid-mode log(s) found; no Qualcomm rejection or link to another HWC invocation is established. Verify the exact-binary guard and per-display timeline.'
+} elseif ($flags.frameworkModeChangeFailure) {
     $stage = 'FRAMEWORK_MODE_CHANGE_FAILURE_EVIDENCE'
     $reason = 'A framework mode-change failure marker is present; correlate display ID and timestamp manually.'
 } elseif ($flags.vendorConfigFailure) {
@@ -210,6 +245,7 @@ foreach ($name in $results.Keys) {
 }
 
 $policyTransitions = @(Get-PolicyTransitions)
+$sfInvalidModeEvents = @(Get-SfInvalidModeEvents)
 
 $summary = [ordered]@{
     schema = 'THOR_REFRESH_CAPTURE_ANALYSIS_V2'
@@ -220,6 +256,7 @@ $summary = [ordered]@{
     causalConclusion = $false
     correlationScope = 'capture-wide uncorrelated text matches; manually correlate timestamp and display before causal claims'
     policyTransitions = $policyTransitions
+    sfInvalidModeEvents = $sfInvalidModeEvents
     flags = $flags
     counts = [ordered]@{}
     evidenceFiles = $evidenceFiles
@@ -265,6 +302,21 @@ if ($policyTransitions.Count -eq 0) {
 }
 $report.Add('')
 $report.Add('These transitions preserve order within each source file. They still require display/timestamp correlation with other logs before a causal claim.')
+$report.Add('')
+$report.Add('## SurfaceFlinger invalid-mode messages (not HWC rejection)')
+if ($sfInvalidModeEvents.Count -eq 0) {
+    $report.Add('- none found')
+} else {
+    foreach ($evt in $sfInvalidModeEvents) {
+        $timeValue = if ($evt.timestamp) { $evt.timestamp } else { 'unknown' }
+        $report.Add('- ' + $evt.file + ':' + $evt.line +
+            ' [' + $timeValue + '] display=' + $evt.reportedDisplay +
+            ' mode_token=' + $evt.reportedModeToken)
+    }
+}
+$report.Add('')
+$report.Add('No automatic pairing with an atrace/HWC request. Logcat wall clock and atrace monotonic clock require explicit mapping.')
+$report.Add('The AOSP guard is only a reference until checked against the exact Thor SurfaceFlinger ELF.')
 $report.Add('')
 $report.Add('## Flags')
 foreach ($key in $flags.Keys) {
