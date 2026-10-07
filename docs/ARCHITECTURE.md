@@ -377,35 +377,93 @@ has been attributed to the watcher. The project is measuring daemon and
 SettingsProvider cost before changing a physically stable display path; see
 the current roadmap.
 
-`R` and `L` enable or disable the Dashboard CPU Fix. They update
-`vendor.display.disable_system_load_check`, restart the display compositor once,
-and arrange the daemon relaunch described above. The Thor firmware explicitly
-declares `onrestart restart surfaceflinger` in
-`/vendor/etc/init/vendor.qti.hardware.display.composer-service.rc`, while
-SurfaceFlinger's `/system/etc/init/surfaceflinger.rc` declares
-`onrestart restart --only-if-running zygote`. Thus one requested composer
-restart cascades into Android UI/framework restart and USB re-enumeration;
-open apps close, but the kernel boot ID does not change. A timed kernel
-wake-lock covers the transition. From v1.5.12 the relaunched daemon releases
-it after the post-restart readiness and display reconciliation phase; the
-kernel timeout is a bounded fallback if that daemon never starts. The
-post-restart phase gets its own 60-second deadline, and saved Lid Guard intent
-is carried across the relaunch even while BOOT HOLD has kept its watcher off.
-Opening the UI does not issue either command.
+## CPU Fix application and startup recovery
 
-On the tested `kalama` SoC 603, subtype 0, the vendor display-boot script only
-sets `vendor.display.disable_system_load_check=1` for subtype 1. The property
-therefore remains absent after a cold boot on this Thor. v1.5.15 reads it
-with a default marker, preserving a distinct `UNSET` observation internally.
-Public telemetry still reports `?` until the fix is applied; it never
-relabels the absent value as `0` or claims success from saved intent. With
-saved CPU Fix ON, a successful `UNSET` observation permits one guarded write
-to `1` and compositor restart. Read failure or invalid values fail safe.
-The relaunched daemon verifies `1` before reporting the fix as active.
-One supervised cold boot and an in-place transition exercised this path.
-The compositor restart also restarts Android UI, so a second visual boot
-phase can occur without another kernel boot. v1.5.16 removed the stale-socket
-wait and reached READY at 65.479 seconds in one supervised cold boot, compared
-with about 95.417 seconds in an earlier v1.5.15 boot. These are separate runs,
-not a repeatability guarantee. v1.5.17 changes command-wait and gate cadence;
-its timing and physical behavior remain unverified on the Thor.
+`R` and `L` enable or disable the Dashboard CPU Fix. The control changes
+`vendor.display.disable_system_load_check`; it does **not** write CPU
+frequencies, governors, voltages or thermal limits.
+
+The important vendor constraint is that the Thor's Qualcomm display stack reads
+this property in `ResourceImpl::Init()` and caches the result in the running
+composer. Physical and static-analysis work established that:
+
+- a late property write alone does not change the effective state;
+- TOP/BOTH recreation in the same composer process does not reload it;
+- a replacement composer with the new property value does apply it;
+- no supported same-process `ResourceImpl` recreation path was found on the
+  tested firmware.
+
+Therefore changing CPU Fix while Android is already running requires **one**
+controlled compositor replacement. The firmware's composer `onrestart`
+restarts SurfaceFlinger, and SurfaceFlinger in turn restarts the running zygote,
+so Android UI/framework and open apps are affected even though the kernel does
+not reboot. The app warns before a user-triggered toggle and persists
+`RESTART_REQUESTED` before issuing the restart, so an ambiguous handoff never
+causes a blind second attempt.
+
+### Why v1.6.0 still has one startup compositor replacement
+
+A true zero-restart cold boot would require the property to be set before the
+**first** composer consumes it.
+
+The inspected stock Thor firmware provides no safe app-controlled writable
+execution path that early:
+
+- Qualcomm's own `init.qti.display_boot.sh` demonstrates that the property can
+  be set pre-composer for a different hardware subtype;
+- the tested Thor is subtype 0, so that stock branch is not taken;
+- the full inspected init tree exposed no acceptable writable pre-composer
+  script/property hook;
+- stock `pservice` executes `/data/boot_start.sh`, but measured pservice
+  startup was about 133 ms **after** the first composer process started.
+
+That means the remaining compositor replacement is not an avoidable UI choice
+in the proven stock-firmware/app-only design. Removing it entirely would
+require AYN/Qualcomm firmware/init support, modification/overlay of immutable
+vendor content, or genuinely new evidence of a trusted privileged mechanism
+that executes before the first composer. Jesty Thor Fix deliberately does not
+spoof hardware subtype or patch `/vendor` to remove a short startup recovery.
+
+### v1.6.0 early-startup path
+
+With saved CPU Fix ON, the app maintains a tightly owned
+`/data/boot_start.sh` hook for the stock pservice path. The hook is
+enable-only and guarded by app-private Direct-Boot identity/opt-in state.
+
+On a real kernel boot:
+
+1. stock pservice launches the managed hook during normal startup;
+2. the hook validates app identity/opt-in and a boot-scoped `/dev` no-repeat
+   record;
+3. it writes and verifies the CPU property;
+4. it records `RESTART_REQUESTED` **before** requesting one composer restart;
+5. it never directly restarts SurfaceFlinger/zygote, reboots Android, or changes
+   panel routing;
+6. the later normal daemon imports that same-boot attempt, proves that the
+   composer PID changed, and only then records `APPLIED`;
+7. the owned global hook is reconciled/removed after the early attempt has been
+   consumed.
+
+Unknown pre-existing `/data/boot_start.sh` content is never overwritten.
+Disabling CPU Fix removes only a hook whose ownership/content are verified.
+Uninstall removes the app-private opt-in, so any managed residue becomes inert.
+
+### Physical v1.6.0 provenance
+
+The prototype path that became v1.6.0 was physically validated on the Thor:
+
+- early attempt imported as `RESTART_REQUESTED`;
+- baseline composer PID `1221`;
+- successor composer PID `2314`;
+- attempt reached `APPLIED`;
+- final mode was BOTH with both physical CRTCs active;
+- the one-shot gate was consumed and the managed hook cleaned up;
+- the later normal daemon did **not** request a second CPU-fix restart.
+
+The visible result is a slightly longer black phase during natural startup
+instead of the old late second boot-like interruption after Android had already
+appeared. That is the intended v1.6.0 behavior.
+
+See [pre-composer proof](PRECOMPOSER-CPU-FIX-PROOF.md),
+[restart-options history](CPU-FIX-RESTART-OPTIONS.md), and
+[research provenance](../PROVENANCE.md) for the evidence trail.
