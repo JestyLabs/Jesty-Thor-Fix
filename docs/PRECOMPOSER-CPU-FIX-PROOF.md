@@ -1,13 +1,12 @@
 # Pre-composer CPU Fix proof
 
-Status: **research / host-only preparation**
+Status: **closed historical research for the tested stock Thor firmware**
 
-Branch:
+This document records the investigation that asked whether the CPU property could be set before the **first** Qualcomm composer and thereby avoid any cold-boot composer recovery.
 
-`work/thor-precomposer-cpu-proof`
+Current conclusion (v1.6.0): no safe app-controlled pre-composer execution path was found in the inspected stock Thor init/vendor configuration. The shipped solution therefore uses the later stock `pservice -> /data/boot_start.sh` path to move the one required composer recovery into the natural startup window. Removing that restart entirely would require vendor/firmware/init support, modification of immutable vendor content, or genuinely new evidence of an earlier trusted privileged hook.
 
-No boot hook is installed by this branch. No device property, init service,
-display state or release behavior is changed.
+This is not an active release gap. Keep the evidence below for provenance; do not interpret the old future-work sections as the current roadmap.
 
 ## Product goal
 
@@ -40,9 +39,7 @@ The boot-scoped restart provenance is also closed and must not be weakened:
 
 `PREPARED -> PROPERTY_VERIFIED -> RESTART_REQUESTED -> APPLIED/FAILED`
 
-The current early-restart work is already merged and physically validated.
-This project is not another attempt to move that same restart a few seconds
-earlier. Its goal is to avoid the cold-boot restart entirely.
+The early-restart path is merged, physically validated and shipped in v1.6.0. The zero-restart question documented here is closed for the currently inspected stock-firmware/app-only routes unless new platform evidence appears.
 
 ## Thor firmware evidence
 

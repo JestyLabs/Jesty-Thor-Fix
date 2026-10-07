@@ -125,7 +125,7 @@ Original investigation and discussion:
 
 The app uses the Thor’s own privileged bridge. No Magisk or root required.
 
-> **Note:** Changing the CPU Fix restarts Android UI/display once and closes open apps. On later boots, the required display recovery happens during startup; a slightly longer black startup phase is normal.
+> **Note:** Changing the CPU Fix restarts Android UI/display once and closes open apps. The Thor's Qualcomm display stack caches this vendor setting when the composer starts, so a running-system change cannot be applied safely without replacing that composer. On stock Thor firmware, no safe app-controlled path was found that can set the property before the first composer starts. v1.6.0 therefore moves the required boot-time recovery into the natural startup window instead of letting it happen later; a slightly longer black startup phase is normal. Removing that restart entirely would require new vendor/firmware/init support or equivalent earlier privileged execution.
 
 ---
 
@@ -135,6 +135,7 @@ The app uses the Thor’s own privileged bridge. No Magisk or root required.
 - Validates the result after every change
 - Automatically restores normal behaviour if something looks wrong
 - Closed-Lid Wake Guard is off by default
+- No gameplay micro-stutter or thermal regression has been demonstrated from the background watcher. Its real idle cost is being measured before any polling change is considered.
 
 More details on resource use and known limitations are in the documentation below.
 
@@ -156,6 +157,7 @@ Power savings depend on usage, brightness, firmware and workload. **No fixed bat
 
 **Working on**
 
+- ⚡ **Background watcher cost** — measure the current Settings/DRM polling cost on-device, then only reduce it if an event-driven/adaptive design preserves wake and mode-transition behavior while showing a measurable benefit.
 - 🎯 **TOP-mode focus/input bug** — testing whether physically powering off the lower display also prevents games or apps from losing focus to the inactive screen.
 
 **Next investigations**
