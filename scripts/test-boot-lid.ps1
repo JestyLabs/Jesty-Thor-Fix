@@ -121,7 +121,8 @@ if ($pserverBinderCollector -match '(?im)\badb\s+(?:reboot|install|push|root|rem
 if ($pserverBinderCollector -notmatch 'service check PServerBinder' -or
     $pserverBinderCollector -notmatch 'cat /proc/sys/kernel/random/boot_id' -or
     $pserverBinderCollector -notmatch 'pidof pservice' -or
-    $pserverBinderCollector -notmatch 'pidof servicemanager') {
+    $pserverBinderCollector -notmatch 'for N in pservice servicemanager' -or
+    $pserverBinderCollector -notmatch 'pidof "\$N"') {
     throw 'PServerBinder collector must preserve the minimum lifecycle discriminants.'
 }
 $pserverBinderCollectorPath = Join-Path $repository 'scripts\collect-thor-pserverbinder-readonly.ps1'
