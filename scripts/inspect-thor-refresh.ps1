@@ -40,7 +40,9 @@ function Invoke-ShellCapture {
         [Parameter(Mandatory=$true)][string]$Name,
         [Parameter(Mandatory=$true)][string]$Command
     )
-    return Invoke-AdbCapture -Name $Name -Args @('shell', $Command)
+    # PowerShell reads this CRLF file on Windows, while Android sh expects LF.
+    $androidCommand = $Command.Replace("`r`n", "`n").Replace("`r", "`n")
+    return Invoke-AdbCapture -Name $Name -Args @('shell', $androidCommand)
 }
 
 # Evidence collector only. Every device-side operation below is a read.
