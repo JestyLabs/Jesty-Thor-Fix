@@ -25,7 +25,7 @@ foreach ($pattern in $forbidden) {
 }
 
 $required = @(
-    'THOR_REFRESH_INVESTIGATION_V1',
+    'THOR_REFRESH_INVESTIGATION_V2',
     'settings get system',
     'peak_refresh_rate',
     'min_refresh_rate',
@@ -38,7 +38,13 @@ $required = @(
     'PServerBinder',
     'PullBinaries',
     'adb @adbBase pull',
-    'Get-FileHash'
+    'Get-FileHash',
+    '00-capture-status.tsv',
+    '/sys/class/bypass_ram_class/bypass_ram_device/bypass_ram',
+    'panel1-backlight',
+    'dsi-supported-dfps-list',
+    'logcat -b all -d',
+    'dmesg'
 )
 
 foreach ($needle in $required) {
