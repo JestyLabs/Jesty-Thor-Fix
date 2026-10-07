@@ -30,4 +30,6 @@ Changes involving display power, boot behavior, or pending-repair cancellation r
 
 Keep existing license, copyright and provenance notices intact. Forks should clearly mark their own modifications and use their own branding unless separate permission has been granted.
 
-If a contribution or downstream project builds on a non-trivial investigation, test method or implementation from this repository, please preserve the technical credit and link back to the original work. See [NOTICE.md](NOTICE.md).
+If a contribution or downstream project builds on a non-trivial investigation, test method or implementation from this repository, please preserve the technical credit and link back to the original work. See [NOTICE.md](NOTICE.md) and [PROVENANCE.md](PROVENANCE.md).
+
+If a change materially uses external code, research or prior art, include the upstream project and an exact commit or URL in the PR description or provenance record. Do not remove existing SPDX, authorship or provenance notices.
