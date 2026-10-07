@@ -95,7 +95,6 @@ function Get-PolicyTransitions {
 
                 if ($null -eq $previous) {
                     $m = [regex]::Match($candidate, 'Previous:\s*(.+)
-$patterns = [ordered]@{
     policy = @(
         'DesiredDisplayModeSpecs','Setting desired display mode specs',
         'primaryRefreshRateRange','appRequestRefreshRateRange',
@@ -279,7 +278,6 @@ Write-Host "Report: $mdPath"
 
                 if ($null -eq $current) {
                     $m = [regex]::Match($candidate, 'Current:\s*(.+)
-$patterns = [ordered]@{
     policy = @(
         'DesiredDisplayModeSpecs','Setting desired display mode specs',
         'primaryRefreshRateRange','appRequestRefreshRateRange',
