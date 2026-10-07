@@ -70,6 +70,10 @@ jobs:
         shell: pwsh
         run: ./scripts/test-dashboard.ps1
 
+      - name: Refresh investigation contract
+        shell: pwsh
+        run: ./scripts/test-refresh-investigation.ps1
+
       - name: Build unsigned APK
         shell: pwsh
         run: |
