@@ -16,6 +16,11 @@ if (-not $OutputDir) {
 }
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 
+# Every command is recorded even when a shell probe has no matching logs,
+# permissions are restricted, or an optional source is absent.
+$CaptureStatusPath = Join-Path $OutputDir '00-capture-status.tsv'
+"name`texit_code" | Set-Content -LiteralPath $CaptureStatusPath -Encoding utf8
+
 $adbBase = @()
 if ($Serial) {
     $adbBase += @('-s', $Serial)
@@ -24,11 +29,29 @@ if ($Serial) {
 function Invoke-AdbText {
     param(
         [Parameter(Mandatory=$true)][string]$Path,
-        [Parameter(Mandatory=$true)][string[]]$Args
+        [Parameter(Mandatory=$true)][string[]]$Arguments,
+        [switch]$RequireSuccess
     )
-    $output = & adb @adbBase @Args 2>&1
-    $output | Set-Content -LiteralPath $Path -Encoding utf8
-    return $output
+    $output = @()
+    $exit = 127
+    try {
+        $output = @(& adb @adbBase @Arguments 2>&1)
+        $exit = [int]$LASTEXITCODE
+    } catch {
+        $output += "ADB_INVOCATION_ERROR: $($_.Exception.Message)"
+        $exit = 127
+    }
+
+    ($output -join [Environment]::NewLine) |
+        Set-Content -LiteralPath $Path -Encoding utf8
+    ("$Path" + [char]9 + "$exit") |
+        Add-Content -LiteralPath $CaptureStatusPath -Encoding utf8
+
+    # A missing service is a legitimate negative observation. Do not throw
+    # for individual read-only service/log probes; retain their exit codes.
+    if ($RequireSuccess -and $exit -ne 0) {
+        throw "Required adb command failed (exit $exit). Evidence saved: $Path"
+    }
 }
 
 function Invoke-ShellText {
@@ -36,7 +59,7 @@ function Invoke-ShellText {
         [Parameter(Mandatory=$true)][string]$Path,
         [Parameter(Mandatory=$true)][string]$Command
     )
-    return Invoke-AdbText -Path $Path -Args @('shell', $Command)
+    Invoke-AdbText -Path $Path -Arguments @('shell', $Command)
 }
 
 function Write-HostMetadata {
@@ -163,7 +186,12 @@ dmesg 2>&1 | grep -Ei 'avc:|binder|servicemanager|pservice|service_manager'
 Write-HostMetadata
 
 # Connectivity check only. No device state is changed.
-Invoke-AdbText -Path (Join-Path $OutputDir '00b-adb-state.txt') -Args @('get-state') | Out-Null
+$adbStateFile = Join-Path $OutputDir '00b-adb-state.txt'
+Invoke-AdbText -Path $adbStateFile -Arguments @('get-state') -RequireSuccess
+$adbState = (Get-Content -LiteralPath $adbStateFile -Raw).Trim()
+if ($adbState -ne 'device') {
+    throw "ADB did not report a ready device (state: $adbState). Capture stopped."
+}
 
 for ($i = 1; $i -le $Samples; $i++) {
     Collect-Snapshot -Index $i
@@ -172,10 +200,20 @@ for ($i = 1; $i -le $Samples; $i++) {
     }
 }
 
+$statusRows = @(Import-Csv -LiteralPath $CaptureStatusPath -Delimiter ([char]9))
+$nonzero = @($statusRows | Where-Object { [int]$_.exit_code -ne 0 })
 @(
     "Completed read-only PServerBinder collection."
     "Output: $OutputDir"
-    "No service restart, process signal, property write, reboot, Binder transaction, or device-side file write was requested by this script."
+    "schema=THOR_PSERVERBINDER_READONLY_V2"
+    "commands=$($statusRows.Count)"
+    "nonzero_exit_codes=$($nonzero.Count)"
+    "Some optional probes legitimately return nonzero when no matches exist or permissions deny access; review 00-capture-status.tsv."
+    "ServiceManager lookups are read-only Binder IPC; no command was transacted on the PServerBinder service."
+    "No service restart, process signal, property write, reboot, or device-side file write was requested by this script."
 ) | Set-Content -LiteralPath (Join-Path $OutputDir '99-summary.txt') -Encoding utf8
 
+if ($nonzero.Count -gt 0) {
+    Write-Warning "$($nonzero.Count) read-only probe(s) returned nonzero. Inspect 00-capture-status.tsv before drawing conclusions."
+}
 Write-Host "Read-only PServerBinder collection saved to: $OutputDir"
