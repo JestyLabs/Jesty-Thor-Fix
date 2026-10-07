@@ -17,8 +17,6 @@ Active PR branches are not pruned.
 ## KEEP
 
 - `main`
-- `work/thor-pservice-early-cpu-restart-model` — head `4045a4958361242f45e006edc16a2457272a715b`; base of active PR #33
-- `work/thor-pservice-early-cpu-restart-prototype` — head `cb7d7b19e9227674d316459458277b911f331cd4`; active PR #33 and exact physical-test provenance
 - `chore/pre-prune-archive` — temporary; delete only after this archive PR is merged
 
 ## SALVAGED BEFORE DELETE
@@ -66,9 +64,24 @@ See [RECOVERY-SPLASH-RESEARCH.md](RECOVERY-SPLASH-RESEARCH.md) for conclusions, 
 - `work/thor-recovery-splash-top-exclusive-prototype`
 - `work/thor-recovery-top-only-probe`
 
-## DELAYED CLEANUP
+## pservice prototype provenance now safe to prune
 
-The two pservice branches used by active PR #33 remain intentionally untouched even though PR #34 has already integrated/promoted the production path. Close #33 only after the release/provenance thread is satisfied that its physical-test record is fully captured. Then both #33 branches can be re-evaluated for deletion.
+PR #33 is now closed as superseded by merged PR #34 / stable v1.6.0. Its physical-test record is preserved in:
+- closed PR #33 comments and diff;
+- `PROVENANCE.md`;
+- production integration in `main`;
+- this ledger's pinned SHAs.
+
+The two old branch refs are therefore eligible for deletion after this archive PR is merged:
+
+- `work/thor-pservice-early-cpu-restart-model` — head `4045a4958361242f45e006edc16a2457272a715b`
+- `work/thor-pservice-early-cpu-restart-prototype` — head `cb7d7b19e9227674d316459458277b911f331cd4`
+
+Stable v1.6.0 was published from `e4542adb9fe47cccb5bc8ee5b3cffdeeec702513`.
+Release APK digest:
+`sha256:2cf04fc692898a2a582781838f3026555bc7cc4e233226bfad677840e329cf00`.
+
+Deleting these branch refs does not delete the closed PR record or the stable release.
 
 ## Important
 
