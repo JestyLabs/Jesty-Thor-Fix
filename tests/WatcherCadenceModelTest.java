@@ -16,7 +16,7 @@ public final class WatcherCadenceModelTest {
 
     private static void idleUsesSlowSafetyCadence() {
         WatcherCadenceModel m = new WatcherCadenceModel();
-        eq(750L, m.nextDelayMs(5000L));
+        eq(500L, m.nextDelayMs(5000L));
         truth(!m.inBurst(5000L));
     }
 
@@ -26,7 +26,7 @@ public final class WatcherCadenceModelTest {
         truth(m.inBurst(1000L));
         eq(20L, m.nextDelayMs(1200L));
         truth(!m.inBurst(2600L));
-        eq(750L, m.nextDelayMs(2600L));
+        eq(500L, m.nextDelayMs(2600L));
     }
 
     private static void modeChangeAlsoStartsBurst() {
@@ -75,7 +75,7 @@ public final class WatcherCadenceModelTest {
         m.onDisplayEvent(1000L);
         m.onDisplayEvent(2000L);
         eq(20L, m.nextDelayMs(3000L));
-        eq(750L, m.nextDelayMs(3600L));
+        eq(500L, m.nextDelayMs(3600L));
     }
 
     private static void eq(long expected, long actual) {
