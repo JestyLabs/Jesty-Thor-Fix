@@ -32,7 +32,7 @@ display1 cur:60 vsync_period=16666666
 '@ | Set-Content -LiteralPath (Join-Path $root 'vendor.log') -Encoding utf8
 
     & $scriptPath -CaptureDir $root
-    if ($LASTEXITCODE -ne 0) { throw 'Capture analyzer failed.' }
+    if (-not $?) { throw 'Capture analyzer failed.' }
 
     $summary = Get-Content -LiteralPath (Join-Path $root 'analysis/refresh-capture-summary.json') -Raw | ConvertFrom-Json
 
@@ -49,3 +49,4 @@ display1 cur:60 vsync_period=16666666
 } finally {
     Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
 }
+
