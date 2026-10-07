@@ -132,10 +132,12 @@ if ($earlyHookModelSource -notmatch 'OCCUPIED_UNKNOWN' -or
 }
 $earlyHookScriptSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'EarlyCpuBootHookScript.java') -Raw
 if ($earlyHookScriptSource -notmatch 'JESTY_THOR_EARLY_CPU_HOOK_V1' -or
+    $earlyHookScriptSource -notmatch 'jesty-thor-early-cpu-optin-v1' -or
+    $earlyHookScriptSource -notmatch '/dev/jesty-thor-early-cpu-attempt-v1' -or
     $earlyHookScriptSource -notmatch 'write_attempt RESTART_REQUESTED' -or
     $earlyHookScriptSource -notmatch 'setprop ctl\.restart' -or
-    $earlyHookScriptSource -notmatch 'thor-pservice-early-cpu-restart-prototype') {
-    throw 'Early CPU hook script must retain one-shot gate and restart provenance.'
+    $earlyHookScriptSource -match 'thor-pservice-early-cpu-restart-prototype') {
+    throw 'Early CPU hook script must require private opt-in, boot-scoped no-repeat provenance, and no prototype gate.'
 }
 $earlyImportModelSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'EarlyCpuAttemptImportModel.java') -Raw
 if ($earlyImportModelSource -match 'ProcessBuilder|setprop|ctl\.restart|SurfaceControl|LidGuard' -or
