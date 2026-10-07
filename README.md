@@ -8,7 +8,7 @@ Actually turn off the lower screen in TOP mode · Stop unnecessary high CPU cloc
 </p>
 
 <p align="center">
-<a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.20"><strong>Download v1.5.20</strong></a>
+<a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.6.0"><strong>Download v1.6.0</strong></a>
 · <a href="#what-it-fixes">What it fixes</a>
 · <a href="#measured-on-a-real-thor">Measured results</a>
 · <a href="#roadmap">Roadmap</a>
@@ -118,14 +118,14 @@ Original investigation and discussion:
 
 ### How to use
 
-1. [Download the latest signed APK](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.5.20)
+1. [Download the latest signed APK](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.6.0)
 2. Install and open **Jesty Thor Fix**
 3. Enable the controls you want
 4. Close the app (or swipe it away). The fixes continue in the background.
 
 The app uses the Thor’s own privileged bridge. No Magisk or root required.
 
-> **Note:** Enabling the CPU Fix causes one Android UI/display restart (open apps will close). This is expected and also happens once on boot if the fix is saved as ON.
+> **Note:** Changing the CPU Fix restarts Android UI/display once and closes open apps. On later boots, the required display recovery happens during startup; a slightly longer black startup phase is normal.
 
 ---
 
@@ -156,7 +156,6 @@ Power savings depend on usage, brightness, firmware and workload. **No fixed bat
 
 **Working on**
 
-- 🚀 **Cleaner CPU Fix startup/recovery** — keep the required Android display restart safe, remove the confusing second AYN boot animation, and show a short recovery splash instead of a black gap.
 - 🎯 **TOP-mode focus/input bug** — testing whether physically powering off the lower display also prevents games or apps from losing focus to the inactive screen.
 
 **Next investigations**
@@ -190,7 +189,7 @@ Jesty Thor Fix is free and open source. No features are locked behind donations.
 [Architecture](docs/ARCHITECTURE.md) · 
 [Compatibility](docs/COMPATIBILITY.md) · 
 [Benchmarks](docs/BENCHMARKS.md) · 
-[Release notes](docs/RELEASE-NOTES-1.5.20.md) · 
+[Release notes](docs/RELEASE-NOTES-1.6.0.md) · 
 [Build from source](docs/BUILD-AND-RELEASE.md) · 
 [Release integrity](docs/RELEASE-INTEGRITY.md)
 
