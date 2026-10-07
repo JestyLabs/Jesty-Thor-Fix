@@ -5,6 +5,8 @@
 
 This file records where important technical claims and implementation ideas in Jesty Thor Fix came from. It is a verification aid, not a claim that generic Android, Qualcomm, AYN or Retroid mechanisms were invented by this project.
 
+See [docs/RESEARCH-WORKFLOW.md](docs/RESEARCH-WORKFLOW.md) for the standing workflow used before publishing substantial new reverse-engineering or cross-project findings.
+
 ## Scope and attribution rule
 
 When project work materially depends on external code, research or prior art, record the upstream project and an exact URL or commit where practical. When a claim comes from this project, keep the commit, PR, device evidence and tested artifact tied together so later refactors do not erase the original history.
