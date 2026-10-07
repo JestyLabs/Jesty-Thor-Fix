@@ -11,7 +11,7 @@ public final class DisplayActionCoordinator {
     private static volatile String lastMode = "?";
     private static volatile String status = "STARTING";
     private static final DisplayGenerationModel generations = new DisplayGenerationModel();
-    private static long lastHardwareReadAt;
+    private static long lastHardwareReadAt = -1L;
     private static long lastAttemptAt;
     private static String lastAttemptKey = "";
 
@@ -19,7 +19,11 @@ public final class DisplayActionCoordinator {
     public static String status() { return status; }
     public static long generation() { return generations.current(); }
 
-    /** Called by the existing 20 ms settings watcher; DRM reads are throttled. */
+    /**
+     * Called by the Settings watcher. Idle samples are slow; relevant display
+     * events and mode edges wake a short 20 ms burst. DRM reads remain
+     * independently event/safety driven.
+     */
     public static void onWatcherSample(String sampledMode) {
         String mode = BootSafety.knownMode(sampledMode) ? sampledMode : "?";
         boolean stableTopWake = "1".equals(mode) && mode.equals(lastMode)
@@ -34,6 +38,7 @@ public final class DisplayActionCoordinator {
                 cancelRepairLocked();
                 lastMode = mode;
                 status = "MODE_CHANGED";
+                WatcherCadence.onModeChanged();
             }
             DaemonState.setMode(mode);
             if (!BootSafety.knownMode(mode) || BootSafety.isHeld()) {
@@ -47,10 +52,14 @@ public final class DisplayActionCoordinator {
             }
             long now = SystemClock.elapsedRealtime();
             boolean due = WakeRepairScheduler.isDue();
-            if (!changed && !due && !stableTopWake && now - lastHardwareReadAt < 250L) return;
+            long readGeneration = WatcherCadence.beginDrmRead(lastHardwareReadAt,
+                    changed, due, stableTopWake);
+            if (readGeneration < 0L) return;
+            String[] crtc = Telemetry.crtcActivePair();
             lastHardwareReadAt = now;
-            String top = Telemetry.topCrtcActive();
-            String bottom = Telemetry.bottomCrtcActive();
+            WatcherCadence.completeDrmRead(readGeneration);
+            String top = crtc[0];
+            String bottom = crtc[1];
             if (stableTopWake && "1".equals(top) && "1".equals(bottom)) {
                 if (deferredByLid) return;
                 if (DisplayHardware.markWakePending()) scheduleRepairLocked();
@@ -163,6 +172,7 @@ public final class DisplayActionCoordinator {
     private static void scheduleRepairLocked() {
         generations.scheduleRepair();
         WakeRepairScheduler.scheduleFromWake();
+        WatcherCadence.onWakeRepairScheduled();
     }
     private static void cancelRepairLocked() {
         generations.completeRepair();
