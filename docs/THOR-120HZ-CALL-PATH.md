@@ -98,6 +98,36 @@ If the 120/120 policy exists but none of the preferred-mode strings appears for
 the upper physical display, the request was suppressed before a desired active
 mode was created.
 
+
+### 4a. Accepted 120 policy rules out a simple 60-default explanation
+
+Android 13 RefreshRateConfigs validates a policy before storing it.
+
+The reference is explicit:
+
+- defaultMode must exist;
+- defaultMode's FPS must be inside primaryRange;
+- available primary modes are then filtered by resolution, DPI, mode group
+  (unless group switching is enabled) and the primary range;
+- an empty filtered set is fatal.
+
+Therefore, **if the 120/120 range seen in the SurfaceFlinger dump is the
+accepted current SF policy for the upper physical display**, its default mode
+cannot simply be a 60 Hz mode outside that range.
+
+This removes one easy explanation for the upper-panel result.
+
+Mode groups still matter for deciding *which 120 config* is available, but they
+cannot by themselves explain an accepted 120/120 SF policy whose only default
+mode is 60.
+
+The remaining high-value distinction is now:
+
+- was the upper display considered inactive by SurfaceFlinger, so the accepted
+  policy was stored but never applied; or
+- was it active, in which case a 120 desired mode should normally have been
+  selected and the next boundary is the desired-mode/HWC handoff?
+
 ### 5. Desired mode is only a pending request
 
 setDesiredActiveMode does not immediately program the panel. It stores the

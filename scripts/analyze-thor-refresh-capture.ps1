@@ -33,7 +33,7 @@ foreach ($path in $ExtraLog) {
 $allFiles = @($allFiles | Sort-Object FullName -Unique)
 
 function Get-MatchingLines {
-    param([Parameter(Mandatory=$true)][string[]]$Patterns)
+    param([Parameter(Mandatory=$true)][object[]]$Patterns)
 
     $out = New-Object System.Collections.Generic.List[object]
     foreach ($file in $allFiles) {
