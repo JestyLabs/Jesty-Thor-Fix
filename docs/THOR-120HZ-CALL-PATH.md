@@ -133,9 +133,80 @@ The remaining high-value distinction is now:
 
 ### 5. Desired mode is only a pending request
 
-setDesiredActiveMode does not immediately program the panel. It stores the
+`setDesiredActiveMode` does not immediately program the panel. It stores the
 desired mode, schedules composition, resynchronizes hardware vsync and leaves a
 mode change pending for the main SurfaceFlinger composition path.
+
+There is a crucial Android 13 exception. If `mDesiredActiveModeChanged` is
+already set, `DisplayDevice::setDesiredActiveMode()` replaces the cached
+desired mode and returns `false`. The SurfaceFlinger wrapper only calls
+`scheduleComposite()` when that return is `true`.
+
+The exact Thor binary contains the same branch at
+`0x1255ac–0x125610`, with the state byte at `DisplayDevice + 0x281`.
+
+A later Android modesetting-state-machine rewrite explicitly cites stale
+desired/pending state as a motivation and records that the older implementation
+could fail to emit a mode-change event when a mode was already desired or
+pending. This later change is architectural corroboration only; it is not proof
+that the validation Thor entered the stale-state branch.
+
+### 5a. The safe peak-first write creates an intermediate policy
+
+The controlled probe did not transition atomically from 60/60 to 120/120.
+
+It deliberately used the safer ordering:
+
+```text
+60/60
+  -> peak=120
+  -> 60-120 policy
+  -> min=120
+  -> 120-120 policy
+```
+
+This matters because `DisplayDevice::setRefreshRatePolicy()` atomically
+exchanges `mNumModeSwitchesInPolicy` with zero on every accepted changed
+policy.
+
+Therefore the rollback message:
+
+```text
+0 mode changes were performed under the previous policy
+```
+
+proves zero initiations only for the final 120-120 policy interval. It cannot
+exclude an initiation under the preceding 60-120 policy.
+
+That yields a discriminating local-log test:
+
+```text
+60-120 -> 120-120 policy-change block
+  |
+  +-- previous-policy mode-change count = 0
+  |      -> no evidence of an intermediate initiation;
+  |         stale state would need to predate the peak write or the request
+  |         must have been gated before setDesiredActiveMode
+  |
+  +-- previous-policy mode-change count > 0
+         -> an intermediate initiation occurred;
+            correlate its HWC result before blaming the final policy
+```
+
+An especially strong signature would be:
+
+```text
+60-120 policy
+  -> changing active mode to 120
+  -> initiateModeChange failed
+  -> 120-120 policy
+  -> cached desired 120 replaces existing pending request
+  -> no new scheduleComposite
+  -> final policy counter remains zero
+```
+
+The raw local log from the already-completed probe is sufficient to test this
+sequence. No new device mutation is needed.
 
 ### 6. Active-display gate is checked again
 
@@ -389,28 +460,28 @@ No vendor failure is required. This says nothing negative about the lower
 panel's actual 120 capability; the request can be stopped before that capability
 is exercised.
 
-### B — upper request was accepted but did not schedule/enter a desired 120 transition
-**Confidence: medium-high; main unresolved boundary.**
+### B — upper request is trapped in desired/pending state before a fresh HWC handoff
+**Confidence: medium-high; leading mechanism to test in the existing raw log.**
 
-The upper was the expected active internal display and nevertheless recorded
-zero mode-change initiations.
+The final 120-120 interval recorded zero mode initiations, but the safe
+peak-first sequence created an earlier 60-120 policy whose counter was reset
+when 120-120 was accepted.
 
-The exact Thor SurfaceFlinger binary has a pending-desired-mode branch:
-if the display already has a desired-mode change marked pending, a new desired
-mode can replace the cached value and return without requesting a fresh
-composition. This is now a concrete candidate mechanism, but the capture does
-not expose the pending-state byte needed to prove it.
+The exact Thor SurfaceFlinger binary has the Android 13 cached-desired branch:
+if a desired mode is already pending, a new request replaces the cache and
+returns without scheduling a fresh composition. Android 13 also retains desired
+state on the `initiateModeChange()` error branch.
 
-Other remaining candidates are scheduler/preferred-mode selection or another
-pre-HWC policy gate.
+The next discriminant is therefore the policy-change block immediately before
+12:28:39.059:
 
-Evidence needed:
+- count > 0 under 60-120 -> reconstruct that earlier initiation/failure;
+- count = 0 -> the stale state must predate the safe raise or another gate
+  prevented the request before mode initiation.
 
-- active physical-display identity;
-- accepted policy default mode ID and mode group;
-- scheduler preferred mode;
-- desired/upcoming mode state;
-- whether a composition was scheduled for the policy edge.
+A later Android state-machine rewrite explicitly fixes the broader class of
+stale desired/pending mode state, which supports investigating this mechanism
+but does not prove it occurred on Thor.
 
 ### C — lower 120 requires the AYN DFPS + PASS-RAM path
 **Confidence: high as architecture; not exercised by the captured probe.**
@@ -437,18 +508,25 @@ capability.
 
 ## Read-only decision tree
 
-Use existing evidence only:
+Use the existing capture and local raw log first:
 
-1. Was the upper physical display SurfaceFlinger's active internal display?
-   - no -> active-display gating explains both;
+1. What does the **60-120 -> 120-120** policy-change block report for the upper
+   display's previous-policy mode-change count?
+   - greater than zero -> an intermediate initiation occurred; correlate its
+     `changing active mode`, HWC call and result;
+   - zero -> continue.
+2. Was the upper physical display SurfaceFlinger's active internal display at
+   the policy edge?
+   - no -> active-display gating explains the missing handoff;
    - yes -> continue.
-2. Did SF create a desired 120 active mode for the upper?
-   - no -> problem is scheduler/policy/mode selection before HWC;
-   - yes -> continue.
-3. Did initiateModeChange reach HWC?
-   - immediate error -> HWC config validation;
+3. Did SF create/cache a desired 120 active mode?
+   - no -> problem is before `setDesiredActiveMode`;
+   - yes but no fresh schedule -> inspect stale desired/pending state;
+   - yes + scheduled -> continue.
+4. Did `initiateModeChange` reach HWC?
+   - immediate error -> HWC/config validation plus retained desired-state path;
    - success -> continue.
-4. Did Qualcomm submit SetActiveConfig(120-config)?
+5. Did Qualcomm submit `SetActiveConfig(120-config)`?
    - no -> pending-config/validate path;
    - yes + error -> SDM/kernel config rejection;
    - yes + success -> compare active DRM mode/vblank and panel timing.
