@@ -47,16 +47,21 @@ foreach ($needle in $required) {
     }
 }
 
-foreach ($needle in @('THOR_REFRESH_CAPTURE_ANALYSIS_V1', 'Inactive display', 'initiateModeChange failed', 'Active configuration changed', '1080x1240x120vid')) {
+foreach ($needle in @('THOR_REFRESH_CAPTURE_ANALYSIS_V2', 'causalConclusion', 'Inactive display', 'initiateModeChange failed', 'Active configuration changed', '1080x1240x120vid', 'bypass_ram')) {
     if (-not $captureAnalyzer.Contains($needle)) {
         throw "Capture analyzer is missing required call-path evidence: $needle"
     }
 }
 
-if (-not $analyzer.Contains('SetRefreshRate') -or
+if (-not $analyzer.Contains('THOR_REFRESH_BINARY_STRINGS_V2') -or
+    -not $analyzer.Contains('SetRefreshRate') -or
     -not $analyzer.Contains('dynamic_fps') -or
-    -not $analyzer.Contains('qsync')) {
-    throw 'Binary analyzer is missing required refresh-rate search terms.'
+    -not $analyzer.Contains('qsync') -or
+    -not $analyzer.Contains('bypass_ram')) {
+    throw 'Binary analyzer is missing required refresh-rate / AYN lower-panel search terms.'
+}
+if ($analyzer -notmatch '\[IO\.Path\]::GetFullPath\(\$_\.FullName\) -ne \$outputFullPath') {
+    throw 'Binary analyzer must exclude its own report from recursive input.'
 }
 
 $root = Split-Path -Parent $PSScriptRoot
