@@ -213,7 +213,7 @@ Use:
 .\scripts\collect-thor-pserverbinder-readonly.ps1
 ```
 
-Default behavior is one snapshot. It performs no Binder transaction and no service restart.
+Default behavior is one snapshot. It does **not invoke PServerBinder's vendor command transact** or restart services. However, `service check` and `service list` are ServiceManager Binder IPC lookups; it would be inaccurate to describe the entire collector as performing no Binder transactions.
 
 For a short passive sequence when the anomaly is already present:
 
@@ -230,10 +230,26 @@ The collector records:
 - pservice, servicemanager, SurfaceFlinger, composer and system_server PID/starttime;
 - readable Binder debug state;
 - SELinux mode and relevant AVC/audit output;
-- full and filtered logcat.
+- full and filtered logcat;
+- `00-capture-status.tsv` recording the exit code of every ADB command, so missing logs, permission denials and failed commands cannot be silently interpreted as negative observations.
 
-It intentionally performs no property write, service control, process signal, reboot, Binder
-transaction, privilege escalation, or device-side file mutation.
+It intentionally performs no property write, service control, process signal, reboot, **PServerBinder vendor command transaction**, privilege escalation, or device-side file mutation. Read-only ServiceManager Binder IPC is still used for name lookup.
+
+## Collector review and evidence integrity (2026-10-08)
+
+The first research collector printed entire capture command outputs (including full logcat) back into the host console and ignored ADB exit codes. That meant an offline device or an inaccessible probe could be mistaken for a normal negative observation. The host-only collector now:
+
+- requires an ADB `get-state` result of `device` before starting snapshots; 
+- records every command's exit code in `00-capture-status.tsv`, alongside the command output file;
+- keeps best-effort samples even if optional Binder debugfs/logcat/audit sources fail, reporting nonzero exit counts instead of silently calling the capture complete;
+- writes large output to evidence files without streaming potentially sensitive full logcat back through the PowerShell pipeline;
+- documents that ServiceManager `service check` and `service list` use Binder IPC for read-only queries even though no vendor PServerBinder command is transacted.
+
+A nonzero remote shell exit is not automatically a cause diagnosis: for example, `grep` returns 1 when no lines match, while permission errors are different. Read both the status and the saved command output.
+
+The sample folders are **sequential**, not atomic snapshots. ServiceManager visibility may change between `service check`, `service list`, process state and logcat reads. Do not use their file timestamps alone to prove a fast ordering. An actual H2/H3 diagnosis still requires cross-sample stable boot ID, PID **and starttime**, and coherent ServiceManager evidence.
+
+This collector is read-only but creates local logs that may contain private account or process data. **Keep raw files off the public repository**; only publish sanitized summaries. The exact pservice binary remains on the owner's local Windows host and was not reverse-engineered anew in this review.
 
 ## External implementation survey
 
