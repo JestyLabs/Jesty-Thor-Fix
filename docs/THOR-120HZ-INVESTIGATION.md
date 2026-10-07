@@ -96,21 +96,30 @@ occurred immediately before that interval.
 The safe raise sequence matters here:
 
 ```text
+Settings state:
 60/60
-  -> peak=120  => transient policy 60-120
-  -> min=120   => final policy 120-120
+  -> peak=120  => transient settings state 60-120
+  -> min=120   => final settings state 120-120
 ```
 
-`DisplayDevice::setRefreshRatePolicy()` resets the per-display
-`mNumModeSwitchesInPolicy` counter whenever a changed policy is accepted.
-Therefore an initiation made under the transient 60-120 policy would be
-reported/reset when the 120-120 policy was installed, and would not appear in
-the later rollback's `0 mode changes` value.
+It is **not yet proven** that SurfaceFlinger saw a distinct 60-120 policy.
+The AYN-modified `SettingsObserver.onChange()` tracks the peak/min
+notifications and enters its special fade/bypass flow once both have arrived.
+The currently versioned reverse-engineering notes do not prove whether the
+normal policy update is also emitted after each individual notification or
+batched until the pair is complete.
 
-This is now the highest-value gap in the existing local logs: reconstruct the
-policy transition immediately **before 12:28:39.059** and extract the
-mode-change count associated with 60-120 -> 120-120 before drawing a broader
-"no HWC request at all" conclusion.
+If SurfaceFlinger did accept a 60-120 policy,
+`DisplayDevice::setRefreshRatePolicy()` would reset the per-display
+`mNumModeSwitchesInPolicy` counter when the later 120-120 policy was accepted.
+An initiation under 60-120 could then disappear from the final rollback count.
+
+If no 60-120 SurfaceFlinger policy block exists, that entire intermediate-policy
+mechanism is eliminated for this probe.
+
+This is now the highest-value gap in the existing local logs: inspect the
+policy-change sequence immediately **before 12:28:39.059** and first determine
+whether SurfaceFlinger ever accepted 60-120 at all.
 
 The same dump lists both physical displays as `powerMode=On` and both DRM
 CRTCs as active, but marks the lower display **inactive** in SurfaceFlinger's
@@ -131,20 +140,25 @@ replaces the cached desired mode and returns false. The caller at `0x1af168`
 only schedules a new composition when that return is true. This matches the
 [AOSP pending-mode behavior](https://android.googlesource.com/platform/frameworks/native/+/refs/heads/android13-qpr3-c-s2-release/services/surfaceflinger/DisplayDevice.cpp).
 
-That branch becomes materially more interesting once the intermediate 60-120
-policy is considered. A plausible, still **unproven**, sequence is:
+That branch becomes materially more interesting **if** the local raw log proves
+that SurfaceFlinger accepted an intermediate 60-120 policy. A plausible, still
+**unproven**, sequence would then be:
 
 ```text
-peak=120 -> policy 60-120
+peak=120 -> SF accepts 60-120
   -> upper desired 120 is created
   -> mode initiation is attempted or left pending
-  -> min=120 installs policy 120-120 and resets the policy counter
+  -> min=120 -> SF accepts 120-120 and resets the policy counter
   -> desired-state flag is still set
   -> new 120 request only replaces cached desired mode
   -> setDesiredActiveMode returns false
   -> no fresh scheduleComposite()
   -> final 120-120 interval records zero mode initiations
 ```
+
+If the raw log shows that AYN batched directly from 60-60 to 120-120, this
+specific sequence is rejected and the pending-state explanation would have to
+predate the probe or arise inside the single final-policy transition.
 
 Android 13's `setActiveModeInHwcIfNeeded()` also leaves the desired mode
 present when `initiateModeChange()` returns an error; it logs the failure and
@@ -627,9 +641,9 @@ settings probe yet.**
 The next pass is entirely local/offline and should start with the raw log from
 the already-completed second probe:
 
-1. locate the first `peak_refresh_rate=120` notification and the resulting
-   transient 60-120 policy, immediately before the final 120-120 policy at
-   ~12:28:39;
+1. locate the first `peak_refresh_rate=120` notification and determine
+   whether it produced a distinct SurfaceFlinger 60-120 policy or whether AYN
+   batched directly to the final 120-120 policy at ~12:28:39;
 2. extract every nearby SurfaceFlinger policy-change block per display:
    `Previous`, `Current`, and
    `N mode changes were performed under the previous policy`;
@@ -641,10 +655,12 @@ the already-completed second probe:
    `Active configuration changed`;
 4. correlate those entries by physical/logical display identity rather than
    combining unrelated lines from the bundle;
-5. only if the intermediate policy also has zero initiation evidence should the
-   investigation move backward toward a pre-existing stale desired mode or a
-   vendor divergence before `setDesiredActiveMode`;
-6. if the intermediate policy shows an initiation/failure, reconstruct that
+5. if no intermediate SF policy exists, reject the intermediate-policy theory
+   and analyse the single 60-60 -> 120-120 transition;
+6. if an intermediate SF policy exists with zero initiation evidence, move
+   backward toward a pre-existing stale desired mode or a gate before
+   `setDesiredActiveMode`;
+7. if an intermediate policy shows an initiation/failure, reconstruct that
    exact failure path before considering any new hardware experiment.
 
 Separately, the V2 read-only collector is now prepared for a future natural
