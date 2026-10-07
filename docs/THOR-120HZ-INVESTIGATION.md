@@ -69,9 +69,89 @@ Android 13 [SurfaceFlinger reference code](https://android.googlesource.com/plat
 distinguishes a policy update from a completed HWC mode change, and can defer
 applying policy on an inactive internal display. This is an architectural clue,
 not proof that the Thor's vendor build took that branch. The current evidence
-does not distinguish a suppressed/deferred request from a failed HWC request.
-The next work is read-only: inspect the captured SurfaceFlinger/SDM state and
-the exact vendor call path before designing another physical transition.
+is narrowed by the binary check below. The next work is read-only: determine
+why the active upper display did not issue a mode-change request.
+
+### SurfaceFlinger binary check: no HWC mode request in the probe
+
+**PROVEN for this exact firmware binary and the 12:28:39–12:28:49 policy
+window.** The copied `/system/bin/surfaceflinger` has ELF Build ID
+`a4e0851419d45662b0fd5cd067b585bf`. Its policy-change log string is used
+by the routine at `0x125800`: that routine atomically exchanges the per-display
+mode-change counter at object offset `+0x2a0` with zero (`0x125878–0x125884`)
+and logs the old value (`0x125924`). The mode-initiation routine increments
+that same counter at `0x124250–0x124258` (and on its alternate path at
+`0x1243ec–0x1243f4`) **before** dispatching the HWC mode request. These
+locations were checked with ARM64 disassembly of the copied binary, not inferred
+solely from log wording. The matching
+[AOSP `DisplayDevice` implementation](https://android.googlesource.com/platform/frameworks/native/+/refs/heads/android13-qpr3-c-s2-release/services/surfaceflinger/DisplayDevice.cpp)
+also increments the counter before `setActiveModeWithConstraints`.
+
+At policy rollback, the log reported `0 mode changes were performed under the
+previous policy` for **both** displays. Thus no mode-initiation call reached
+the HWC request in that 120/120 window, including failed HWC attempts counted
+by this path. This moves the immediate question upstream of Qualcomm SDM;
+the experiment did not test whether its 120 Hz config would succeed.
+
+The same dump lists both physical displays as `powerMode=On` and both DRM
+CRTCs as active, but marks the lower display **inactive** in SurfaceFlinger's
+HWC-layer summary. These words refer to different concepts. In the cited
+Android 13 source, `setDesiredDisplayModeSpecsInternal` stores the policy for
+an inactive internal display and returns before applying it. That is a strong
+mechanistic explanation for the lower display remaining at 60 Hz, but the
+captured dump does not reveal the exact runtime branch taken on this vendor
+build. The upper display is marked **active** and still made no HWC request;
+its missing transition is unresolved. Do not treat `DynFPS:false` on the upper
+SDM dump or `DynFPS:true` on the lower as the cause of this probe: neither
+vendor mode-setting path was reached.
+
+The same exact `surfaceflinger` binary has a pending-mode branch in
+`DisplayDevice::setDesiredActiveMode` at `0x1255ac–0x125610`. If its
+`mDesiredActiveModeChanged` byte at `DisplayDevice + 0x281` is already set, it
+replaces the cached desired mode and returns false. The caller at `0x1af168`
+only schedules a new composition when that return is true. This matches the
+[AOSP pending-mode behavior](https://android.googlesource.com/platform/frameworks/native/+/refs/heads/android13-qpr3-c-s2-release/services/surfaceflinger/DisplayDevice.cpp)
+and is one possible explanation for a policy being accepted without a new HWC
+request. The captured dump does **not** expose that byte, so a stale pending
+mode is a hypothesis, not the diagnosed cause. The upper-display gate remains
+open.
+
+### AYN framework path and the possible black blink
+
+Read-only extraction of this Thor's `/system/framework/services.jar`
+(SHA-256 `2D2CAD9BBFC1E856440E2B99BEEFACDCDF927981414D8478D0327F20BDFC0903`)
+shows an AYN-specific branch in
+`com.android.server.display.DisplayModeDirector.SettingsObserver`. When the
+two global refresh settings change, `onChange` tracks whether both `peak` and
+`min` notifications have arrived. The framework's `DisplayUtils` selects the
+secondary display by nonzero logical ID and internal display type; its exact
+`framework.jar` SHA-256 is
+`02906B19CF5CCBA529D2023B5337E4678F03F7EFBD8974D4F2742C49C0517773`.
+`updateRefreshRateSettingLockedForX6()`
+then reads the lower panel's brightness and calls `onBrightnessFade`.
+
+With both notifications present, `onBrightnessFade` sends a command through
+`PServerBinder` to write **0** to
+`/sys/class/backlight/panel1-backlight/brightness`, waits 50 ms, and continues
+the refresh-policy update. The next callback writes `0x0` to
+`/sys/class/bypass_ram_class/bypass_ram_device/bypass_ram` for a peak setting
+of at least 110 Hz (otherwise `0x1`), waits another 200 ms, then animates the
+lower brightness back over 200 ms. This is a framework-requested lower-panel
+blank/fade surrounding policy changes; it does not require a successful HWC
+mode switch. It is a concrete explanation for the user's possible brief black
+blink. The captured log does not prove each privileged write succeeded, so the
+visual observation remains qualified.
+
+The decompiled code also explains why a simple `settings put` probe is not a
+pure mode-set test on this firmware: it invokes lower-panel brightness and
+`bypass_ram` actions in addition to changing Android's desired policy. The
+probe still measured **no 120 Hz physical scanout**. Do not repeat it merely
+to settle the blink without a separate risk review and a measurement that can
+answer the unresolved upper-display request question.
+
+On the final read-only check, the same boot ID remained, `min/peak` were
+`60.0/60.0`, `bypass_ram` read `1`, and the Thor was asleep. No app code,
+installation, or reboot was involved in this reverse-engineering pass.
 
 This workstream investigates the Thor's mixed-refresh behavior without assuming
 that an Android-visible refresh rate is the physical scanout rate of a panel.
