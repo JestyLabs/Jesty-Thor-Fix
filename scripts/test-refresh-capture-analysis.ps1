@@ -49,4 +49,3 @@ display1 cur:60 vsync_period=16666666
 } finally {
     Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
 }
-
