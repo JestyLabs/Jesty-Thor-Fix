@@ -19,6 +19,7 @@ public final class WatcherCadence {
     private static long samples;
     private static long displayEvents;
     private static long modeChanges;
+    private static long wakeRepairPulses;
     private static long drmReads;
     private static long idleWaits;
     private static long burstWaits;
@@ -53,6 +54,15 @@ public final class WatcherCadence {
         synchronized (LOCK) {
             modeChanges++;
             MODEL.onModeChanged(SystemClock.elapsedRealtime());
+            LOCK.notifyAll();
+        }
+    }
+
+    /** A delayed wake repair must not wait for the idle safety cadence. */
+    public static void onWakeRepairScheduled() {
+        synchronized (LOCK) {
+            wakeRepairPulses++;
+            MODEL.onDisplayEvent(SystemClock.elapsedRealtime());
             LOCK.notifyAll();
         }
     }
@@ -103,6 +113,7 @@ public final class WatcherCadence {
         return "watcher_samples=" + samples
                 + ";watcher_display_events=" + displayEvents
                 + ";watcher_mode_changes=" + modeChanges
+                + ";watcher_repair_pulses=" + wakeRepairPulses
                 + ";watcher_drm_reads=" + drmReads
                 + ";watcher_idle_waits=" + idleWaits
                 + ";watcher_burst_waits=" + burstWaits
