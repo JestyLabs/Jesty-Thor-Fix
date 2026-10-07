@@ -169,4 +169,3 @@ $report | Set-Content -LiteralPath $mdPath -Encoding utf8
 Write-Host "Capture analysis: $stage"
 Write-Host "JSON: $jsonPath"
 Write-Host "Report: $mdPath"
-
