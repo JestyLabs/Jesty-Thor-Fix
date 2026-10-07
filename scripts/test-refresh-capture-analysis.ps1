@@ -55,6 +55,30 @@ panel=ch13726a
         throw 'Analyzer reason must not turn uncorrelated text matches into a causal conclusion.'
     }
 
+    # A policy range that merely contains 120 must not be described as a proven
+    # fixed-120 request. It is still useful evidence, but only as a 120 mention.
+    @'
+system/min_refresh_rate=60.0
+system/peak_refresh_rate=120.0
+DesiredDisplayModeSpecs primaryRefreshRateRange=[60.0 120.0]
+'@ | Set-Content -LiteralPath (Join-Path $root '04-dumpsys-display.txt') -Encoding utf8
+
+    @'
+Setting desired display mode specs: defaultMode=1 primaryRange=[60,120]
+Inactive display
+'@ | Set-Content -LiteralPath (Join-Path $root '06-surfaceflinger.txt') -Encoding utf8
+
+    & $scriptPath -CaptureDir $root
+    if (-not $?) { throw 'Range-only capture analyzer run failed.' }
+
+    $summary = Get-Content -LiteralPath (Join-Path $root 'analysis/refresh-capture-summary.json') -Raw | ConvertFrom-Json
+    if ($summary.stage -ne 'POLICY_120_MENTION_WITHOUT_DESIRED_MODE_EVIDENCE') {
+        throw "Unexpected range-only evidence stage: $($summary.stage)"
+    }
+    if ($summary.reason -notmatch 'range containing 120') {
+        throw 'Range-only policy evidence must stay explicitly ambiguous.'
+    }
+
     # A vendor-success marker and a DRM-60 snapshot in different files must stay
     # explicitly uncorrelated. The analyzer may surface the pair, but not claim a
     # post-HWC physical mismatch.
