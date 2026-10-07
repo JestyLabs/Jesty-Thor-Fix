@@ -91,6 +91,28 @@ Current v1.6.0 code establishes these background-work bounds:
 
 No user-facing micro-stutter, thermal regression or gameplay-performance problem has been demonstrated from this watcher. The active workstream is to instrument and measure actual daemon CPU/I/O cost first, then evaluate an adaptive event-driven + safety-poll design only if the measured benefit justifies changing a physically stable watcher.
 
+### JTF-RR-20261007-WATCHER-POLLING
+
+Research branch:
+`research/thor-watcher-drm-polling`
+
+Initial research head:
+`760146ae3cdfbb31f88bd190ca67dd75883172b0`
+
+Status: **UNTESTED ON HARDWARE / MEASUREMENT CANDIDATE**
+
+The v1.6.0 source establishes a fixed 20 ms Settings-provider watcher cadence and a steady physical-check throttle of 250 ms. This research path tests whether the same correctness can be retained with:
+
+- a 500 ms idle Settings safety poll;
+- immediate wake-up from existing DisplayManager callbacks;
+- a short 20 ms transition burst;
+- a 1 s DRM safety interval;
+- one paired TOP/BOTTOM CRTC snapshot instead of two independent debugfs opens.
+
+This is an efficiency investigation, not a response to a demonstrated gameplay defect. No micro-stutter, thermal regression or frame-time problem has been attributed to the v1.6.0 watcher.
+
+Promotion requires measured A/B benefit plus physical BOTH/TOP and wake-repair equivalence. If the measured benefit is negligible, the research path should be closed without changing stable behavior.
+
 ## Evidence discipline
 
 Technical claims should be labelled internally as one of:
