@@ -156,7 +156,7 @@ foreach ($name in $results.Keys) {
             $relative = [IO.Path]::GetRelativePath((Resolve-Path -LiteralPath $CaptureDir).Path, $row.file)
         } catch {}
         $text = $row.text.Replace('|', '/')
-        $report.Add("- ${relative}:$($row.line) — $text")
+        $report.Add("- ${relative}:$($row.line) - $text")
     }
     if ($rows.Count -gt 120) {
         $report.Add("- ... truncated; $($rows.Count - 120) additional matches are in the source files.")
@@ -169,3 +169,4 @@ $report | Set-Content -LiteralPath $mdPath -Encoding utf8
 Write-Host "Capture analysis: $stage"
 Write-Host "JSON: $jsonPath"
 Write-Host "Report: $mdPath"
+
