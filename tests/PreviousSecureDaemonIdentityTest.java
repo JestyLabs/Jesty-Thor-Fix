@@ -41,6 +41,9 @@ public final class PreviousSecureDaemonIdentityTest {
         check(PreviousSecureDaemonIdentity.safePid(
                 HEALTH.replace("1.5.3", "1.5.20-earlycpu-p33"), BOTH) == 11398,
                 "the exact hardware-tested prototype may be replaced by v1.6.0");
+        check(PreviousSecureDaemonIdentity.safePid(
+                HEALTH.replace("1.5.3", "1.6.0"), BOTH) == 11398,
+                "stable v1.6.0 may be replaced by the isolated watcher experiment");
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.5.4"), BOTH) < 0,
                 "unknown version must not be killed");
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("pid=11398", "pid=1;bad=x"), BOTH) < 0,
