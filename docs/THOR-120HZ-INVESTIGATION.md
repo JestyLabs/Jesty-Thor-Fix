@@ -2,6 +2,8 @@
 
 Status: **ACTIVE RESEARCH - 60/60 RESTORED; FURTHER TESTS PAUSED**
 
+**2026-10-07 detailed follow-up:** [event ordering, cached-mode provenance, default-display-centric completion and Qualcomm's deferred-apply boundary](THOR-120HZ-EVENT-ORDER-AND-MODE-PROVENANCE.md).
+
 **2026-10-07 offline invalid-mode review:** [SF physical-display identity guard, per-display mode IDs, trace/ATRACE caveats, and exact-binary follow-up](THOR-120HZ-INVALID-MODE-OFFLINE-REVIEW.md). This review uses public Android 13 code and the previously documented results; it does not claim to have independently opened the user's local binaries or raw trace.
 Collector/schema: **THOR_REFRESH_INVESTIGATION_V2**  
 Started: 2026-10-07
