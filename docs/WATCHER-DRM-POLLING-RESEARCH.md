@@ -1,4 +1,4 @@
-# Watcher / DRM polling reduction — measured prototype
+# Watcher / DRM polling reduction — measurement prototype
 
 Status: **UNTESTED on hardware. Research branch only. Stable v1.6.0 remains unchanged.**
 
@@ -8,7 +8,7 @@ Research record: `JTF-RR-20261007-WATCHER-POLLING`
 
 The current v1.6.0 daemon is functionally correct, but its mode watcher calls the hidden Settings provider every **20 ms** (about 50 samples/s). When True Bottom Screen Off is active and the boot hold is clear, `DisplayActionCoordinator` also checks DRM often enough to permit a fresh CRTC read about every 250 ms. The old watcher path read TOP and BOTTOM through two independent debugfs opens.
 
-This is technical debt, not a proven battery/performance bug. The project rule is therefore:
+This is technical debt, not a proven battery/performance bug. If there is a meaningful cost, the most plausible first-order effect is unnecessary background wakeups/idle work; a frame-time or micro-stutter effect would require separate evidence. The project rule is therefore:
 
 > do not ship a polling reduction unless a measured A/B shows a useful reduction and the physical display behavior stays equivalent.
 
