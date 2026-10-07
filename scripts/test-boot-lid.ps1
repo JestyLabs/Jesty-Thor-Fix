@@ -123,6 +123,21 @@ if ($watcherMeasure -match '(?im)\badb\s+(?:reboot|install|push|root|remount)\b'
     throw 'Watcher measurement script must remain read-only.'
 }
 
+# Regression: a single [string[]] function parameter must receive one named
+# array argument. Positional array splatting spreads each adb token into a
+# separate PowerShell function argument and can fail before measurements start.
+if ($watcherMeasure -match 'Invoke-AdbText\s+@\(' -or
+    $watcherMeasure -notmatch 'Invoke-AdbText\s+-Arguments\s+@\(') {
+    throw 'Watcher measurement ADB calls must bind the Arguments array explicitly.'
+}
+# PID alone is not process identity: the procfs field-22 starttime is required
+# to reject PID/TID reuse when comparing two sampling endpoints.
+if ($watcherMeasure -notmatch 'StartTime\s*=\s*\[int64\]\$fields\[19\]' -or
+    $watcherMeasure -notmatch 'daemonEnd.StartTime -ne \$daemonStart.StartTime' -or
+    $watcherMeasure -notmatch 'start.StartTime -ne \$end.StartTime') {
+    throw 'Watcher measurements must reject recycled daemon PIDs and thread IDs.'
+}
+
 $preComposerInspect = Get-Content -LiteralPath (Join-Path $repository 'scripts\inspect-thor-precomposer.ps1') -Raw
 if ($preComposerInspect -match '(?im)\badb\s+(?:reboot|install|push|root|remount)\b' -or
     $preComposerInspect -match '(?im)\bsetprop\b' -or
