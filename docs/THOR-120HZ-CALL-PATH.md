@@ -97,9 +97,9 @@ Reference log strings worth searching in an existing capture are:
 - trying to switch to Scheduler preferred mode
 - switching to Scheduler preferred display mode
 
-If the 120/120 policy exists but none of the preferred-mode strings appears for
-the upper physical display, the request was suppressed before a desired active
-mode was created.
+These preferred-mode messages are `ALOGV` in the Android 13 source and their
+strings are absent from the exact Thor SurfaceFlinger binary. Their absence in
+logcat therefore cannot establish whether a desired active mode was created.
 
 
 ### 4a. Accepted 120 policy rules out a simple 60-default explanation
@@ -143,7 +143,7 @@ desired mode and returns `false`. The SurfaceFlinger wrapper only calls
 `scheduleComposite()` when that return is `true`.
 
 The exact Thor binary contains the same branch at
-`0x1255ac–0x125610`, with the state byte at `DisplayDevice + 0x281`.
+`0x1255ac�0x125610`, with the state byte at `DisplayDevice + 0x281`.
 
 A later Android modesetting-state-machine rewrite explicitly cites stale
 desired/pending state as a motivation and records that the older implementation
@@ -151,7 +151,7 @@ could fail to emit a mode-change event when a mode was already desired or
 pending. This later change is architectural corroboration only; it is not proof
 that the validation Thor entered the stale-state branch.
 
-### 5a. Peak-first creates an intermediate Settings state; an intermediate SF policy is unproven
+### 5a. Peak-first created an intermediate Settings state, but SF received a direct transition
 
 The controlled probe deliberately used:
 
@@ -166,9 +166,11 @@ Settings:
 
 The AYN-modified `DisplayModeDirector.SettingsObserver` tracks the peak/min
 notifications and enters its special fade/bypass path once both have arrived.
-The reverse engineering currently recorded in this branch does **not** establish
-whether the normal SurfaceFlinger policy update is emitted after each individual
-notification or batched until both are present.
+The captured SurfaceFlinger log resolves the delivery question for this probe:
+both physical displays changed directly from a fixed 60/60 policy to a fixed
+120/120 policy at `12:28:39.059`. No separate 60-120 policy transition appears
+between the Settings writes and that delivery. Both returned directly to 60/60
+at `12:28:49.107-108`.
 
 Therefore there are two different cases:
 
@@ -211,9 +213,9 @@ An especially strong case-A signature would be:
   -> final policy counter remains zero
 ```
 
-If case B is what the raw log shows, this whole intermediate-policy sequence is
-rejected. Any stale desired/pending state would then have to predate the probe or
-arise during the single final-policy transition.
+This capture is case B. The intermediate-policy counter-reset explanation does
+not apply to the sustained probe. A stale desired/pending state remains possible
+only if it predates the probe or arises during the single 120/120 transition.
 
 The already-collected local log is sufficient to decide A versus B. No new
 device mutation is needed.
@@ -455,7 +457,7 @@ point, and what is the measured cadence when it does?"
 
 ## Ranked hypotheses after the controlled probe
 
-### A — lower request stored but not applied because it is not SF-active
+### A � lower request stored but not applied because it is not SF-active
 **Confidence: high as the explanation for the lower result in this probe.**
 
 Prediction in existing logs/dumps:
@@ -470,29 +472,27 @@ No vendor failure is required. This says nothing negative about the lower
 panel's actual 120 capability; the request can be stopped before that capability
 is exercised.
 
-### B — upper request may be trapped in desired/pending state before a fresh HWC handoff
-**Confidence: medium-high as a mechanism; first gate is whether 60-120 reached SF.**
+### B � upper request may be trapped in desired/pending state before a fresh HWC handoff
+**Plausible internal mechanism, not observed in this probe.**
 
 The final 120-120 interval recorded zero mode initiations. The safe peak-first
-sequence definitely created a temporary **Settings** state of 60-120, but the
-AYN SettingsObserver may have batched policy delivery.
+sequence created a temporary **Settings** state of 60-120, but the raw SF log
+shows only a direct 60-60 -> 120-120 transition for this probe.
 
 The exact Thor SurfaceFlinger binary has the Android 13 cached-desired branch:
 if a desired mode is already pending, a new request replaces the cache and
 returns without scheduling a fresh composition. Android 13 also retains desired
 state on the `initiateModeChange()` error branch.
 
-The local raw log should first answer:
-
-- was there a distinct 60-120 SurfaceFlinger policy?
-- if yes, how many mode initiations occurred under it?
-- if no, analyse the direct 60-60 -> 120-120 transition instead.
+The remaining question is whether the upper display was considered active at
+that policy edge and whether it cached a desired 120 mode without initiating a
+hardware change. The missing verbose strings cannot answer either question.
 
 A later Android state-machine rewrite explicitly fixes the broader class of
 stale desired/pending mode state, which supports investigating this mechanism
 but does not prove it occurred on Thor.
 
-### C — lower 120 requires the AYN DFPS + PASS-RAM path
+### C � lower 120 requires the AYN DFPS + PASS-RAM path
 **Confidence: high as architecture; not exercised by the captured probe.**
 
 The stock-aligned device tree advertises lower 120/60 DFPS and the framework
@@ -500,14 +500,14 @@ switches the secondary panel to PASS-RAM for the 120 policy. If a future safe
 transition reaches the lower hardware path, these states should be captured
 together with SDM/vsync/DRM cadence.
 
-### D — HWC/SDM rejects or fails a valid 120 request
+### D � HWC/SDM rejects or fails a valid 120 request
 **Confidence: low for the captured probe.**
 
 The exact SurfaceFlinger mode-change counter stayed zero, so the normal HWC
 mode-initiation boundary was not reached. Vendor rejection becomes relevant only
 after a future trace proves a request crossed that boundary.
 
-### E — tearing is downstream pacing rather than a false physical mode
+### E � tearing is downstream pacing rather than a false physical mode
 **Confidence: open.**
 
 If both display paths are later measured at the intended cadence and tearing
@@ -517,18 +517,12 @@ capability.
 
 ## Read-only decision tree
 
-Use the existing capture and local raw log first:
+The existing capture has already settled steps 1-2 for the sustained probe:
+there was no intermediate SurfaceFlinger policy and the final 120/120 policy
+recorded zero mode initiations. Continue from step 3 using read-only evidence.
 
-1. Did SurfaceFlinger receive a distinct **60-120** policy between the two
-   Settings writes?
-   - no -> reject the intermediate-policy theory and analyse the direct
-     60-60 -> 120-120 transition;
-   - yes -> continue.
-2. What does the 60-120 -> 120-120 policy-change block report for the upper
-   display's previous-policy mode-change count?
-   - greater than zero -> an intermediate initiation occurred; correlate its
-     `changing active mode`, HWC call and result;
-   - zero -> continue.
+1. **Observed:** no distinct **60-120** SF policy; direct 60-60 -> 120-120.
+2. **Observed:** zero counted initiations during the resulting 120/120 interval.
 3. Was the upper physical display SurfaceFlinger's active internal display at
    the relevant policy edge?
    - no -> active-display gating explains the missing handoff;
