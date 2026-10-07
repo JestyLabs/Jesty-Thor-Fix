@@ -120,6 +120,30 @@ if ($preComposerProofSource -notmatch 'WRITE_NOT_BEFORE_COMPOSER' -or
     $preComposerProofSource -notmatch 'currentBootId\.equalsIgnoreCase\(proof\.bootId\)') {
     throw 'Pre-composer proof must require boot identity, ordering, composer absence and readback.'
 }
+$earlyHookModelSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'EarlyCpuBootHookModel.java') -Raw
+if ($earlyHookModelSource -match 'ProcessBuilder|setprop|ctl\.restart|/data/boot_start\.sh|DisplayActionCoordinator|SurfaceControl|LidGuard') {
+    throw 'Early CPU boot-hook model must stay pure and must not install or execute the hook.'
+}
+if ($earlyHookModelSource -notmatch 'OCCUPIED_UNKNOWN' -or
+    $earlyHookModelSource -notmatch 'REFUSE_OCCUPIED' -or
+    $earlyHookModelSource -notmatch 'FALLBACK_AFTER_PROVEN_FAILURE' -or
+    $earlyHookModelSource -notmatch 'attempt\.previous\.equals\(observedProperty\)') {
+    throw 'Early CPU hook policy must preserve global-hook ownership and proven-failure fallback.'
+}
+$earlyHookScriptSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'EarlyCpuBootHookScript.java') -Raw
+if ($earlyHookScriptSource -notmatch 'JESTY_THOR_EARLY_CPU_HOOK_V1' -or
+    $earlyHookScriptSource -notmatch 'write_attempt RESTART_REQUESTED' -or
+    $earlyHookScriptSource -notmatch 'setprop ctl\.restart' -or
+    $earlyHookScriptSource -notmatch 'thor-pservice-early-cpu-restart-prototype') {
+    throw 'Early CPU hook script must retain one-shot gate and restart provenance.'
+}
+$earlyImportModelSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'EarlyCpuAttemptImportModel.java') -Raw
+if ($earlyImportModelSource -match 'ProcessBuilder|setprop|ctl\.restart|SurfaceControl|LidGuard' -or
+    $earlyImportModelSource -notmatch 'REPLACE_STALE_DURABLE' -or
+    $earlyImportModelSource -notmatch 'KEEP_MATCHING' -or
+    $earlyImportModelSource -notmatch 'allowedEarlyPhase') {
+    throw 'Early CPU attempt import policy must stay pure and reject ambiguous provenance.'
+}
 $bootCoordinatorSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'BootCoordinator.java') -Raw
 $earlyGateSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'EarlyCpuGateModel.java') -Raw
 if ($bootCoordinatorSource -notmatch 'reconcileCpuPhase\(afterComposerRestart\)' -or
@@ -193,6 +217,9 @@ $sources = @(
     (Join-Path $repository 'src\com\thor\displaypowertest\DaemonArgs.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\CpuBootAttemptModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\PreComposerCpuProofModel.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\EarlyCpuBootHookModel.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\EarlyCpuBootHookScript.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\EarlyCpuAttemptImportModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\EarlyCpuGateModel.java'),
     (Join-Path $repository 'tests\BootAndLidModelTest.java'),
     (Join-Path $repository 'tests\BootLatencyTest.java'),
@@ -209,6 +236,9 @@ $sources = @(
     (Join-Path $repository 'tests\DaemonArgsTest.java'),
     (Join-Path $repository 'tests\CpuBootAttemptModelTest.java'),
     (Join-Path $repository 'tests\PreComposerCpuProofModelTest.java'),
+    (Join-Path $repository 'tests\EarlyCpuBootHookModelTest.java'),
+    (Join-Path $repository 'tests\EarlyCpuBootHookScriptTest.java'),
+    (Join-Path $repository 'tests\EarlyCpuAttemptImportModelTest.java'),
     (Join-Path $repository 'tests\EarlyCpuGateModelTest.java')
 )
 & javac -source 8 -target 8 -d $output $sources
@@ -219,6 +249,12 @@ if ($LASTEXITCODE -ne 0) { throw 'Boot/lid tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'CPU boot attempt model tests failed.' }
 & java -cp $output PreComposerCpuProofModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Pre-composer CPU proof model tests failed.' }
+& java -cp $output EarlyCpuBootHookModelTest
+if ($LASTEXITCODE -ne 0) { throw 'Early CPU boot-hook model tests failed.' }
+& java -cp $output EarlyCpuBootHookScriptTest
+if ($LASTEXITCODE -ne 0) { throw 'Early CPU boot-hook script tests failed.' }
+& java -cp $output EarlyCpuAttemptImportModelTest
+if ($LASTEXITCODE -ne 0) { throw 'Early CPU attempt import model tests failed.' }
 & java -cp $output EarlyCpuGateModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Early CPU gate model tests failed.' }
 & java -cp $output BootLatencyTest
