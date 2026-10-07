@@ -150,7 +150,8 @@ if ($metrics) {
     Write-Host 'No WATCHER_METRICS line found (expected on stable v1.6.0; candidate logs one about once per minute).'
 }
  })
-    return $pids.Count -eq 1 ? [int]$pids[0] : $null
+    if ($pids.Count -eq 1) { return [int]$pids[0] }
+    return $null
 }
 
 function Get-ProcSnapshot {
