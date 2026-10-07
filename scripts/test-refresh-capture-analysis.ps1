@@ -123,6 +123,47 @@ Active configuration changed to: 7
         throw 'Vendor/DRM evidence from heterogeneous files must remain non-causal.'
     }
 
+
+    # Synthetic logcat: two invalid SF attempts plus a *separate* successful
+    # vendor marker. Neither the SF mode IDs nor the unrelated HWC success
+    # may be collapsed into one rejected or successful physical transition.
+    @'
+10-07 23:42:17.252  2319  2355 E SurfaceFlinger: Trying to initiate a mode change to invalid mode 1 on display PhysicalDisplayId{4630946482288158084}
+10-07 23:42:22.660  2319  2355 E SurfaceFlinger: Trying to initiate a mode change to invalid mode 0 on display PhysicalDisplayId{4630946482288158084}
+10-07 23:42:22.665  2319  2355 E SurfaceFlinger: Trying to initiate a mode change to invalid mode null on display PhysicalDisplayId{4630946482288158084}
+'@ | Set-Content -LiteralPath (Join-Path $root 'sf-invalid.log') -Encoding utf8
+
+    & $scriptPath -CaptureDir $root
+    if (-not $?) { throw 'Invalid-mode fixture analyzer run failed.' }
+
+    $summary = Get-Content -LiteralPath (Join-Path $root 'analysis/refresh-capture-summary.json') -Raw | ConvertFrom-Json
+    if ($summary.stage -ne 'SURFACEFLINGER_INVALID_MODE_EVIDENCE') {
+        throw "Invalid SF mode should be classified separately from HWC: $($summary.stage)"
+    }
+    if (-not $summary.flags.sfInvalidModeEvidence) { throw 'SF invalid-mode evidence flag missing.' }
+    if ($summary.flags.vendorConfigFailure) { throw 'SF invalid mode must not be counted as vendor rejection.' }
+    if (-not $summary.flags.vendorConfigSuccess) { throw 'Unrelated vendor-success marker should remain a separate finding.' }
+    if ($summary.causalConclusion -ne $false) { throw 'Invalid-mode fixture must not assert a causal conclusion.' }
+
+    $events = @($summary.sfInvalidModeEvents)
+    if ($events.Count -ne 3) { throw "Expected 3 individual SF errors, got $($events.Count)." }
+    if ($events[0].reportedModeId -ne 1 -or $events[1].reportedModeId -ne 0) {
+        throw 'SF mode IDs must be preserved as logged, not mapped to global FPS.'
+    }
+    if ($events[2].reportedModeToken -ne 'null' -or $null -ne $events[2].reportedModeId) {
+        throw 'Null SF mode must remain distinct from numeric mode ID zero.'
+    }
+    if ($events[0].timestamp -ne '10-07 23:42:17.252' -or
+        $events[1].timestamp -ne '10-07 23:42:22.660') {
+        throw 'Source wall-clock event times were not retained.'
+    }
+    if ($events[0].reportedDisplay -ne 'PhysicalDisplayId{4630946482288158084}') {
+        throw 'Source physical-display label must remain attached to the invalid event.'
+    }
+    if (@($events | Where-Object { $_.sameInvocationAsHwcRequestProven }).Count -ne 0) {
+        throw 'Never automatically attribute an invalid SF event to an HWC request.'
+    }
+
     Write-Host 'Refresh capture analyzer tests passed.'
 } finally {
     Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
