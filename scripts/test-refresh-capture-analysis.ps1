@@ -18,7 +18,7 @@ DesiredDisplayModeSpecs primaryRefreshRateRange=[120.0 120.0]
 
     @'
 Setting desired display mode specs: defaultMode=2 primaryRange=[120,120]
-Inactive display
+Display 4630946482288158084 (inactive) HWC layers:
 '@ | Set-Content -LiteralPath (Join-Path $root '06-surfaceflinger.txt') -Encoding utf8
 
     @'
@@ -91,7 +91,7 @@ DesiredDisplayModeSpecs primaryRefreshRateRange=[60.0 120.0]
 
     @'
 Setting desired display mode specs: defaultMode=1 primaryRange=[60,120]
-Inactive display
+Display 4630946482288158084 (inactive) HWC layers:
 '@ | Set-Content -LiteralPath (Join-Path $root '06-surfaceflinger.txt') -Encoding utf8
 
     & $scriptPath -CaptureDir $root
