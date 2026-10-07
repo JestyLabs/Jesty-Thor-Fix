@@ -81,6 +81,7 @@ public final class Telemetry {
         if (!state.canRead()) return "ok=0;error=DRM_STATE_UNREADABLE";
         StringBuilder out = new StringBuilder("ok=1");
         try {
+            WatcherCostMetrics.noteDrmOpenAttempt();
             BufferedReader reader = new BufferedReader(new FileReader(state));
             String line;
             String crtc = null;
@@ -122,6 +123,7 @@ public final class Telemetry {
     public static String[] crtcActivePair() {
         File state = new File(ThorHardwareProfile.DRM_STATE_PATH);
         if (!state.canRead()) return new String[] {"?", "?"};
+        WatcherCostMetrics.noteDrmOpenAttempt();
         try (BufferedReader reader = new BufferedReader(new FileReader(state))) {
             return parseCrtcPair(reader);
         } catch (Throwable ignored) {
@@ -164,6 +166,7 @@ public final class Telemetry {
         File state = new File(ThorHardwareProfile.DRM_STATE_PATH);
         if (!state.canRead()) return "?";
         try {
+            WatcherCostMetrics.noteDrmOpenAttempt();
             BufferedReader reader = new BufferedReader(new FileReader(state));
             String line;
             boolean bottom = false;
