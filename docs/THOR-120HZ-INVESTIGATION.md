@@ -160,18 +160,26 @@ No runtime behavior in Jesty Thor Fix is changed by this research branch.
 
 ## Question
 
-The Thor has two unlike internal displays. Multiple Android projects report
-120 Hz for the lower logical display in some states, while other projects and
-Linux-side work treat the physical lower panel as a 60 Hz panel.
+The Thor has two unlike internal displays and, importantly, **two different
+refresh mechanisms**:
 
-The question to prove is:
+- the ICNA3520 upper panel exposes explicit 120 Hz and 60 Hz timing configs;
+- the CH13726A lower panel is described by the stock-aligned device tree as a
+  60 Hz base timing with `120 60` dynamic-FPS support, dynamic DSI clocks and
+  an AYN-specific RAM-bypass/pass command path.
 
-> When Android reports the lower Thor display at 120 Hz, what is actually
-> running at 120 Hz: app/render scheduling, SurfaceFlinger/HWC mode selection,
-> the DRM/DSI scanout, or the physical panel itself?
+That changes the original framing. The leading question is no longer simply
+whether Android invents a logical 120 Hz mode for a physically 60-only lower
+panel.
 
-Until those layers are separated, "fake 120" is a useful hypothesis name, not
-a conclusion.
+The question to prove is now:
+
+> When Android requests 120 Hz on the Thor, which panel-specific mechanism is
+> selected, where does the request stop, and what scanout/pacing does each
+> physical display actually reach?
+
+The previous "fake 120" name remains useful as historical shorthand, but a
+60-only lower-panel assumption is no longer justified by the current evidence.
 
 ## Evidence ladder
 
@@ -185,7 +193,7 @@ Use these labels consistently:
 
 ## What is already proven in this project
 
-**PROVEN**
+**PROVEN on the validation Thor**
 
 - The Thor exposes two physical displays. The measured lower logical display is
   ID 4; its physical SurfaceControl ID and CRTC are recorded in
@@ -202,6 +210,27 @@ Use these labels consistently:
   `/sys/module/msm_drm/parameters/dsi_display0` and `dsi_display1` to the
   graphics group, confirming two DSI display parameters are part of the stock
   kernel integration.
+- In the controlled 120/120 policy window, both active DRM CRTCs, Qualcomm SDM
+  state and HWC vsync-period evidence remained at 60 Hz.
+- The exact Thor SurfaceFlinger binary recorded **zero mode-change initiations**
+  for both displays during that window. The request therefore did not reach the
+  normal HWC active-mode handoff in that probe.
+
+**Strong hardware/source evidence, not yet a physical measurement on this exact
+stock firmware**
+
+- The public AYN/Lineage device tree for the CH13726A lower panel advertises
+  `qcom,dsi-supported-dfps-list = <120 60>`, enables dynamic FPS and dynamic
+  DSI clocking, and defines AYN-specific bypass/pass-RAM DSI commands.
+- The current upstream Linux CH13726A driver has an
+  `ayntec,thor-panel-bottom` match with explicit 1080x1240 120 Hz and 60 Hz
+  modes.
+- The Thor upper ICNA3520 description contains separate 120 Hz and 60 Hz timing
+  configs and distinct timing-switch commands.
+
+These sources make the old "lower hardware is definitely 60-only" hypothesis
+too weak to use as a premise. They do not replace a measured stock-Android
+vblank/panel scanout result.
 
 Init archive used for the static pass:
 
@@ -211,7 +240,6 @@ SHA-256:
 
 The archive contains init/scripts, not the Qualcomm display shared libraries,
 so it cannot by itself answer the refresh question.
-
 
 ## Deep call-path narrowing
 
@@ -333,20 +361,52 @@ This is particularly relevant because it encodes the exact mismatch we are
 investigating: Android mode information can be unsuitable as a physical-panel
 truth source on a mixed-refresh handheld.
 
-### KettleLinux / Gamescope
+### Historical Linux 60-only clue — superseded by newer Thor support
 
-Repository:
-https://github.com/kettlelinux/kettlelinux  
-Reviewed patch:
-`packages/gamescope/0022-DRM-offer-generated-lower-refresh-rates-for-an-EDID-.patch`
+An older Linux/Gamescope patch described the CH13726A lower path as having only
+a 60 Hz mode. That was useful early evidence, but it is no longer the strongest
+available hardware description.
 
-The patch identifies the Thor lower panel as a **Chipsea CH13726A, DSI video
-mode**, says its DRM panel mode list contains only **60 Hz**, and adds generated
-lower rates for Linux/Gamescope experimentation.
+Newer upstream Linux support is explicitly matched to
+`ayntec,thor-panel-bottom` and contains both 120 Hz and 60 Hz modes.
+Separately, the stock-aligned AYN device tree advertises lower-panel DFPS
+`<120 60>`.
 
-This is the strongest public clue so far about the physical lower-panel timing,
-but it is Linux-side evidence. We still need the stock Android Thor's own
-DRM/DSI state before calling the Android mismatch proven.
+The older 60-only description is therefore retained only as historical context,
+not as proof that the Thor lower panel is physically limited to 60 Hz.
+
+### Stock-aligned AYN device-tree evidence
+
+The CH13726A lower-panel node is configured as DSI video mode with:
+
+```text
+qcom,dsi-supported-dfps-list = <120 60>
+qcom,mdss-dsi-pan-enable-dynamic-fps
+qcom,mdss-dsi-pan-fps-update = "dfps_immediate_porch_mode_hfp"
+qcom,dsi-dyn-clk-enable
+qcom,dsi-dyn-clk-type = "constant-fps-adjust-hfp"
+qcom,dsi-dyn-clk-list = <1011000000 505000000>
+```
+
+Its nominal timing node is 60 Hz, so 120 is represented as a dynamic-FPS /
+dynamic-clock operating point rather than a second static timing node.
+
+The same node enables `qcom,mdss-dsi-bypass-ram-switch` and defines distinct
+BYPASS/PASS RAM DSI command sequences.
+
+### Current upstream Linux Thor lower-panel driver
+
+The current CH13726A DRM panel driver is explicitly matched as:
+
+```text
+compatible = "ayntec,thor-panel-bottom"
+```
+
+and exposes 1080x1240 timings calculated at both 120 Hz and 60 Hz.
+
+That is strong independent evidence that the Thor lower panel is intended to
+operate at both rates. It is still a driver description rather than a direct
+oscilloscope/vblank measurement of the validation unit.
 
 ## Android / SurfaceFlinger architecture clue
 
@@ -403,43 +463,58 @@ The v1 collector can pull these read-only and generate SHA-256 manifests.
 
 ## Current hypotheses
 
-### H1 — logical 120, physical 60
+### H1 — lower 120 policy is stored but not applied while the lower display is SF-inactive
+**Confidence: high for the controlled probe.**
 
-Android/HWC exposes a 120 Hz lower mode so a shared/pacesetter render schedule
-can operate at 120, while the lower DSI/panel scanout remains 60 Hz.
-
-Prediction:
-
-- Android `Display.Mode` / SurfaceFlinger says lower ~=120;
-- kernel/DRM timing or vblank evidence says lower ~=60.
-
-If observed on the validation Thor, this is the cleanest proof of "fake 120".
-
-### H2 — vendor driver advertises/sets a 120 scanout mode
-
-The stock Android DRM/HWC stack itself exposes a 120 timing for the lower DSI
-path despite the panel's nominal 60 Hz specification.
+Android 13 SurfaceFlinger can retain refresh policy for a secondary internal
+display without initiating its physical mode transition while another internal
+display is the active display.
 
 Prediction:
 
-- Android and DRM both report ~=120.
+- lower 120 policy is visible;
+- lower active mode remains 60;
+- no lower HWC mode-change initiation occurs.
 
-That result would move the question deeper: verify actual vblank cadence and
-panel/controller behavior before claiming a real 120 Hz physical panel.
+This fits the observed zero mode-change count and does not require a vendor
+failure.
 
-### H3 — mixed logical modes are already correct
+### H2 — upper 120 policy is accepted but never becomes an HWC mode-change request
+**Confidence: medium-high; this is the main unresolved gate.**
 
-Top is ~=120, bottom ~=60 at Android/HWC level, and tearing comes from
-multi-display present/vsync synchronization rather than a fake mode.
+The upper display was marked active, yet its mode-change counter also remained
+zero. Candidate boundaries are therefore still inside SurfaceFlinger:
+scheduler/preferred-mode selection, desired-mode state, or the pending-mode
+scheduling path.
 
-Prediction:
+The exact Thor binary contains a branch where an already-pending desired mode
+can be replaced without scheduling a new composition. That is a plausible
+mechanism, not yet proof.
 
-- Android exposes top ~=120 and bottom ~=60;
-- DRM agrees;
-- tearing remains when both are active.
+### H3 — lower 120 uses DFPS + PASS-RAM rather than a conventional static mode switch
+**Confidence: high as architecture, unproven as the state reached in the probe.**
 
-Then the investigation moves to SurfaceFlinger scheduler, present fences and
-HWC composition timing rather than mode spoofing.
+The AYN framework writes the lower-panel `bypass_ram` sysfs control around
+refresh-policy changes. Public AYN driver source maps that control directly to
+secondary-panel DSI BYPASS/PASS RAM commands, while the lower device tree
+advertises 120/60 DFPS and two dynamic DSI clocks.
+
+Prediction for a real lower 120 transition:
+
+- lower path enters PASS-RAM state;
+- lower dynamic timing/clock changes from its 60 operating point;
+- DRM/SDM/vsync evidence moves consistently toward 120.
+
+The existing probe never reached an SF/HWC mode transition, so it did not test
+this capability.
+
+### H4 — tearing is a pacing/synchronization problem even when both panels can run 120
+**Confidence: open.**
+
+If a later safe measurement proves both physical display paths at ~120 while
+tearing persists, the investigation moves to SurfaceFlinger pacesetter/follower
+selection, present fences, HWC composition and per-display vsync timing rather
+than a fake-mode explanation.
 
 ## Evidence matrix
 
@@ -498,10 +573,24 @@ Stop before any state-changing experiment if:
 
 ## Next step
 
-Continue offline analysis of the upper display's desired/pending mode path in
-the exact SurfaceFlinger binary and existing captures. The baseline collector,
-binary copy and controlled policy probe are complete. Keep the Thor at 60/60;
-the AYN framework's lower-panel brightness fade explains a possible black blink
-without proving any 120 Hz scanout. Any further refresh-setting or direct
-mode-setting experiment needs a separate safety review and a measurement that
-can resolve the upper-display gate.
+Keep the Thor at the current safe 60/60 state and continue offline analysis.
+
+Priority order:
+
+1. resolve the **upper-panel gate** in the exact SurfaceFlinger binary: accepted
+   120 policy -> scheduler preferred mode -> desired active mode -> pending-mode
+   scheduling;
+2. use the updated read-only collector on a future natural capture to record
+   lower `bypass_ram`, lower brightness, live device-tree refresh properties,
+   display logcat and kernel display logs;
+3. compare the running Thor's device-tree evidence with the public stock-aligned
+   CH13726A description before treating those source files as exact-firmware
+   proof;
+4. only after the upper gate is understood, design one minimal supervised
+   physical measurement capable of distinguishing real 120 scanout from
+   policy-only state.
+
+Do not repeat the previous min/peak write probe merely to obtain more logs.
+The previous probe already established the key negative result: the normal
+SurfaceFlinger mode-change path was never initiated.
+
