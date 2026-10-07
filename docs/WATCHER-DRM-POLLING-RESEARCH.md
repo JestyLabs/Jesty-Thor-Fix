@@ -52,6 +52,21 @@ Instead it reuses the DisplayManager callback that the daemon already depends on
 
 Callbacks improve latency; they are **not a correctness dependency**. If every callback is lost, the watcher still samples mode within 500 ms and DRM within 1 s.
 
+
+## ContentObserver fallback — not first prototype
+
+Android also exposes an exact per-setting observer path through `Settings.System.getUriFor(name)` and hidden `IContentService.registerContentObserver(...)`. That gives a plausible second event source for:
+
+`dual_screen_display_mode`
+
+This branch intentionally **does not add that hidden Binder contract yet**. The daemon already has a working DisplayManager callback, and the 500 ms Settings safety poll keeps correctness independent of callbacks. Adding another hidden service contract before measuring the simpler design would increase lifecycle and framework-restart risk without proven benefit.
+
+If physical testing shows the existing DisplayManager callback does not reliably accelerate AYN mode changes, a later research candidate may test a ContentObserver while preserving the same safety poll.
+
+AOSP references:
+- Android Settings source / `getUriFor`: https://android.googlesource.com/platform/frameworks/base/+/master/core/java/android/provider/Settings.java
+- `IContentService.registerContentObserver`: https://android.googlesource.com/platform/frameworks/base/+/master/core/java/android/content/IContentService.aidl
+
 ## Expected request-rate reduction
 
 These are source-derived upper-order figures, not device measurements:
