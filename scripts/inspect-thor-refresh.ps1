@@ -54,6 +54,19 @@ $CollectorVersion | Set-Content -LiteralPath (Join-Path $OutputDir '00-collector
 $CaptureStatusPath = Join-Path $OutputDir '00-capture-status.tsv'
 ('name' + [char]9 + 'exit_code') | Set-Content -LiteralPath $CaptureStatusPath -Encoding ascii
 
+# These sources are the minimum evidence needed to interpret a refresh capture.
+# Other probes remain useful but may legitimately be unavailable on a given
+# firmware/permission state without making the whole bundle unusable.
+$RequiredCaptures = @(
+    '01-device.txt',
+    '02-refresh-settings.txt',
+    '04-dumpsys-display.txt',
+    '05-surfaceflinger-display-id.txt',
+    '06-surfaceflinger.txt',
+    '11-drm-state.txt',
+    '13-drm-connectors.txt'
+)
+
 Invoke-ShellCapture -Name '01-device.txt' -Command @'
 echo "boot_id=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)"
 echo "uptime=$(cat /proc/uptime 2>/dev/null)"
@@ -221,7 +234,36 @@ done | sort -u
     $localHashes | Set-Content -LiteralPath (Join-Path $OutputDir '33-host-sha256.txt') -Encoding ascii
 }
 
+$statusRows = @(Import-Csv -LiteralPath $CaptureStatusPath -Delimiter ([char]9))
+$failedRows = @($statusRows | Where-Object { [int]$_.exit_code -ne 0 })
+$requiredFailures = @($failedRows | Where-Object { $RequiredCaptures -contains $_.name })
+$captureComplete = ($requiredFailures.Count -eq 0)
+
+$captureSummary = [ordered]@{
+    schema = 'THOR_REFRESH_CAPTURE_STATUS_V1'
+    collectorVersion = $CollectorVersion
+    captureComplete = $captureComplete
+    requiredCaptures = $RequiredCaptures
+    totalCommands = $statusRows.Count
+    failedCommands = @($failedRows | ForEach-Object {
+        [ordered]@{ name = $_.name; exitCode = [int]$_.exit_code }
+    })
+    requiredFailures = @($requiredFailures | ForEach-Object {
+        [ordered]@{ name = $_.name; exitCode = [int]$_.exit_code }
+    })
+}
+$captureSummary | ConvertTo-Json -Depth 6 |
+    Set-Content -LiteralPath (Join-Path $OutputDir '00-capture-summary.json') -Encoding utf8
+
 Write-Host "Read-only refresh evidence saved to: $OutputDir"
+if ($captureComplete) {
+    Write-Host "Required capture completeness: PASS ($($RequiredCaptures.Count)/$($RequiredCaptures.Count) required sources captured)."
+} else {
+    Write-Warning "Required capture completeness: FAIL ($($requiredFailures.Count) required source(s) failed). See 00-capture-summary.json."
+}
+if ($failedRows.Count -gt $requiredFailures.Count) {
+    Write-Host "Optional/non-blocking capture failures: $($failedRows.Count - $requiredFailures.Count). See 00-capture-status.tsv."
+}
 if ($PullBinaries) {
     Write-Host "Display binaries were copied to the host under: $(Join-Path $OutputDir 'binaries')"
 }
