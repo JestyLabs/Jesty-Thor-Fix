@@ -28,6 +28,17 @@ if ($watcher -notmatch 'DisplayActionCoordinator;->onWatcherSample\(Ljava/lang/S
 if ($watcher -match 'setDisplayPowerMode|SystemProperties;->set|WakeRepairScheduler;->') {
     throw 'Mode watcher must not change hardware, properties, or wake-repair state directly.'
 }
+if ($watcher -notmatch 'WatcherCostMetrics;->noteModeSample\(\)V') {
+    throw 'Watcher-cost research candidate must count Settings mode samples.'
+}
+$eventCallback = Get-Content -LiteralPath (Join-Path $repository 'apk\smali\com\thor\displaypowertest\DisplayEventCallback.smali') -Raw
+if ($eventCallback -notmatch 'WatcherCostMetrics;->noteDisplayEvent\(\)V') {
+    throw 'Watcher-cost research candidate must count display callbacks.'
+}
+$telemetrySourceForMetrics = Get-Content -LiteralPath (Join-Path $repository 'src\com\thor\displaypowertest\Telemetry.java') -Raw
+if ([regex]::Matches($telemetrySourceForMetrics, 'WatcherCostMetrics\.noteDrmOpenAttempt\(\)').Count -ne 3) {
+    throw 'All three DRM-state open paths must be counted by watcher-cost instrumentation.'
+}
 $displayWriters = @(Get-ChildItem -LiteralPath (Join-Path $repository 'src') -Filter '*.java' -Recurse |
     Where-Object { $_.Name -ne 'DisplayHardware.java' } |
     Select-String -Pattern 'setDisplayPowerMode|SystemProperties.*set\(|"display.power.state"' |
@@ -223,6 +234,7 @@ $sources = @(
     (Join-Path $repository 'src\com\thor\displaypowertest\EarlyCpuBootHookScript.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\EarlyCpuAttemptImportModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\EarlyCpuGateModel.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\WatcherCadenceModel.java'),
     (Join-Path $repository 'tests\BootAndLidModelTest.java'),
     (Join-Path $repository 'tests\BootLatencyTest.java'),
     (Join-Path $repository 'tests\DaemonLaunchModelTest.java'),
@@ -241,7 +253,8 @@ $sources = @(
     (Join-Path $repository 'tests\EarlyCpuBootHookModelTest.java'),
     (Join-Path $repository 'tests\EarlyCpuBootHookScriptTest.java'),
     (Join-Path $repository 'tests\EarlyCpuAttemptImportModelTest.java'),
-    (Join-Path $repository 'tests\EarlyCpuGateModelTest.java')
+    (Join-Path $repository 'tests\EarlyCpuGateModelTest.java'),
+    (Join-Path $repository 'tests\WatcherCadenceModelTest.java')
 )
 & javac -source 8 -target 8 -d $output $sources
 if ($LASTEXITCODE -ne 0) { throw 'Boot/lid test compilation failed.' }
@@ -259,6 +272,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Early CPU boot-hook script tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Early CPU attempt import model tests failed.' }
 & java -cp $output EarlyCpuGateModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Early CPU gate model tests failed.' }
+& java -cp $output WatcherCadenceModelTest
+if ($LASTEXITCODE -ne 0) { throw 'Watcher cadence model tests failed.' }
 & java -cp $output BootLatencyTest
 if ($LASTEXITCODE -ne 0) { throw 'Boot latency tests failed.' }
 & java -cp $output DaemonLaunchModelTest
