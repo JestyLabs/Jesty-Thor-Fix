@@ -57,7 +57,7 @@ foreach ($needle in $required) {
     }
 }
 
-foreach ($needle in @('THOR_REFRESH_CAPTURE_ANALYSIS_V2', 'causalConclusion', 'Inactive display', 'initiateModeChange failed', 'Active configuration changed', '1080x1240x120vid', 'bypass_ram')) {
+foreach ($needle in @('THOR_REFRESH_CAPTURE_ANALYSIS_V2', 'causalConclusion', 'policyTransitions', 'mode changes were performed under the previous policy', 'Inactive display', 'initiateModeChange failed', 'Active configuration changed', '1080x1240x120vid', 'bypass_ram')) {
     if (-not $captureAnalyzer.Contains($needle)) {
         throw "Capture analyzer is missing required call-path evidence: $needle"
     }
