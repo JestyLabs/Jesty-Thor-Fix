@@ -2,6 +2,8 @@
 # Thor 120 Hz mode-switch call path
 
 Status: **STATIC ANALYSIS + SUPERVISED TRACE; 60/60 RESTORED**
+
+**Critical interpretive update:** the [offline invalid-mode review](THOR-120HZ-INVALID-MODE-OFFLINE-REVIEW.md) identifies the Android 13 physical-display-ID guard that emits `invalid mode`. In the reference implementation this error occurs *before* the per-policy mode-change counter, SF's `ActiveModeFPS_HWC` target marker and any HWC call. The simultaneous error and HWC evidence may therefore represent **distinct attempts**. The corresponding branch still needs confirmation against Thor's exact locally held ELF.
 Date: 2026-10-07
 
 This note narrows where the controlled 120/120 request can disappear between
