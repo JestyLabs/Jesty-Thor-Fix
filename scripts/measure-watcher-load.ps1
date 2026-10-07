@@ -123,7 +123,7 @@ $settingsStart = if ($null -ne $settingsProcessId) {
 } else { $null }
 
 Write-Host "[$Label] daemon=$daemonProcessId settingsProvider=$settingsProcessId mode=$modeBefore power=$powerBefore seconds=$Seconds"
-Write-Host 'Keep the dashboard closed and do not touch the Thor during the sample.'
+Write-Host 'Keep the dashboard closed and leave the Thor in the requested test condition during the sample.'
 Start-Sleep -Seconds $Seconds
 
 $daemonProcessIdAfter = Get-DaemonProcessId
