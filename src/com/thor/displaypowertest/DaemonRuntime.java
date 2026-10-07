@@ -47,6 +47,18 @@ public final class DaemonRuntime {
                     + ";process_start_ms=" + probe.processStartMs());
         }
         BootSafety.begin(coordinating);
+        String earlyAttempt = cpuFix.adoptEarlyAttempt();
+        if (!earlyAttempt.startsWith("ok=1")) {
+            Log.e("ThorDisplayDaemon", "early CPU attempt rejected: " + earlyAttempt);
+        }
+        String earlyHook = EarlyCpuBootHookManager.reconcile(session.cpuFixDesired());
+        if (coordinating) {
+            trace.mark("EARLY_CPU_HOOK_RECONCILE",
+                    "result=" + earlyHook.replace(';', ','));
+        }
+        if (!earlyHook.startsWith("ok=1")) {
+            Log.e("ThorDisplayDaemon", "early CPU hook reconcile failed: " + earlyHook);
+        }
         DaemonState.setEnabled(args.displayFixEnabled);
         if (!coordinating) LidGuard.setEnabled(session.lidGuardDesired());
         LocalServerSocket listener = SecureChannel.listen();
@@ -65,7 +77,7 @@ public final class DaemonRuntime {
             new Thread(new AndroidRecoveryTrace(probe, trace),
                     "thor-android-recovery-trace").start();
         }
-        Log.d("ThorDisplayDaemon", "READY " + DaemonIdentity.VERSION
+        Log.d("ThorDisplayDaemon", "READY " + DaemonIdentity.RUNTIME_ID
                 + " enabled=" + args.displayFixEnabled + " bootHold=" + coordinating);
         server.serveForever();
     }

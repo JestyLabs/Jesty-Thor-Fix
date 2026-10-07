@@ -31,6 +31,8 @@ public final class CpuFixController {
     private volatile String handoffState = "NONE";
     /** True from helper start until its exit is observed; one helper at a time. */
     private volatile boolean helperAlive;
+    /** Early /dev provenance is imported at most once per daemon process. */
+    private volatile boolean earlyAttemptChecked;
 
     public CpuFixController(SystemProbe probe, BootTrace trace, TransitionWakeLock wakeLock,
             BootSession session, HandoffRecovery recovery) {
@@ -45,6 +47,80 @@ public final class CpuFixController {
     public boolean desired() { return desired; }
     public String handoffState() { return handoffState; }
     public void setHandoffState(String state) { handoffState = state; }
+
+    /**
+     * Imports one pservice-created boot-scoped attempt into the already hardened
+     * app-private CpuBootAttemptStore. This runs once at daemon startup, before
+     * normal boot reconciliation; later runtime toggles never re-read /dev.
+     */
+    public String adoptEarlyAttempt() {
+        synchronized (lock) {
+            if (earlyAttemptChecked) return "ok=1;early_attempt=already_checked";
+            earlyAttemptChecked = true;
+
+            EarlyCpuBootAttemptStore.ReadResult early = EarlyCpuBootAttemptStore.read();
+            if (early.state == EarlyCpuBootAttemptStore.State.ABSENT) {
+                return "ok=1;early_attempt=absent";
+            }
+
+            CpuBootAttemptStore.ReadResult durable = CpuBootAttemptStore.read();
+            CpuBootAttemptModel.Attempt durableAttempt =
+                    durable.state == CpuBootAttemptStore.State.VALID ? durable.attempt : null;
+            EarlyCpuAttemptImportModel.Action action = EarlyCpuAttemptImportModel.decide(
+                    early.state == EarlyCpuBootAttemptStore.State.VALID ? early.attempt : null,
+                    early.state == EarlyCpuBootAttemptStore.State.CORRUPT,
+                    durableAttempt,
+                    durable.state == CpuBootAttemptStore.State.CORRUPT,
+                    SecureChannel.currentBootId(),
+                    desired);
+
+            try {
+                switch (action) {
+                    case NO_EARLY_ATTEMPT:
+                        return "ok=1;early_attempt=absent";
+
+                    case KEEP_MATCHING:
+                        trace.mark("EARLY_CPU_ATTEMPT_MATCHED",
+                                "phase=" + early.attempt.phase.name());
+                        return "ok=1;early_attempt=matched";
+
+                    case REPLACE_STALE_DURABLE:
+                        CpuBootAttemptStore.deleteTrusted();
+                        CpuBootAttemptStore.ReadResult afterDelete = CpuBootAttemptStore.read();
+                        if (afterDelete.state != CpuBootAttemptStore.State.ABSENT) {
+                            restartFailed = true;
+                            return "ok=0;error=EARLY_CPU_STALE_REPLACE_FAILED";
+                        }
+                        // Fall through to the exact same verified import path.
+                    case IMPORT:
+                        CpuBootAttemptStore.write(early.attempt);
+                        CpuBootAttemptStore.ReadResult imported = CpuBootAttemptStore.read();
+                        if (imported.state != CpuBootAttemptStore.State.VALID
+                                || !imported.attempt.encode().equals(early.attempt.encode())) {
+                            restartFailed = true;
+                            return "ok=0;error=EARLY_CPU_IMPORT_VERIFY_FAILED";
+                        }
+                        trace.mark("EARLY_CPU_ATTEMPT_IMPORTED",
+                                "phase=" + early.attempt.phase.name()
+                                + ";baseline=" + early.attempt.baselineComposerPid);
+                        return "ok=1;early_attempt=imported";
+
+                    case FAIL_SAFE:
+                    default:
+                        restartFailed = true;
+                        trace.mark("EARLY_CPU_ATTEMPT_REJECTED",
+                                "early=" + early.state.name()
+                                + ";durable=" + durable.state.name());
+                        return "ok=0;error=EARLY_CPU_ATTEMPT_REJECTED";
+                }
+            } catch (Throwable error) {
+                restartFailed = true;
+                Log.e("ThorDisplayDaemon", "early CPU attempt import failed", error);
+                trace.mark("EARLY_CPU_ATTEMPT_IMPORT_FAILED", null);
+                return "ok=0;error=EARLY_CPU_ATTEMPT_IMPORT_FAILED";
+            }
+        }
+    }
 
     /**
      * True only when a boot-scoped APPLIED marker proves that the current
