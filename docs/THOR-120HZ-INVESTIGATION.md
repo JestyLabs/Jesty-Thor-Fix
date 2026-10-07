@@ -54,6 +54,7 @@ In the second probe, the SurfaceFlinger policy was 120/120 for about ten seconds
   `1080x1240x60vid`, both active;
 - the vendor SDM dump reported `cur:60` and a 16,666,666 ns vsync period for
   both; the post-policy HWC vsync readback was also 16,666,666 ns;
+- SurfaceFlinger reported `mode override by backdoor: no`;
 - SurfaceFlinger logged **zero mode changes** under the 120 Hz policy.
 
 The user reported a *possible* brief black blink but was unsure; both screens
@@ -63,6 +64,14 @@ establish a fake physical 120 Hz mode: the active Android/HWC/DRM mode remained
 60 Hz. Investigate why a valid 120 Hz policy was not enacted before any repeat
 or stronger mode-setting experiment. Raw logs and dumps remain local outside
 Git.
+
+Android 13 [SurfaceFlinger reference code](https://android.googlesource.com/platform/frameworks/native/+/refs/heads/android13-qpr3-c-s2-release/services/surfaceflinger/SurfaceFlinger.cpp)
+distinguishes a policy update from a completed HWC mode change, and can defer
+applying policy on an inactive internal display. This is an architectural clue,
+not proof that the Thor's vendor build took that branch. The current evidence
+does not distinguish a suppressed/deferred request from a failed HWC request.
+The next work is read-only: inspect the captured SurfaceFlinger/SDM state and
+the exact vendor call path before designing another physical transition.
 
 This workstream investigates the Thor's mixed-refresh behavior without assuming
 that an Android-visible refresh rate is the physical scanout rate of a panel.
