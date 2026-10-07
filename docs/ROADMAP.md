@@ -95,9 +95,9 @@ while stock `pservice` remained alive. An isolated `pservice` restart restored
 the Binder without changing composer or SurfaceFlinger. Do not hide this with
 aggressive retries until the failure mode is understood.
 
-## Medium term
+## Parallel active research
 
-### Watcher / DRM polling cost
+### Watcher / DRM polling cost (#41)
 
 The current watcher works; gameplay stutter or thermal impact has not been
 demonstrated. Code-path counts, rather than measured cost, are known:
@@ -116,6 +116,12 @@ fast burst after display/wake events and a 500–1000 ms stable-state safety
 poll. Preserve lost-callback recovery, physical CRTC verification, and
 BOTH↔TOP / sleep-wake repair latency. Keep the current watcher if its cost is
 negligible or the replacement misses transitions.
+
+This work is tracked separately in draft PR #41 and must remain measurement-led:
+v1.6.0 is the baseline, and lower polling counts alone are not a promotion
+criterion.
+
+## Medium term
 
 ### Hardware profiles
 
