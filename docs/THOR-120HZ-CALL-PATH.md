@@ -5,8 +5,11 @@ Status: **READ-ONLY STATIC ANALYSIS**
 Date: 2026-10-07
 
 This note narrows where the controlled 120/120 request can disappear between
-Android policy and physical DRM scanout. It does not claim that the lower panel
-physically supports 120 Hz and does not propose another state-changing probe.
+Android policy and physical DRM scanout. Newer stock-aligned device-tree and
+upstream Linux evidence now show that the Thor lower CH13726A path is intended
+to support both 120 Hz and 60 Hz; that source evidence is still distinct from a
+physical measurement on the validation unit. This note does not propose another
+state-changing probe.
 
 ## Known physical result
 
@@ -272,28 +275,107 @@ The common Qualcomm XMLs contain generic 60/90/120/144 tuning. They prove the
 stack can model those rates; they do not prove that each Thor panel supports
 every rate.
 
-## Linux hardware evidence
+## Lower-panel hardware and driver evidence
 
-Current public Thor Linux support models:
+The previous research state treated a 60-only Linux description as the strongest
+public clue for the CH13726A. That is now obsolete.
 
-- ICNA3520 upper panel with explicit 60 and 120 Hz timings;
-- CH13726A lower panel with a 1080x1240 timing calculated at 60 Hz.
+### Stock-aligned AYN device tree
 
-This conflicts with stock Android's lower DRM connector advertisement, which
-contains both 1080x1240x60vid and 1080x1240x120vid.
+The CH13726A lower panel is described as DSI video mode with:
 
-The conflict is now a concrete research target:
+```text
+qcom,dsi-supported-dfps-list = <120 60>
+qcom,mdss-dsi-pan-enable-dynamic-fps
+qcom,mdss-dsi-pan-fps-update = "dfps_immediate_porch_mode_hfp"
+qcom,dsi-dyn-clk-enable
+qcom,dsi-dyn-clk-type = "constant-fps-adjust-hfp"
+qcom,dsi-dyn-clk-list = <1011000000 505000000>
+qcom,mdss-dsi-bypass-ram-switch
+```
 
-> Why does the stock Android kernel/HWC advertise a lower 120 mode when the
-> independent Linux hardware description treats the CH13726A Thor mode as 60?
+The node has one nominal 1080x1240 60 Hz timing. The 120 operating point is
+therefore modeled through Qualcomm dynamic-FPS / dynamic-clock machinery rather
+than a second static timing node.
 
-Do not resolve that by assumption. A kernel-advertised mode is not a measured
-panel scanout.
+The Thor upper ICNA3520 is materially different: its device tree contains
+separate 120 Hz and 60 Hz timing configs and explicit timing-switch commands.
+
+### AYN lower-panel bypass/pass-RAM call path
+
+Public AYN display-driver source exposes the exact sysfs node written by the
+Thor framework:
+
+```text
+/sys/class/bypass_ram_class/bypass_ram_device/bypass_ram
+```
+
+The driver parses `qcom,mdss-dsi-bypass-ram-switch` for the secondary panel and
+maps the sysfs values to:
+
+```text
+write 1
+  -> dsi_panel_switch_bypass_ram(1)
+  -> DSI_CMD_SET_VID_BYPASS_RAM
+
+write 0
+  -> dsi_panel_switch_bypass_ram(0)
+  -> DSI_CMD_SET_VID_PASS_RAM
+```
+
+The stock-aligned CH13726A device tree defines those commands as display
+off/on sequences containing:
+
+```text
+BYPASS RAM -> B9 00
+PASS RAM   -> B9 11
+```
+
+The reverse-engineered AYN framework path uses:
+
+```text
+peak >= 110
+  -> bypass_ram = 0
+  -> PASS RAM
+
+otherwise
+  -> bypass_ram = 1
+  -> BYPASS RAM
+```
+
+That creates a concrete cross-layer chain:
+
+```text
+Android refresh-policy observer
+  -> lower brightness fade
+  -> bypass_ram sysfs
+  -> AYN DSI driver
+  -> secondary CH13726A DSI command
+```
+
+The exact electrical/internal-panel meaning of B9 00 vs B9 11 is not claimed
+without a controller datasheet. The driver naming and call path are sufficient
+to prove that the sysfs write is a real secondary-panel DSI action, not an
+unrelated setting.
+
+### Current upstream Linux Thor driver
+
+The upstream CH13726A driver contains a dedicated
+`ayntec,thor-panel-bottom` match and explicit 1080x1240 timings calculated at
+both 120 Hz and 60 Hz.
+
+This aligns with the stock Android connector advertisement and the AYN
+device-tree DFPS list rather than with the older 60-only Linux description.
+
+A kernel mode table still does not prove actual panel scanout on the validation
+unit. The remaining hardware question is therefore not "can the source model
+120?" but "does the exact stock Android path actually enter its 120 operating
+point, and what is the measured cadence when it does?"
 
 ## Ranked hypotheses after the controlled probe
 
 ### A — lower request stored but not applied because it is not SF-active
-**Confidence: high as an architectural explanation for the lower display.**
+**Confidence: high as the explanation for the lower result in this probe.**
 
 Prediction in existing logs/dumps:
 
@@ -303,56 +385,55 @@ Prediction in existing logs/dumps:
 - SurfaceFlinger identifies another internal display as active or records
   "Inactive display".
 
-No vendor failure is required.
+No vendor failure is required. This says nothing negative about the lower
+panel's actual 120 capability; the request can be stopped before that capability
+is exercised.
 
-### B — upper request never became a 120 desired active mode
-**Confidence: medium-high; best explanation still missing direct proof.**
+### B — upper request was accepted but did not schedule/enter a desired 120 transition
+**Confidence: medium-high; main unresolved boundary.**
 
-This is the key unresolved question because the upper should normally be the
-active internal display.
+The upper was the expected active internal display and nevertheless recorded
+zero mode-change initiations.
 
-Possible causes:
+The exact Thor SurfaceFlinger binary has a pending-desired-mode branch:
+if the display already has a desired-mode change marked pending, a new desired
+mode can replace the cached value and return without requesting a fresh
+composition. This is now a concrete candidate mechanism, but the capture does
+not expose the pending-state byte needed to prove it.
 
-- SurfaceFlinger did not consider the expected upper physical display active;
-- scheduler/preferred-mode selection remained at the 60 mode;
-- framework-to-SF mode-ID/group translation selected a 60 default mode despite
-  the 120 range;
-- a vendor policy/mode-group constraint prevented a 120 candidate before HWC.
+Other remaining candidates are scheduler/preferred-mode selection or another
+pre-HWC policy gate.
 
-Evidence needed from the already-captured files:
+Evidence needed:
 
-- SurfaceFlinger active physical display;
-- each display's policy default mode ID;
-- supported mode IDs and groups;
-- desired/upcoming active mode fields;
-- scheduler preferred mode around the probe.
+- active physical-display identity;
+- accepted policy default mode ID and mode group;
+- scheduler preferred mode;
+- desired/upcoming mode state;
+- whether a composition was scheduled for the policy edge.
 
-### C — HWC accepted a pending 120 config, then vendor submission failed
-**Confidence: medium-low until an HWC handoff is proven.**
+### C — lower 120 requires the AYN DFPS + PASS-RAM path
+**Confidence: high as architecture; not exercised by the captured probe.**
 
-Prediction:
+The stock-aligned device tree advertises lower 120/60 DFPS and the framework
+switches the secondary panel to PASS-RAM for the 120 policy. If a future safe
+transition reaches the lower hardware path, these states should be captured
+together with SDM/vsync/DRM cadence.
 
-- SurfaceFlinger logs a 120 "changing active mode";
-- no immediate initiateModeChange failed;
-- Qualcomm later logs "Failed to set ... config" or never logs a completed
-  active-config change;
-- SDM/DRM remains 60.
+### D — HWC/SDM rejects or fails a valid 120 request
+**Confidence: low for the captured probe.**
 
-### D — HWC rejected the 120 config immediately
-**Confidence: low-medium.**
+The exact SurfaceFlinger mode-change counter stayed zero, so the normal HWC
+mode-initiation boundary was not reached. Vendor rejection becomes relevant only
+after a future trace proves a request crossed that boundary.
 
-Prediction:
+### E — tearing is downstream pacing rather than a false physical mode
+**Confidence: open.**
 
-- initiateModeChange failed, Invalid config, or Not allowed to switch to mode;
-- no pending config submission.
-
-### E — 120 did apply physically but the capture missed it
-**Confidence: low for the second probe.**
-
-The 120 policy was held for about ten seconds while independent SF, HWC/SDM,
-vsync-period and DRM evidence all remained 60 and SurfaceFlinger recorded zero
-mode changes. A sub-capture transient cannot be absolutely excluded, but it is
-not the best explanation of the observed steady state.
+If both display paths are later measured at the intended cadence and tearing
+still occurs, investigate SurfaceFlinger pacesetter/follower scheduling,
+present fences and Qualcomm composition/vsync timing rather than panel-mode
+capability.
 
 ## Read-only decision tree
 
