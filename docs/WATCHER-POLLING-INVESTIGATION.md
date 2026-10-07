@@ -133,7 +133,17 @@ Record mode-change timestamp, DisplayManager callback timing, CRTC convergence, 
 
 ### 1. Event-driven mode notification
 
-Android exposes a per-setting URI and ContentService observer registration. A root `app_process` daemon should be able to prototype a hidden `IContentService` / `IContentObserver` registration for:
+Android exposes both pieces needed for an event-driven prototype:
+
+- `Settings.System.getUriFor(name)` returns the per-setting content URI;
+- hidden `IContentService.registerContentObserver(...)` accepts a URI and Binder observer.
+
+AOSP references:
+- https://android.googlesource.com/platform/frameworks/base/+/android-13.0.0_r75
+- https://android.googlesource.com/platform/frameworks/base/+/master/core/java/android/content/IContentService.aidl
+- https://android.googlesource.com/platform/frameworks/base/+/master/core/java/android/provider/Settings.java
+
+A root `app_process` daemon should therefore be able to prototype a hidden `IContentService` / `IContentObserver` registration for:
 
 `content://settings/system/dual_screen_display_mode`
 
