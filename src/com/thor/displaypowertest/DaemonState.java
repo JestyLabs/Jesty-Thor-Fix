@@ -104,7 +104,8 @@ public final class DaemonState {
                 + ";repair_begin=" + repairBeginAt
                 + ";repair_end=" + repairEndAt
                 + ";repair_result=" + clean(lastRepairResult)
-                + ";action=" + clean(lastAction);
+                + ";action=" + clean(lastAction)
+                + WatcherCostMetrics.fieldsAndLog();
     }
 
     private static String clean(String value) {
