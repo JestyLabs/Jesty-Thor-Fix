@@ -93,7 +93,7 @@ The research runtime adds counters to authenticated `Q` output and emits one `WA
 - burst waits;
 - current burst state/cadence.
 
-`scripts/measure-watcher-load.ps1` is read-only and measures one daemon PID over a fixed idle window using `/proc/PID/stat`, context switches and `/proc/PID/io` when readable.
+`scripts/measure-watcher-load.ps1` is read-only and measures the Thor daemon over a fixed idle window using `/proc/PID/stat`, context switches and `/proc/PID/io` when readable. When `com.android.providers.settings` has one stable PID, it also captures the same deltas for SettingsProvider so the A/B does not ignore server-side Binder work.
 
 ## Candidate identity / version plan
 
@@ -143,8 +143,8 @@ Primary evidence:
 - watcher sample rate;
 - watcher DRM-read rate;
 - daemon CPU ticks/s;
-- context-switch rate;
-- read-syscall rate when `/proc/PID/io` is readable.
+- daemon context-switch and read-syscall rate;
+- SettingsProvider CPU/context-switch/read deltas when its PID is available and stable.
 
 ## Functional physical gate
 
