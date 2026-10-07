@@ -9,7 +9,7 @@ package com.thor.displaypowertest;
  * activity without paying that cost continuously.
  */
 public final class WatcherCadenceModel {
-    public static final long IDLE_SAMPLE_MS = 750L;
+    public static final long IDLE_SAMPLE_MS = 500L;
     public static final long BURST_SAMPLE_MS = 20L;
     public static final long BURST_WINDOW_MS = 1600L;
     public static final long DRM_SAFETY_MS = 1000L;
