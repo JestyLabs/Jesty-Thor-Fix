@@ -294,8 +294,13 @@ strong architectural explanation for why the Thor lower display can show a
 That does **not** explain the upper panel remaining at 60 during the controlled
 120/120 probe. The exact Thor SurfaceFlinger binary and its policy counters now
 show that neither panel initiated an HWC mode request in that policy window.
-The upper-panel question is narrower: did it cache a desired 120 mode without
-scheduling a composition, or did an earlier gate stop it before that point?
+The upper-panel question is narrower: was it SF-active at the policy callback,
+and, if so, did it already have a pending desired mode or did a newly scheduled
+mode get skipped before HWC? Exact-binary disassembly shows the fixed-120
+policy's default mode maps to upper mode 1 (120 Hz), the selected mode is
+checked for eligibility, and the allowed path calls `setDesiredActiveMode`.
+The dump shows the upper active about four seconds after the policy callback;
+it does not expose the pending flag or prove it was active at that callback.
 
 Public Qualcomm HWC code also shows that SetActiveConfigWithConstraints can
 queue a pending config before it is submitted to the display interface. That
@@ -519,10 +524,11 @@ failure.
 ### H2 � upper 120 policy is accepted but never becomes an HWC mode-change request
 **Confidence: medium-high; this is the main unresolved gate.**
 
-The upper display was marked active, yet its mode-change counter also remained
-zero. Candidate boundaries are therefore still inside SurfaceFlinger:
-scheduler/preferred-mode selection, desired-mode state, or the pending-mode
-scheduling path.
+The upper display was marked active in the later dump, yet its mode-change
+counter remained zero. A silent 60 Hz scheduler selection is disfavored by the
+fixed-120 policy and exact-binary allowed-mode path. The remaining boundaries
+are active-display identity at policy delivery, desired-mode pending state,
+and execution/clearing of a newly scheduled change before HWC initiation.
 
 The exact Thor binary contains a branch where an already-pending desired mode
 can be replaced without scheduling a new composition. That is a plausible
