@@ -1,13 +1,12 @@
-# Stock pservice early CPU restart — model only
+# Stock pservice early CPU restart
 
-Status: **research / host-only preparation**
+Status: **physically validated on AYN Thor; v1.6.0 release candidate path**
 
-Branch:
-
-`work/thor-pservice-early-cpu-restart-model`
-
-This branch does **not** install `/data/boot_start.sh`, set the Qualcomm
-property, restart composer, change display routing, or request a device reboot.
+The production path keeps the tested safety model but removes the manual
+prototype marker. Eligibility now requires both the saved CPU Fix setting and
+the exact per-install Direct-Boot opt-in identity. The boot-scoped `/dev`
+attempt remains the no-repeat guard and all restart provenance is imported into
+the existing durable CPU attempt state machine.
 
 ## Goal
 
@@ -66,10 +65,9 @@ restart**, but not for proving that the first composer consumed the property.
 
 ## Safety architecture
 
-A future implementation must reuse `CpuBootAttemptModel`; it must not create
-an independent weaker provenance scheme.
+The implementation reuses `CpuBootAttemptModel`; it does not create an independent weaker provenance scheme.
 
-Proposed early hook sequence:
+Early hook sequence:
 
 ```text
 pservice starts
@@ -142,16 +140,22 @@ SELinux/readability proof before runtime use.
 - a physical reboot before hook ownership and proof import are implemented and
   host-tested.
 
-## Success criterion for a later physical test
+## Physical validation
 
-Only one supervised cold boot should be needed.
+Physical Thor validation passed on 2026-10-07.
 
-Success means:
+Observed boot ID:
+`335174a3-a5a2-4b1b-8e28-479ec964bef7`
 
-- one early restart only;
-- no later ~30-40 s compositor restart;
-- first/second boot-animation transition is materially less intrusive than the
-  current path;
-- CPU attempt reaches APPLIED using existing provenance semantics;
-- the normal display safety gate still runs unchanged;
-- no persistent property/hook residue after opt-out.
+Evidence:
+- early attempt imported as `RESTART_REQUESTED` with baseline composer PID `1221`;
+- successor composer PID `2314` was proven and the attempt reached `APPLIED`;
+- the normal late daemon did not request a second CPU-fix restart;
+- BOTH completed with TOP and BOTTOM CRTCs active;
+- `BOOT_READY` was reached at ~40.6 s;
+- visually, the boot had only a slightly longer black startup phase instead of
+  the previous late/second recovery interruption.
+
+The manual prototype gate was used only for that physical validation. v1.6.0
+promotes the same path to normal CPU-Fix opt-in semantics; one final supervised
+release-candidate boot is required before publishing stable.

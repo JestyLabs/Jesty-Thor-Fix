@@ -14,7 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 
 /**
- * Per-install Direct-Boot identity and enable marker for the early CPU prototype.
+ * Per-install Direct-Boot identity and enable marker for the early CPU boot path.
  *
  * The identity survives app updates but is removed with app data on uninstall.
  * The opt-in file exists only while the saved CPU Fix preference is ON.

@@ -132,8 +132,8 @@ final class DashboardSettingsController {
 
     private void confirmDashboardCpuFix(boolean requested) {
         String message = requested
-                ? "Android restarts now and once per boot. Open apps will close."
-                : "Android restarts now. Open apps will close.";
+                ? "Android restarts now to apply. On future boots, the required display recovery happens during startup."
+                : "Android restarts now to remove the CPU Fix. Open apps will close.";
         new AlertDialog.Builder(activity)
                 .setTitle(requested ? "Enable Dashboard CPU Fix?" : "Disable Dashboard CPU Fix?")
                 .setMessage(message)
@@ -300,7 +300,7 @@ final class DashboardSettingsController {
     private void updateDashboardFixHelp(boolean enabled) {
         if (dashboardFixHelp == null) return;
         dashboardFixHelp.setText(enabled
-                ? "Restarts Android UI once per boot (may look like a second boot)"
+                ? "Applies during startup; a slightly longer black boot phase is normal"
                 : "Restarts Android UI/display once to apply");
         dashboardFixHelp.setTextColor(enabled ? AMBER : MUTED);
     }

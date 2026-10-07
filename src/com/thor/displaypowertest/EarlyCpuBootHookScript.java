@@ -1,15 +1,13 @@
 package com.thor.displaypowertest;
 
 /**
- * Deterministic generator for the stock-pservice early CPU restart prototype.
+ * Deterministic generator for the stock-pservice early CPU restart path.
  *
  * This class only returns shell text. It has no file, property, service or
  * display authority by itself.
  */
 public final class EarlyCpuBootHookScript {
     public static final String HOOK_PATH = "/data/boot_start.sh";
-    public static final String PROTOTYPE_GATE =
-            "/data/local/tmp/thor-pservice-early-cpu-restart-prototype";
     public static final String OPT_IN_PATH =
             "/data/user_de/0/com.thor.displaypowertest/files/jesty-thor-early-cpu-optin-v1";
     public static final String ATTEMPT_PATH =
@@ -37,8 +35,7 @@ public final class EarlyCpuBootHookScript {
         StringBuilder s = new StringBuilder(6000);
         line(s, "#!/system/bin/sh");
         line(s, "# " + MAGIC);
-        line(s, "# One-shot prototype: no display action and no direct framework restart.");
-        line(s, "GATE='" + PROTOTYPE_GATE + "'");
+        line(s, "# Early CPU fix: no display action and no direct framework restart.");
         line(s, "OPT='" + OPT_IN_PATH + "'");
         line(s, "ATT='" + ATTEMPT_PATH + "'");
         line(s, "TRACE='" + TRACE_PATH + "'");
@@ -76,13 +73,6 @@ public final class EarlyCpuBootHookScript {
         line(s, "  trace \"RECOVER_$1\"");
         line(s, "}");
         line(s, "");
-        line(s, "# Prototype gate must be an exact regular file containing one byte/value: 1.");
-        line(s, "[ -f \"$GATE\" ] && [ ! -L \"$GATE\" ] || exit 0");
-        line(s, "[ \"$(stat -c %h \"$GATE\" 2>/dev/null)\" = 1 ] || exit 0");
-        line(s, "GU=$(stat -c %u \"$GATE\" 2>/dev/null); case \"$GU\" in 0|2000) ;; *) exit 0;; esac");
-        line(s, "[ \"$(stat -c %a \"$GATE\" 2>/dev/null)\" = 644 ] || exit 0");
-        line(s, "[ \"$(cat \"$GATE\" 2>/dev/null)\" = 1 ] || exit 0");
-        line(s, "");
         line(s, "# Per-install Direct-Boot opt-in: regular, app-owned, private and exact.");
         line(s, "[ -f \"$OPT\" ] && [ ! -L \"$OPT\" ] || exit 0");
         line(s, "[ \"$(stat -c %h \"$OPT\" 2>/dev/null)\" = 1 ] || exit 0");
@@ -107,8 +97,7 @@ public final class EarlyCpuBootHookScript {
         line(s, "RAW=$(getprop \"$PROP\" 2>/dev/null)");
         line(s, "case \"$RAW\" in '') PREV=UNSET;; 0|1) PREV=\"$RAW\";; *) exit 0;; esac");
         line(s, "");
-        line(s, "# Consume the test gate before the first mutation: this candidate can fire once only.");
-        line(s, "rm -f \"$GATE\" || exit 0");
+        line(s, "# Persist boot-scoped provenance before the first mutation.");
         line(s, "write_attempt PREPARED || exit 0");
         line(s, "trace PREPARED");
         line(s, "");

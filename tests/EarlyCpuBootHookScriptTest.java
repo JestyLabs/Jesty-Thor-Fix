@@ -26,8 +26,6 @@ public final class EarlyCpuBootHookScriptTest {
                         + EarlyCpuBootHookScript.MAGIC + "\n"),
                 "script must have exact ownership magic");
 
-        require(script.contains("GATE='" + EarlyCpuBootHookScript.PROTOTYPE_GATE + "'"),
-                "one-shot prototype gate path");
         require(script.contains("OPT='" + EarlyCpuBootHookScript.OPT_IN_PATH + "'"),
                 "device-protected opt-in path");
         require(script.contains("ATT='" + EarlyCpuBootHookScript.ATTEMPT_PATH + "'"),
@@ -44,21 +42,23 @@ public final class EarlyCpuBootHookScriptTest {
         require(script.contains("stat -c %u"), "opt-in owner must be verified");
         require(script.contains("stat -c %a"), "opt-in mode must be verified");
         require(script.contains("stat -c %h"), "single-link identity must be verified");
-        require(script.contains("stat -c %a \"$GATE\""), "gate mode must be verified");
-        require(script.contains("= 644 ] || exit 0"), "gate must use canonical mode 0644");
         require(script.contains("pidof \"$COMP_PROC\""), "PID lookup must use process identity");
         require(script.contains("[ ! -e \"$ATT\" ] && [ ! -L \"$ATT\" ] || exit 0"),
                 "same-boot attempt must reject existing objects and symlinks");
 
-        int consume = script.indexOf("rm -f \"$GATE\"");
-        int prepared = script.indexOf("write_attempt PREPARED", consume + 1);
+        require(!script.contains("thor-pservice-early-cpu-restart-prototype"),
+                "production hook must not depend on a manual prototype gate");
+        int optIn = script.indexOf("[ -f \"$OPT\" ]");
+        int attemptGuard = script.indexOf("[ ! -e \"$ATT\" ]");
+        int prepared = script.indexOf("write_attempt PREPARED", attemptGuard + 1);
         int setprop = script.indexOf("setprop \"$PROP\" 1", prepared + 1);
         int verified = script.indexOf("write_attempt PROPERTY_VERIFIED", setprop + 1);
         int requested = script.indexOf("write_attempt RESTART_REQUESTED", verified + 1);
         int restart = script.indexOf("setprop ctl.restart \"$COMP_SVC\"", requested + 1);
-        require(consume >= 0 && prepared > consume && setprop > prepared
-                        && verified > setprop && requested > verified && restart > requested,
-                "gate/provenance/restart ordering must be strict");
+        require(optIn >= 0 && attemptGuard > optIn && prepared > attemptGuard
+                        && setprop > prepared && verified > setprop
+                        && requested > verified && restart > requested,
+                "opt-in/attempt/provenance/restart ordering must be strict");
 
         require(count(script, "setprop ctl.restart \"$COMP_SVC\"") == 1,
                 "exactly one composer restart command may exist");
