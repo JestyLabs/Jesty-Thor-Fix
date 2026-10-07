@@ -1,6 +1,6 @@
 # Thor mixed-refresh / "fake 120 Hz" investigation
 
-Status: **ACTIVE RESEARCH � READ-ONLY FIRST**  
+Status: **ACTIVE RESEARCH - 60/60 RESTORED; FURTHER TESTS PAUSED**
 Collector/schema: **THOR_REFRESH_INVESTIGATION_V2**  
 Started: 2026-10-07
 
@@ -70,18 +70,61 @@ distinguishes a policy update from a completed HWC mode change, and can defer
 applying policy on an inactive internal display. This is an architectural clue,
 not proof that the Thor's vendor build took that branch. The current evidence
 is narrowed by the binary check below. The next work is read-only: determine
-why the active upper display did not issue a mode-change request.
+why the active upper display did not issue a mode-change request in that first
+sustained probe. A later trace captured a different outcome below.
+
+### Supervised atrace probe: mode switch reached HWC, two brief black blinks
+
+On the same boot, with the user watching the Thor in BOTH, one further bounded
+60 -> 120 -> 60 policy test ran with an on-device 60/60 rollback and a host
+rollback in `finally`. The user reported **two brief black blinks in total**;
+the first was identified on the lower screen. The visual timing of the other
+blink was not captured precisely. This is a confirmed visual disruption report,
+not a claim that either panel was damaged. No reboot occurred, the composer PID
+remained `2319`, the boot ID remained
+`cecf25bc-4750-4933-89c9-9acd29d89499`, and both CRTCs were active at the
+final 60/60 check.
+
+This capture differs materially from the earlier 12:28 probe:
+
+| Evidence | New capture |
+|---|---|
+| 120/120 policy | 23:42:17.246 upper; 23:42:17.248 lower |
+| `setDesiredActiveMode` | atrace at uptime 76261.168 s |
+| HWC request | `SetActiveConfigWithConstraints`, `SubmitDisplayConfig` for both paths at 76261.173-76261.180 s |
+| HWC target markers | `ActiveModeFPS_HWC` = 120 for both physical display IDs |
+| SF effective active mode | upper `activeModeId=1` (120 Hz); lower `activeModeId=1` (60 Hz in its reversed mode table) in the in-window dump |
+| Vsync evidence | vendor `VsyncPeriod=8333333` ns and SF `onComposerHalVsync(8333333)` from ~76261.200 s until rollback |
+| Lower display error | `Trying to initiate a mode change to invalid mode 1` at 23:42:17.252; corresponding invalid mode 0 at 23:42:22.660 rollback |
+| Rollback | 60/60 policy at 23:42:22.652; HWC target markers return to 60; SF upper active mode returns to 60 |
+
+At rollback, the SurfaceFlinger policy log counted **one mode change under the
+120/120 policy for each display**. Thus the prior zero-count conclusion is
+specific to the earlier probe; it is not a general block on 120 Hz. The upper
+path demonstrably reached HWC and SF reported 120 Hz. The lower path received
+a 120 Hz HWC request, but SF continued reporting its 60 Hz active mode and
+also logged an invalid-mode error. The trace does not independently prove the
+lower panel's physical scanout cadence: no in-window lower DRM/vblank sample
+was captured. The 8.33 ms vsync markers are not enough by themselves to assign
+that cadence to the lower panel.
+
+Raw `atrace gfx` and logcat remain outside Git at
+`C:\Temp\thor-refresh-trace-20261007\`. SHA-256:
+`atrace.txt` = `0B823204F73E35AF0E29C3A33F8B94143F79975389A5D26EEC60B8F03A0E6035`;
+`logcat.txt` = `F454772323E709885D030A078E217D258848C38070CD26EF101CE72605E70DA8`.
+No more refresh-policy writes are planned until the lower invalid-mode path and
+blink are understood from the captured evidence.
 
 ### SurfaceFlinger binary check: no HWC mode request in the probe
 
-**PROVEN for this exact firmware binary and the 12:28:39�12:28:49 policy
+**PROVEN for this exact firmware binary and the 12:28:39-12:28:49 policy
 window.** The copied `/system/bin/surfaceflinger` has ELF Build ID
 `a4e0851419d45662b0fd5cd067b585bf`. Its policy-change log string is used
 by the routine at `0x125800`: that routine atomically exchanges the per-display
-mode-change counter at object offset `+0x2a0` with zero (`0x125878�0x125884`)
+mode-change counter at object offset `+0x2a0` with zero (`0x125878-0x125884`)
 and logs the old value (`0x125924`). The mode-initiation routine increments
-that same counter at `0x124250�0x124258` (and on its alternate path at
-`0x1243ec�0x1243f4`) **before** dispatching the HWC mode request. These
+that same counter at `0x124250-0x124258` (and on its alternate path at
+`0x1243ec-0x1243f4`) **before** dispatching the HWC mode request. These
 locations were checked with ARM64 disassembly of the copied binary, not inferred
 solely from log wording. The matching
 [AOSP `DisplayDevice` implementation](https://android.googlesource.com/platform/frameworks/native/+/refs/heads/android13-qpr3-c-s2-release/services/surfaceflinger/DisplayDevice.cpp)
@@ -123,7 +166,7 @@ SDM dump or `DynFPS:true` on the lower as the cause of this probe: neither
 vendor mode-setting path was reached.
 
 The same exact `surfaceflinger` binary has a pending-mode branch in
-`DisplayDevice::setDesiredActiveMode` at `0x1255ac�0x125610`. If its
+`DisplayDevice::setDesiredActiveMode` at `0x1255ac-0x125610`. If its
 `mDesiredActiveModeChanged` byte at `DisplayDevice + 0x281` is already set, it
 replaces the cached desired mode and returns false. The caller at `0x1af168`
 only schedules a new composition when that return is true. This matches the
@@ -222,11 +265,11 @@ The previous "fake 120" name remains useful as historical shorthand, but a
 
 Use these labels consistently:
 
-- **PROVEN** � measured on the validation Thor or established directly from its
+- **PROVEN** - measured on the validation Thor or established directly from its
   pulled firmware/binaries.
-- **OBSERVED** � independently reported/implemented by another project or
+- **OBSERVED** - independently reported/implemented by another project or
   public source, useful corroboration but not our device proof.
-- **HYPOTHESIS** � explanation that still needs a discriminating measurement.
+- **HYPOTHESIS** - explanation that still needs a discriminating measurement.
 
 ## What is already proven in this project
 
@@ -284,7 +327,7 @@ Static inspection of Android 13 SurfaceFlinger and public Qualcomm HWC/SDM code
 has now narrowed the request path further. The detailed trace is in
 [Thor 120 Hz mode-switch call path](THOR-120HZ-CALL-PATH.md).
 
-The most important finding is that Android 13 SurfaceFlinger stores a refresh
+For the earlier 12:28 probe, an important finding is that Android 13 SurfaceFlinger stores a refresh
 policy for an inactive internal display but deliberately does not apply its mode
 until that display becomes the active internal display. A second gate clears a
 pending desired mode if that internal display is no longer active. This is a
@@ -304,8 +347,8 @@ it does not expose the pending flag or prove it was active at that callback.
 
 Public Qualcomm HWC code also shows that SetActiveConfigWithConstraints can
 queue a pending config before it is submitted to the display interface. That
-boundary matters only after a future capture proves SurfaceFlinger made the HWC
-request; it was not reached in this probe.
+boundary was not reached in the earlier probe. The later supervised trace
+reached it for both display IDs and exposed a lower invalid-mode error.
 
 A host-only analyzer, scripts/analyze-thor-refresh-capture.ps1, now extracts
 those framework/HWC/SDM/DRM markers from an existing capture bundle. It performs
@@ -403,7 +446,7 @@ This is particularly relevant because it encodes the exact mismatch we are
 investigating: Android mode information can be unsuitable as a physical-panel
 truth source on a mixed-refresh handheld.
 
-### Historical Linux 60-only clue � superseded by newer Thor support
+### Historical Linux 60-only clue - superseded by newer Thor support
 
 An older Linux/Gamescope patch described the CH13726A lower path as having only
 a 60 Hz mode. That was useful early evidence, but it is no longer the strongest
@@ -505,8 +548,8 @@ The v2 collector can pull these read-only and generate SHA-256 manifests.
 
 ## Current hypotheses
 
-### H1 � lower 120 policy is stored but not applied while the lower display is SF-inactive
-**Confidence: high for the controlled probe.**
+### H1 - lower 120 policy is stored but not applied while the lower display is SF-inactive
+**Confidence: high for the earlier 12:28 probe; insufficient for the later trace.**
 
 Android 13 SurfaceFlinger can retain refresh policy for a secondary internal
 display without initiating its physical mode transition while another internal
@@ -518,11 +561,12 @@ Prediction:
 - lower active mode remains 60;
 - no lower HWC mode-change initiation occurs.
 
-This fits the observed zero mode-change count and does not require a vendor
-failure.
+This fits the earlier zero mode-change count and does not require a vendor
+failure for that probe. It does not explain the later lower HWC request and
+invalid-mode log.
 
-### H2 � upper 120 policy is accepted but never becomes an HWC mode-change request
-**Confidence: medium-high; this is the main unresolved gate.**
+### H2 - upper 120 policy is accepted but never becomes an HWC mode-change request
+**Confidence: medium-high for the earlier 12:28 probe only.**
 
 The upper display was marked active in the later dump, yet its mode-change
 counter remained zero. A silent 60 Hz scheduler selection is disfavored by the
@@ -532,10 +576,11 @@ and execution/clearing of a newly scheduled change before HWC initiation.
 
 The exact Thor binary contains a branch where an already-pending desired mode
 can be replaced without scheduling a new composition. That is a plausible
-mechanism, not yet proof.
+mechanism for that earlier run, not yet proof. The later run did issue an upper
+HWC request and report upper 120 Hz, so this cannot be a universal gate.
 
-### H3 � lower 120 uses DFPS + PASS-RAM rather than a conventional static mode switch
-**Confidence: high as architecture, unproven as the state reached in the probe.**
+### H3 - lower 120 uses DFPS + PASS-RAM rather than a conventional static mode switch
+**Confidence: high as architecture; exact lower physical state still unproven.**
 
 The AYN framework writes the lower-panel `bypass_ram` sysfs control around
 refresh-policy changes. Public AYN driver source maps that control directly to
@@ -548,10 +593,11 @@ Prediction for a real lower 120 transition:
 - lower dynamic timing/clock changes from its 60 operating point;
 - DRM/SDM/vsync evidence moves consistently toward 120.
 
-The existing probe never reached an SF/HWC mode transition, so it did not test
-this capability.
+The earlier probe never reached an SF/HWC mode transition. The later trace did
+reach HWC but did not include an in-window lower DRM/vblank measurement, and
+SurfaceFlinger logged an invalid lower mode.
 
-### H4 � tearing is a pacing/synchronization problem even when both panels can run 120
+### H4 - tearing is a pacing/synchronization problem even when both panels can run 120
 **Confidence: open.**
 
 If a later safe measurement proves both physical display paths at ~120 while
@@ -617,23 +663,10 @@ Stop before any state-changing experiment if:
 
 ## Next step
 
-Keep the Thor at the current safe 60/60 state. **Do not repeat the refresh
-settings probe yet.**
-
-The next pass is entirely local/offline. Trace the exact upper-display path
-through `setDesiredDisplayModeSpecsInternal`, `applyRefreshRateConfigsPolicy`
-and `setDesiredActiveMode` for the direct 120/120 edge. Determine whether the
-upper display was SF-active at that instant and whether a desired-mode request
-was already pending. The current capture does not expose those internal states.
-Do not infer their absence from missing verbose strings. The repaired host
-analyzer preserves ordered policy blocks and recognizes the real
-`(inactive) HWC layers` dump label; its output is triage, not a causal proof.
-
-Separately, the V2 read-only collector is now prepared for a future natural
-capture. It records the AYN lower-panel `bypass_ram` state, lower backlight,
-live device-tree refresh properties, display logcat/kernel evidence and a
-capture-completeness manifest.
-
-Only after the upper gate is explained should we design one minimal supervised
-physical measurement capable of distinguishing actual 120 scanout from
-policy-only state.
+Keep the Thor at 60/60. The immediate task is offline analysis of the second
+trace's lower `invalid mode` error, its HWC request and the AYN secondary-panel
+PASS-RAM/fade handling. Compare the exact lower mode IDs and the order of
+HWC submission, SF internal-state update and rollback. The earlier upper
+no-request branch remains a timing/context question, but it no longer blocks
+the primary finding. Do not infer lower physical 120 Hz, a safe user-facing
+120 Hz setting, or the cause of either blink from the current trace.
