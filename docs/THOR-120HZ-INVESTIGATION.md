@@ -1,7 +1,7 @@
 # Thor mixed-refresh / "fake 120 Hz" investigation
 
 Status: **ACTIVE RESEARCH — READ-ONLY FIRST**  
-Collector/schema: **THOR_REFRESH_INVESTIGATION_V1**  
+Collector/schema: **THOR_REFRESH_INVESTIGATION_V2**  
 Started: 2026-10-07
 
 ## Thor baseline: 2026-10-07
@@ -459,7 +459,7 @@ Priority strings/symbols:
 - `active_config`, `display_attributes`
 - `dsi_display0`, `dsi_display1`
 
-The v1 collector can pull these read-only and generate SHA-256 manifests.
+The v2 collector can pull these read-only and generate SHA-256 manifests.
 
 ## Current hypotheses
 
