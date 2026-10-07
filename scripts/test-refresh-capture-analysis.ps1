@@ -36,6 +36,17 @@ bypass_ram=0
 panel=ch13726a
 '@ | Set-Content -LiteralPath (Join-Path $root 'lower-panel.txt') -Encoding utf8
 
+    @'
+10-07 12:28:38.900  100  200 I SurfaceFlinger: Display PhysicalDisplayId{1} policy changed
+10-07 12:28:38.900  100  200 I SurfaceFlinger: Previous: {defaultModeId=1, primaryRange=[60,60]}
+10-07 12:28:38.900  100  200 I SurfaceFlinger: Current: {defaultModeId=2, primaryRange=[60,120]}
+10-07 12:28:38.900  100  200 I SurfaceFlinger: 0 mode changes were performed under the previous policy
+10-07 12:28:39.059  100  200 I SurfaceFlinger: Display PhysicalDisplayId{1} policy changed
+10-07 12:28:39.059  100  200 I SurfaceFlinger: Previous: {defaultModeId=2, primaryRange=[60,120]}
+10-07 12:28:39.059  100  200 I SurfaceFlinger: Current: {defaultModeId=2, primaryRange=[120,120]}
+10-07 12:28:39.059  100  200 I SurfaceFlinger: 1 mode changes were performed under the previous policy
+'@ | Set-Content -LiteralPath (Join-Path $root 'surfaceflinger-policy.log') -Encoding utf8
+
     & $scriptPath -CaptureDir $root
     if (-not $?) { throw 'Capture analyzer failed.' }
 
@@ -53,6 +64,21 @@ panel=ch13726a
     }
     if ($summary.reason -match '(?i)proves|therefore.*before|caused') {
         throw 'Analyzer reason must not turn uncorrelated text matches into a causal conclusion.'
+    }
+
+    if (@($summary.policyTransitions).Count -ne 2) {
+        throw "Expected two ordered policy transitions, got $(@($summary.policyTransitions).Count)."
+    }
+    $final120 = @($summary.policyTransitions)[1]
+    if ($final120.timestamp -ne '10-07 12:28:39.059') {
+        throw "Unexpected final-policy timestamp: $($final120.timestamp)"
+    }
+    if ($final120.previous -notmatch 'primaryRange=\[60,120\]' -or
+        $final120.current -notmatch 'primaryRange=\[120,120\]') {
+        throw 'Policy transition parser did not preserve the 60-120 -> 120-120 boundary.'
+    }
+    if ($final120.previousPolicyModeChanges -ne 1) {
+        throw 'Policy transition parser did not preserve the previous-policy mode-change count.'
     }
 
     # A policy range that merely contains 120 must not be described as a proven
