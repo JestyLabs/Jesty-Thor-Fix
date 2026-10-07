@@ -65,7 +65,7 @@ function Invoke-ShellText {
 function Write-HostMetadata {
     $path = Join-Path $OutputDir '00-host.txt'
     @(
-        "schema=THOR_PSERVERBINDER_READONLY_V1"
+        "schema=THOR_PSERVERBINDER_READONLY_V2"
         "host_time_iso=$((Get-Date).ToString('o'))"
         "serial=$Serial"
         "samples=$Samples"
