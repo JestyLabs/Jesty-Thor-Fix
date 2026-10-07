@@ -110,6 +110,20 @@ if ($preComposerInspect -match '(?im)\badb\s+(?:reboot|install|push|root|remount
     $preComposerInspect -match '(?im)\b(?:rm|mv|cp|chmod|chown|mkdir|touch)\s') {
     throw 'Pre-composer collector must remain read-only and must not mutate the Thor.'
 }
+$pserverBinderCollector = Get-Content -LiteralPath (Join-Path $repository 'scripts\collect-thor-pserverbinder-readonly.ps1') -Raw
+if ($pserverBinderCollector -match '(?im)\badb\s+(?:reboot|install|push|root|remount)\b' -or
+    $pserverBinderCollector -match '(?im)^\s*(?:setprop|reboot|kill|pkill|su)\b' -or
+    $pserverBinderCollector -match '(?im)\bctl\.(?:start|stop|restart)\b' -or
+    $pserverBinderCollector -match '(?im)\bservice\s+call\b' -or
+    $pserverBinderCollector -match '(?im)^\s*(?:rm|mv|cp|chmod|chown|mkdir|touch)\s') {
+    throw 'PServerBinder collector must remain read-only and must not mutate or recover the Thor.'
+}
+if ($pserverBinderCollector -notmatch 'service check PServerBinder' -or
+    $pserverBinderCollector -notmatch 'cat /proc/sys/kernel/random/boot_id' -or
+    $pserverBinderCollector -notmatch 'pidof pservice' -or
+    $pserverBinderCollector -notmatch 'pidof servicemanager') {
+    throw 'PServerBinder collector must preserve the minimum lifecycle discriminants.'
+}
 $preComposerProofSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'PreComposerCpuProofModel.java') -Raw
 if ($preComposerProofSource -match 'ProcessBuilder|setprop|ctl\.restart|DisplayActionCoordinator|SurfaceControl|LidGuard') {
     throw 'Pre-composer proof model must stay pure and side-effect free.'
