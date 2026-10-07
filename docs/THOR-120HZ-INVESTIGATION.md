@@ -1,6 +1,6 @@
 # Thor mixed-refresh / "fake 120 Hz" investigation
 
-Status: **ACTIVE RESEARCH — READ-ONLY FIRST**  
+Status: **ACTIVE RESEARCH � READ-ONLY FIRST**  
 Collector/schema: **THOR_REFRESH_INVESTIGATION_V2**  
 Started: 2026-10-07
 
@@ -74,14 +74,14 @@ why the active upper display did not issue a mode-change request.
 
 ### SurfaceFlinger binary check: no HWC mode request in the probe
 
-**PROVEN for this exact firmware binary and the 12:28:39–12:28:49 policy
+**PROVEN for this exact firmware binary and the 12:28:39�12:28:49 policy
 window.** The copied `/system/bin/surfaceflinger` has ELF Build ID
 `a4e0851419d45662b0fd5cd067b585bf`. Its policy-change log string is used
 by the routine at `0x125800`: that routine atomically exchanges the per-display
-mode-change counter at object offset `+0x2a0` with zero (`0x125878–0x125884`)
+mode-change counter at object offset `+0x2a0` with zero (`0x125878�0x125884`)
 and logs the old value (`0x125924`). The mode-initiation routine increments
-that same counter at `0x124250–0x124258` (and on its alternate path at
-`0x1243ec–0x1243f4`) **before** dispatching the HWC mode request. These
+that same counter at `0x124250�0x124258` (and on its alternate path at
+`0x1243ec�0x1243f4`) **before** dispatching the HWC mode request. These
 locations were checked with ARM64 disassembly of the copied binary, not inferred
 solely from log wording. The matching
 [AOSP `DisplayDevice` implementation](https://android.googlesource.com/platform/frameworks/native/+/refs/heads/android13-qpr3-c-s2-release/services/surfaceflinger/DisplayDevice.cpp)
@@ -102,24 +102,13 @@ Settings state:
   -> min=120   => final settings state 120-120
 ```
 
-It is **not yet proven** that SurfaceFlinger saw a distinct 60-120 policy.
-The AYN-modified `SettingsObserver.onChange()` tracks the peak/min
-notifications and enters its special fade/bypass flow once both have arrived.
-The currently versioned reverse-engineering notes do not prove whether the
-normal policy update is also emitted after each individual notification or
-batched until the pair is complete.
-
-If SurfaceFlinger did accept a 60-120 policy,
-`DisplayDevice::setRefreshRatePolicy()` would reset the per-display
-`mNumModeSwitchesInPolicy` counter when the later 120-120 policy was accepted.
-An initiation under 60-120 could then disappear from the final rollback count.
-
-If no 60-120 SurfaceFlinger policy block exists, that entire intermediate-policy
-mechanism is eliminated for this probe.
-
-This is now the highest-value gap in the existing local logs: inspect the
-policy-change sequence immediately **before 12:28:39.059** and first determine
-whether SurfaceFlinger ever accepted 60-120 at all.
+The raw SurfaceFlinger log now settles this for the sustained probe. Both
+physical displays changed directly from fixed 60/60 to fixed 120/120 at
+`12:28:39.059`, then directly back to 60/60 at `12:28:49.107-108`. There is no
+intermediate 60-120 policy block in this capture. The `mNumModeSwitchesInPolicy`
+counter therefore did not hide an initiation under an intermediate policy.
+The AYN-modified `SettingsObserver.onChange()` may have batched delivery, but
+the log alone does not prove its exact internal scheduling.
 
 The same dump lists both physical displays as `powerMode=On` and both DRM
 CRTCs as active, but marks the lower display **inactive** in SurfaceFlinger's
@@ -134,31 +123,18 @@ SDM dump or `DynFPS:true` on the lower as the cause of this probe: neither
 vendor mode-setting path was reached.
 
 The same exact `surfaceflinger` binary has a pending-mode branch in
-`DisplayDevice::setDesiredActiveMode` at `0x1255ac–0x125610`. If its
+`DisplayDevice::setDesiredActiveMode` at `0x1255ac�0x125610`. If its
 `mDesiredActiveModeChanged` byte at `DisplayDevice + 0x281` is already set, it
 replaces the cached desired mode and returns false. The caller at `0x1af168`
 only schedules a new composition when that return is true. This matches the
 [AOSP pending-mode behavior](https://android.googlesource.com/platform/frameworks/native/+/refs/heads/android13-qpr3-c-s2-release/services/surfaceflinger/DisplayDevice.cpp).
 
-That branch becomes materially more interesting **if** the local raw log proves
-that SurfaceFlinger accepted an intermediate 60-120 policy. A plausible, still
-**unproven**, sequence would then be:
-
-```text
-peak=120 -> SF accepts 60-120
-  -> upper desired 120 is created
-  -> mode initiation is attempted or left pending
-  -> min=120 -> SF accepts 120-120 and resets the policy counter
-  -> desired-state flag is still set
-  -> new 120 request only replaces cached desired mode
-  -> setDesiredActiveMode returns false
-  -> no fresh scheduleComposite()
-  -> final 120-120 interval records zero mode initiations
-```
-
-If the raw log shows that AYN batched directly from 60-60 to 120-120, this
-specific sequence is rejected and the pending-state explanation would have to
-predate the probe or arise inside the single final-policy transition.
+Because the log shows a direct 60-60 -> 120-120 transition, the proposed
+intermediate-policy stale-state sequence is rejected for this probe. A pending
+desired mode could still predate the probe or arise at the single 120/120 edge;
+neither was observed directly. The preferred-mode messages are `ALOGV` in AOSP
+and absent from this exact Thor binary, so missing logcat messages cannot be
+used to decide whether the desired mode existed.
 
 Android 13's `setActiveModeInHwcIfNeeded()` also leaves the desired mode
 present when `initiateModeChange()` returns an error; it logs the failure and
@@ -246,11 +222,11 @@ The previous "fake 120" name remains useful as historical shorthand, but a
 
 Use these labels consistently:
 
-- **PROVEN** — measured on the validation Thor or established directly from its
+- **PROVEN** � measured on the validation Thor or established directly from its
   pulled firmware/binaries.
-- **OBSERVED** — independently reported/implemented by another project or
+- **OBSERVED** � independently reported/implemented by another project or
   public source, useful corroboration but not our device proof.
-- **HYPOTHESIS** — explanation that still needs a discriminating measurement.
+- **HYPOTHESIS** � explanation that still needs a discriminating measurement.
 
 ## What is already proven in this project
 
@@ -422,7 +398,7 @@ This is particularly relevant because it encodes the exact mismatch we are
 investigating: Android mode information can be unsuitable as a physical-panel
 truth source on a mixed-refresh handheld.
 
-### Historical Linux 60-only clue — superseded by newer Thor support
+### Historical Linux 60-only clue � superseded by newer Thor support
 
 An older Linux/Gamescope patch described the CH13726A lower path as having only
 a 60 Hz mode. That was useful early evidence, but it is no longer the strongest
@@ -524,7 +500,7 @@ The v2 collector can pull these read-only and generate SHA-256 manifests.
 
 ## Current hypotheses
 
-### H1 — lower 120 policy is stored but not applied while the lower display is SF-inactive
+### H1 � lower 120 policy is stored but not applied while the lower display is SF-inactive
 **Confidence: high for the controlled probe.**
 
 Android 13 SurfaceFlinger can retain refresh policy for a secondary internal
@@ -540,7 +516,7 @@ Prediction:
 This fits the observed zero mode-change count and does not require a vendor
 failure.
 
-### H2 — upper 120 policy is accepted but never becomes an HWC mode-change request
+### H2 � upper 120 policy is accepted but never becomes an HWC mode-change request
 **Confidence: medium-high; this is the main unresolved gate.**
 
 The upper display was marked active, yet its mode-change counter also remained
@@ -552,7 +528,7 @@ The exact Thor binary contains a branch where an already-pending desired mode
 can be replaced without scheduling a new composition. That is a plausible
 mechanism, not yet proof.
 
-### H3 — lower 120 uses DFPS + PASS-RAM rather than a conventional static mode switch
+### H3 � lower 120 uses DFPS + PASS-RAM rather than a conventional static mode switch
 **Confidence: high as architecture, unproven as the state reached in the probe.**
 
 The AYN framework writes the lower-panel `bypass_ram` sysfs control around
@@ -569,7 +545,7 @@ Prediction for a real lower 120 transition:
 The existing probe never reached an SF/HWC mode transition, so it did not test
 this capability.
 
-### H4 — tearing is a pacing/synchronization problem even when both panels can run 120
+### H4 � tearing is a pacing/synchronization problem even when both panels can run 120
 **Confidence: open.**
 
 If a later safe measurement proves both physical display paths at ~120 while
@@ -638,30 +614,14 @@ Stop before any state-changing experiment if:
 Keep the Thor at the current safe 60/60 state. **Do not repeat the refresh
 settings probe yet.**
 
-The next pass is entirely local/offline and should start with the raw log from
-the already-completed second probe:
-
-1. locate the first `peak_refresh_rate=120` notification and determine
-   whether it produced a distinct SurfaceFlinger 60-120 policy or whether AYN
-   batched directly to the final 120-120 policy at ~12:28:39;
-2. extract every nearby SurfaceFlinger policy-change block per display:
-   `Previous`, `Current`, and
-   `N mode changes were performed under the previous policy`;
-3. search the same timestamp window for
-   `trying to switch to Scheduler preferred mode`,
-   `switching to Scheduler preferred display mode`,
-   `changing active mode to`, `initiateModeChange failed`,
-   `VsyncPeriodChange`, `SetActiveConfig`, and
-   `Active configuration changed`;
-4. correlate those entries by physical/logical display identity rather than
-   combining unrelated lines from the bundle;
-5. if no intermediate SF policy exists, reject the intermediate-policy theory
-   and analyse the single 60-60 -> 120-120 transition;
-6. if an intermediate SF policy exists with zero initiation evidence, move
-   backward toward a pre-existing stale desired mode or a gate before
-   `setDesiredActiveMode`;
-7. if an intermediate policy shows an initiation/failure, reconstruct that
-   exact failure path before considering any new hardware experiment.
+The next pass is entirely local/offline. Trace the exact upper-display path
+through `setDesiredDisplayModeSpecsInternal`, `applyRefreshRateConfigsPolicy`
+and `setDesiredActiveMode` for the direct 120/120 edge. Determine whether the
+upper display was SF-active at that instant and whether a desired-mode request
+was already pending. The current capture does not expose those internal states.
+Do not infer their absence from missing verbose strings. The repaired host
+analyzer preserves ordered policy blocks and recognizes the real
+`(inactive) HWC layers` dump label; its output is triage, not a causal proof.
 
 Separately, the V2 read-only collector is now prepared for a future natural
 capture. It records the AYN lower-panel `bypass_ram` state, lower backlight,
