@@ -214,7 +214,7 @@ See [Architecture](docs/ARCHITECTURE.md) for the full service, daemon, verificat
 - Source & build scripts: [GPL-3.0](LICENSE)
 - Branding & artwork: [ASSETS-LICENSE.md](ASSETS-LICENSE.md)
 - Third-party notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
-- Project provenance & attribution: [NOTICE](NOTICE.md)
+- Project provenance & attribution: [NOTICE](NOTICE.md) · [research ledger](PROVENANCE.md)
 - AI assistance: [full disclosure](AI_DISCLOSURE.md)
 
 Independent community project. Not affiliated with or endorsed by AYN.  
