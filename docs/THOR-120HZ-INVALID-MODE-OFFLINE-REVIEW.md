@@ -1,7 +1,9 @@
 # Thor mixed-refresh: invalid-mode and HWC trace offline review
 
 **Status:** static source review / proposed discrimination; **no new Thor capture or physical test**  
-**Date:** 2026-10-07  
+**Date:** 2026-10-07
+
+**Further source-level finding:** [Mode-object provenance, AOSP cached-pointer handoff, and per-display trace ambiguity](THOR-120HZ-EVENT-ORDER-AND-MODE-PROVENANCE.md).  
 **Scope:** PR #37, supervised 23:42 probe on `Thor_V1.0.0.377_20260206_165408_user`. All conclusions about the Thor are based on the existing PR's reported trace/logs, **not** a new independent reading of its local raw files or device binaries.
 
 ## High-value new finding: the exact Android 13 error guard
