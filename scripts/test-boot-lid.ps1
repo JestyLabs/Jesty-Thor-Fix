@@ -124,6 +124,25 @@ if ($pserverBinderCollector -notmatch 'service check PServerBinder' -or
     $pserverBinderCollector -notmatch 'pidof servicemanager') {
     throw 'PServerBinder collector must preserve the minimum lifecycle discriminants.'
 }
+$pserverBinderCollectorPath = Join-Path $repository 'scripts\collect-thor-pserverbinder-readonly.ps1'
+$pserverTokens = $null
+$pserverErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+    $pserverBinderCollectorPath, [ref]$pserverTokens, [ref]$pserverErrors) | Out-Null
+if ($pserverErrors.Count -gt 0) {
+    throw "PServerBinder collector has PowerShell syntax errors: $($pserverErrors[0].Message)"
+}
+if ($pserverBinderCollector -notmatch '00-capture-status\.tsv' -or
+    $pserverBinderCollector -notmatch '\$LASTEXITCODE' -or
+    $pserverBinderCollector -notmatch "RequireSuccess" -or
+    $pserverBinderCollector -notmatch "adbState -ne 'device'" -or
+    $pserverBinderCollector -notmatch 'ServiceManager lookups are read-only Binder IPC') {
+    throw 'PServerBinder collector must record command failures, check connectivity and describe Binder IPC accurately.'
+}
+if ($pserverBinderCollector -match 'Invoke-AdbText\s+-Path.*-Args\b') {
+    throw 'PServerBinder collector must use explicit Arguments binding for all adb calls.'
+}
+
 $preComposerProofSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'PreComposerCpuProofModel.java') -Raw
 if ($preComposerProofSource -match 'ProcessBuilder|setprop|ctl\.restart|DisplayActionCoordinator|SurfaceControl|LidGuard') {
     throw 'Pre-composer proof model must stay pure and side-effect free.'
