@@ -16,6 +16,7 @@
     .locals 8
 
     :try_start_0
+    invoke-static {}, Lcom/thor/displaypowertest/WatcherCostMetrics;->noteDisplayEvent()V
     invoke-static {}, Lcom/thor/displaypowertest/BootSafety;->isHeld()Z
     move-result v0
     if-nez v0, :cond_0
