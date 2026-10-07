@@ -117,6 +117,21 @@ If the A/B is a physical PASS and the measured reduction is useful, promotion sh
 
 If the benefit is negligible, close the research PR and ship nothing.
 
+## 2026-10-08 host review: measurement correctness
+
+The source review found a defect in the **read-only A/B measurement harness**, not a proven runtime fault in the experimental watcher. `Invoke-AdbText` takes one `[string[]] $Arguments` parameter but multiple callers used positional array splatting. The shell/command tokens could be bound as independent function arguments. All such calls now use `Invoke-AdbText -Arguments @(...)`. The host test contract rejects a regression.
+
+Two process-identity protections were also added:
+
+- Snapshot `/proc/PID/stat` **field 22 (`starttime`)**, in addition to PID, to reject recycled daemon processes during a measurement and mark SettingsProvider results unavailable on PID reuse.
+- Snapshot `/proc/PID/task/TID/stat` **field 22** and exclude reused thread IDs instead of combining unrelated CPU/context-switch counters.
+
+This makes process deltas more trustworthy; **neither change establishes a real-device performance improvement**. The measurement script still needs one read-only end-to-end run with `adb` and device owner supervision to verify remote shell compatibility and the output fields. The existing CI parser/host contract does not emulate Android's `/proc` behavior.
+
+**Interpretation caveat:** the final printed `WATCHER_METRICS` entry is simply the latest logcat match. It may precede the actual sampling window and is cumulative since daemon startup. Do not treat it as a per-window A/B delta; the actual comparison should use the bounded `/proc` deltas and, if available, timestamp-matched Q counter differences.
+
+**Gating:** keep this PR draft. The safe host-only fix does not authorize an APK installation, daemon handover, restart or reboot.
+
 ## Measurement plan
 
 ### A — stable v1.6.0 baseline
