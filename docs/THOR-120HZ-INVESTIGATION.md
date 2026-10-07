@@ -4,6 +4,37 @@ Status: **ACTIVE RESEARCH — READ-ONLY FIRST**
 Collector/schema: **THOR_REFRESH_INVESTIGATION_V1**  
 Started: 2026-10-07
 
+## Thor baseline: 2026-10-07
+
+**PROVEN on the validation Thor, in a user-confirmed visible BOTH session**
+(`ro.build.display.id=Thor_V1.0.0.377_20260206_165408_user`):
+
+| Layer | Upper | Lower |
+|---|---:|---:|
+| Android refresh policy (`min_refresh_rate` / `peak_refresh_rate`) | 60 / 60 Hz, global | 60 / 60 Hz, global |
+| Active Android / SurfaceFlinger display mode | 60 Hz | 60 Hz |
+| Active DRM CRTC mode | `1080x1920x60cmd`, CRTC 181 active | `1080x1240x60vid`, CRTC 243 active |
+| Advertised DRM connector modes | 60 and 120 Hz | 60 and 120 Hz |
+
+The lower connector advertises `1080x1240x120vid` as well as `60vid`. That
+establishes a stock-kernel 120-mode advertisement, **not** a measured 120 Hz
+panel scanout. This baseline cannot prove or disprove a logical-120 / physical-60
+mismatch because the active policy and both active CRTCs were 60 Hz. No refresh
+setting, display mode, property, or service was changed for this capture.
+
+The full local evidence bundle includes `dumpsys display`, SurfaceFlinger, DRM
+state, connector modes, settings and 22 copied display binaries. The host and
+Thor SHA-256 values matched for all 22 binaries. Raw dumps and binaries stay
+outside Git. The collector's first Windows run exposed a CRLF-to-Android-shell
+parsing error; the corrected collector was rerun, and the successful visible
+BOTH bundle was captured separately.
+
+One diagnostic caution: `dumpsys display` reported an override display state
+of OFF even while the user confirmed both images and DRM showed both CRTCs
+active. That override field alone must not classify a capture as asleep.
+The next discriminating experiment is a separately reviewed 120 Hz state with
+independent active DRM/vblank evidence; it is not part of this read-only pass.
+
 This workstream investigates the Thor's mixed-refresh behavior without assuming
 that an Android-visible refresh rate is the physical scanout rate of a panel.
 
