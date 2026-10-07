@@ -546,18 +546,19 @@ For every capture, preserve:
 The research helper model uses a one-Hz tolerance around 60/120 and can label
 a simple evidence tuple:
 
-- lower logical ~=120 + lower physical ~=60:
-  `LOGICAL_120_PHYSICAL_60`;
+- lower logical ~=120 + lower DRM/scanout ~=60:
+  `LOGICAL_120_SCANOUT_60`;
 - top logical ~=120 + lower logical ~=60:
   `MIXED_LOGICAL_120_60`;
-- lower logical ~=120 without physical timing:
-  `LOGICAL_SHARED_120_PHYSICAL_UNKNOWN`;
-- lower logical ~=60 + physical ~=60:
+- lower logical ~=120 without DRM/scanout timing:
+  `LOGICAL_SHARED_120_SCANOUT_UNKNOWN`;
+- lower logical ~=60 + DRM/scanout ~=60:
   `BOTTOM_60_CONSISTENT`;
-- lower logical ~=120 + physical ~=120:
+- lower logical ~=120 + DRM/scanout ~=120:
   `BOTTOM_120_REPORTED_AT_BOTH_LAYERS`.
 
-These labels describe evidence only; none is automatically a bug diagnosis.
+These labels describe Android-vs-scanout evidence only; none is automatically a
+bug diagnosis or direct proof of the physical panel's electrical/optical refresh rate.
 
 ## Stop conditions
 
