@@ -227,15 +227,15 @@ strong architectural explanation for why the Thor lower display can show a
 120 policy while remaining on its previous 60 Hz HWC/DRM mode.
 
 That does **not** explain the upper panel remaining at 60 during the controlled
-120/120 probe. For the upper panel the next boundary is now precise: establish
-from the existing capture whether SurfaceFlinger created a desired 120 active
-mode, then whether initiateModeChange reached HWC, and only then inspect the
-Qualcomm pending-config submission path.
+120/120 probe. The exact Thor SurfaceFlinger binary and its policy counters now
+show that neither panel initiated an HWC mode request in that policy window.
+The upper-panel question is narrower: did it cache a desired 120 mode without
+scheduling a composition, or did an earlier gate stop it before that point?
 
-Public Qualcomm HWC code also shows that SetActiveConfigWithConstraints does
-not immediately program the display: it queues a pending refresh config, which
-is submitted later via display_intf_->SetActiveConfig(config). This creates a
-second possible failure boundary after an initially-successful HWC2 call.
+Public Qualcomm HWC code also shows that SetActiveConfigWithConstraints can
+queue a pending config before it is submitted to the display interface. That
+boundary matters only after a future capture proves SurfaceFlinger made the HWC
+request; it was not reached in this probe.
 
 A host-only analyzer, scripts/analyze-thor-refresh-capture.ps1, now extracts
 those framework/HWC/SDM/DRM markers from an existing capture bundle. It performs
@@ -496,9 +496,12 @@ Stop before any state-changing experiment if:
 - evidence from another repository is being used as if it were proof of this
   Thor's firmware behavior.
 
-## Next physical step
+## Next step
 
-Run `scripts/inspect-thor-refresh.ps1` once in the device's current normal
-state. Use `-PullBinaries` if convenient; pulling is read-only on the Thor.
-
-Review that bundle before changing 60/120 settings or performing another reboot.
+Continue offline analysis of the upper display's desired/pending mode path in
+the exact SurfaceFlinger binary and existing captures. The baseline collector,
+binary copy and controlled policy probe are complete. Keep the Thor at 60/60;
+the AYN framework's lower-panel brightness fade explains a possible black blink
+without proving any 120 Hz scanout. Any further refresh-setting or direct
+mode-setting experiment needs a separate safety review and a measurement that
+can resolve the upper-display gate.
