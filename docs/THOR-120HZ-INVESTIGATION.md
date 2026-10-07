@@ -132,6 +132,35 @@ SHA-256:
 The archive contains init/scripts, not the Qualcomm display shared libraries,
 so it cannot by itself answer the refresh question.
 
+
+## Deep call-path narrowing
+
+Static inspection of Android 13 SurfaceFlinger and public Qualcomm HWC/SDM code
+has now narrowed the request path further. The detailed trace is in
+[Thor 120 Hz mode-switch call path](THOR-120HZ-CALL-PATH.md).
+
+The most important finding is that Android 13 SurfaceFlinger stores a refresh
+policy for an inactive internal display but deliberately does not apply its mode
+until that display becomes the active internal display. A second gate clears a
+pending desired mode if that internal display is no longer active. This is a
+strong architectural explanation for why the Thor lower display can show a
+120 policy while remaining on its previous 60 Hz HWC/DRM mode.
+
+That does **not** explain the upper panel remaining at 60 during the controlled
+120/120 probe. For the upper panel the next boundary is now precise: establish
+from the existing capture whether SurfaceFlinger created a desired 120 active
+mode, then whether initiateModeChange reached HWC, and only then inspect the
+Qualcomm pending-config submission path.
+
+Public Qualcomm HWC code also shows that SetActiveConfigWithConstraints does
+not immediately program the display: it queues a pending refresh config, which
+is submitted later via display_intf_->SetActiveConfig(config). This creates a
+second possible failure boundary after an initially-successful HWC2 call.
+
+A host-only analyzer, scripts/analyze-thor-refresh-capture.ps1, now extracts
+those framework/HWC/SDM/DRM markers from an existing capture bundle. It performs
+no ADB or device operation.
+
 ## Independent Thor implementations
 
 These are **OBSERVED**, not accepted as Jesty Thor Fix hardware proof.

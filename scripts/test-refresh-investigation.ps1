@@ -2,9 +2,11 @@ $ErrorActionPreference = 'Stop'
 
 $collectorPath = Join-Path $PSScriptRoot 'inspect-thor-refresh.ps1'
 $analyzerPath = Join-Path $PSScriptRoot 'analyze-thor-refresh-binaries.ps1'
+$captureAnalyzerPath = Join-Path $PSScriptRoot 'analyze-thor-refresh-capture.ps1'
 
 $collector = Get-Content -LiteralPath $collectorPath -Raw
 $analyzer = Get-Content -LiteralPath $analyzerPath -Raw
+$captureAnalyzer = Get-Content -LiteralPath $captureAnalyzerPath -Raw
 
 $forbidden = @(
     '(?im)\bsettings\s+(put|delete)\b',
@@ -45,6 +47,12 @@ foreach ($needle in $required) {
     }
 }
 
+foreach ($needle in @('THOR_REFRESH_CAPTURE_ANALYSIS_V1', 'Inactive display', 'initiateModeChange failed', 'Active configuration changed', '1080x1240x120vid')) {
+    if (-not $captureAnalyzer.Contains($needle)) {
+        throw "Capture analyzer is missing required call-path evidence: $needle"
+    }
+}
+
 if (-not $analyzer.Contains('SetRefreshRate') -or
     -not $analyzer.Contains('dynamic_fps') -or
     -not $analyzer.Contains('qsync')) {
@@ -64,5 +72,8 @@ try {
 } finally {
     Remove-Item -LiteralPath $classes -Recurse -Force -ErrorAction SilentlyContinue
 }
+
+& (Join-Path $PSScriptRoot 'test-refresh-capture-analysis.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'Refresh capture analyzer tests failed.' }
 
 Write-Host 'Refresh investigation contract tests passed.'
