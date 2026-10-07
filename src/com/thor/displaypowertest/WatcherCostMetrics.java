@@ -2,6 +2,7 @@ package com.thor.displaypowertest;
 
 import android.os.Process;
 import android.os.SystemClock;
+import android.util.Log;
 
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -31,5 +32,12 @@ public final class WatcherCostMetrics {
                 + ";watch_mode_samples=" + MODE_SAMPLES.get()
                 + ";watch_drm_open_attempts=" + DRM_OPEN_ATTEMPTS.get()
                 + ";watch_display_events=" + DISPLAY_EVENTS.get();
+    }
+
+    /** Called by the existing visible-dashboard Q snapshot only. */
+    public static String fieldsAndLog() {
+        String fields = fields();
+        Log.d("ThorDisplayDaemon", "WATCHER_COST " + fields.substring(1));
+        return fields;
     }
 }
