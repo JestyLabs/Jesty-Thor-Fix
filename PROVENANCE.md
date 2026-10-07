@@ -62,6 +62,35 @@ Physical cold-boot record:
 
 This record is intentionally tied to the exact tested candidate even if the implementation is later consolidated or refactored before release.
 
+### JTF-RR-20261007-V160-STABLE
+
+Production integration:
+[PR #34](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/34)
+
+Stable release:
+[v1.6.0](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.6.0)
+
+Release target commit:
+`e4542adb9fe47cccb5bc8ee5b3cffdeeec702513`
+
+Release APK SHA-256:
+`2cf04fc692898a2a582781838f3026555bc7cc4e233226bfad677840e329cf00`
+
+The release promotes the physically validated early CPU-restart design while keeping the exact prototype provenance in closed PR #33. The remaining one composer replacement is a consequence of the vendor state being cached by the running composer; no safe app-controlled pre-composer stock-firmware path was proven.
+
+### JTF-RR-20261007-WATCHER-COST
+
+Status: **OBSERVED CODE PATH / PERFORMANCE IMPACT UNTESTED**
+
+Current v1.6.0 code establishes these background-work bounds:
+
+- Settings-provider mode sample every 20 ms in `DaemonWatchThread.smali`;
+- steady physical checks throttled to at most every 250 ms by `DisplayActionCoordinator` when no urgent repair state exists;
+- the coordinator currently obtains TOP and BOTTOM through separate CRTC reads, so the steady path can perform up to eight individual DRM debugfs opens per second;
+- the visible dashboard adds a separate once-per-second telemetry query only while the Activity is open.
+
+No user-facing micro-stutter, thermal regression or gameplay-performance problem has been demonstrated from this watcher. The active workstream is to instrument and measure actual daemon CPU/I/O cost first, then evaluate an adaptive event-driven + safety-poll design only if the measured benefit justifies changing a physically stable watcher.
+
 ## Evidence discipline
 
 Technical claims should be labelled internally as one of:

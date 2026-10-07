@@ -1,13 +1,10 @@
 # Dashboard CPU Fix: what was tested and what remains possible
 
-**Status (2026-10-05):** the early-write design below remains unimplemented.
-The signed v1.5.20 APK was physically tested with the existing compositor
-restart path; no pre-composer hook was installed or tested. Source history:
-Codex thread
-`01a0cbaa-8916-7ee0-8dfb-df13250c180c` (the v1.0.x-v1.2.0 CPU Fix
-experiments), [LIVE-RESULTS](LIVE-RESULTS.md), current code and the
-[v1.5.17 validation diary](VALIDATION-1.5.17-PENDING.md). Old message
-conclusions are treated as observations, not proof of untested boot designs.
+**Current status (2026-10-07): historical investigation.** v1.6.0 has now shipped the physically validated stock-`pservice` early-restart path. The evidence below remains useful because it explains *why* one compositor replacement is required when the property changes and why a plain late `setprop` cannot be treated as applied state.
+
+For the tested stock Thor firmware, the app-only zero-restart search is closed unless new platform evidence appears: the property is cached by the running Qualcomm composer, no supported same-process reload was found, and no safe writable pre-composer hook exists in the inspected stock init tree. Eliminating the restart entirely would require vendor/firmware/init support or an equivalently early trusted mechanism. v1.6.0 instead moves the required boot recovery into normal startup so there is no later second CPU-fix interruption.
+
+The older sections below are preserved as historical design notes, not the current roadmap.
 
 ## Already demonstrated on the Thor
 

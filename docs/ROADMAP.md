@@ -1,28 +1,64 @@
 # Current roadmap
 
-Last updated: 2026-10-06.
+Last updated: 2026-10-07.
 
-This file tracks active research. Stable release behaviour stays unchanged until a change is physically validated on hardware.
+Stable release behaviour stays unchanged until a change is physically validated on hardware.
 
-## Active: cleaner CPU Fix recovery
+## Active: quantify and reduce watcher / DRM background work
 
-The CPU Fix still needs one Qualcomm composer/framework restart so the vendor display stack consumes the property.
+The current watcher is functional and has not been shown to cause gameplay stutter, thermal trouble or a user-visible performance regression. The remaining concern is narrower: its **background cost has not yet been quantified directly**, so the project should measure it before deciding whether a more event-driven design is worth the risk.
 
-Already proven on the Thor:
+Current v1.6.0 implementation facts:
 
-- the restart provenance/fail-safe path survives the tested crash window;
-- moving the restart earlier reduces visible startup time;
-- the second AYN boot animation can be suppressed without adding another restart;
-- the remaining black recovery gap is suitable for a short branded recovery splash.
+- the hidden Settings-provider watcher samples `dual_screen_display_mode` every **20 ms** (up to ~50 provider calls/s);
+- while True Bottom Screen Off is enabled and the display is in a normal stable state, `DisplayActionCoordinator` throttles physical CRTC checks to at most once every **250 ms**;
+- those steady coordinator checks currently read TOP and BOTTOM separately, so that is up to **8 individual DRM debugfs opens/s** from the coordinator;
+- the visible dashboard adds its own once-per-second telemetry query while the Activity is open; that is not part of the closed-app background path;
+- urgent wake-repair logic intentionally bypasses the steady throttle when fast confirmation is needed.
 
-Current splash prototype status:
+These are code-path counts, **not evidence of a performance problem**. No micro-stutter claim should be made without measurement.
 
-- no-reboot probing now reaches the correct 1080×1920 top display;
-- the first renderer failed because raw `app_process` text drawing aborts in Android Typeface initialization;
-- the prototype was changed to a font-free bitmap/primitive renderer;
-- current research head `6f6bf5354f393bcf90c46acb52048d9a2043e5f1` passed CI and CodeQL.
+### Investigation plan
 
-Next step: sign that exact candidate, install it in place, run the splash probe **without rebooting**, and only spend a cold reboot if show/remove/cleanup all pass.
+1. instrument a test candidate with counters for Settings samples, DRM opens and display callbacks;
+2. capture daemon process CPU time over fixed idle and gaming windows with the dashboard closed;
+3. record transition latency for BOTH↔TOP, sleep/wake and the known bottom-screen wake-repair case;
+4. prototype an adaptive policy:
+   - event/display callback starts a short fast burst;
+   - unknown/transition state uses a short fast cadence;
+   - known stable state falls back to a **500–1000 ms safety poll**;
+   - DRM is read on state changes / pending repair and at a slower safety cadence rather than on every mode sample;
+5. compare the candidate against v1.6.0 on the same Thor before changing release behavior.
+
+Go criterion: measurable reduction in daemon CPU/wakeups or I/O with no regression in display-state correctness or repair latency.
+
+No-go criterion: if the current cost is already negligible, or an event-driven replacement misses transitions, keep the existing implementation.
+
+See [Watcher / DRM polling investigation](WATCHER-POLLING-INVESTIGATION.md) once the research branch lands.
+
+## Closed: CPU Fix startup recovery
+
+v1.6.0 closed the late-second-recovery problem for the supported stock Thor path.
+
+What is proven:
+
+- `vendor.display.disable_system_load_check` is consumed by Qualcomm `ResourceImpl::Init()` and cached by the running composer;
+- a late property change therefore needs a replacement composer before the fix becomes effective;
+- same-process TOP/BOTH recreation does not reload that state;
+- no supported same-process ResourceImpl reload path was found on the tested firmware;
+- the inspected stock Thor init tree exposes no safe app-controlled hook early enough to set the property before the first composer starts;
+- the stock `pservice -> /data/boot_start.sh` path starts slightly **after** the first composer, so it cannot provide a zero-restart first-composer proof;
+- v1.6.0 uses that stock pservice path to perform the one required recovery during the natural startup window, with durable restart provenance and no later second CPU-fix recovery.
+
+Therefore the current one-restart design is the best **safe app-only stock-firmware** solution established by the evidence. Eliminating the restart entirely would require one of:
+
+- AYN/Qualcomm firmware changing the early vendor init behavior for this hardware;
+- modifying/overlaying immutable vendor/init content;
+- or new evidence of a trusted privileged mechanism that executes before the first composer.
+
+The app intentionally does not spoof hardware subtype, patch `/vendor`, or install speculative system modifications to chase a zero-restart boot.
+
+Historical splash / second-boot experiments are archived in [recovery-splash research](archive/RECOVERY-SPLASH-RESEARCH.md).
 
 ## Active research: TOP-mode focus / input
 
@@ -69,7 +105,6 @@ See [Retroid SDM comparison](RETROID-SDM-COMPARISON.md) for the Qualcomm backgro
 
 ## Deferred but still open
 
-- reduce watcher / DRM polling only after a safe event-driven replacement is measured;
 - physical BOTTOM ONLY and dock validation;
 - updater end-to-end install validation;
 - minor dashboard wording / unavailable-state cleanup;
