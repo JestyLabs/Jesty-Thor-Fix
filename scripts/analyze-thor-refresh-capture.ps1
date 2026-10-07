@@ -35,7 +35,7 @@ $allFiles = @($allFiles | Sort-Object FullName -Unique)
 function Get-MatchingLines {
     param([Parameter(Mandatory=$true)][object[]]$Patterns)
 
-    $out = New-Object System.Collections.Generic.List[object]
+    $out = @()
     foreach ($file in $allFiles) {
         $lines = @(Get-Content -LiteralPath $file.FullName -ErrorAction SilentlyContinue)
         for ($i = 0; $i -lt $lines.Count; $i++) {
@@ -48,14 +48,14 @@ function Get-MatchingLines {
                 }
             }
             if (-not $hit) { continue }
-            $out.Add([pscustomobject]@{
+            $out += [pscustomobject]@{
                 file = $file.FullName
                 line = $i + 1
                 text = $line.Trim()
-            })
+            }
         }
     }
-    return @($out)
+    return $out
 }
 
 $patterns = [ordered]@{
