@@ -124,7 +124,7 @@ foreach ($name in $patterns.Keys) {
 }
 
 $flags = [ordered]@{
-    has120Policy = ((Has-Text $results.policy '120') -or (Has-Text $results.desiredMode '120'))
+    has120PolicyMention = ((Has-Text $results.policy '120') -or (Has-Text $results.desiredMode '120'))
     inactiveDisplayEvidence = Has-Text $results.activeDisplay 'Inactive display'
     desired120Evidence = Has-Text $results.desiredMode '120'
     frameworkModeChangeFailure = [bool]$results.frameworkFailure.Count
@@ -158,9 +158,9 @@ if ($flags.frameworkModeChangeFailure) {
 } elseif ($flags.desired120Evidence -and -not $flags.hwcConstraintEvidence) {
     $stage = 'DESIRED_120_WITHOUT_HWC_EVIDENCE'
     $reason = 'Desired-120 evidence exists and no HWC handoff marker was found in the searched files; absence is a hint, not proof.'
-} elseif ($flags.has120Policy -and -not $flags.desired120Evidence) {
-    $stage = 'POLICY_120_WITHOUT_DESIRED_MODE_EVIDENCE'
-    $reason = '120-policy evidence exists without a desired-120 marker in the searched files; this does not establish chronological suppression.'
+} elseif ($flags.has120PolicyMention -and -not $flags.desired120Evidence) {
+    $stage = 'POLICY_120_MENTION_WITHOUT_DESIRED_MODE_EVIDENCE'
+    $reason = 'A 120 value appears in policy-related evidence without a desired-120 marker in the searched files; this may be a fixed-120 request or only a range containing 120, and does not establish chronological suppression.'
 } elseif ($flags.hwcConstraintEvidence -and -not $flags.vendorConfigSuccess -and
         -not $flags.vendorConfigFailure) {
     $stage = 'HWC_EVIDENCE_WITHOUT_VENDOR_OUTCOME'
