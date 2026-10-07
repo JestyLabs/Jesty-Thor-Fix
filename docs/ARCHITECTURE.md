@@ -371,6 +371,12 @@ mode changes, the coordinator samples CRTCs at most every 250 ms in steady
 state, and immediately for mode changes or due wake repairs. The app's visible
 dashboard also samples physical state in its once-per-second `Q` poll.
 
+Those polling frequencies describe implementation cost, **not a demonstrated
+gameplay defect**. No micro-stutter, thermal regression, or frame-time problem
+has been attributed to the watcher. The project is measuring daemon and
+SettingsProvider cost before changing a physically stable display path; see
+the current roadmap.
+
 `R` and `L` enable or disable the Dashboard CPU Fix. They update
 `vendor.display.disable_system_load_check`, restart the display compositor once,
 and arrange the daemon relaunch described above. The Thor firmware explicitly
