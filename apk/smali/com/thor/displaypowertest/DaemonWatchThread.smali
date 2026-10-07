@@ -55,8 +55,7 @@
     invoke-static {}, Lcom/thor/displaypowertest/WatcherSupervisor;->noteSample()V
 
     :watch_sleep
-    const-wide/16 v2, 0x14
-    invoke-static {v2, v3}, Ljava/lang/Thread;->sleep(J)V
+    invoke-static {}, Lcom/thor/displaypowertest/WatcherCadence;->awaitNextSample()V
     goto :watch_loop
     :try_end_0
     .catch Ljava/lang/Throwable; {:try_start_0 .. :try_end_0} :watch_error
