@@ -32,8 +32,37 @@ BOTH bundle was captured separately.
 One diagnostic caution: `dumpsys display` reported an override display state
 of OFF even while the user confirmed both images and DRM showed both CRTCs
 active. That override field alone must not classify a capture as asleep.
-The next discriminating experiment is a separately reviewed 120 Hz state with
-independent active DRM/vblank evidence; it is not part of this read-only pass.
+The initial read-only pass did not change policy. A later, separately reviewed
+120 Hz policy probe is recorded below.
+
+### Controlled policy probe, same Thor and boot
+
+With the user beside the Thor in visible BOTH, two short reversible probes
+raised `peak_refresh_rate` from 60 to 120 before raising `min_refresh_rate` to
+120. Rollback lowered `min` before `peak`. Both probes verified the original
+60/60 settings afterward; the kernel boot ID and composer PID stayed the same.
+
+The first probe was too short to measure an applied mode: SurfaceFlinger did
+not receive the 120/120 policy until after the capture and settings rollback.
+In the second probe, the SurfaceFlinger policy was 120/120 for about ten seconds
+(logcat 12:28:39.059 to 12:28:49.107). During that interval:
+
+- DisplayModeDirector voted for 120/120 on both displays;
+- `dumpsys display` and SurfaceFlinger showed the requested 120 Hz policy but
+  retained active 60 Hz mode IDs for both displays;
+- DRM CRTC 181 remained `1080x1920x60cmd` and CRTC 243 remained
+  `1080x1240x60vid`, both active;
+- the vendor SDM dump reported `cur:60` and a 16,666,666 ns vsync period for
+  both; the post-policy HWC vsync readback was also 16,666,666 ns;
+- SurfaceFlinger logged **zero mode changes** under the 120 Hz policy.
+
+The user reported a *possible* brief black blink but was unsure; both screens
+were normal afterward. Treat this as an unconfirmed visual anomaly and stop
+further refresh writes under the agreed safety rule. The probe does **not**
+establish a fake physical 120 Hz mode: the active Android/HWC/DRM mode remained
+60 Hz. Investigate why a valid 120 Hz policy was not enacted before any repeat
+or stronger mode-setting experiment. Raw logs and dumps remain local outside
+Git.
 
 This workstream investigates the Thor's mixed-refresh behavior without assuming
 that an Android-visible refresh rate is the physical scanout rate of a panel.
