@@ -6,18 +6,22 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-if (-not (Test-Path -LiteralPath $BinaryDir)) {
+if (-not (Test-Path -LiteralPath $BinaryDir -PathType Container)) {
     throw "Binary directory not found: $BinaryDir"
 }
 if (-not $OutputFile) {
     $OutputFile = Join-Path $BinaryDir 'refresh-string-report.txt'
 }
 
+$binaryRoot = [IO.Path]::GetFullPath((Resolve-Path -LiteralPath $BinaryDir).Path)
+$outputFullPath = [IO.Path]::GetFullPath($OutputFile)
+
 $needles = @(
     'refresh', 'fps', 'vsync', 'qsync', 'dynamic_fps',
     'SetRefreshRate', 'GetRefreshRate', 'SetActiveConfig', 'GetConfig',
     'DisplayBuiltIn', 'DisplayBase', 'HWDisplayAttributes',
-    'active_config', 'display_attributes', 'dsi_display0', 'dsi_display1'
+    'active_config', 'display_attributes', 'dsi_display0', 'dsi_display1',
+    'bypass_ram', 'VID_BYPASS_RAM', 'VID_PASS_RAM'
 )
 
 function Get-AsciiStrings {
@@ -31,12 +35,27 @@ function Get-AsciiStrings {
 }
 
 $report = New-Object System.Collections.Generic.List[string]
+$report.Add('THOR_REFRESH_BINARY_STRINGS_V2')
+$report.Add("binary_root=$binaryRoot")
+$report.Add('')
 
-foreach ($file in Get-ChildItem -LiteralPath $BinaryDir -File -Recurse | Sort-Object FullName) {
+$inputs = @(
+    Get-ChildItem -LiteralPath $BinaryDir -File -Recurse |
+        Where-Object {
+            # The default report lives inside BinaryDir. Never feed a previous
+            # report back into the next run or string matches amplify themselves.
+            [IO.Path]::GetFullPath($_.FullName) -ne $outputFullPath
+        } |
+        Sort-Object FullName
+)
+
+foreach ($file in $inputs) {
     $matches = @(Get-AsciiStrings -Path $file.FullName |
         Where-Object {
             $line = $_
-            $needles | Where-Object { $line.IndexOf($_, [StringComparison]::OrdinalIgnoreCase) -ge 0 }
+            [bool]($needles | Where-Object {
+                $line.IndexOf($_, [StringComparison]::OrdinalIgnoreCase) -ge 0
+            })
         } |
         Select-Object -Unique)
 
