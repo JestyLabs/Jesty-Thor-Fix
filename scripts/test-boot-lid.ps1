@@ -107,6 +107,22 @@ if ($cpuFixSource -notmatch 'CpuBootAttemptStore\.read\(' -or
     $runtimeSource -notmatch 'if \(!coordinating\) cpuFix\.resumePersistedAttempt\(\)') {
     throw 'CPU restart provenance must be integrated into the runtime and normal-daemon recovery.'
 }
+$watcherMeasurePath = Join-Path $repository 'scripts\measure-watcher-load.ps1'
+$watcherMeasure = Get-Content -LiteralPath $watcherMeasurePath -Raw
+$measureTokens = $null
+$measureErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+    $watcherMeasurePath, [ref]$measureTokens, [ref]$measureErrors) | Out-Null
+if ($measureErrors.Count -gt 0) {
+    throw "Watcher measurement script has PowerShell syntax errors: $($measureErrors[0].Message)"
+}
+if ($watcherMeasure -match '(?im)\badb\s+(?:reboot|install|push|root|remount)\b' -or
+    $watcherMeasure -match '(?im)\bsetprop\b' -or
+    $watcherMeasure -match '(?im)\bctl\.(?:start|stop|restart)\b' -or
+    $watcherMeasure -match '(?im)\b(?:rm|mv|cp|chmod|chown|mkdir|touch)\s') {
+    throw 'Watcher measurement script must remain read-only.'
+}
+
 $preComposerInspect = Get-Content -LiteralPath (Join-Path $repository 'scripts\inspect-thor-precomposer.ps1') -Raw
 if ($preComposerInspect -match '(?im)\badb\s+(?:reboot|install|push|root|remount)\b' -or
     $preComposerInspect -match '(?im)\bsetprop\b' -or
