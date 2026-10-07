@@ -6,7 +6,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$CollectorVersion = 'THOR_REFRESH_INVESTIGATION_V1'
+$CollectorVersion = 'THOR_REFRESH_INVESTIGATION_V2'
 
 if (-not $OutputDir) {
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -29,6 +29,7 @@ function Invoke-AdbCapture {
     $output = & adb @adbBase @Args 2>&1
     $exit = $LASTEXITCODE
     $output | Set-Content -LiteralPath $path -Encoding utf8
+    ($Name + [char]9 + $exit) | Add-Content -LiteralPath $CaptureStatusPath -Encoding ascii
     if ($exit -ne 0) {
         Write-Warning "$Name exited with code $exit; evidence was still saved."
     }
@@ -50,6 +51,8 @@ function Invoke-ShellCapture {
 # to the host and does not modify the device.
 
 $CollectorVersion | Set-Content -LiteralPath (Join-Path $OutputDir '00-collector-version.txt') -Encoding ascii
+$CaptureStatusPath = Join-Path $OutputDir '00-capture-status.tsv'
+('name' + [char]9 + 'exit_code') | Set-Content -LiteralPath $CaptureStatusPath -Encoding ascii
 
 Invoke-ShellCapture -Name '01-device.txt' -Command @'
 echo "boot_id=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)"
@@ -68,6 +71,29 @@ done
 
 Invoke-ShellCapture -Name '03-display-properties.txt' -Command @'
 getprop | grep -iE "display|refresh|fps|vsync|qsync|surface_flinger|sf."
+'@
+
+Invoke-ShellCapture -Name '03a-ayn-lower-panel-state.txt' -Command @'
+echo "### bypass_ram"
+F=/sys/class/bypass_ram_class/bypass_ram_device/bypass_ram
+if [ -r "$F" ]; then cat "$F"; else echo "<not readable: $F>"; fi
+echo "### panel1-backlight"
+B=/sys/class/backlight/panel1-backlight
+for N in brightness actual_brightness max_brightness bl_power; do
+    if [ -r "$B/$N" ]; then echo "$N=$(cat "$B/$N")"; else echo "$N=<not readable>"; fi
+done
+'@
+
+Invoke-ShellCapture -Name '03b-live-display-devicetree.txt' -Command @'
+ROOT=/sys/firmware/devicetree/base
+if [ ! -d "$ROOT" ]; then
+    echo "<device tree not exposed at $ROOT>"
+    exit 0
+fi
+find "$ROOT" -type f 2>/dev/null | grep -E 'dsi-supported-dfps-list|mdss-dsi-bypass-ram-switch|dsi-dyn-clk-list|mdss-dsi-panel-framerate|ch13726a|icna3520' | sort | while IFS= read -r F; do
+    echo "### $F"
+    od -An -tx1 -v "$F" 2>/dev/null || true
+done
 '@
 
 Invoke-ShellCapture -Name '04-dumpsys-display.txt' -Command 'dumpsys display'
@@ -140,6 +166,14 @@ cat /proc/interrupts 2>/dev/null | grep -iE "dsi|drm|sde|mdp|vsync|display"
 
 Invoke-ShellCapture -Name '21-init-display-script.txt' -Command 'cat /vendor/bin/init.qti.display_boot.sh'
 Invoke-ShellCapture -Name '22-composer-init.txt' -Command 'cat /vendor/etc/init/vendor.qti.hardware.display.composer-service.rc'
+
+Invoke-ShellCapture -Name '23-display-logcat.txt' -Command @'
+logcat -b all -d -v threadtime 2>&1 | grep -iE 'DisplayModeDirector|SurfaceFlinger|refresh|mode change|Active configuration|SetActiveConfig|VsyncPeriodChange|bypass_ram|ch13726a|icna3520'
+'@
+
+Invoke-ShellCapture -Name '24-kernel-display-log.txt' -Command @'
+dmesg 2>&1 | grep -iE 'bypass_ram|dfps|dynamic.?fps|timing.?switch|ch13726a|icna3520|dsi|sde|drm'
+'@
 
 if ($PullBinaries) {
     $binaryRoot = Join-Path $OutputDir 'binaries'
