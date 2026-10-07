@@ -151,49 +151,55 @@ could fail to emit a mode-change event when a mode was already desired or
 pending. This later change is architectural corroboration only; it is not proof
 that the validation Thor entered the stale-state branch.
 
-### 5a. The safe peak-first write creates an intermediate policy
+### 5a. Peak-first creates an intermediate Settings state; an intermediate SF policy is unproven
 
-The controlled probe did not transition atomically from 60/60 to 120/120.
-
-It deliberately used the safer ordering:
+The controlled probe deliberately used:
 
 ```text
+Settings:
 60/60
   -> peak=120
-  -> 60-120 policy
+  -> transient settings state 60-120
   -> min=120
-  -> 120-120 policy
+  -> final settings state 120-120
 ```
 
-This matters because `DisplayDevice::setRefreshRatePolicy()` atomically
-exchanges `mNumModeSwitchesInPolicy` with zero on every accepted changed
-policy.
+The AYN-modified `DisplayModeDirector.SettingsObserver` tracks the peak/min
+notifications and enters its special fade/bypass path once both have arrived.
+The reverse engineering currently recorded in this branch does **not** establish
+whether the normal SurfaceFlinger policy update is emitted after each individual
+notification or batched until both are present.
 
-Therefore the rollback message:
+Therefore there are two different cases:
 
 ```text
-0 mode changes were performed under the previous policy
+A. SF log contains 60-120 -> 120-120
+   -> intermediate SF policy is real
+
+B. SF log jumps 60-60 -> 120-120
+   -> AYN/framework batching eliminated the intermediate SF policy
 ```
 
-proves zero initiations only for the final 120-120 policy interval. It cannot
-exclude an initiation under the preceding 60-120 policy.
+Only in case A does the SurfaceFlinger counter reset become relevant:
+`DisplayDevice::setRefreshRatePolicy()` exchanges
+`mNumModeSwitchesInPolicy` with zero on every accepted changed policy. A mode
+initiation under 60-120 would then be reported/reset when 120-120 was accepted
+and would not appear in the later rollback count.
 
-That yields a discriminating local-log test:
+Case A can then be split again:
 
 ```text
 60-120 -> 120-120 policy-change block
   |
   +-- previous-policy mode-change count = 0
-  |      -> no evidence of an intermediate initiation;
-  |         stale state would need to predate the peak write or the request
-  |         must have been gated before setDesiredActiveMode
+  |      -> no intermediate initiation evidence
   |
   +-- previous-policy mode-change count > 0
          -> an intermediate initiation occurred;
-            correlate its HWC result before blaming the final policy
+            correlate its exact HWC result
 ```
 
-An especially strong signature would be:
+An especially strong case-A signature would be:
 
 ```text
 60-120 policy
@@ -205,8 +211,12 @@ An especially strong signature would be:
   -> final policy counter remains zero
 ```
 
-The raw local log from the already-completed probe is sufficient to test this
-sequence. No new device mutation is needed.
+If case B is what the raw log shows, this whole intermediate-policy sequence is
+rejected. Any stale desired/pending state would then have to predate the probe or
+arise during the single final-policy transition.
+
+The already-collected local log is sufficient to decide A versus B. No new
+device mutation is needed.
 
 ### 6. Active-display gate is checked again
 
@@ -460,24 +470,23 @@ No vendor failure is required. This says nothing negative about the lower
 panel's actual 120 capability; the request can be stopped before that capability
 is exercised.
 
-### B — upper request is trapped in desired/pending state before a fresh HWC handoff
-**Confidence: medium-high; leading mechanism to test in the existing raw log.**
+### B — upper request may be trapped in desired/pending state before a fresh HWC handoff
+**Confidence: medium-high as a mechanism; first gate is whether 60-120 reached SF.**
 
-The final 120-120 interval recorded zero mode initiations, but the safe
-peak-first sequence created an earlier 60-120 policy whose counter was reset
-when 120-120 was accepted.
+The final 120-120 interval recorded zero mode initiations. The safe peak-first
+sequence definitely created a temporary **Settings** state of 60-120, but the
+AYN SettingsObserver may have batched policy delivery.
 
 The exact Thor SurfaceFlinger binary has the Android 13 cached-desired branch:
 if a desired mode is already pending, a new request replaces the cache and
 returns without scheduling a fresh composition. Android 13 also retains desired
 state on the `initiateModeChange()` error branch.
 
-The next discriminant is therefore the policy-change block immediately before
-12:28:39.059:
+The local raw log should first answer:
 
-- count > 0 under 60-120 -> reconstruct that earlier initiation/failure;
-- count = 0 -> the stale state must predate the safe raise or another gate
-  prevented the request before mode initiation.
+- was there a distinct 60-120 SurfaceFlinger policy?
+- if yes, how many mode initiations occurred under it?
+- if no, analyse the direct 60-60 -> 120-120 transition instead.
 
 A later Android state-machine rewrite explicitly fixes the broader class of
 stale desired/pending mode state, which supports investigating this mechanism
@@ -510,23 +519,28 @@ capability.
 
 Use the existing capture and local raw log first:
 
-1. What does the **60-120 -> 120-120** policy-change block report for the upper
+1. Did SurfaceFlinger receive a distinct **60-120** policy between the two
+   Settings writes?
+   - no -> reject the intermediate-policy theory and analyse the direct
+     60-60 -> 120-120 transition;
+   - yes -> continue.
+2. What does the 60-120 -> 120-120 policy-change block report for the upper
    display's previous-policy mode-change count?
    - greater than zero -> an intermediate initiation occurred; correlate its
      `changing active mode`, HWC call and result;
    - zero -> continue.
-2. Was the upper physical display SurfaceFlinger's active internal display at
-   the policy edge?
+3. Was the upper physical display SurfaceFlinger's active internal display at
+   the relevant policy edge?
    - no -> active-display gating explains the missing handoff;
    - yes -> continue.
-3. Did SF create/cache a desired 120 active mode?
+4. Did SF create/cache a desired 120 active mode?
    - no -> problem is before `setDesiredActiveMode`;
    - yes but no fresh schedule -> inspect stale desired/pending state;
    - yes + scheduled -> continue.
-4. Did `initiateModeChange` reach HWC?
+5. Did `initiateModeChange` reach HWC?
    - immediate error -> HWC/config validation plus retained desired-state path;
    - success -> continue.
-5. Did Qualcomm submit `SetActiveConfig(120-config)`?
+6. Did Qualcomm submit `SetActiveConfig(120-config)`?
    - no -> pending-config/validate path;
    - yes + error -> SDM/kernel config rejection;
    - yes + success -> compare active DRM mode/vblank and panel timing.
