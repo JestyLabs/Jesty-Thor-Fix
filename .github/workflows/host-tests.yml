@@ -26,6 +26,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Verify public repository text
+        shell: pwsh
+        run: ./scripts/test-public-content.ps1
+
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
@@ -303,9 +307,7 @@ jobs:
           profile: pixel_2
           disable-animations: true
           script: |
-            # A fresh AVD shows an immersive-mode tutorial over the actual
-            # PackageInstaller confirmation. Dismiss that emulator-only overlay
-            # before exercising system UI input, otherwise BACK hits the tutorial.
+            # Fresh AVD immersive tutorial must not intercept the PackageInstaller UI.
             adb -s emulator-5554 shell settings put secure immersive_mode_confirmations confirmed
             test "$(adb -s emulator-5554 shell settings get secure immersive_mode_confirmations | tr -d '\r')" = confirmed
             bash scripts/test-android-emulator-smoke.sh emulator-input/emulator-test.apk "${{ needs.build.outputs.version }}"
