@@ -116,6 +116,11 @@ $measureErrors = $null
 if ($measureErrors.Count -gt 0) {
     throw "Watcher measurement script has PowerShell syntax errors: $($measureErrors[0].Message)"
 }
+& (Join-Path $PSScriptRoot 'test-watcher-measurement.ps1')
+& (Join-Path $PSScriptRoot 'test-watcher-runtime.ps1')
+if ($watcher -notmatch 'WatcherCadence;->beginSample\(\)V\s+invoke-interface/range') {
+    throw 'Capture callback generation before the Settings Binder read.'
+}
 if ($watcherMeasure -match '(?im)\badb\s+(?:reboot|install|push|root|remount)\b' -or
     $watcherMeasure -match '(?im)\bsetprop\b' -or
     $watcherMeasure -match '(?im)\bctl\.(?:start|stop|restart)\b' -or

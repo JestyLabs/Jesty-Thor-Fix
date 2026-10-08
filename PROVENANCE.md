@@ -113,6 +113,27 @@ This is an efficiency investigation, not a response to a demonstrated gameplay d
 
 Promotion requires measured A/B benefit plus physical BOTH/TOP and wake-repair equivalence. If the measured benefit is negligible, the research path should be closed without changing stable behavior.
 
+### JTF-RR-20261008-WATCHER-VALIDATION
+
+Continuation: [PR #41](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/41).
+
+**PROVEN by code/host regression tests:** a callback arriving after a sample
+starts but before its monitor wait can lose the notification while retaining
+its DRM dirty generation. Capturing generation before Settings I/O and skipping
+the wait on a changed generation closes that latency window, without changing
+the 500/20/1600/1000 ms intervals or display/CPU fail-safe policy.
+
+**OBSERVED on AYN Thor firmware .377 / Android 13:** the Windows collector's
+CRLF shell script fails on Android, and SettingsProvider runs in system_server.
+The collector now normalizes LF, requires an explicit device serial, resolves
+the actual provider host, uses monotonic windows and retains raw endpoint data.
+Provider-host CPU includes unrelated system work. `/proc/PID/io` is unavailable
+to the shell, so exact DRM opens and Settings calls are not inferred from it.
+
+Host success and lower theoretical request rates do not establish device A/B
+benefit, physical regression safety or battery-life improvement. Raw hardware
+identifiers and session evidence stay in the owner's local evidence archive.
+
 ## Evidence discipline
 
 Technical claims should be labelled internally as one of:

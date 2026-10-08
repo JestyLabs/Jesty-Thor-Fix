@@ -2,14 +2,20 @@
 param(
     [ValidateRange(15, 600)]
     [int] $Seconds = 60,
-    [string] $Label = 'watcher-sample'
+    [string] $Label = 'watcher-sample',
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string] $Serial,
+    [string] $OutputPath
 )
 
 $ErrorActionPreference = 'Stop'
 
 function Invoke-AdbText {
     param([string[]] $Arguments)
-    $output = & adb @Arguments 2>&1
+    # Android sh cannot parse CRLF here-strings from a Windows checkout.
+    $Arguments = @($Arguments | ForEach-Object { $_.Replace("`r", '') })
+    $output = & adb -s $Serial @Arguments 2>&1
     if ($LASTEXITCODE -ne 0) {
         throw "adb failed: adb $($Arguments -join ' ') $([Environment]::NewLine)$($output -join [Environment]::NewLine)"
     }
@@ -28,10 +34,20 @@ function Get-DaemonProcessId {
 
 function Get-OptionalProcessId {
     param([string] $Name)
-    $raw = (& adb shell pidof $Name 2>&1 | Out-String).Trim()
+    $raw = (& adb -s $Serial shell pidof $Name 2>&1 | Out-String).Trim()
     if ($LASTEXITCODE -ne 0 -or -not $raw) { return $null }
     $processIds = @($raw -split '\s+' | Where-Object { $_ -match '^[1-9][0-9]*$' })
     if ($processIds.Count -eq 1) { return [int]$processIds[0] }
+    return $null
+}
+
+function Get-SettingsProviderIdentity {
+    $dump = Invoke-AdbText -Arguments @('shell', 'dumpsys', 'activity', 'providers')
+    $match = [regex]::Match($dump,
+        '(?ms)ContentProviderRecord\{[^\r\n]* com\.android\.providers\.settings/\.SettingsProvider\}[^*]*?proc=ProcessRecord\{\S+ (\d+):([^/\r\n]+)/')
+    if ($match.Success) {
+        return [pscustomobject]@{ ProcessId = [int]$match.Groups[1].Value; Name = $match.Groups[2].Value }
+    }
     return $null
 }
 
@@ -52,12 +68,12 @@ function Get-ProcSnapshot {
     $nonVol = [regex]::Match($status, '(?m)^nonvoluntary_ctxt_switches:\s+(\d+)').Groups[1].Value
 
     # /proc/PID/io can be restricted on some builds; treat it as optional.
-    $ioRaw = (& adb shell "cat /proc/$ProcessId/io" 2>&1 | Out-String).Trim()
+    $ioRaw = (& adb -s $Serial shell "cat /proc/$ProcessId/io" 2>&1 | Out-String).Trim()
     $rchar = [regex]::Match($ioRaw, '(?m)^rchar:\s+(\d+)').Groups[1].Value
     $syscr = [regex]::Match($ioRaw, '(?m)^syscr:\s+(\d+)').Groups[1].Value
 
     [pscustomobject]@{
-        At = [DateTimeOffset]::Now
+        At = [Diagnostics.Stopwatch]::GetTimestamp()
         Ticks = $ticks
         StartTime = [int64]$fields[19]
         Voluntary = if ($vol) { [int64]$vol } else { $null }
@@ -154,6 +170,9 @@ function Show-ProcessDelta {
         Seconds = [Math]::Round($Elapsed, 3)
         ProcessId = $ProcessId
         CpuTicks = $tickDelta
+        CpuCorePercent = if ($clockTicks -match '^[1-9][0-9]*$') {
+            [Math]::Round(100.0 * $tickDelta / ([double]$clockTicks * $Elapsed), 3)
+        } else { $null }
         CpuTicksPerSecond = if ($null -ne $tickDelta) {
             [Math]::Round($tickDelta / $Elapsed, 3)
         } else { $null }
@@ -209,7 +228,7 @@ function Show-ThreadDeltas {
     }
 
     Write-Host "$Target per-thread deltas (TIDs present at both endpoints):"
-    $rows | Sort-Object CpuTicks -Descending | Format-Table -AutoSize
+    $rows | Sort-Object CpuTicks -Descending | Format-Table -AutoSize | Out-String -Width 240 | Write-Host
 
     $started = @($After.Keys | Where-Object { -not $Before.ContainsKey($_) })
     $ended = @($Before.Keys | Where-Object { -not $After.ContainsKey($_) })
@@ -224,16 +243,22 @@ if ((Invoke-AdbText -Arguments @('shell', 'getprop', 'sys.boot_completed')) -ne 
 }
 
 $daemonProcessId = Get-DaemonProcessId
-$settingsProcessId = Get-OptionalProcessId 'com.android.providers.settings'
+$provider = Get-SettingsProviderIdentity
+$settingsProcessId = if ($null -ne $provider) { $provider.ProcessId } else { $null }
+$settingsProcessName = if ($null -ne $provider) { $provider.Name } else { '?' }
+$bootBefore = Invoke-AdbText -Arguments @('shell', 'cat', '/proc/sys/kernel/random/boot_id')
+$clockTicks = Invoke-AdbText -Arguments @('shell', 'getconf', 'CLK_TCK')
+$conditionBefore = Invoke-AdbText -Arguments @('shell', 'dumpsys power | grep mWakefulness=; cat /sys/kernel/debug/dri/0/state')
 $modeBefore = Invoke-AdbText -Arguments @('shell', 'settings', 'get', 'system', 'dual_screen_display_mode')
 $powerBefore = Invoke-AdbText -Arguments @('shell', 'getprop', 'display.power.state')
 $daemonStart = Get-ProcSnapshot $daemonProcessId
 $daemonThreadsStart = Get-ThreadSnapshots $daemonProcessId
+$daemonThreadsStartAt = [Diagnostics.Stopwatch]::GetTimestamp()
 $settingsStart = if ($null -ne $settingsProcessId) {
     Get-OptionalProcSnapshot $settingsProcessId 'SettingsProvider'
 } else { $null }
 
-Write-Host "[$Label] daemon=$daemonProcessId settingsProvider=$settingsProcessId mode=$modeBefore power=$powerBefore seconds=$Seconds"
+Write-Host "[$Label] serial=$Serial daemon=$daemonProcessId settingsProvider=$settingsProcessId host=$settingsProcessName mode=$modeBefore power=$powerBefore seconds=$Seconds"
 Write-Host 'Keep the dashboard closed and leave the Thor in the requested test condition during the sample.'
 Start-Sleep -Seconds $Seconds
 
@@ -246,10 +271,12 @@ if ($daemonEnd.StartTime -ne $daemonStart.StartTime) {
     throw "Thor daemon PID $daemonProcessId was recycled during the sample."
 }
 $daemonThreadsEnd = Get-ThreadSnapshots $daemonProcessId
+$daemonThreadsEndAt = [Diagnostics.Stopwatch]::GetTimestamp()
 
 $settingsEnd = $null
 if ($null -ne $settingsProcessId -and $null -ne $settingsStart) {
-    $settingsProcessIdAfter = Get-OptionalProcessId 'com.android.providers.settings'
+    $providerAfter = Get-SettingsProviderIdentity
+    $settingsProcessIdAfter = if ($null -ne $providerAfter) { $providerAfter.ProcessId } else { $null }
     if ($settingsProcessIdAfter -eq $settingsProcessId) {
         $settingsEnd = Get-OptionalProcSnapshot $settingsProcessId 'SettingsProvider'
         if ($null -ne $settingsEnd -and
@@ -264,7 +291,31 @@ if ($null -ne $settingsProcessId -and $null -ne $settingsStart) {
 
 $modeAfter = Invoke-AdbText -Arguments @('shell', 'settings', 'get', 'system', 'dual_screen_display_mode')
 $powerAfter = Invoke-AdbText -Arguments @('shell', 'getprop', 'display.power.state')
-$elapsed = [Math]::Max(0.001, ($daemonEnd.At - $daemonStart.At).TotalSeconds)
+$bootAfter = Invoke-AdbText -Arguments @('shell', 'cat', '/proc/sys/kernel/random/boot_id')
+$conditionAfter = Invoke-AdbText -Arguments @('shell', 'dumpsys power | grep mWakefulness=; cat /sys/kernel/debug/dri/0/state')
+Write-Host ('Condition endpoints: ' + ($conditionBefore -split "\r?\n")[0] + ' -> ' + ($conditionAfter -split "\r?\n")[0])
+if ($modeBefore -ne $modeAfter -or $powerBefore -ne $powerAfter -or
+        ($conditionBefore -split "\r?\n")[0] -ne ($conditionAfter -split "\r?\n")[0]) {
+    Write-Warning 'Condition changed at endpoints; do not classify this window as steady idle.'
+}
+if ($bootBefore -ne $bootAfter) { throw 'Kernel boot changed during sample.' }
+$elapsed = [Math]::Max(0.001, ($daemonEnd.At - $daemonStart.At) / [double][Diagnostics.Stopwatch]::Frequency)
+$threadElapsed = [Math]::Max(0.001, ($daemonThreadsEndAt - $daemonThreadsStartAt) / [double][Diagnostics.Stopwatch]::Frequency)
+if ($OutputPath) {
+    [pscustomobject]@{
+        Label = $Label; Serial = $Serial; CapturedUtc = [DateTimeOffset]::UtcNow.ToString('o')
+        BootId = $bootBefore; ClockTicksPerSecond = $clockTicks
+        ModeBefore = $modeBefore; ModeAfter = $modeAfter
+        PowerBefore = $powerBefore; PowerAfter = $powerAfter
+        ConditionBefore = $conditionBefore; ConditionAfter = $conditionAfter
+        DaemonProcessId = $daemonProcessId; DaemonBefore = $daemonStart; DaemonAfter = $daemonEnd
+        DaemonSeconds = $elapsed; ThreadSeconds = $threadElapsed
+        ThreadsBefore = @($daemonThreadsStart.Values); ThreadsAfter = @($daemonThreadsEnd.Values)
+        ProviderProcessId = $settingsProcessId; ProviderHost = $settingsProcessName
+        ProviderBefore = $settingsStart; ProviderAfter = $settingsEnd
+        StopwatchFrequency = [Diagnostics.Stopwatch]::Frequency
+    } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $OutputPath -Encoding UTF8
+}
 
 [pscustomobject]@{
     Label = $Label
@@ -276,15 +327,17 @@ $elapsed = [Math]::Max(0.001, ($daemonEnd.At - $daemonStart.At).TotalSeconds)
 } | Format-List
 
 Show-ProcessDelta 'Thor daemon' $Label $elapsed $daemonProcessId $daemonStart $daemonEnd
-Show-ThreadDeltas 'Thor daemon' $elapsed $daemonThreadsStart $daemonThreadsEnd
+Show-ThreadDeltas 'Thor daemon' $threadElapsed $daemonThreadsStart $daemonThreadsEnd
 
 if ($null -ne $settingsStart -and $null -ne $settingsEnd) {
-    Show-ProcessDelta 'SettingsProvider' $Label $elapsed $settingsProcessId $settingsStart $settingsEnd
+    $providerElapsed = [Math]::Max(0.001, ($settingsEnd.At - $settingsStart.At) / [double][Diagnostics.Stopwatch]::Frequency)
+    Write-Host 'SettingsProvider host process totals include unrelated system work; these are not provider-only costs.'
+    Show-ProcessDelta 'SettingsProvider host' $Label $providerElapsed $settingsProcessId $settingsStart $settingsEnd
 } else {
     Write-Host 'SettingsProvider process metrics unavailable; daemon measurement is still valid.'
 }
 
-$metrics = (& adb logcat -d -v brief 2>&1 |
+$metrics = (& adb -s $Serial logcat -d -v brief -s ThorDisplayDaemon 2>&1 |
     Select-String -Pattern 'WATCHER_METRICS' |
     Select-Object -Last 1)
 if ($metrics) {

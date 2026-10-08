@@ -34,6 +34,11 @@ public final class WatcherCadenceModel {
         return inBurst(nowMs) ? BURST_SAMPLE_MS : IDLE_SAMPLE_MS;
     }
 
+    /** A callback during a sample must survive until the following wait. */
+    public long delayAfterSampleMs(long nowMs, long generationAtSampleStart) {
+        return eventGeneration != generationAtSampleStart ? 0L : nextDelayMs(nowMs);
+    }
+
     /**
      * Returns the event generation that this DRM read should cover, or -1 when
      * no hardware read is needed yet.

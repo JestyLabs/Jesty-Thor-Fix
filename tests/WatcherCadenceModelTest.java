@@ -11,6 +11,9 @@ public final class WatcherCadenceModelTest {
         repairAndStableTopForceDrm();
         eventDuringDrmReadIsNotLost();
         burstExtensionIsMonotonic();
+        callbackBeforeWaitSkipsSleep();
+        callbacksCoalesceWithoutConsumingNewerEvents();
+        sustainedCallbacksKeepBurstAndForceReads();
         System.out.println("WatcherCadenceModelTest passed: " + assertions + " assertions");
     }
 
@@ -81,6 +84,45 @@ public final class WatcherCadenceModelTest {
     private static void eq(long expected, long actual) {
         assertions++;
         if (expected != actual) throw new AssertionError(expected + " != " + actual);
+    }
+
+    private static void callbackBeforeWaitSkipsSleep() {
+        WatcherCadenceModel m = new WatcherCadenceModel();
+        long start = m.eventGeneration();
+        eq(500L, m.delayAfterSampleMs(1000L, start));
+        m.onDisplayEvent(1001L);
+        eq(0L, m.delayAfterSampleMs(1002L, start));
+        start = m.eventGeneration();
+        eq(20L, m.delayAfterSampleMs(1003L, start));
+        eq(500L, m.delayAfterSampleMs(2601L, start));
+    }
+
+    private static void callbacksCoalesceWithoutConsumingNewerEvents() {
+        WatcherCadenceModel m = new WatcherCadenceModel();
+        for (int i = 0; i < 10; i++) m.onDisplayEvent(1000L + i);
+        long read = m.beginDrmRead(1010L, 1000L, false, false, false);
+        eq(10L, read);
+        m.onDisplayEvent(1011L);
+        m.completeDrmRead(read);
+        eq(11L, m.beginDrmRead(1012L, 1010L, false, false, false));
+        m.completeDrmRead(11L);
+        m.completeDrmRead(read);
+        eq(11L, m.consumedGeneration());
+        eq(-1L, m.beginDrmRead(1013L, 1012L, false, false, false));
+        eq(11L, m.beginDrmRead(2012L, 1012L, false, false, false));
+    }
+
+    private static void sustainedCallbacksKeepBurstAndForceReads() {
+        WatcherCadenceModel m = new WatcherCadenceModel();
+        for (int i = 0; i < 100; i++) {
+            long now = 1000L + i;
+            m.onDisplayEvent(now);
+            long generation = m.beginDrmRead(now, now - 1L, false, false, false);
+            truth(generation >= 0L);
+            m.completeDrmRead(generation);
+            eq(20L, m.nextDelayMs(now));
+        }
+        eq(500L, m.nextDelayMs(2699L));
     }
 
     private static void truth(boolean value) {

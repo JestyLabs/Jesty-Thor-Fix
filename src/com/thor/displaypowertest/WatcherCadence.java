@@ -23,9 +23,17 @@ public final class WatcherCadence {
     private static long drmReads;
     private static long idleWaits;
     private static long burstWaits;
+    private static long generationAtSampleStart;
     private static long lastMetricsLogAt = SystemClock.elapsedRealtime();
 
     private WatcherCadence() {}
+
+    /** Capture before Settings/coordinator I/O, rather than after it. */
+    public static void beginSample() {
+        synchronized (LOCK) {
+            generationAtSampleStart = MODEL.eventGeneration();
+        }
+    }
 
     public static void noteSample() {
         String metrics = null;
@@ -95,7 +103,9 @@ public final class WatcherCadence {
     public static void awaitNextSample() throws InterruptedException {
         synchronized (LOCK) {
             long now = SystemClock.elapsedRealtime();
-            long delay = MODEL.nextDelayMs(now);
+            long delay = MODEL.delayAfterSampleMs(now, generationAtSampleStart);
+            // Object.wait(0) would wait forever, rather than sample immediately.
+            if (delay == 0L) return;
             if (MODEL.inBurst(now)) burstWaits++;
             else idleWaits++;
             LOCK.wait(delay);
