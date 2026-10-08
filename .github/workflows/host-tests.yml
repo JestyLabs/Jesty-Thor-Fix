@@ -290,7 +290,7 @@ jobs:
           sudo chmod a+rw /dev/kvm
 
       - name: Test Android lifecycle with no vendor Binder
-        uses: ReactiveCircus/android-emulator-runner@v2
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         with:
           api-level: 33
           target: default
