@@ -1,56 +1,33 @@
 <p align="center">
-<img src="assets/branding/jesty_thor_header_lockup.png" alt="Jesty Thor Fix" width="620">
+  <img src="assets/branding/jesty_thor_header_lockup.png" alt="Jesty Thor Fix" width="560">
 </p>
 
 <p align="center">
-<strong>Make the AYN Thor behave the way it should.</strong><br>
-Actually turn off the lower screen in TOP mode · Stop unnecessary high CPU clocks · Prevent false wakes that drain the battery
+  <strong>Real hardware fixes for the AYN Thor.</strong><br>
+  Lower-screen power-off · Normal CPU idle behaviour · Closed-lid wake protection
 </p>
 
 <p align="center">
-<a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.6.0"><strong>Download v1.6.0</strong></a>
-· <a href="#what-it-fixes">What it fixes</a>
-· <a href="#measured-on-a-real-thor">Measured results</a>
-· <a href="#roadmap">Roadmap</a>
-· <a href="https://www.buymeacoffee.com/jesty">☕ Support</a>
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.6.0"><strong>Download v1.6.0</strong></a>
+  · <a href="#what-it-fixes">Features</a>
+  · <a href="#measured-on-a-real-thor">Results</a>
+  · <a href="#current-investigations">Research</a>
+  · <a href="https://www.buymeacoffee.com/jesty">☕ Support</a>
 </p>
 
 <p align="center">
-<img alt="AYN Thor" src="https://img.shields.io/badge/device-AYN%20Thor-7C3AED?style=for-the-badge">
-<img alt="Android 13" src="https://img.shields.io/badge/Android-13-3DDC84?style=for-the-badge&logo=android&logoColor=white">
-<img alt="No Magisk or manual rooting" src="https://img.shields.io/badge/setup-no%20Magisk%20%2F%20manual%20rooting-16A34A?style=for-the-badge">
-<img alt="GPL 3" src="https://img.shields.io/badge/code-GPL--3.0-8B5CF6?style=for-the-badge">
+  <img alt="Android 13" src="https://img.shields.io/badge/Android-13-3DDC84?style=for-the-badge&logo=android&logoColor=white">
+  <img alt="No Magisk or manual rooting" src="https://img.shields.io/badge/setup-no%20Magisk%20%2F%20manual%20rooting-16A34A?style=for-the-badge">
+  <img alt="GPL-3.0" src="https://img.shields.io/badge/code-GPL--3.0-8B5CF6?style=for-the-badge">
 </p>
-
-**Made for the AYN Thor.** No Magisk, no terminal, no manual rooting.  
-Set the switches once - the fixes keep working after you close the app.
-
-<p align="center"><strong>Open source · signed releases · published hashes · hardware-tested</strong></p>
 
 <p align="center">
-<img width="1080" height="483" alt="Jesty Thor Fix dashboard" src="https://github.com/user-attachments/assets/d1f1d875-792b-4b84-8d52-41b307d11ae4" />
+  <sub>Signed releases · Tested on a physical Thor · Fixes keep working after you close the app</sub>
 </p>
 
----
-
-### The big one: TOP mode does not fully turn the lower display off
-
-A common question is:
-
-> **"It's OLED. If the lower screen is black, isn't that basically the same as off?"**
-
-For the pixels, black is cheap. But on the Thor, **black does not mean the display hardware is off**.
-
-In stock TOP mode, Android still reports the lower display controller as active. With **True Bottom Screen Off**, that hardware path becomes inactive.
-
-```text
-Stock TOP mode        lower display: ACTIVE
-True Bottom Screen Off lower display: INACTIVE
-```
-
-Technically, this is verified from the DRM CRTC state — not inferred from whether the OLED pixels look black.
-
-That also matters beyond the pixels: keeping the second display path active can keep extra Qualcomm display/CPU work alive.
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/d1f1d875-792b-4b84-8d52-41b307d11ae4" alt="Jesty Thor Fix on the Thor: true lower-screen power-off compared with stock TOP mode" width="900">
+</p>
 
 ---
 
@@ -62,13 +39,14 @@ That also matters beyond the pixels: keeping the second display path active can 
 | **AYN Dashboard CPU Fix** | Stops the Dashboard from keeping the main CPU clusters stuck near their top speeds under light load. Does **not** force CPU frequencies or change governors. |
 | **Closed-Lid Wake Guard** | Puts the Thor back to sleep if it wakes while the lid is still closed. Optional and **off by default**. |
 
-The dashboard is there to make this visible: it shows whether the lower hardware is really off, live CPU speed, power estimate and Wake Guard state.
+Open the dashboard to see the lower screen's real hardware state, CPU speeds, estimated system power and Wake Guard status.
 
 <p align="center">
-<img src="docs/images/dashboard-both-v1.5.15-review.png" alt="Jesty Thor Fix dashboard showing live display and CPU state" width="780">
+  <img src="docs/images/dashboard-both-v1.5.15-review.png" alt="Jesty Thor Fix app dashboard showing live screen and CPU information" width="760">
 </p>
+
 <p align="center">
-<sub>Physical capture on the Thor. The dashboard reports live hardware state, not just the selected mode.</sub>
+  <sub>The app dashboard running on a real AYN Thor.</sub>
 </p>
 
 ---
@@ -102,17 +80,14 @@ Full method + raw CSVs → [benchmarks](docs/BENCHMARKS.md)
 
 ---
 
-### Why this project exists
+### Current investigations
 
-The original investigation started with two reproducible Thor behaviours:
+We're also exploring a few improvements. **These are still being researched, not included as fixes in v1.6.0.**
 
-1. TOP mode left the lower physical display path active even though the screen looked black.
-2. The AYN Dashboard could keep LITTLE and BIG CPU clusters near maximum under light load.
-
-Jesty Thor Fix turns those observations into simple switches, keeps the fixes active in the background, and exposes enough telemetry to verify what the hardware is actually doing.
-
-Original investigation and discussion:  
-**[Reddit thread](https://www.reddit.com/r/AynThor/comments/1wrsmmo/found_two_weird_ayn_thor_issues_top_only_doesnt/)**
+- **🖥️ 120 Hz / screen tearing** — Investigating display issues when the two screens use different refresh rates.
+- **⚡ Background efficiency** — Finding ways to reduce background work without making screen fixes slower.
+- **🔌 Device-service reliability** — Investigating a case where a built-in Thor service became unavailable.
+- **🎮 TOP-mode focus** — Checking whether games can lose focus when only the upper screen is in use.
 
 ---
 
@@ -155,17 +130,12 @@ Power savings depend on usage, brightness, firmware and workload. **No fixed bat
 
 ### Roadmap
 
-**Working on**
+Beyond the investigations above, the next priorities are:
 
-- ⚡ **Background watcher cost** — measure the current Settings/DRM polling cost on-device, then only reduce it if an event-driven/adaptive design preserves wake and mode-transition behavior while showing a measurable benefit.
-- 🎯 **TOP-mode focus/input bug** — testing whether physically powering off the lower display also prevents games or apps from losing focus to the inactive screen.
+- **Retroid Pocket Duo feasibility** — research and volunteer hardware testing, feature by feature. **Not supported yet.**
+- **More edge-case coverage** — BOTTOM-only/dock behaviour, external-display and lid transitions, updater testing, and clearer hardware profiles.
 
-**Next investigations**
-
-- 🖥️ **120 Hz screen tearing / mixed refresh** — investigate AYN's handling of the Thor's 120 Hz upper display and physically 60 Hz lower panel.
-- 🧪 **Retroid Pocket Duo compatibility** — preparing the codebase for device profiles and looking for Pocket Duo owners who want to help test dual-screen power, focus, wake and display behaviour. **No Pocket Duo support is claimed yet.**
-
-See the [current roadmap and research status](docs/ROADMAP.md) for technical details and deferred work.
+Changes only move into a release after the required hardware validation. See the [full roadmap](docs/ROADMAP.md).
 
 ---
 

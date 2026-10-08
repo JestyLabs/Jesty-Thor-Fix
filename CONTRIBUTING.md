@@ -34,7 +34,6 @@ If a contribution or downstream project builds on a non-trivial investigation, t
 
 If a change materially uses external code, research or prior art, include the upstream project and an exact commit or URL in the PR description or provenance record. Do not remove existing SPDX, authorship or provenance notices.
 
-## Security research publication
+## Publication privacy
 
-Keep detailed security findings and raw evidence local. Publish sanitized summaries
-only, with synthetic device/session identifiers. See [publication policy](SECURITY-PUBLICATION.md).
+Keep detailed security evidence and device/session identifiers local. Follow [the publication policy](SECURITY-PUBLICATION.md) before pushing research or reports.
