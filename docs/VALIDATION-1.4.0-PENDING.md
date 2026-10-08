@@ -18,7 +18,7 @@ requested composer restart to SurfaceFlinger and then zygote, explaining the
 Android UI/framework restart. The `SIGABRT` is still not a clean exit. Android
 sent a second `BOOT_COMPLETED` and reconfigured USB.
 The USB prompt and ADB disconnect looked like another reboot, but the kernel
-boot ID remained `463538ff-c39b-43d3-b67d-2395133201e7` while uptime
+boot ID remained `00000000-0000-4000-8000-000000000006` while uptime
 continued to increase. This is **not yet** a successful safe-boot result, but
 neither abort alone proves a hardware fault or that the app caused the early
 boot abort.
@@ -55,7 +55,7 @@ unchanged until the other display states and final build are validated.
 
 Controlled cold boot #1 with both fixes ON (user observed the lower screen):
 no green flash or other visible artifact reported. The kernel boot ID changed
-once to `10ff46ff-fce7-4826-8da8-7a0b7023a6cb`; the apparent second reboot
+once to `00000000-0000-4000-8000-000000000003`; the apparent second reboot
 was the firmware's composer-to-SurfaceFlinger-to-zygote restart. The user saw
 the USB-choice dialog for roughly one minute. The boot trace has one
 `APPLY_CPU_FIX` at elapsed 46.2 s, one `WAIT_AFTER_COMPOSER` at 65.8 s, and
@@ -86,7 +86,7 @@ was run. The user reported the lower screen clean, with no green. Its trace:
 `WAIT_AFTER_COMPOSER` 55.706 s, `RECONCILE_DISPLAY` 62.104 s,
 `BOOT_READY` 62.112 s. This is roughly ten seconds earlier than the preceding
 71.769-second boot, without moving the CPU Fix restart earlier. The kernel
-boot ID changed to `e6d459de-e783-4e9c-8964-f8bd12983dbe`; Q returned
+boot ID changed to `00000000-0000-4000-8000-000000000018`; Q returned
 `READY`, CPU Fix property 1, BOTH mode and both CRTCs active. Logcat recorded
 the same early `no suitable EGLConfig found` SurfaceFlinger abort, before the
 app boot action, but no second SurfaceFlinger abort during the CPU Fix restart.

@@ -13,7 +13,7 @@ Latest.
 - Before installation: Android 13, v1.5.17/versionCode 66, battery 88%, AYN
   mode BOTH (`0`), both CRTCs 181/243 active, CPU property `1`, one root daemon
   PID 8608, composer PID 7438 and boot ID
-  `599c48a0-4d31-4d90-91b0-287eb5c8577d`.
+  `00000000-0000-4000-8000-000000000008`.
 - The exact signed 1.5.19 APK below passed SHA-256, v1/v2/v3 signature and
   alignment checks. `adb install -r` succeeded. VersionCode 68 was visible;
   boot ID, compositor PID, CPU property and both CRTCs were unchanged.
