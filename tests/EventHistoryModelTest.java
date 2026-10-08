@@ -90,8 +90,20 @@ public final class EventHistoryModelTest {
         check(EventHistoryModel.decode("junk").size() == 0, "unknown schema rejected");
         check(EventHistoryModel.decode("THOR_EVENTS_V1\n4|CPU_PHASE|SECRET|leak\n").size() == 0,
                 "extra delimiters rejected");
-        check(EventHistoryModel.decode("THOR_EVENTS_V1\n4|CPU_PHASE|GOOD\n").size() == 1,
+        check(EventHistoryModel.decode("THOR_EVENTS_V1\n4|CPU_PHASE|CONFIRMED\n").size() == 1,
                 "valid schema accepted");
+        check(EventHistoryModel.decode("THOR_EVENTS_V1\n4|CPU_PHASE|GOOD\n").size() == 0,
+                "unrecognized CPU phase rejected from persisted data");
+        check(EventHistoryModel.decode("THOR_EVENTS_V1\n4|REPAIR_STATUS|SECRET\n").size() == 0,
+                "unrecognized repair state rejected from persisted data");
+        check(EventHistoryModel.decode("THOR_EVENTS_V1\n4|DAEMON_CONNECTED|UNKNOWN\n").size() == 0,
+                "unrecognized connection detail rejected from persisted data");
+        check(EventHistoryModel.decode("THOR_EVENTS_V1\n4|WATCHER_NOT_RUNNING|RUNNING\n").size() == 0,
+                "inconsistent type and detail rejected");
+        check(EventHistoryModel.decode("THOR_EVENTS_V1\n4|DISPLAY_OBSERVED|MODE_2_TOP_1_BOTTOM_X\n").size() == 0,
+                "invalid display tuple rejected from persisted data");
+        check(EventHistoryModel.decode("THOR_EVENTS_V1\n4|DISPLAY_OBSERVED|MODE_2_TOP_1_BOTTOM_0\n").size() == 1,
+                "valid display tuple restored");
         model.clear();
         check(model.size() == 0, "clear");
         check(model.encode().equals("THOR_EVENTS_V1\n"), "cleared representation");
