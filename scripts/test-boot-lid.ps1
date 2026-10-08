@@ -275,6 +275,7 @@ $sources = @(
     (Join-Path $repository 'src\com\thor\displaypowertest\DashboardStateModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\ThorHardwareProfile.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\HallNodeModel.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\BridgeFailureDiagnostic.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\HandoffRecoveryModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\DaemonArgs.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\CpuBootAttemptModel.java'),
@@ -295,6 +296,7 @@ $sources = @(
     (Join-Path $repository 'tests\PreviousSecureDaemonIdentityTest.java'),
     (Join-Path $repository 'tests\PropertyStateTest.java'),
     (Join-Path $repository 'tests\HallNodeModelTest.java'),
+    (Join-Path $repository 'tests\BridgeFailureDiagnosticTest.java'),
     (Join-Path $repository 'tests\HandoffRecoveryModelTest.java'),
     (Join-Path $repository 'tests\DaemonArgsTest.java'),
     (Join-Path $repository 'tests\CpuBootAttemptModelTest.java'),
@@ -345,5 +347,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Previous secure daemon identity tests failed.'
 if ($LASTEXITCODE -ne 0) { throw 'Hall node model tests failed.' }
 & java -cp $output HandoffRecoveryModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Handoff recovery model tests failed.' }
+& java -cp $output BridgeFailureDiagnosticTest
+if ($LASTEXITCODE -ne 0) { throw 'PServer bridge diagnostic tests failed.' }
 & java -cp $output DaemonArgsTest
 if ($LASTEXITCODE -ne 0) { throw 'Daemon argument tests failed.' }
