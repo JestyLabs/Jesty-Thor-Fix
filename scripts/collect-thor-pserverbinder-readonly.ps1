@@ -36,7 +36,7 @@ New-Item -ItemType Directory -Path $OutputDir | Out-Null
 # Every command is recorded even when a shell probe has no matching logs,
 # permissions are restricted, or an optional source is absent.
 $CaptureStatusPath = Join-Path $OutputDir '00-capture-status.tsv'
-"name`texit_code" | Set-Content -LiteralPath $CaptureStatusPath -Encoding utf8
+"name`tstarted_utc`tfinished_utc`telapsed_ms`texit_code" | Set-Content -LiteralPath $CaptureStatusPath -Encoding utf8
 
 $adbBase = @('-s', $Serial)
 
@@ -48,6 +48,8 @@ function Invoke-AdbText {
     )
     $output = @()
     $exit = 127
+    $started = [DateTimeOffset]::UtcNow
+    $timer = [Diagnostics.Stopwatch]::StartNew()
     try {
         $output = @(& $AdbPath @adbBase @Arguments 2>&1)
         $exit = [int]$LASTEXITCODE
@@ -56,9 +58,11 @@ function Invoke-AdbText {
         $exit = 127
     }
 
+    $timer.Stop()
+    $finished = [DateTimeOffset]::UtcNow
     ($output -join [Environment]::NewLine) |
         Set-Content -LiteralPath $Path -Encoding utf8
-    ("$Path" + [char]9 + "$exit") |
+    (@($Path, $started.ToString('o'), $finished.ToString('o'), $timer.ElapsedMilliseconds, $exit) -join [char]9) |
         Add-Content -LiteralPath $CaptureStatusPath -Encoding utf8
 
     # A missing service is a legitimate negative observation. Do not throw

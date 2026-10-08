@@ -42,7 +42,9 @@ device-specific binary path or hash is embedded in this public collector.
 
 The collector records boot/process identities, ServiceManager visibility, hashes,
 readable Binder state and bounded investigation context. Each command's exit code
-is recorded. Missing files, permission denials and unavailable reads are UNKNOWN,
+is recorded with host UTC start/end and monotonic elapsed milliseconds. These
+timestamps bound each command; they do not make sequential samples atomic.
+Missing files, permission denials and unavailable reads are UNKNOWN,
 not successful negative observations. Samples are sequential, not atomic.
 
 Service check/list are read-only ServiceManager Binder IPC. The collector does not

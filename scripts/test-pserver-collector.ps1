@@ -51,6 +51,12 @@ foreach ($call in $global:JestyCollectorFixtureCalls) {
     if ($call[0] -ne '-s' -or $call[1] -ne 'fixture-thor') { throw 'Unpinned ADB invocation.' }
 }
 $status = @(Import-Csv -LiteralPath (Join-Path $output '00-capture-status.tsv') -Delimiter ([char]9))
+foreach ($row in $status) {
+    $start = [DateTimeOffset]::Parse($row.started_utc)
+    $end = [DateTimeOffset]::Parse($row.finished_utc)
+    if ($start.Offset -ne [TimeSpan]::Zero -or $end.Offset -ne [TimeSpan]::Zero -or
+        $end -lt $start -or [long]$row.elapsed_ms -lt 0) { throw 'Invalid UTC capture timing.' }
+}
 if (-not ($status | Where-Object { $_.name -like '*04-pserver-check.txt' -and $_.exit_code -eq '1' })) {
     throw 'Failed probe was not preserved.'
 }
