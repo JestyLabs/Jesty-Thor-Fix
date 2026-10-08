@@ -41,7 +41,14 @@ public final class HarnessActivity extends Activity {
                 throw new IllegalArgumentException("unsupported test mode");
             }
         } catch (Exception failure) {
-            record("failure", mode + ":" + failure.getClass().getSimpleName());
+            // Test-only diagnostic: record the failing API stage and exception.
+            // No APK bytes, private device data or authentication tokens are logged.
+            android.util.Log.e("ThorInstallerCI", "harness mode=" + mode, failure);
+            String reason = failure.getMessage();
+            if (reason == null) reason = "";
+            reason = reason.replaceAll("[\\r\\n\\t]", " ");
+            if (reason.length() > 180) reason = reason.substring(0, 180);
+            record("failure", mode + ":" + failure.getClass().getSimpleName() + ":" + reason);
         } finally {
             finish();
         }
@@ -88,8 +95,11 @@ public final class HarnessActivity extends Activity {
     }
 
     private void testAbandon() throws Exception {
+        record("abandon_phase", "CREATING_SESSION");
         int id = createPopulatedSession();
+        record("abandon_phase", "SESSION_POPULATED");
         installer().abandonSession(id);
+        record("abandon_phase", "ABANDON_SENT");
         boolean stillOpen = false;
         for (PackageInstaller.SessionInfo item : installer().getMySessions()) {
             if (item.getSessionId() == id) stillOpen = true;
