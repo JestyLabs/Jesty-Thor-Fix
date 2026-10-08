@@ -14,7 +14,7 @@ against the exact ELF. Older public-source context below is historical compariso
 TOP ICNA3520 is officially 120 Hz; BOTTOM CH13726A is officially 60 Hz (user-supplied
 specification). Android/DFPS/Linux 120 modes neither supersede that specification
 nor prove 120 distinct visible frames. Neither specification nor DRM measures optics.
-Collector/schema: **THOR_REFRESH_INVESTIGATION_V2**  
+Collector/schema: **THOR_REFRESH_INVESTIGATION_V2**
 Started: 2026-10-07
 
 ## Thor baseline: 2026-10-07
@@ -327,7 +327,7 @@ reopened in the offline pass; see the exact report for direct local evidence.
 
 Init archive used for the static pass:
 
-`thor-init-investigation.zip`  
+`thor-init-investigation.zip`
 SHA-256:
 `34BAFC187060CD2EA298C9256D7CAD010D1B608970D16ECC075FB4FD44EFED7B`
 
@@ -374,14 +374,14 @@ These are **OBSERVED**, not accepted as Jesty Thor Fix hardware proof.
 ### AYN Thor Root Toolbox
 
 Repository:
-https://github.com/jeromegsq-dev/ayn-thor-root-toolbox  
+https://github.com/jeromegsq-dev/ayn-thor-root-toolbox
 Reviewed main commit:
 `705ac093905a3377a1e931165e6faf26c7956e87`
 
 Its shortcut implementation documents the upper display as having 60.000004
 and 120.00001 modes and toggles the Android ModeDirector floor/ceiling using:
 
-`settings put system peak_refresh_rate ...`  
+`settings put system peak_refresh_rate ...`
 `settings put system min_refresh_rate ...`
 
 The same source says the bottom has its own modes and "stayed at 120"
@@ -394,7 +394,7 @@ It does **not** prove the lower panel physically scans at 120.
 ### ES-DE Companion / Asgard-derived Auto FPS
 
 Repository:
-https://github.com/RobZombie9043/es-de-companion  
+https://github.com/RobZombie9043/es-de-companion
 Reviewed commit:
 `8789c5723e6aa553841f5f0f67840e1c03eff472`
 
@@ -412,7 +412,7 @@ not start by writing refresh settings.
 ### Thor Wayfinder
 
 Repository:
-https://github.com/Thor-Wayfinder/thor-wayfinder  
+https://github.com/Thor-Wayfinder/thor-wayfinder
 Reviewed commit:
 `305d3ad824e200c936fc270d044d9db3ecc800ee`
 
@@ -424,7 +424,7 @@ write.
 ### ThorTools
 
 Repository:
-https://github.com/castdrian/thortools  
+https://github.com/castdrian/thortools
 Reviewed commit:
 `c1b033b7ebfe6fa54a27f6131e9c4926d51a6237`
 
@@ -436,7 +436,7 @@ measurement.
 ### HuntersRecomp
 
 Repository:
-https://github.com/aabrole/HuntersRecomp  
+https://github.com/aabrole/HuntersRecomp
 Reviewed commit:
 `7482c7013b14b18e17864521ceb1a079c172499c`
 
@@ -447,7 +447,7 @@ corroborates the logical-120 observation on another Thor.
 ### DroidBridge Launcher
 
 Repository:
-https://github.com/DNAMobileApplications/DroidBridgeLauncherGplayGithub  
+https://github.com/DNAMobileApplications/DroidBridgeLauncherGplayGithub
 Reviewed commit containing the compatibility class:
 `fd9a9794984cc5c2116f99548d2c0b947d1f9579`
 
@@ -514,7 +514,7 @@ pacesetter/follower handling more explicit.
 
 A particularly relevant upstream fix is:
 
-`963da1c0252dab01f65617c9ca08e66ff6596581`  
+`963da1c0252dab01f65617c9ca08e66ff6596581`
 "SF: Match followers' refresh rate to pacesetter's" (2024)
 
 The commit states that multi-display refresh-rate selection had been flawed:
