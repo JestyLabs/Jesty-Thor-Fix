@@ -1,50 +1,121 @@
 # GitHub Actions build and release
 
-The repository has two GitHub Actions workflows:
+The repository has **four** GitHub Actions workflows:
 
-- `.github/workflows/host-tests.yml` runs on pull requests, pushes to `main`,
-  and manual dispatch. It runs the host suites and builds an unsigned APK.
-  A successful push to `main` also builds one signed candidate and stores that
-  exact APK as an Actions artifact for 30 days.
-- `.github/workflows/release.yml` is manual. It takes the run ID of a successful
-  `main` CI build, downloads that exact signed candidate, verifies its source
-  commit, version, SHA-256 and signing certificate, then creates a pre-release
-  or promotes the same unchanged APK to stable.
+- `.github/workflows/host-tests.yml` (`CI`) runs on pull requests, pushes to
+  `main` and manual dispatch. It runs the host suites, builds an unsigned APK,
+  and on pushes to `main` runs a **separate, environment-gated job** that signs
+  the exact unsigned APK from the successful build job.
+- `.github/workflows/codeql.yml` (`CodeQL Advanced`) scans GitHub Actions and
+  Java/Kotlin on pull requests, pushes to `main` and a weekly schedule.
+- `.github/workflows/sign-test-candidate.yml` (`Sign test candidate`) is a
+  manually dispatched test-only signing path for a successful same-repository
+  pull-request CI run; it cannot publish that APK through the release workflow.
+- `.github/workflows/release.yml` (`Publish tested candidate`) is manually
+  dispatched after physical validation; it verifies and releases the exact
+  signed APK from a successful `main` CI run.
 
 This preserves the physical-validation rule: **test the exact signed APK that
 will be released; do not rebuild after the Thor test.**
 
-## One-time repository setup
+## Protected environments and one-time migration
 
-Create these repository Actions secrets under
-**Settings -> Secrets and variables -> Actions**:
+Administrative readback on 2026-10-08 confirmed `thor-signing` and
+`thor-publication`: only the **branch** `main` is allowed, `SirJesty` is the
+required reviewer, self-review is allowed for the solo maintainer, and
+administrator bypass is disabled. The readiness variables are scoped to their
+respective environments. Both signing secrets are staged in `thor-signing`;
+the existing local keystore certificate matches the established signer.
 
-- `THOR_KEYSTORE_B64`: Base64 of the established Android release keystore.
-- `THOR_KEYSTORE_PASSWORD`: the keystore/key password used by `build.ps1`.
+Repository-scoped copies are temporarily retained until a protected signing run
+has succeeded and its artifact has been checked. Therefore repository-wide
+secret isolation is **not yet complete**. Do not treat PR CI success or Settings
+readback as evidence that a protected signing/publication job has run.
 
-The key alias stays the existing `thor-display-power-auto` default in
-`build.ps1`. Do not commit the keystore, password, Base64 text, or a signed APK.
+The following is the migration/recovery procedure, not a claim that all runtime
+acceptance tests have completed:
 
-PowerShell can generate the Base64 without modifying the keystore:
+The workflow files declare **two named GitHub Environments**. A YAML reference
+alone does **not** create reviewers or protect secrets: configure the environments
+in the repository **before merging this PR**. Both environments must allow only
+deployments from `main` (a same-repository PR's build never enters either one).
 
-```powershell
-$base64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($signKeyPath))
-$base64 | Set-Clipboard
-```
+1. In **Settings -> Environments**, create `thor-signing`: restrict deployment
+   branches to `main`, configure required reviewer(s), and check whether
+   `Prevent self-review` would block the actual maintainer/review model.
+   A sole maintainer cannot satisfy an enforced non-self-review rule alone;
+   arrange a trusted second reviewer before enabling that restriction.
+2. Add **environment secrets** `THOR_KEYSTORE_B64` and
+   `THOR_KEYSTORE_PASSWORD` to `thor-signing`. Create the Base64 locally
+   from the existing keystore; never print or commit it. Keep the signing
+   alias `thor-display-power-auto` and verify the established public
+   certificate fingerprint. If the secrets also exist at repository scope,
+   leave them only during the controlled migration window.
+3. Add an **environment variable** `THOR_SIGNING_ENV_READY=true` to
+   `thor-signing` **only after** required reviewers, `main` restrictions
+   and environment-scoped secrets are confirmed. The job fails closed if
+   this ready marker is absent or different. Do not add the marker at the
+   repository or organization scope.
+4. Create `thor-publication`, restrict deployment branches to `main`,
+   require reviewer(s), and add its **environment variable**
+   `THOR_PUBLICATION_ENV_READY=true` only after the rules are saved.
+   The `Publish tested candidate` job requests this approval before it
+   gets the job-scoped `contents: write` GitHub token.
+5. Confirm the `main` branch requires PRs and the `build`,
+   `Analyze (actions)`, `Analyze (java-kotlin)` checks, disallows force
+   pushes/deletion and applies applicable admin restrictions.
+   `.github/CODEOWNERS` is only advisory unless review enforcement is
+   configured. For a solo maintainer, enabling required CODEOWNERS approval
+   without a separate eligible reviewer can block every self-authored PR.
+6. Merge the workflow change only when environments are configured. On a
+   permitted push, **CI / build** finishes with its unsigned artifact and
+   required check without awaiting secrets. **Sign main candidate** is a
+   separate job; it must wait for the protected `thor-signing` approval,
+   validate the downloaded unsigned APK, then sign **those exact bytes**.
+   Check the signed candidate metadata, digest and signer certificate.
+   Similarly require `thor-publication` approval for a legitimate
+   supervised release (do not publish a dummy stable release).
+7. Once both workflows are proven and you have checked no other workflow
+   consumes the repository-level signing secrets, **delete the repository
+   scoped** `THOR_KEYSTORE_B64` and `THOR_KEYSTORE_PASSWORD` secrets.
+   Do not delete the only recoverable signing keystore; retain an offline
+   owner-controlled backup. Confirm denied/unauthorized runs never sign
+   or publish. Restrict repo collaborators, tag/release permissions, and
+   keep repository-default `GITHUB_TOKEN` permissions read-only.
 
-Paste the clipboard contents directly into the `THOR_KEYSTORE_B64` secret.
+**Migration caveat:** until the environment approvals and secret relocation are
+applied in GitHub settings, this is only configuration-as-code preparation.
+An automatically created environment has no default protection. The
+`*_ENV_READY` markers make intended jobs fail rather than silently sign,
+but cannot prevent another, malicious workflow merged by an authorized
+writer from using repository-level secrets while those still exist.
 
-The CI job recreates the keystore only under the ephemeral runner temp
-directory. The password is converted there to the DPAPI-protected password
-file format already accepted by `build.ps1`; the plain password is not passed
-as a command-line argument.
+**Authorization:** both the original and rerun actors must be `SirJesty`,
+checked before a privileged job requests an environment and again at runtime.
+This is only defense in depth; branch rules,
+review rights and protected environments are the meaningful trust boundary.
 
-Until both secrets exist, pushes to `main` will fail deliberately at the
-signed-candidate step. Pull-request and unsigned builds do not need the signing
-secrets.
+### Current job permissions and artifacts
 
-Because a workflow merged into `main` can use repository secrets, keep `main`
-protected and require the CI/review policy appropriate for this repository.
+- `CI / build`: unsigned build, pure host checks and artifacts, **no signing
+  secrets or signing environment**. `build` remains the required status check.
+- `CI / Sign main candidate`: depends on green `build`, restricted
+  `thor-signing` environment and operator, `actions: read` /
+  `contents: read` GitHub token. Signs the same-run unsigned artifact,
+  verifies package/version/certificate, publishes the existing
+  `signed-candidate-v<version>-<commit>` artifact and metadata.
+  It uses the signing keystore in an ephemeral temporary directory and
+  deletes it before the verification/upload steps.
+  Metadata records the unsigned input SHA-256, source run/attempt, signed APK
+  SHA-256 and certificate; unsigned and signed whole-file hashes differ normally.
+- `Sign test candidate / sign`: manual signing from a successful same-repo
+  pull-request CI artifact only, also gated by `thor-signing` and operator.
+  Its signed **test** APK is not publishable through the production release path.
+- `Publish tested candidate / publish`: manual `main` only,
+  `thor-publication` and operator gate, serial publication;
+  verifies the **same signed candidate** and uses job-scoped
+  `contents: write` for the release.
+
 
 ## Pull requests
 
@@ -89,14 +160,16 @@ successful push to `main`.
 
 ## Pushes to main
 
-A successful push to `main` performs the same checks, then:
+A successful push to `main` completes the same unsigned checks. A separate
+`sign_main_candidate` job then waits for `thor-signing` approval and:
 
 ```text
-decode release keystore in runner temp
--> build signed APK
--> apksigner verification
--> established certificate check
--> SHA-256
+download exact unsigned APK from the same CI run
+-> verify zipalign, package and version
+-> load environment-scoped release keystore in runner temp
+-> sign exact CI APK bytes with apksigner
+-> delete the keystore
+-> verify certificate, package, version and SHA-256
 -> candidate metadata
 -> signed-candidate Actions artifact
 ```
@@ -107,8 +180,10 @@ The signed artifact is retained for 30 days and contains:
 - `candidate-metadata.json`
 - `candidate-sha256.txt`
 
-Download **that exact signed APK** from the CI run and use it for the supervised
-Thor validation.
+Download **that exact signed APK** from the CI run **after the signing job
+has been approved and completed**, and use it for supervised Thor validation.
+If approval is withheld, CI can have a green `build` job but has no signed
+candidate and cannot be published.
 
 The Actions run ID is the numeric value in a run URL:
 
@@ -126,8 +201,9 @@ After the exact candidate has the required physical approval:
 3. Choose `prerelease` or `stable`.
 4. Run the workflow.
 
-The publish workflow refuses candidates that are not from the completed CI
-workflow on a successful push to `main` in this repository. It checks out the
+The publish workflow first waits for `thor-publication` approval and refuses
+candidates that are not from the **completed successful CI workflow** (including
+its signing job) on a push to `main` in this repository. It checks out the
 exact candidate commit, downloads only the signed
 candidate artifact from that run, and verifies:
 
