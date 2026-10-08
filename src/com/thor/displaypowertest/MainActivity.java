@@ -26,6 +26,7 @@ public final class MainActivity extends Activity {
     private DashboardSettingsController settings;
     private DashboardRenderer renderer;
     private TelemetryPoller telemetry;
+    private EventHistoryJournal eventHistory;
     // Read by AppUpdater's worker before it commits an install.
     private final UpdateReadiness updateReadiness = new UpdateReadiness();
     private volatile boolean activityResumed;
@@ -35,6 +36,7 @@ public final class MainActivity extends Activity {
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         SharedPreferences preferences = getSharedPreferences("state", MODE_PRIVATE);
+        eventHistory = new EventHistoryJournal(this);
         configureWindow();
         DashboardViews views = new DashboardViews(this);
         layout = new DashboardLayout(views, new DashboardLayout.TopActions() {
@@ -48,6 +50,7 @@ public final class MainActivity extends Activity {
             @Override public void onGithubLongPress() {
                 if (updater != null) updater.showSettings();
             }
+            @Override public void onEvents() { EventHistoryDialog.show(MainActivity.this, eventHistory); }
         });
         media = new BackgroundMediaController(views, layout.backgroundImage, layout.videoTexture);
         renderer = new DashboardRenderer(layout, new DashboardRenderer.Host() {
@@ -64,9 +67,11 @@ public final class MainActivity extends Activity {
                 updateReadiness.record(values);
             }
             @Override public void onSample(Map<String, String> values) {
+                eventHistory.onSample(values);
                 renderer.render(values, settings);
             }
             @Override public void onUnavailable() {
+                eventHistory.onUnavailable();
                 renderer.renderUnavailable(settings.displayCommandInFlight());
             }
         });

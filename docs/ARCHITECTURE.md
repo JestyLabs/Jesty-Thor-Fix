@@ -37,6 +37,27 @@ Jesty Thor Fix is split between a normal Android dashboard and a privileged root
 
 The dashboard does not need to remain open for the fix to stay active.
 
+### Local diagnostic event history (experimental)
+
+`EventHistoryModel` records only changes to known fields of the already authenticated
+`Q` telemetry response: daemon connectivity, a boot safety hold, watcher readiness,
+mode and *both* CRTC observations (two consistent samples required), wake counter
+increments, repair result and CPU Fix phase. Arbitrary daemon strings, identifiers,
+CPU frequencies and free-form error messages are never persisted. A display
+observation is **not** physical verification of panel pixels. Collection is
+limited to periods while the dashboard is visible; the daemon/watcher do not
+perform new work and no IPC command or daemon protocol is changed.
+
+`EventHistoryJournal` keeps at most 64 events in app-private SharedPreferences,
+writing only when the state changes, not on each 1 Hz poll. The EVENTS top-bar
+button opens a local, read-only chronological report via `EventHistoryDialog`,
+with explicit COPY and CLEAR controls. Copying puts only the sanitized history
+on the user's clipboard; there is no network submission. Loss of contact resets
+observational baselines to avoid claiming a state transition over an unavailable
+period. This support history does **not** affect boot safety, updater eligibility,
+IPC trust or daemon ownership. See `docs/EVENT-HISTORY-DESIGN.md`.
+
+
 ## Root daemon
 
 `PServer` asks the Thor firmware's `PServerBinder` service to launch `app_process / D` with the installed APK on its classpath. The daemon then:

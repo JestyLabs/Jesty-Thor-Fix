@@ -29,8 +29,10 @@ $warningModel = Join-Path $repository 'src\com\thor\displaypowertest\CpuWarningM
 $warningTest = Join-Path $repository 'tests\CpuWarningModelTest.java'
 $updateModel = Join-Path $repository 'src\com\thor\displaypowertest\UpdateVersion.java'
 $updateTest = Join-Path $repository 'tests\UpdateVersionTest.java'
+$historyModel = Join-Path $repository 'src\com\thor\displaypowertest\EventHistoryModel.java'
+$historyTest = Join-Path $repository 'tests\EventHistoryModelTest.java'
 
-& javac -source 8 -target 8 -d $output $model $test $warningModel $warningTest $updateModel $updateTest
+& javac -source 8 -target 8 -d $output $model $test $warningModel $warningTest $updateModel $updateTest $historyModel $historyTest
 if ($LASTEXITCODE -ne 0) { throw 'Dashboard test compilation failed.' }
 
 & java -cp $output DashboardStateModelTest
@@ -39,3 +41,5 @@ if ($LASTEXITCODE -ne 0) { throw 'Dashboard tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'CPU warning tests failed.' }
 & java -cp $output UpdateVersionTest
 if ($LASTEXITCODE -ne 0) { throw 'Update version tests failed.' }
+& java -cp $output EventHistoryModelTest
+if ($LASTEXITCODE -ne 0) { throw 'Event history model tests failed.' }

@@ -30,6 +30,7 @@ final class DashboardLayout {
         void onSupport();
         void onGithub();
         void onGithubLongPress();
+        void onEvents();
     }
 
     final FrameLayout root;
@@ -114,6 +115,14 @@ final class DashboardLayout {
                 ViewGroup.LayoutParams.WRAP_CONTENT, views.dp(38));
         githubParams.setMargins(views.dp(8), 0, 0, 0);
         topActions.addView(github, githubParams);
+
+        TextView events = views.topAction("\u25F7  EVENTS");
+        events.setContentDescription("Recent diagnostic events");
+        events.setOnClickListener(v -> actions.onEvents());
+        LinearLayout.LayoutParams eventParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, views.dp(38));
+        eventParams.setMargins(views.dp(8), 0, 0, 0);
+        topActions.addView(events, eventParams);
 
         FrameLayout.LayoutParams actionParams = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, views.dp(42), Gravity.TOP | Gravity.END);
