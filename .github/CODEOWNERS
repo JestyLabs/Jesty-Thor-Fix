@@ -1,0 +1,7 @@
+# Ownership metadata; enforcement needs branch rule requiring CODEOWNERS review.
+/.github/workflows/ @SirJesty
+/.github/CODEOWNERS @SirJesty
+/build.ps1 @SirJesty
+/scripts/prepublish.ps1 @SirJesty
+/docs/GITHUB-ACTIONS.md @SirJesty
+/docs/BUILD-AND-RELEASE.md @SirJesty
