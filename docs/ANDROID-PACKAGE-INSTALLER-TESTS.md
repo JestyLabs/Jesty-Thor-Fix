@@ -1,8 +1,7 @@
 # Android PackageInstaller callback integration — test-only
 
 This research workstream is layered on [PR #51](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/51).
-It is an independently authored, **disposable emulator test agent**, not a new
-component of the Jesty Thor Fix application.
+It is a disposable emulator test agent, separate from the Jesty Thor Fix application.
 
 ## Test boundary
 
