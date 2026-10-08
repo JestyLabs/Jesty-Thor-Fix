@@ -3,7 +3,9 @@
 param(
     [Parameter(Mandatory=$true)][string]$CaptureDir,
     [string[]]$ExtraLog = @(),
-    [string]$OutputDir = ""
+    [string]$OutputDir = "",
+    [int]$LogcatYear = 0,
+    [string]$LogcatUtcOffset = ""
 )
 
 $ErrorActionPreference = 'Stop'
@@ -19,30 +21,54 @@ New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 $captureRoot = (Resolve-Path -LiteralPath $CaptureDir).Path
 $outputRoot = [IO.Path]::GetFullPath($OutputDir)
 
-$allFiles = @(
+$candidateFiles = @(
     Get-ChildItem -LiteralPath $CaptureDir -File -Recurse |
         Where-Object {
             -not [IO.Path]::GetFullPath($_.FullName).StartsWith(
                 $outputRoot + [IO.Path]::DirectorySeparatorChar,
                 [StringComparison]::OrdinalIgnoreCase) -and
-            $_.Extension -in @('.txt', '.log', '.md', '.json', '.xml')
+            # Reports and documentation are search material, never capture evidence.
+            $_.Extension -in @('.txt', '.log', '.logcat', '.trace') -and
+            $_.Name -notmatch '(?i)(report|summary|readme|manifest|sha256|binary-string)' -and
+            $_.FullName -notmatch '(?i)[\\/](analysis[^\\/]*|binaries|docs)[\\/]'
         }
 )
 foreach ($path in $ExtraLog) {
     if (Test-Path -LiteralPath $path -PathType Leaf) {
-        $allFiles += Get-Item -LiteralPath $path
+        $candidateFiles += Get-Item -LiteralPath $path
     } else {
         Write-Warning "Extra log not found: $path"
     }
 }
-$allFiles = @($allFiles | Sort-Object FullName -Unique)
+$candidateFiles = @($candidateFiles | Sort-Object FullName -Unique)
+$allFiles = @()
+$sourceLines = @{}
+$sourceProvenance = @()
+foreach ($file in $candidateFiles) {
+    $lines = [IO.File]::ReadAllLines($file.FullName)
+    $kind = 'unrecognized'
+    if ($file.Name -match '^\d\d[a-z]?-[\w-]+\.txt$' -and
+        $file.Name -notmatch 'binary|pull|sha256') { $kind = 'collector-snapshot' }
+    if ($file.Extension -in @('.log', '.logcat') -or $file.Name -match '(?i)logcat.*\.txt$') { $kind = 'log' }
+    if (@($lines | Select-Object -First 25 | Where-Object { $_ -match '^# tracer:' }).Count -gt 0) { $kind = 'atrace' }
+    # Explicit additional logs can have arbitrary names, but remain text triage.
+    if ($file.FullName -in $ExtraLog) { $kind = 'explicit-extra-log' }
+    if ($kind -eq 'unrecognized') { continue }
+    $allFiles += $file
+    $sourceLines[$file.FullName] = $lines
+    $sourceProvenance += [pscustomobject]@{
+        file = $file.FullName
+        kind = $kind
+        sha256 = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash
+    }
+}
 
 function Get-MatchingLines {
     param([Parameter(Mandatory=$true)][object[]]$Patterns)
 
-    $out = @()
+    $out = New-Object System.Collections.Generic.List[object]
     foreach ($file in $allFiles) {
-        $lines = @(Get-Content -LiteralPath $file.FullName -ErrorAction SilentlyContinue)
+        $lines = $sourceLines[$file.FullName]
         for ($i = 0; $i -lt $lines.Count; $i++) {
             $line = [string]$lines[$i]
             $hit = $false
@@ -53,11 +79,11 @@ function Get-MatchingLines {
                 }
             }
             if (-not $hit) { continue }
-            $out += [pscustomobject]@{
+            $out.Add([pscustomobject]@{
                 file = $file.FullName
                 line = $i + 1
                 text = $line.Trim()
-            }
+            })
         }
     }
     return $out
@@ -78,11 +104,14 @@ function Evidence-Files {
 
 function Get-PolicyTransitions {
     $out = @()
+    $logPattern = '^(\d\d-\d\d \d\d:\d\d:\d\d\.\d+)\s+(\d+)\s+(\d+)\s+[VDIWEF]\s+(DisplayDevice|SurfaceFlinger)\s*:\s*(.*)$'
     foreach ($file in $allFiles) {
-        $lines = @(Get-Content -LiteralPath $file.FullName -ErrorAction SilentlyContinue)
+        $lines = $sourceLines[$file.FullName]
         for ($i = 0; $i -lt $lines.Count; $i++) {
             $header = [string]$lines[$i]
-            $headerMatch = [regex]::Match($header, 'Display\s+(.+?)\s+policy changed')
+            $headerFields = [regex]::Match($header, $logPattern)
+            if (-not $headerFields.Success) { continue }
+            $headerMatch = [regex]::Match($headerFields.Groups[5].Value, '^Display\s+(.+?)\s+policy changed$')
             if (-not $headerMatch.Success) { continue }
 
             $last = [Math]::Min($lines.Count - 1, $i + 4)
@@ -91,6 +120,12 @@ function Get-PolicyTransitions {
             $modeChanges = $null
             for ($j = $i + 1; $j -le $last; $j++) {
                 $candidate = [string]$lines[$j]
+                $candidateFields = [regex]::Match($candidate, $logPattern)
+                if (-not $candidateFields.Success -or
+                    $candidateFields.Groups[2].Value -ne $headerFields.Groups[2].Value -or
+                    $candidateFields.Groups[3].Value -ne $headerFields.Groups[3].Value -or
+                    $candidateFields.Groups[4].Value -ne $headerFields.Groups[4].Value) { continue }
+                $candidate = $candidateFields.Groups[5].Value
                 if ($candidate -match 'Display\s+.+?\s+policy changed') { break }
                 if ($candidate -match 'Previous:\s*(.+)$') { $previous = $Matches[1].Trim() }
                 if ($candidate -match 'Current:\s*(.+)$') { $current = $Matches[1].Trim() }
@@ -114,13 +149,14 @@ function Get-PolicyTransitions {
 }
 
 function Get-SfInvalidModeEvents {
-    # Individual SF validation errors, not Qualcomm rejections. The AOSP
-    # before-HWC guard is a reference until checked against the exact Thor ELF.
+    # Individual SF identity-error messages, not Qualcomm rejections. Exact .377
+    # continues through its mismatch path; never import AOSP BAD_VALUE semantics.
     $events = @()
     foreach ($file in $allFiles) {
-        $lines = @(Get-Content -LiteralPath $file.FullName -ErrorAction SilentlyContinue)
+        $lines = $sourceLines[$file.FullName]
         for ($i = 0; $i -lt $lines.Count; $i++) {
             $line = [string]$lines[$i]
+            if ($line -notmatch '^\d\d-\d\d \d\d:\d\d:\d\d\.\d+\s+\d+\s+\d+\s+[VDIWEF]\s+(DisplayDevice|SurfaceFlinger)\s*:') { continue }
             $match = [regex]::Match($line, 'Trying to initiate a mode change to invalid mode\s+(null|-?\d+)\s+on display\s+(.+?)\s*$')
             if (-not $match.Success) { continue }
             $token = $match.Groups[1].Value
@@ -130,12 +166,13 @@ function Get-SfInvalidModeEvents {
                 file = $file.FullName
                 line = $i + 1
                 timestamp = $timestamp
-                clockDomain = 'logcat-wall-clock-if-present'
+                clockDomain = 'logcat-wall-clock'
                 reportedDisplay = $match.Groups[2].Value.Trim()
                 reportedModeToken = $token
                 reportedModeId = $modeId
                 source = 'SurfaceFlinger'
                 stage = 'SF_INVALID_MODE_LOG_ONLY'
+                rejectionProven = $false
                 sameInvocationAsHwcRequestProven = $false
             }
         }
@@ -191,11 +228,14 @@ foreach ($name in $patterns.Keys) {
     $results[$name] = @(Get-MatchingLines -Patterns $patterns[$name])
 }
 
+$policyTransitions = @(Get-PolicyTransitions)
+$sfInvalidModeEvents = @(Get-SfInvalidModeEvents)
+
 $flags = [ordered]@{
     has120PolicyMention = ((Has-Text $results.policy '120') -or (Has-Text $results.desiredMode '120'))
     inactiveDisplayEvidence = Has-Text $results.activeDisplay '(Inactive display|\(inactive\) HWC layers)'
     desired120Evidence = Has-Text $results.desiredMode '120'
-    sfInvalidModeEvidence = [bool]$results.sfInvalidMode.Count
+    sfInvalidModeEvidence = [bool]$sfInvalidModeEvents.Count
     frameworkModeChangeFailure = [bool]$results.frameworkFailure.Count
     hwcConstraintEvidence = [bool]$results.hwcRequest.Count
     vendorConfigFailure = [bool]$results.vendorFailure.Count
@@ -217,7 +257,7 @@ $reason = 'No single request handoff boundary is proven by bundle-wide text matc
 
 if ($flags.sfInvalidModeEvidence) {
     $stage = 'SURFACEFLINGER_INVALID_MODE_EVIDENCE'
-    $reason = 'SurfaceFlinger invalid-mode log(s) found; no Qualcomm rejection or link to another HWC invocation is established. Verify the exact-binary guard and per-display timeline.'
+    $reason = 'SurfaceFlinger invalid-mode log(s) found; neither rejection nor a separate HWC invocation is established. The exact .377 binary continues after its mismatch log and remaps the HWC config.'
 } elseif ($flags.frameworkModeChangeFailure) {
     $stage = 'FRAMEWORK_MODE_CHANGE_FAILURE_EVIDENCE'
     $reason = 'A framework mode-change failure marker is present; correlate display ID and timestamp manually.'
@@ -244,20 +284,36 @@ foreach ($name in $results.Keys) {
     $evidenceFiles[$name] = @(Evidence-Files $results[$name])
 }
 
-$policyTransitions = @(Get-PolicyTransitions)
-$sfInvalidModeEvents = @(Get-SfInvalidModeEvents)
+# Structured events are separate from the legacy capture-wide text hints above.
+# This standard-library parser preserves clock anchors and leaves anonymous vendor
+# calls unassigned. It never guesses a physical display from file order or FPS.
+$timelinePath = Join-Path $OutputDir 'refresh-timeline.json'
+$timelineArgs = @((Join-Path $PSScriptRoot 'analyze-thor-refresh-timeline.py')) + @($allFiles.FullName)
+$timelineArgs += @('--output', $timelinePath)
+if ($LogcatYear -gt 0) { $timelineArgs += @('--logcat-year', [string]$LogcatYear) }
+if ($LogcatUtcOffset) { $timelineArgs += @('--logcat-utc-offset', $LogcatUtcOffset) }
+$timeline = $null
+if ($allFiles.Count -gt 0) {
+    & python @timelineArgs
+    if ($LASTEXITCODE -ne 0) { throw 'Structured refresh timeline analysis failed.' }
+    $timeline = Get-Content -LiteralPath $timelinePath -Raw | ConvertFrom-Json
+}
 
 $summary = [ordered]@{
     schema = 'THOR_REFRESH_CAPTURE_ANALYSIS_V2'
     captureDir = $captureRoot
     analyzedFiles = $allFiles.Count
+    sourceProvenance = $sourceProvenance
+    ignoredCandidateFiles = $candidateFiles.Count - $allFiles.Count
     stage = $stage
     reason = $reason
     causalConclusion = $false
     correlationScope = 'capture-wide uncorrelated text matches; manually correlate timestamp and display before causal claims'
     policyTransitions = $policyTransitions
     sfInvalidModeEvents = $sfInvalidModeEvents
+    timeline = $timeline
     flags = $flags
+    flagsInterpretation = 'Legacy V2 names are capture-wide text hints, not runtime outcomes. sfInvalidModeEvidence additionally requires a parsed SF log event. Use timeline for timestamped events; flags never establish HWC acceptance or physical cadence.'
     counts = [ordered]@{}
     evidenceFiles = $evidenceFiles
 }
@@ -266,7 +322,7 @@ foreach ($name in $results.Keys) {
 }
 
 $jsonPath = Join-Path $OutputDir 'refresh-capture-summary.json'
-$summary | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $jsonPath -Encoding utf8
+$summary | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $jsonPath -Encoding utf8
 
 $report = New-Object System.Collections.Generic.List[string]
 $report.Add('# Thor refresh capture analysis')
@@ -316,7 +372,7 @@ if ($sfInvalidModeEvents.Count -eq 0) {
 }
 $report.Add('')
 $report.Add('No automatic pairing with an atrace/HWC request. Logcat wall clock and atrace monotonic clock require explicit mapping.')
-$report.Add('The AOSP guard is only a reference until checked against the exact Thor SurfaceFlinger ELF.')
+$report.Add('The exact .377 ELF logs an identity mismatch and continues with an inverted HWC config. The message alone proves neither BAD_VALUE nor a distinct invocation; see THOR-120HZ-EXACT-BINARY-OFFLINE-20261008.md.')
 $report.Add('')
 $report.Add('## Flags')
 foreach ($key in $flags.Keys) {

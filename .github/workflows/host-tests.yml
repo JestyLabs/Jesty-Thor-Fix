@@ -72,7 +72,9 @@ jobs:
 
       - name: Refresh investigation contract
         shell: pwsh
-        run: ./scripts/test-refresh-investigation.ps1
+        run: |
+          python --version
+          ./scripts/test-refresh-investigation.ps1
 
       - name: Build unsigned APK
         shell: pwsh

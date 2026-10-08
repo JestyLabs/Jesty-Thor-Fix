@@ -85,10 +85,19 @@ try {
     & java -cp $classes RefreshRateEvidenceModelTest
     if ($LASTEXITCODE -ne 0) { throw 'Refresh evidence model tests failed.' }
 } finally {
+    $cleanupPath = [IO.Path]::GetFullPath($classes)
+    if (-not $cleanupPath.StartsWith([IO.Path]::GetFullPath([IO.Path]::GetTempPath()), [StringComparison]::OrdinalIgnoreCase) -or
+        (Split-Path -Leaf $cleanupPath) -notlike 'thor-refresh-model-*') { throw 'Unsafe model cleanup path.' }
     Remove-Item -LiteralPath $classes -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+& python (Join-Path $PSScriptRoot 'test-thor-refresh-timeline.py')
+if ($LASTEXITCODE -ne 0) { throw 'Structured refresh timeline tests failed.' }
+
 & (Join-Path $PSScriptRoot 'test-refresh-capture-analysis.ps1')
 if ($LASTEXITCODE -ne 0) { throw 'Refresh capture analyzer tests failed.' }
+
+& (Join-Path $PSScriptRoot 'test-refresh-binary-analysis.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'Refresh binary analyzer tests failed.' }
 
 Write-Host 'Refresh investigation contract tests passed.'

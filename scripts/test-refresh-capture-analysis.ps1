@@ -34,7 +34,7 @@ display1 cur:60 vsync_period=16666666
     @'
 bypass_ram=0
 panel=ch13726a
-'@ | Set-Content -LiteralPath (Join-Path $root 'lower-panel.txt') -Encoding utf8
+'@ | Set-Content -LiteralPath (Join-Path $root '03a-lower-panel.txt') -Encoding utf8
 
     @'
 10-07 12:28:38.900  100  200 I SurfaceFlinger: Display PhysicalDisplayId{1} policy changed
@@ -164,7 +164,43 @@ Active configuration changed to: 7
         throw 'Never automatically attribute an invalid SF event to an HWC request.'
     }
 
+    if (@($events | Where-Object { $_.rejectionProven }).Count -ne 0) {
+        throw 'The exact vendor mismatch log is not proof of rejection.'
+    }
+
+    # Old reports, documentation and string inventories must not amplify evidence
+    # on repeat runs, even when they include exact-looking logcat examples.
+    $docsOnly = Join-Path $root 'documentation-only'
+    New-Item -ItemType Directory -Path $docsOnly -Force | Out-Null
+    $fake = @'
+10-07 23:42:17.252 100 100 E DisplayDevice: Trying to initiate a mode change to invalid mode 1 on display 20
+Active configuration changed to: 7
+1080x1240x120vid
+'@
+    foreach ($name in @('README.md', 'README.txt', 'refresh-capture-report.txt', 'summary.json', 'notes.txt')) {
+        $fake | Set-Content -LiteralPath (Join-Path $docsOnly $name) -Encoding utf8
+    }
+    & $scriptPath -CaptureDir $docsOnly
+    $clean = Get-Content -LiteralPath (Join-Path $docsOnly 'analysis/refresh-capture-summary.json') -Raw | ConvertFrom-Json
+    if ($clean.analyzedFiles -ne 0 -or $clean.flags.sfInvalidModeEvidence -or
+        $clean.flags.vendorConfigSuccess -or $clean.flags.drm120Mentioned) {
+        throw 'Documentation-only bundle generated false runtime evidence.'
+    }
+
+    'Example: Trying to initiate a mode change to invalid mode 1 on display 20' |
+        Set-Content -LiteralPath (Join-Path $docsOnly 'untimed.log') -Encoding utf8
+    & $scriptPath -CaptureDir $docsOnly
+    $untimed = Get-Content -LiteralPath (Join-Path $docsOnly 'analysis/refresh-capture-summary.json') -Raw | ConvertFrom-Json
+    if ($untimed.flags.sfInvalidModeEvidence -or @($untimed.sfInvalidModeEvents).Count -ne 0 -or
+        $untimed.counts.sfInvalidMode -ne 1) {
+        throw 'Untimed text matches must remain hints, not SF runtime events.'
+    }
+
     Write-Host 'Refresh capture analyzer tests passed.'
 } finally {
+    $cleanupPath = [IO.Path]::GetFullPath($root)
+    $tempParent = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
+    if (-not $cleanupPath.StartsWith($tempParent, [StringComparison]::OrdinalIgnoreCase) -or
+        (Split-Path -Leaf $cleanupPath) -notlike 'thor-refresh-capture-test-*') { throw 'Unsafe test cleanup path.' }
     Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
 }
