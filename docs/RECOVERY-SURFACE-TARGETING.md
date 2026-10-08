@@ -251,7 +251,7 @@ promote the stable result directly without recovery-time evidence.
 
 The **same boot in which PR #27 visibly duplicated the brand onto both panels**
 preserves the physical-routing sequence in logcat (boot ID
-`9bf75612-8acd-4b55-98f3-b01b05585573`):
+`00000000-0000-4000-8000-000000000012`):
 
 | Uptime | Event |
 | ---: | --- |
