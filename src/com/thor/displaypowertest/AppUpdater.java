@@ -115,6 +115,7 @@ final class AppUpdater {
     private final AtomicBoolean checking = new AtomicBoolean(false);
     private final AtomicBoolean busy = new AtomicBoolean(false);
     private final AtomicBoolean cancelled = new AtomicBoolean(false);
+    private final UpdateCommitGate commitGate = new UpdateCommitGate();
     private Release available;
     private Release awaitingInstallPermission;
     private AlertDialog progressDialog;
@@ -407,6 +408,10 @@ final class AppUpdater {
             return;
         }
         if (!busy.compareAndSet(false, true)) return;
+        if (!commitGate.start()) {
+            busy.set(false);
+            return;
+        }
         cancelled.set(false);
         host.setInstallReserved(true);
 
@@ -424,7 +429,13 @@ final class AppUpdater {
         AlertDialog progress = dialog().setTitle("Updating")
                 .setView(box)
                 .setCancelable(false)
-                .setNegativeButton("Cancel", (d, which) -> cancelled.set(true))
+                .setNegativeButton("Cancel", (d, which) -> {
+                    if (commitGate.cancel()) {
+                        cancelled.set(true);
+                    } else {
+                        toast("Android install confirmation is already being prepared");
+                    }
+                })
                 .show();
         progressDialog = progress;
 
@@ -444,6 +455,7 @@ final class AppUpdater {
                         : "Update failed: " + reason(error);
                 onUi(() -> toast(message));
             } finally {
+                commitGate.finish();
                 busy.set(false);
                 onUi(() -> {
                     dismiss(progress);
@@ -594,6 +606,11 @@ final class AppUpdater {
             int flags = PendingIntent.FLAG_UPDATE_CURRENT;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) flags |= PendingIntent.FLAG_MUTABLE;
             PendingIntent pending = PendingIntent.getBroadcast(activity, sessionId, status, flags);
+            // Serialize user Cancel with the point of no return. Cancel accepted
+            // before this point forbids commit; after it, Android owns the session.
+            if (cancelled.get() || !commitGate.beginCommit()) {
+                throw new IOException("cancelled");
+            }
             session.commit(pending.getIntentSender());
         } catch (Exception error) {
             abandonSession(activity, sessionId);
