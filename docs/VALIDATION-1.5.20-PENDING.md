@@ -43,7 +43,7 @@ fields. No display, boot gate, CPU property or Wake Guard behavior changed.
 
 - Preflight: signed v1.5.17/versionCode 66, CPU property `1`, battery 91%,
   BOTH with CRTC 181=`1` and 243=`1`, daemon PID 26583, compositor PID 7435,
-  boot ID `599c48a0-4d31-4d90-91b0-287eb5c8577d`.
+  boot ID `00000000-0000-4000-8000-000000000008`.
 - The exact signed APK above installed with `adb install -r`; app data was
   preserved. Opening the app triggered one migration. AutoService stopped the
   identified v1.5.17 daemon after its 30 s same-boot socket wait and submitted
@@ -73,7 +73,7 @@ command-length hypothesis, but do not prove the bridge's exact limit.
   243=`0`, owner-confirmed image on the superior panel and the lower panel
   dark. The exact signed v1.5.17 APK with published SHA-256 was ready for a
   data-preserving rollback. One `reboot -p` power-off and one physical power-on
-  produced boot ID `d33386ae-e35e-4b64-8bf8-63ebfdc1e699`.
+  produced boot ID `00000000-0000-4000-8000-000000000015`.
 - The first daemon started at elapsed 33.656 s with
   `socket=STALE_PREVIOUS_BOOT` and `launch_wait_ms=74`; the old 30 s socket
   wait did not recur. CPU property was initially unknown, written to `1` at
