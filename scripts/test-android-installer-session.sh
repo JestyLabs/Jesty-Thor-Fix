@@ -56,6 +56,16 @@ last_updated() {
   adb_avd shell dumpsys package "$TARGET" | tr -d '\r' \
     | grep -m 1 -E '^[[:space:]]*lastUpdateTime=' || true
 }
+# Read-only AVD focus evidence. A BACK keypress alone does not prove that the
+# system package confirmation was visible or that Android treated it as refusal.
+confirmation_focus() {
+  local stage="$1"
+  echo "Confirmation focus [$stage] (emulator only):"
+  adb_avd shell dumpsys window \
+    | grep -E 'mCurrentFocus|mFocusedApp' | head -n 5 || true
+  adb_avd shell dumpsys activity activities \
+    | grep -E 'topResumedActivity|mResumedActivity' | head -n 5 || true
+}
 baseline="$(last_updated)"
 test -n "$baseline" || { echo "Cannot read baseline lastUpdateTime" >&2; exit 1; }
 
@@ -86,7 +96,10 @@ echo "PASS: PackageInstaller delivered PENDING_USER_ACTION with confirmation Int
 adb_avd shell am start -W -n "$COMPONENT" --es mode confirm >/dev/null
 wait_state confirmation_result OPENED_SYSTEM_UI
 sleep 2
+confirmation_focus "before BACK"
 adb_avd shell input keyevent KEYCODE_BACK
+sleep 1
+confirmation_focus "after BACK"
 wait_state callback_result USER_ABORTED
 test "$(last_updated)" = "$baseline" || {
   echo "Target APK unexpectedly changed after denying installation" >&2; exit 1;
