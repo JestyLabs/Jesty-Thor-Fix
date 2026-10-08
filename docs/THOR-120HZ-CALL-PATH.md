@@ -3,14 +3,19 @@
 
 Status: **STATIC ANALYSIS + SUPERVISED TRACE; 60/60 RESTORED**
 
-**Critical interpretive update:** the [offline invalid-mode review](THOR-120HZ-INVALID-MODE-OFFLINE-REVIEW.md) identifies the Android 13 physical-display-ID guard that emits `invalid mode`. In the reference implementation this error occurs *before* the per-policy mode-change counter, SF's `ActiveModeFPS_HWC` target marker and any HWC call. The simultaneous error and HWC evidence may therefore represent **distinct attempts**. The corresponding branch still needs confirmation against Thor's exact locally held ELF.
-Date: 2026-10-07
+**2026-10-08 correction against exact ELF:** the mismatch logs `invalid mode`
+and continues through counter/target/HWC with `(~configId)&1`. The active
+desired object is forwarded to the secondary, its return is ignored and
+completion updates only default. AOSP early BAD_VALUE semantics do not apply.
+See [offsets, traces and tearing hypotheses](THOR-120HZ-EXACT-BINARY-OFFLINE-20261008.md).
+Date: 2026-10-08
 
 This note narrows where the controlled 120/120 request can disappear between
 Android policy and physical DRM scanout. Newer stock-aligned device-tree and
-upstream Linux evidence now show that the Thor lower CH13726A path is intended
-to support both 120 Hz and 60 Hz; that source evidence is still distinct from a
-physical measurement on the validation unit. This note does not propose another
+upstream Linux context describes 120/60 software/transport modes. The BOTTOM
+CH13726A is officially specified 60 Hz; these modes do not prove 120 distinct
+visible frames or supersede that specification. No electrical/optical cadence
+measurement is available here. This note does not propose another
 state-changing probe.
 
 ## Earlier sustained probe: policy accepted, no HWC mode change
@@ -36,10 +41,13 @@ A later `atrace gfx` capture on the same Thor and boot reached a different
 branch. At uptime 76261.168 s, SurfaceFlinger set the desired 120 Hz mode.
 At 76261.173-76261.180 s it emitted `ActiveModeFPS_HWC=120` for **both**
 display IDs and called Qualcomm `SetActiveConfigWithConstraints`,
-`ProcessActiveConfigChange` and `SubmitDisplayConfig` for each. Qualcomm's
+`ProcessActiveConfigChange` and `SubmitDisplayConfig` twice. These vendor scopes
+have no physical ID, config or return; per-display attribution is inferred from
+the exact SF mirror path. Qualcomm's
 `VsyncPeriod` and SurfaceFlinger's `onComposerHalVsync` then reported 8,333,333
-ns. The in-window SurfaceFlinger dump reported upper active mode 120 Hz while
-the lower active mode still read 60 Hz. At 76266.573-76266.590 s the same path
+ns. Earlier notes report an in-window SF TOP 120/BOTTOM 60 dump, not independently
+relocated in the 2026-10-08 pass; TOP 120 is confirmed in logcat.
+At 76266.573-76266.590 s the same path
 requested and reported the return to 60 Hz. The boot ID and composer PID did
 not change.
 
@@ -50,9 +58,9 @@ the 120/120 interval. The user observed two brief black blinks in total,
 identifying the first on the lower screen. This is enough to reject a universal
 "policy never reaches HWC" explanation. It does **not** prove the lower panel
 physically scanned at 120: we lack an in-window per-panel DRM/vblank reading,
-and SF kept the lower mode at 60. The next question is why the lower mode is
-rejected at SF's initiation boundary even as an HWC config request appears in
-the trace, and how the AYN fade/PASS-RAM path interacts with that sequence.
+and the earlier reported lower SF state was 60. The identity mismatch is now
+explained: the vendor path logs and remaps the active display's foreign object
+instead of rejecting. Lower application, PASS-RAM and physical tearing remain open.
 
 The detailed timeline and local raw-file hashes are in
 [the investigation log](THOR-120HZ-INVESTIGATION.md). No further refresh write
@@ -60,9 +68,10 @@ is planned until the invalid-mode path and visual blinks are explained.
 
 ## Android 13 path
 
-The closest public framework reference is LineageOS 20 / Android 13. The names
-and control flow below match AOSP Android 13 architecture; they are reference
-code, not proof that AYN made no private changes.
+The closest public framework reference is LineageOS 20 / Android 13. The control
+flow below is reference architecture; exact vendor mirror/remap differences
+above override it for the .377. Public-source provenance was not fetched again
+in this offline pass.
 
 ### 1. DisplayModeDirector -> DisplayManagerService
 
@@ -491,9 +500,10 @@ Android refresh-policy observer
 ```
 
 The exact electrical/internal-panel meaning of B9 00 vs B9 11 is not claimed
-without a controller datasheet. The driver naming and call path are sufficient
-to prove that the sysfs write is a real secondary-panel DSI action, not an
-unrelated setting.
+without a controller datasheet. Prior public driver analysis associates this
+sysfs with a secondary-panel DSI action. Without a local exact kernel source,
+this is source-level provenance, not a new verification of commands executed
+by the .377 kernel.
 
 ### Current upstream Linux Thor driver
 
@@ -547,7 +557,7 @@ stale desired/pending mode state, which supports investigating this mechanism
 but does not prove it occurred on Thor.
 
 ### C - lower 120 requires the AYN DFPS + PASS-RAM path
-**Confidence: high as architecture; not exercised by the captured probe.**
+**Static framework selection proven; controller/visible outcome unproven.**
 
 The stock-aligned device tree advertises lower 120/60 DFPS and the framework
 switches the secondary panel to PASS-RAM for the 120 policy. If a future safe
@@ -595,8 +605,8 @@ recorded zero mode initiations. Continue from step 3 using read-only evidence.
    - yes + error -> SDM/kernel config rejection;
    - yes + success -> compare active DRM mode/vblank and panel timing.
 
-The later trace settles steps 4-6 for that later execution: a desired mode
-was created, the HWC request was made for both displays, and the vendor
-submission path ran. It also exposes a lower invalid-mode error and two visual
+The later trace shows desired/HWC target and vendor submission function entries.
+It does not settle vendor success or per-panel application in steps 5-6.
+The exact ELF explains the lower invalid-mode log. There were two reported visual
 blinks. Investigate these read-only before considering another state-changing
 refresh test.

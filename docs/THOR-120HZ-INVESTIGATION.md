@@ -1,16 +1,25 @@
-# Thor mixed-refresh / "fake 120 Hz" investigation
+# Thor mixed-refresh / 60–120 Hz investigation
 
 Status: **ACTIVE RESEARCH - 60/60 RESTORED; FURTHER TESTS PAUSED**
 
-**2026-10-07 detailed follow-up:** [event ordering, cached-mode provenance, default-display-centric completion and Qualcomm's deferred-apply boundary](THOR-120HZ-EVENT-ORDER-AND-MODE-PROVENANCE.md).
+**2026-10-08 exact-binary result:** [Portuguese report: hashes, disassembly, aligned timeline, AYN remap, tearing hypotheses and app feasibility](THOR-120HZ-EXACT-BINARY-OFFLINE-20261008.md).
+The .377 ELF logs a foreign physical-ID mismatch and continues to HWC with an
+inverted config ID. The active desired object is forwarded to the secondary
+display; its return is ignored and completion updates only default. This
+explains the log and reported-state inconsistency, **not physical tearing**.
 
-**2026-10-07 offline invalid-mode review:** [SF physical-display identity guard, per-display mode IDs, trace/ATRACE caveats, and exact-binary follow-up](THOR-120HZ-INVALID-MODE-OFFLINE-REVIEW.md). This review uses public Android 13 code and the previously documented results; it does not claim to have independently opened the user's local binaries or raw trace.
+The [invalid-mode review](THOR-120HZ-INVALID-MODE-OFFLINE-REVIEW.md) and
+[event ordering review](THOR-120HZ-EVENT-ORDER-AND-MODE-PROVENANCE.md) are corrected
+against the exact ELF. Older public-source context below is historical comparison.
+TOP ICNA3520 is officially 120 Hz; BOTTOM CH13726A is officially 60 Hz (user-supplied
+specification). Android/DFPS/Linux 120 modes neither supersede that specification
+nor prove 120 distinct visible frames. Neither specification nor DRM measures optics.
 Collector/schema: **THOR_REFRESH_INVESTIGATION_V2**  
 Started: 2026-10-07
 
 ## Thor baseline: 2026-10-07
 
-**PROVEN on the validation Thor, in a user-confirmed visible BOTH session**
+**OBSERVED in saved captures, in a user-confirmed visible BOTH session**
 (`ro.build.display.id=Thor_V1.0.0.377_20260206_165408_user`):
 
 | Layer | Upper | Lower |
@@ -85,8 +94,8 @@ rollback in `finally`. The user reported **two brief black blinks in total**;
 the first was identified on the lower screen. The visual timing of the other
 blink was not captured precisely. This is a confirmed visual disruption report,
 not a claim that either panel was damaged. No reboot occurred, the composer PID
-remained `2319`, the boot ID remained
-`cecf25bc-4750-4933-89c9-9acd29d89499`, and both CRTCs were active at the
+remained `2305` (`2319` is SurfaceFlinger), the captured boot was unchanged,
+and both CRTCs were active at the
 final 60/60 check.
 
 This capture differs materially from the earlier 12:28 probe:
@@ -95,9 +104,9 @@ This capture differs materially from the earlier 12:28 probe:
 |---|---|
 | 120/120 policy | 23:42:17.246 upper; 23:42:17.248 lower |
 | `setDesiredActiveMode` | atrace at uptime 76261.168 s |
-| HWC request | `SetActiveConfigWithConstraints`, `SubmitDisplayConfig` for both paths at 76261.173-76261.180 s |
+| HWC request | Two constraints and two Submit scopes at 76261.173-76261.180 s; vendor scopes have no physical ID or return |
 | HWC target markers | `ActiveModeFPS_HWC` = 120 for both physical display IDs |
-| SF effective active mode | upper `activeModeId=1` (120 Hz); lower `activeModeId=1` (60 Hz in its reversed mode table) in the in-window dump |
+| SF effective active mode | Earlier notes report TOP SF 1=120 / BOTTOM SF 1=60 in-window; dump not relocated offline on 2026-10-08. TOP Android 2=120 confirmed in logcat |
 | Vsync evidence | vendor `VsyncPeriod=8333333` ns and SF `onComposerHalVsync(8333333)` from ~76261.200 s until rollback |
 | Lower display error | `Trying to initiate a mode change to invalid mode 1` at 23:42:17.252; corresponding invalid mode 0 at 23:42:22.660 rollback |
 | Rollback | 60/60 policy at 23:42:22.652; HWC target markers return to 60; SF upper active mode returns to 60 |
@@ -196,9 +205,9 @@ emit a mode-change event when a mode was already desired or pending. This is
 **not proof that the Thor hit that later-fixed bug**, but it makes the stale
 desired/pending mechanism a grounded hypothesis rather than a speculative one.
 
-The captured dump does **not** expose `mDesiredActiveModeChanged`, and the
-versioned notes do not contain the pre-12:28:39 policy-change block. The upper
-gate therefore remains open until the local raw log is checked.
+The captured dump does **not** expose `mDesiredActiveModeChanged`. Raw logcat
+was rechecked offline on 2026-10-08: it confirms direct SF 60/60 ->120/120.
+The exact desired/pending value at delivery remains unknown.
 
 ### AYN framework path and the possible black blink
 
@@ -229,7 +238,8 @@ visual observation remains qualified.
 The decompiled code also explains why a simple `settings put` probe is not a
 pure mode-set test on this firmware: it invokes lower-panel brightness and
 `bypass_ram` actions in addition to changing Android's desired policy. The
-probe still measured **no 120 Hz physical scanout**. Do not repeat it merely
+probe showed no active 120 configuration in saved dumps; it did not measure
+optical cadence. Do not repeat it merely
 to settle the blink without a separate risk review and a measurement that can
 answer the unresolved upper-display request question.
 
@@ -252,9 +262,8 @@ refresh mechanisms**:
   60 Hz base timing with `120 60` dynamic-FPS support, dynamic DSI clocks and
   an AYN-specific RAM-bypass/pass command path.
 
-That changes the original framing. The leading question is no longer simply
-whether Android invents a logical 120 Hz mode for a physically 60-only lower
-panel.
+The official BOTTOM specification remains 60 Hz. These software/transport modes
+raise the question of how 120 relates to the controller and visible OLED output.
 
 The question to prove is now:
 
@@ -262,22 +271,23 @@ The question to prove is now:
 > selected, where does the request stop, and what scanout/pacing does each
 > physical display actually reach?
 
-The previous "fake 120" name remains useful as historical shorthand, but a
-60-only lower-panel assumption is no longer justified by the current evidence.
+Neither a hard physical 60 cap nor 120 distinct OLED frames has been measured.
+Do not equate advertised modes with either physical conclusion.
 
 ## Evidence ladder
 
 Use these labels consistently:
 
-- **PROVEN** - measured on the validation Thor or established directly from its
-  pulled firmware/binaries.
-- **OBSERVED** - independently reported/implemented by another project or
-  public source, useful corroboration but not our device proof.
+- **PROVEN** - directly established from identified local firmware bytes;
+  execution in a particular capture still requires runtime evidence.
+- **OBSERVED** - saved runtime record, user observation or external source
+  report, with its origin specified.
+- **INFERRED** - supported connection without all arguments/returns observed.
 - **HYPOTHESIS** - explanation that still needs a discriminating measurement.
 
-## What is already proven in this project
+## Historical device observations and static evidence
 
-**PROVEN on the validation Thor**
+**OBSERVED in saved device captures; static facts independently identified**
 
 - The Thor exposes two physical displays. The measured lower logical display is
   ID 4; its physical SurfaceControl ID and CRTC are recorded in
@@ -312,9 +322,9 @@ stock firmware**
 - The Thor upper ICNA3520 description contains separate 120 Hz and 60 Hz timing
   configs and distinct timing-switch commands.
 
-These sources make the old "lower hardware is definitely 60-only" hypothesis
-too weak to use as a premise. They do not replace a measured stock-Android
-vblank/panel scanout result.
+These software modes do not negate the official 60 Hz specification or establish
+a physical 60 ceiling/120 distinct frames. This public-source context was not
+reopened in the offline pass; see the exact report for direct local evidence.
 
 Init archive used for the static pass:
 
@@ -550,10 +560,10 @@ Priority strings/symbols:
 
 The v2 collector can pull these read-only and generate SHA-256 manifests.
 
-## Current hypotheses
+## Historical handoff hypotheses (physical-tearing ranking in exact report)
 
 ### H1 - lower 120 policy is stored but not applied while the lower display is SF-inactive
-**Confidence: high for the earlier 12:28 probe; insufficient for the later trace.**
+**Plausible for 12:28, not demonstrated; exact vendor mirror explains later secondary requests.**
 
 Android 13 SurfaceFlinger can retain refresh policy for a secondary internal
 display without initiating its physical mode transition while another internal
@@ -584,7 +594,7 @@ mechanism for that earlier run, not yet proof. The later run did issue an upper
 HWC request and report upper 120 Hz, so this cannot be a universal gate.
 
 ### H3 - lower 120 uses DFPS + PASS-RAM rather than a conventional static mode switch
-**Confidence: high as architecture; exact lower physical state still unproven.**
+**Static framework selection proven; driver/controller/visible outcome unproven.**
 
 The AYN framework writes the lower-panel `bypass_ram` sysfs control around
 refresh-policy changes. Public AYN driver source maps that control directly to
@@ -639,19 +649,19 @@ For every capture, preserve:
 The research helper model uses a one-Hz tolerance around 60/120 and can label
 a simple evidence tuple:
 
-- lower logical ~=120 + lower DRM/scanout ~=60:
-  `LOGICAL_120_SCANOUT_60`;
+- lower logical ~=120 + lower DRM ~=60:
+  `LOGICAL_120_DRM_60`;
 - top logical ~=120 + lower logical ~=60:
   `MIXED_LOGICAL_120_60`;
-- lower logical ~=120 without DRM/scanout timing:
-  `LOGICAL_SHARED_120_SCANOUT_UNKNOWN`;
-- lower logical ~=60 + DRM/scanout ~=60:
+- lower logical ~=120 without DRM timing:
+  `LOGICAL_SHARED_120_DRM_UNKNOWN`;
+- lower logical ~=60 + DRM ~=60:
   `BOTTOM_60_CONSISTENT`;
-- lower logical ~=120 + DRM/scanout ~=120:
+- lower logical ~=120 + DRM ~=120:
   `BOTTOM_120_REPORTED_AT_BOTH_LAYERS`.
 
-These labels describe Android-vs-scanout evidence only; none is automatically a
-bug diagnosis or direct proof of the physical panel's electrical/optical refresh rate.
+These labels compare Android and DRM reports. Optical refresh and distinct-frame
+FPS are separate explicit measurements in the model, never derived from these labels.
 
 ## Stop conditions
 
@@ -667,10 +677,7 @@ Stop before any state-changing experiment if:
 
 ## Next step
 
-Keep the Thor at 60/60. The immediate task is offline analysis of the second
-trace's lower `invalid mode` error, its HWC request and the AYN secondary-panel
-PASS-RAM/fade handling. Compare the exact lower mode IDs and the order of
-HWC submission, SF internal-state update and rollback. The earlier upper
-no-request branch remains a timing/context question, but it no longer blocks
-the primary finding. Do not infer lower physical 120 Hz, a safe user-facing
-120 Hz setting, or the cause of either blink from the current trace.
+No device action. The invalid-mode path, remap and default-only completion are
+resolved offline; see the exact report. Next investigate the CH13726A RAM/TE
+contract and visible frame identity in a separately authorized future session.
+The12:28 desired/pending gate and the cause of physical tearing remain open.
