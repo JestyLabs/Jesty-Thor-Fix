@@ -163,7 +163,7 @@ Validated on a real Thor with signed test candidate built from the fault-injecti
 Observed boot:
 
 ```text
-boot_id = 176cd515-f02f-4fd9-946c-f7df10b3534c
+boot_id = 00000000-0000-4000-8000-000000000004
 initial daemon pid = 6789
 baseline composer pid = 1294
 successor daemon pid = 6991
