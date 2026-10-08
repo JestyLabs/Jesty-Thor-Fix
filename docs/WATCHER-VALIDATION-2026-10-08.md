@@ -257,26 +257,22 @@ publishing their raw contents.
 
 ## Recommendation and remaining work
 
-**INCONCLUSIVE for production promotion; measured idle CPU benefit is established.**
-Keep this draft research PR: an approximately 89% daemon CPU reduction and 95%
-fewer voluntary watcher context switches justify the prototype's investigation.
-The tested transitions and two wake repairs worked, with no owner-observed
-regression. This is stronger than source-only polling estimates, but insufficient
-to declare the complete acceptance gate passed.
+**GO to prepare and test v1.7.0; publication remains pending final validation.**
+The initial INCONCLUSIVE recommendation applied the full exploratory evidence
+list as a promotion gate. After discussion, the owner accepted candidate
+preparation based on measured idle CPU/context-switch benefit and scoped
+display/wake correctness. Gameplay and battery studies can follow later and are
+not required for this change. Missing exact baseline request-count percentages
+limit that claim, but do not invalidate measured CPU benefit; those count targets
+are no longer a blocker to candidate preparation.
 
-Before promotion, the following evidence is still needed:
-
-1. Comparable stable/candidate Settings-call and watcher DRM-snapshot/open
-   instrumentation, or an explicitly revised acceptance gate. Current candidate
-   counters cannot supply measured stable reduction percentages.
-2. More matched transition/wake latency samples, direct authenticated OFF_OK /
-   watcher health evidence, repeated lid close/open, and a repeatable gameplay
-   load including callback-rate checks. No gameplay A/B or frame-time test ran;
-   no CPU/gameplay or callback-storm guarantee is made. Power-button wake is not
-   lid validation. Firmware/framework-service replacement was not induced.
-3. A signed exact production candidate with production identity restored,
-   reviewed provenance handover behavior, and final physical/startup validation.
-   Cold boot needs separate supervised authorization; none was performed here.
+Remaining publication gates are the exact production-identity signed candidate,
+its guarded handover/CPU proof, repeated BOTH/TOP and wake checks with direct
+OFF_OK/health evidence, and separately authorized supervised startup validation.
+See [v1.7.0 checklist](VALIDATION-1.7.0-PENDING.md). No fresh boot was performed
+during the A/B investigation. Repeated lid cycles, larger latency distributions,
+game/load callback rates and framework replacement remain unmeasured; this run
+does not establish gameplay benefit or universal callback-storm resilience.
 
 Do not tune the intervals, add a ContentObserver or add an event rate limiter
 solely from these results. Investigate missing mode-edge callback acceleration

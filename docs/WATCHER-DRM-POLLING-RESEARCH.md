@@ -1,6 +1,6 @@
 # Watcher / DRM polling reduction — measurement prototype
 
-Status: **Measured idle CPU benefit; INCONCLUSIVE for production promotion. Published v1.6.0 remains the stable recommendation.**
+Status: **GO to prepare v1.7.0; exact production-candidate hardware validation pending. Published v1.6.0 remains the stable recommendation.**
 
 Continuation results: [2026-10-08 validation](WATCHER-VALIDATION-2026-10-08.md).
 
@@ -99,7 +99,7 @@ The research runtime adds counters to authenticated `Q` output and emits one `WA
 
 ## Candidate identity / version plan
 
-The research APK intentionally keeps:
+The hardware-tested exp2 APK used:
 
 - package versionName: **1.6.0**
 - versionCode: **70**
@@ -114,12 +114,12 @@ proof without replaying its earlier phase; see the continuation report.
 
 This lets an in-place signed test replace stable v1.6.0 through the existing authenticated BOTH-only previous-daemon gate without consuming a production version number.
 
-If the A/B is a physical PASS and the measured reduction is useful, promotion should be its **own release: v1.7.0 / versionCode 71**. Before promotion:
-- restore `DaemonIdentity.RUNTIME_ID = VERSION`;
-- keep stable `1.6.0` in the guarded previous-daemon allowlist;
-- decide whether the once-per-minute research metric log stays or is removed;
-- update release notes/changelog;
-- run a fresh signed production RC and physical gate.
+The owner accepted preparing **v1.7.0 / versionCode 71** based on measured CPU
+benefit and the scoped physical results. Current source restores
+`DaemonIdentity.RUNTIME_ID = VERSION`, retains stable `1.6.0` and exact exp2 in
+the guarded previous-daemon allowlist, and keeps minute diagnostic metrics.
+Release notes/changelog are prepared; the signed production candidate must pass
+the [final physical/startup checklist](VALIDATION-1.7.0-PENDING.md).
 
 If the benefit is negligible, close the research PR and ship nothing.
 
@@ -185,17 +185,18 @@ No BOTTOM ONLY or dock claim is added by this work.
 
 ## Acceptance gate
 
-Promote only if **all** are true:
+The original 90% Settings / 70% DRM request-count targets remain diagnostic
+targets, not measured results. The accepted production-candidate scope now uses
+measured CPU/context-switch benefit plus display/wake correctness; exact baseline
+request counts, gameplay and battery studies are deferred. Promote only if:
 
 - host CI and CodeQL green;
-- Settings idle samples fall by at least 90% versus the fixed 20 ms design;
-- watcher DRM reads fall by at least 70% in steady idle;
 - daemon CPU/context-switch measurements do not regress and show a useful reduction or clearly reduced wake/read activity;
 - BOTH/TOP transitions remain correct;
 - TOP sleep/wake repair remains correct;
 - safety fallback is represented by host tests (500 ms mode / 1 s DRM even with no events);
 - no watcher STALLED/FAILED state;
-- no new CPU-fix/composer restart;
+- no unexpected CPU-fix/composer restart (the existing early startup recovery is expected);
 - no release until a signed exact candidate passes the physical gate.
 
 ## Stop conditions

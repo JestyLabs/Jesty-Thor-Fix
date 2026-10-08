@@ -75,6 +75,8 @@ public final class DisplayActionCoordinator {
                         WakeRepairScheduler.markDone();
                         generations.completeRepair();
                         DaemonState.onRepairEnd("OFF_OK");
+                        Log.d(TAG, "WAKE_REPAIR_RESULT result=OFF_OK;watcher_health="
+                                + WatcherSupervisor.health());
                     } else {
                         DaemonState.onRepairEnd("RETRY_PENDING");
                     }

@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.7.0 (production candidate; final hardware validation pending)
+
+- Reduce idle watcher work with a 500 ms Settings safety poll, existing display
+  callbacks, a 20 ms transition burst, a 1 s DRM safety interval and paired
+  CRTC snapshots. On the tested Thor, the research candidate reduced daemon CPU
+  by about 89% in awake BOTH and TOP; no battery or gameplay benefit is claimed.
+- Preserve callbacks arriving before the next watcher wait or during DRM I/O.
+- Preserve a completed matching CPU restart proof during daemon handover,
+  without replaying an earlier phase or bypassing live composer/property checks.
+- Restore production identity 1.7.0 / code 71 and permit guarded BOTH-only
+  handover from the exact tested exp2 identity. Keep minute diagnostic counters
+  and log successful wake-repair result/health for final validation.
+- Release remains pending exact-candidate transitions, wake and supervised
+  startup checks. See [candidate checklist](docs/VALIDATION-1.7.0-PENDING.md).
+
 ## 1.5.20 (stable release; scoped Thor validation)
 
 - Shorten the root bridge daemon launch command and bound it to 255 characters.
