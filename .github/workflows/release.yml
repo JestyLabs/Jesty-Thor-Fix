@@ -28,6 +28,15 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      - name: Authorize release operator
+        shell: pwsh
+        env:
+          ORIGINAL_ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        run: |
+          if ($env:ORIGINAL_ACTOR -cne 'SirJesty' -or $env:TRIGGERING_ACTOR -cne 'SirJesty') {
+              throw 'Only the designated JestyLabs release operator may publish releases'
+          }
       - name: Resolve candidate run
         id: source
         shell: pwsh
