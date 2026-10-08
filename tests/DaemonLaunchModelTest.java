@@ -2,8 +2,8 @@ import com.thor.displaypowertest.DaemonLaunchModel;
 import com.thor.displaypowertest.DaemonLaunchModel.SocketState;
 
 public final class DaemonLaunchModelTest {
-    private static final String BOOT_A = "85266414-667f-4691-bce0-e3ecaca53068";
-    private static final String BOOT_B = "f7062f15-b3fb-44ac-87a6-6dfad529035d";
+    private static final String BOOT_A = "00000000-0000-4000-8000-000000000011";
+    private static final String BOOT_B = "00000000-0000-4000-8000-000000000019";
     private static final String STARTING = "ok=1;protocol=2;version=1.5.16;pid=8123;"
             + "boot_phase=WAITING_FOR_ANDROID;fix=1;watcher=STARTING";
 
