@@ -35,13 +35,16 @@ keep whole log files private and manually sanitize excerpts before publication.
 1. Keep the current stable signed APK and root recovery plan untouched. **Do not**
    create an incident by killing `pservice`, SurfaceFlinger, the compositor,
    system_server, zygote or the existing Jesty daemon.
-2. When an issue happens **naturally**, capture the private logcat buffer on your PC
-   with `adb logcat -d -s 'ThorDisplayAuto:V' 'ThorDisplayDaemon:V' '*:S'`.
+2. Confirm the intended Thor with `adb devices -l` and set `$Serial` locally to
+   that device's serial. Pin every command to `adb -s $Serial`; never rely on
+   an implicit default when multiple handhelds are attached. When an issue happens
+   **naturally**, capture the private logcat buffer on your PC with
+   `adb -s $Serial logcat -d -s 'ThorDisplayAuto:V' 'ThorDisplayDaemon:V' '*:S'`.
    Run the following separately (read-only; a failure to access a service
    is itself only a diagnostic observation):
-   - `adb shell service check PServerBinder`
-   - `adb shell pidof pservice`
-   - `adb shell getprop init.svc.pservice`
+   - `adb -s $Serial shell service check PServerBinder`
+   - `adb -s $Serial shell pidof pservice`
+   - `adb -s $Serial shell getprop init.svc.pservice`
 3. Capture the approximate event order: `AutoService` intent/launch attempt,
    bridge result, existing daemon socket probe, helper exit (if any), recovery
    decision, final daemon health and actual top/bottom CRTC states from

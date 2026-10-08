@@ -14,10 +14,19 @@ public final class BridgeFailureDiagnosticTest {
                 new InvocationTargetException(new NoSuchMethodException("private"))));
         check("CLASS_LINKAGE_FAILED", BridgeFailureDiagnostic.failureReason(
                 new NoClassDefFoundError("private")));
+        check("CLASS_LINKAGE_FAILED", BridgeFailureDiagnostic.failureReason(
+                new InvocationTargetException(new NoClassDefFoundError("private"))));
         check("RUNTIME_FAILURE", BridgeFailureDiagnostic.failureReason(
                 new IllegalArgumentException("private")));
+        check("RUNTIME_FAILURE", BridgeFailureDiagnostic.failureReason(
+                new InvocationTargetException(new IllegalArgumentException("private"))));
+        check("SECURITY_DENIED", BridgeFailureDiagnostic.failureReason(
+                new InvocationTargetException(new InvocationTargetException(
+                        new SecurityException("private")))));
         check("OTHER_FAILURE", BridgeFailureDiagnostic.failureReason(
                 new AssertionError("private")));
+        check("OTHER_FAILURE", BridgeFailureDiagnostic.failureReason(
+                new InvocationTargetException(new AssertionError("private"))));
         System.out.println("BridgeFailureDiagnosticTest passed");
     }
 

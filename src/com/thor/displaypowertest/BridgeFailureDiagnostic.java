@@ -12,13 +12,13 @@ public final class BridgeFailureDiagnostic {
     public static String failureReason(Throwable error) {
         if (error == null) return "UNKNOWN";
         Throwable cause = error;
-        if (error instanceof InvocationTargetException
-                && ((InvocationTargetException) error).getTargetException() != null) {
-            cause = ((InvocationTargetException) error).getTargetException();
+        for (int depth = 0; depth < 8 && cause instanceof InvocationTargetException; depth++) {
+            Throwable target = ((InvocationTargetException) cause).getTargetException();
+            if (target == null || target == cause) break;
+            cause = target;
         }
         if (cause instanceof SecurityException) return "SECURITY_DENIED";
-        if (cause instanceof ReflectiveOperationException
-                || error instanceof ReflectiveOperationException) return "REFLECTION_FAILED";
+        if (cause instanceof ReflectiveOperationException) return "REFLECTION_FAILED";
         if (cause instanceof LinkageError) return "CLASS_LINKAGE_FAILED";
         if (cause instanceof RuntimeException) return "RUNTIME_FAILURE";
         return "OTHER_FAILURE";
