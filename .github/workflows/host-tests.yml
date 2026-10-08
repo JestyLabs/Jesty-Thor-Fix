@@ -77,6 +77,18 @@ jobs:
         shell: pwsh
         run: ./scripts/test-dashboard.ps1
 
+      - name: App diagnostics privacy and retention
+        shell: pwsh
+        run: ./scripts/test-app-diagnostics.ps1
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Energy comparison fixtures (no device access)
+        shell: pwsh
+        run: python ./scripts/test-thor-energy.py
+
       - name: Validate release workflow policy
         shell: pwsh
         run: ./scripts/test-release-policy.ps1

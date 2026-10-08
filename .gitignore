@@ -33,6 +33,8 @@ screen-timeout-wake.txt
 *.zip
 
 # Editor and OS files
+__pycache__/
+*.pyc
 .idea/
 .vscode/
 *.iml

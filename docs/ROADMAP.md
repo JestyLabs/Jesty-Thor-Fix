@@ -113,6 +113,22 @@ Read-only investigation should compare 60/60, 120/60 and the AYN 120 Hz dual-scr
 
 Do not tune vsync offsets blindly. First prove whether the mismatch is in Android scheduling, Qualcomm HWC/SDM, DRM/DSI timing, or the panel configuration.
 
+## P2: app observability and sleep energy investigation
+
+- **Structured event history:** candidate implementation; reuse existing
+  foreground telemetry, bounded private retention and on-demand sanitized export.
+- **Crashes / process kills:** candidate implementation; query Android's retained
+  app exit reasons, distinguish Activity lifecycle from process death and preserve
+  unknown/unavailable results. Device validation is pending.
+- **Controlled energy measurements:** planned; establish real sleep consumption,
+  deep-suspend evidence and diagnostics overhead before claiming a gain or
+  changing display behaviour. Both screens visually off and a lower CRTC marked
+  active do not establish panel power or a failure of the TOP-only fix.
+
+See [scope, sleep observations and measurement protocol](APP-OBSERVABILITY-AND-ENERGY.md)
+and [trial worksheet](ENERGY-TRIAL-WORKSHEET.csv). No new display commands,
+daemon changes or sleep polling are introduced by this observability candidate.
+
 ## Next: Retroid Pocket Duo compatibility
 
 Goal: make the codebase ready to support more than one dual-screen handheld without weakening Thor safety.

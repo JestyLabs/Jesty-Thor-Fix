@@ -30,6 +30,7 @@ final class DashboardLayout {
         void onSupport();
         void onGithub();
         void onGithubLongPress();
+        void onDiagnostics();
     }
 
     final FrameLayout root;
@@ -211,6 +212,10 @@ final class DashboardLayout {
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
         content.addView(cpuPanel);
+        TextView diagnostics = views.topAction("APP DIAGNOSTICS");
+        diagnostics.setOnClickListener(v -> actions.onDiagnostics());
+        content.addView(diagnostics, new LinearLayout.LayoutParams(-1,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
     }
 
     private static LinearLayout buildOpenSourceBadge(DashboardViews views) {

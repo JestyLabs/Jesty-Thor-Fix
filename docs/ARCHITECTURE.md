@@ -18,6 +18,11 @@ Jesty Thor Fix is split between a normal Android dashboard and a privileged root
   classifies an unreachable socket pathname before waiting (see *Daemon launch
   and stale sockets*).
 - `BootReceiver` starts that service after a normal boot.
+- `AppDiagnostics` records bounded Activity/telemetry transitions in private
+  preferences and queries this package's Android exit history on demand.
+  `AppDiagnosticReport` allowlists fields before persistence/export. It reuses
+  existing foreground samples and introduces no daemon request or sleep poll.
+  See [observability and energy validation](APP-OBSERVABILITY-AND-ENERGY.md).
 - `AppUpdater` checks GitHub releases only while the dashboard is open (at most
   hourly), shows the top-bar UPDATE button, and downloads, verifies and hands
   a newer APK to `PackageInstaller`; `UpdateInstallReceiver` (not exported)
