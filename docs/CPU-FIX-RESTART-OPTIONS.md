@@ -4,7 +4,7 @@
 The signed v1.5.20 APK was physically tested with the existing compositor
 restart path; no pre-composer hook was installed or tested. Source history:
 Codex thread
-`01a0cbaa-8916-7ee0-8dfb-df13250c180c` (the v1.0.x-v1.2.0 CPU Fix
+`00000000-0000-4000-8000-000000000001` (the v1.0.x-v1.2.0 CPU Fix
 experiments), [LIVE-RESULTS](LIVE-RESULTS.md), current code and the
 [v1.5.17 validation diary](VALIDATION-1.5.17-PENDING.md). Old message
 conclusions are treated as observations, not proof of untested boot designs.
@@ -122,7 +122,7 @@ Other routes remain limited:
 1. **No write, no reboot first.** Recheck installed version, battery, BOTH
    image/CRTCs, boot ID, CPU preference/property, composer/daemon PIDs and
    known early SurfaceFlinger abort signature. Run
-   `scripts/collect-thor-boot.ps1 -Serial 96f052f5 -Label cpu-early-preflight -InspectInit`
+   `scripts/collect-thor-boot.ps1 -Serial DEVICE_SERIAL_REDACTED -Label cpu-early-preflight -InspectInit`
    while ADB is connected. Confirm a usable early hook and its actual order;
    package or executable absence from ADB shell is not conclusive.
 2. **Go/no-go before any candidate.** A safe trial requires an opt-in,
