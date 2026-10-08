@@ -67,7 +67,7 @@ firmware mechanism for the new zygote after the early SurfaceFlinger abort.
 
 ## Exact failure chain from the new capture
 
-The new boot ID is `599c48a0-4d31-4d90-91b0-287eb5c8577d` and the
+The new boot ID is `00000000-0000-4000-8000-000000000008` and the
 installed app is still v1.5.17. Uptime seconds are from the early
 `logcat -v monotonic` capture; first-phase event payloads agree on this boot.
 
