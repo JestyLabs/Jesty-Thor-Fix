@@ -61,12 +61,17 @@ test -n "$baseline" || { echo "Cannot read baseline lastUpdateTime" >&2; exit 1;
 
 # Session is written, then abandoned before commit. No install callback should
 # be generated, and target package timestamp must remain unchanged.
-adb_avd shell am start -W -n "$COMPONENT" --es mode abandon >/dev/null
-wait_state abandon_result ABANDONED
-test "$(last_updated)" = "$baseline" || {
-  echo "Package unexpectedly changed after session abandon" >&2; exit 1;
-}
-echo "PASS: actual Android session written + abandoned before commit"
+# Repeat on the *same* Android emulator to expose delayed session removal.
+# Each invocation resets abandon_result before creating a new session.
+for attempt in 1 2 3 4 5; do
+  adb_avd shell am start -W -n "$COMPONENT" --es mode abandon >/dev/null
+  wait_state abandon_result ABANDONED
+  wait_state abandon_phase CONFIRMED_GONE
+  test "$(last_updated)" = "$baseline" || {
+    echo "Package unexpectedly changed after session abandon #$attempt" >&2; exit 1;
+  }
+  echo "PASS: actual Android session $attempt/5 written + abandoned before commit"
+done
 
 # Real PackageInstaller.commit with a private PendingIntent result. Demand the
 # platform-provided confirmation callback, rather than asserting a synthetic
