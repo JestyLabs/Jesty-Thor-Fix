@@ -86,7 +86,7 @@ the first was identified on the lower screen. The visual timing of the other
 blink was not captured precisely. This is a confirmed visual disruption report,
 not a claim that either panel was damaged. No reboot occurred, the composer PID
 remained `2319`, the boot ID remained
-`cecf25bc-4750-4933-89c9-9acd29d89499`, and both CRTCs were active at the
+`00000000-0000-4000-8000-000000000014`, and both CRTCs were active at the
 final 60/60 check.
 
 This capture differs materially from the earlier 12:28 probe:
