@@ -1,0 +1,62 @@
+name: Updater Cancel gate - Android emulator
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/updater-gate-emulator.yml'
+      - 'src/com/thor/displaypowertest/UpdateCommitGate.java'
+      - 'tests/android/update-gate-harness/**'
+      - 'scripts/build-update-gate-emulator-harness.sh'
+      - 'scripts/test-update-gate-emulator.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  emulator_gate:
+    name: Android 13 native gate and cancelled install session
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          packages: platform-tools
+
+      - name: Install disposable harness build dependencies
+        run: sdkmanager "platforms;android-34" "build-tools;35.0.0"
+
+      - name: Generate CI-only signing key and compile production gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          keytool -genkeypair -noprompt -alias thor-gate-ci -keyalg RSA -keysize 2048 \
+            -validity 1 -keystore "$RUNNER_TEMP/gate-ci.jks" \
+            -storepass android -keypass android \
+            -dname "CN=Thor Update Gate Emulator, OU=CI, O=JestyLabs"
+          bash scripts/build-update-gate-emulator-harness.sh \
+            "$RUNNER_TEMP/gate-ci-harness.apk" "$RUNNER_TEMP/gate-ci.jks"
+
+      - name: Enable KVM
+        run: |
+          test -c /dev/kvm
+          sudo chmod a+rw /dev/kvm
+
+      - name: Exercise Cancel gate with real Android PackageInstaller session
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        with:
+          api-level: 33
+          target: default
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: bash scripts/test-update-gate-emulator.sh "$RUNNER_TEMP/gate-ci-harness.apk"
