@@ -24,16 +24,24 @@ Administrative readback on 2026-10-08 confirmed `thor-signing` and
 `thor-publication`: only the **branch** `main` is allowed, `SirJesty` is the
 required reviewer, self-review is allowed for the solo maintainer, and
 administrator bypass is disabled. The readiness variables are scoped to their
-respective environments. Both signing secrets are staged in `thor-signing`;
+respective environments. Both signing secrets are stored in `thor-signing`;
 the existing local keystore certificate matches the established signer.
 
-Repository-scoped copies are temporarily retained until a protected signing run
-has succeeded and its artifact has been checked. Therefore repository-wide
-secret isolation is **not yet complete**. Do not treat PR CI success or Settings
-readback as evidence that a protected signing/publication job has run.
+The protected main signing run passed after a real reviewer rejection and a
+separately approved rerun. Its signed APK matched the established certificate,
+the recorded unsigned input hash and the original APK payload. Repository-scoped
+signing copies were then removed; a subsequent experimental signing run passed
+using only the environment copies. Organization-level secret inventory remains
+unverified because the administrative token lacks the required organization
+permission.
 
-The following is the migration/recovery procedure, not a claim that all runtime
-acceptance tests have completed:
+The independent publication gate was rejected before any job steps ran, and the
+release list remained unchanged. No test release was published and neither
+candidate was installed. Host tests also rejected experimental candidate metadata
+at the production publication source check; this is not a live publication test.
+
+The following is the migration/recovery procedure. The completed migration above
+does not establish physical acceptance of a diagnostic candidate:
 
 The workflow files declare **two named GitHub Environments**. A YAML reference
 alone does **not** create reviewers or protect secrets: configure the environments
