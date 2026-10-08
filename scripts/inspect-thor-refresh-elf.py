@@ -2,7 +2,9 @@
 
 Requires locally installed pyelftools; --disassemble additionally uses capstone.
 --deps can point at an existing offline dependency directory. Output stays local.
-Addresses are ELF virtual addresses, with file offsets printed independently.
+--disassemble uses ELF virtual addresses, with file offsets independently.
+--function reads a named AArch64 ET_REL module function using section offsets
+and relocation annotations, without confusing equal offsets across sections.
 """
 
 import argparse
@@ -78,6 +80,8 @@ def disassemble(path, start, end):
         elf = ELFFile(stream)
         if elf.elfclass != 64 or elf["e_machine"] != "EM_AARCH64" or not elf.little_endian:
             raise ValueError("Disassembly requires a little-endian AArch64 ELF")
+        if elf["e_type"] == "ET_REL":
+            raise ValueError("ET_REL has section offsets, not linked VAs; use --function NAME")
         segment = next(s for s in elf.iter_segments() if s["p_type"] == "PT_LOAD"
                        and s["p_vaddr"] <= start < end <= s["p_vaddr"] + s["p_filesz"])
         offset = segment["p_offset"] + start - segment["p_vaddr"]
@@ -116,13 +120,67 @@ def disassemble(path, start, end):
         return "\n".join(lines)
 
 
+def disassemble_function(path, name):
+    """Resolve one module function and its relocations within its own section."""
+    from elftools.elf.elffile import ELFFile
+    from elftools.elf.descriptions import describe_reloc_type
+    from capstone import Cs, CS_ARCH_ARM64, CS_MODE_LITTLE_ENDIAN
+    with path.open("rb") as stream:
+        elf = ELFFile(stream)
+        if (elf["e_type"] != "ET_REL" or elf["e_machine"] != "EM_AARCH64"
+                or elf.elfclass != 64 or not elf.little_endian):
+            raise ValueError("--function requires a little-endian AArch64 ET_REL module")
+        table = elf.get_section_by_name(".symtab")
+        candidates = [] if table is None else [s for s in table.get_symbol_by_name(name) or []
+            if s["st_info"]["type"] == "STT_FUNC" and isinstance(s["st_shndx"], int)]
+        if len(candidates) != 1:
+            raise ValueError("Expected exactly one defined function: " + name)
+        symbol = candidates[0]
+        index, start, size = symbol["st_shndx"], symbol["st_value"], symbol["st_size"]
+        section = elf.get_section(index)
+        if size <= 0 or start + size > section["sh_size"]:
+            raise ValueError("Function has no valid bounded section range")
+        annotations = {}
+        for reloc_section in elf.iter_sections():
+            if reloc_section["sh_type"] != "SHT_RELA" or reloc_section["sh_info"] != index:
+                continue
+            reloc_symbols = elf.get_section(reloc_section["sh_link"])
+            for reloc in reloc_section.iter_relocations():
+                offset = reloc["r_offset"]
+                if not start <= offset < start + size:
+                    continue
+                target = reloc_symbols.get_symbol(reloc["r_info_sym"])
+                target_section = elf.get_section(target["st_shndx"]) if isinstance(target["st_shndx"], int) else None
+                target_name = target.name or (target_section.name if target_section else str(target["st_shndx"]))
+                addend = reloc["r_addend"]
+                description = (f'{describe_reloc_type(reloc["r_info_type"], elf)} '
+                               f'{target_name} addend={addend:#x}')
+                if target_section and target_section.name.startswith(".rodata"):
+                    position = target["st_value"] + addend
+                    if 0 <= position < target_section["sh_size"]:
+                        preview = target_section.data()[position:position + 160].split(b"\0", 1)[0]
+                        description += " " + repr(preview)
+                annotations.setdefault(offset, []).append(description)
+        lines = [json.dumps(identity(path)),
+                 f"FUNCTION {name}; section={section.name}; section_index={index}; "
+                 f"section_offset={start:#x}; size={size:#x}; file_offset={section['sh_offset'] + start:#x}",
+                 "Addresses below are section offsets, not runtime addresses or linked VAs."]
+        for ins in Cs(CS_ARCH_ARM64, CS_MODE_LITTLE_ENDIAN).disasm(section.data()[start:start + size], start):
+            annotation = " ; ".join(annotations.get(ins.address, []))
+            lines.append(f"{ins.address:08x} file={section['sh_offset'] + ins.address:08x} "
+                         f"{ins.bytes.hex()} {ins.mnemonic:7} {ins.op_str} ; {annotation}")
+        return "\n".join(lines)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("path", type=Path)
     parser.add_argument("--deps", type=Path)
     parser.add_argument("--manifest", type=Path)
-    parser.add_argument("--symbols", help="substring; includes embedded .gnu_debugdata symbols")
-    parser.add_argument("--disassemble", nargs=2, metavar=("START_VA", "END_VA"))
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--symbols", help="substring; includes embedded .gnu_debugdata symbols")
+    mode.add_argument("--disassemble", nargs=2, metavar=("START_VA", "END_VA"))
+    mode.add_argument("--function", help="exact function name in an AArch64 ET_REL module")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     if args.deps:
@@ -132,6 +190,8 @@ def main():
         text = json.dumps(result, indent=2)
         failed = bool(args.manifest) and (bool(result["missingManifestPaths"]) or any(
             row["manifestMatch"] is not True for row in result["files"]))
+    elif args.function:
+        text, failed = disassemble_function(args.path, args.function), False
     elif args.disassemble:
         text = disassemble(args.path, *(int(x, 0) for x in args.disassemble))
         failed = False

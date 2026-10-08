@@ -1,5 +1,9 @@
 # PR #37: resumed investigation, 2026-10-08
 
+Follow-up: [exact kernel RAM path, sleep clarification and trace attempt](THOR-120HZ-KERNEL-RAM-20261008.md).
+The capture below is an earlier snapshot, not a claim the Thor stayed awake.
+The later sleep check and subsequent owner-authorized wake are recorded separately.
+
 Scope: read-only device verification and integration of the existing exact-binary
 analysis. No refresh-policy writes, installation, reboot or sysfs writes.
 

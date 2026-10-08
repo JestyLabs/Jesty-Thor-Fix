@@ -501,9 +501,11 @@ Android refresh-policy observer
 
 The exact electrical/internal-panel meaning of B9 00 vs B9 11 is not claimed
 without a controller datasheet. Prior public driver analysis associates this
-sysfs with a secondary-panel DSI action. Without a local exact kernel source,
-this is source-level provenance, not a new verification of commands executed
-by the .377 kernel.
+sysfs with a secondary-panel DSI action. The source-only limitation is superseded
+by [exact .377 module analysis](THOR-120HZ-KERNEL-RAM-20261008.md): the loaded
+module identity/file hash and mapping were verified. Sysfs reports a shadow byte;
+store/prepare discard transfer failures. Controller ACK and optical cadence
+remain unproven.
 
 ### Current upstream Linux Thor driver
 
