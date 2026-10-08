@@ -70,5 +70,3 @@ history survives app process restarts but can be cleared on-device.
 - The app-side journal is not a boot-surviving daemon audit log.
 - No background monitoring and no attempt to suppress/optimise the existing
   watcher (research PR #41 stays independent).
-- No implementation has been copied from any third-party application; this
-  is an independent observer designed for the Thor Fix `Q` reply.
