@@ -8,7 +8,7 @@ public final class DaemonIdentity {
      * Research-only wire identity so an in-place test can replace the v1.6.0
      * daemon without changing Android package/version semantics.
      */
-    public static final String RUNTIME_ID = "1.6.0-watcher-exp1";
+    public static final String RUNTIME_ID = "1.6.0-watcher-exp2";
 
     private DaemonIdentity() {}
 }

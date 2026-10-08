@@ -64,6 +64,35 @@ public final class EarlyCpuAttemptImportModelTest {
                 Action.FAIL_SAFE,
                 "different current-boot provenance must never be overwritten");
 
+        CpuBootAttemptModel.Attempt applied = early.withPhase(CpuBootAttemptModel.Phase.APPLIED, 5000L);
+        eq(EarlyCpuAttemptImportModel.decide(
+                        early, false, applied, false, BOOT, true),
+                Action.KEEP_PROGRESS,
+                "daemon replacement must retain the completed form of the same early attempt");
+
+        eq(EarlyCpuAttemptImportModel.decide(early, false,
+                        early.withPhase(CpuBootAttemptModel.Phase.APPLIED, 4200L), false, BOOT, true),
+                Action.FAIL_SAFE, "completion before the early request is inconsistent");
+        eq(EarlyCpuAttemptImportModel.decide(early, false,
+                        new CpuBootAttemptModel.Attempt(BOOT, "1", "0", "100",
+                                CpuBootAttemptModel.Phase.APPLIED, 5000L), false, BOOT, true),
+                Action.FAIL_SAFE, "different previous property is different provenance");
+        eq(EarlyCpuAttemptImportModel.decide(early, false,
+                        new CpuBootAttemptModel.Attempt(BOOT, "1", "UNSET", "101",
+                                CpuBootAttemptModel.Phase.APPLIED, 5000L), false, BOOT, true),
+                Action.FAIL_SAFE, "different baseline composer cannot inherit early proof");
+        eq(EarlyCpuAttemptImportModel.decide(early, false,
+                        early.withPhase(CpuBootAttemptModel.Phase.FAILED, 5000L), false, BOOT, true),
+                Action.FAIL_SAFE, "failed attempt must never be upgraded to success");
+        eq(EarlyCpuAttemptImportModel.decide(early, false, applied, true, BOOT, true),
+                Action.FAIL_SAFE, "corrupt completed proof must remain rejected");
+        eq(EarlyCpuAttemptImportModel.decide(early, false, applied, false, BOOT, false),
+                Action.FAIL_SAFE, "progress cannot override saved OFF");
+        eq(CpuBootAttemptModel.decide(applied, BOOT, "1", "1", "100", 6000L),
+                CpuBootAttemptModel.Action.FAIL_SAFE, "current composer still needs successor proof");
+        eq(CpuBootAttemptModel.decide(applied, BOOT, "1", "1", "200", 6000L),
+                CpuBootAttemptModel.Action.PROCEED, "matching successor permits no-restart recovery");
+
         CpuBootAttemptModel.Attempt stale =
                 attempt(OLD, CpuBootAttemptModel.Phase.APPLIED, 5000L);
         eq(EarlyCpuAttemptImportModel.decide(

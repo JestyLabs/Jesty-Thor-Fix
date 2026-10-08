@@ -134,6 +134,18 @@ Host success and lower theoretical request rates do not establish device A/B
 benefit, physical regression safety or battery-life improvement. Raw hardware
 identifiers and session evidence stay in the owner's local evidence archive.
 
+**OBSERVED during authorized in-place testing:** exp1 handed over without a
+kernel/composer restart but rejected early CPU import and showed CPU Fix
+unconfirmed. Source comparison proves this import policy is inherited from
+v1.6.0, not introduced by the watcher. A host regression reproduces rejection
+of an early RESTART_REQUESTED record after the same durable attempt progressed
+to APPLIED. Exp2 preserves that completed record only with matching boot,
+desired/previous values and baseline composer, and non-decreasing phase time.
+It does not overwrite or re-import the earlier phase. Existing current-composer
+and property verification still decides whether the retained proof authorizes
+confirmation. Conflict/corruption/OFF/failed/chronology tests remain fail-safe.
+Physical exp2 confirmation is a separate gate; no marker was manually edited.
+
 ## Evidence discipline
 
 Technical claims should be labelled internally as one of:

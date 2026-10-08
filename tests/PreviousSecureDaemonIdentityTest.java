@@ -44,6 +44,14 @@ public final class PreviousSecureDaemonIdentityTest {
         check(PreviousSecureDaemonIdentity.safePid(
                 HEALTH.replace("1.5.3", "1.6.0"), BOTH) == 11398,
                 "stable v1.6.0 may be replaced by the isolated watcher experiment");
+        String exp1 = HEALTH.replace("1.5.3", "1.6.0-watcher-exp1");
+        check(PreviousSecureDaemonIdentity.safePid(exp1, BOTH) == 11398,
+                "only the exact earlier watcher candidate can be replaced in BOTH");
+        check(PreviousSecureDaemonIdentity.safePid(exp1, BOTH.replace("mode=0", "mode=1")) < 0,
+                "research handover remains BOTH-only");
+        check(PreviousSecureDaemonIdentity.safePid(
+                HEALTH.replace("1.5.3", "1.6.0-watcher-exp2"), BOTH) < 0,
+                "current research identity is not a previous-daemon allowance");
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.5.4"), BOTH) < 0,
                 "unknown version must not be killed");
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("pid=11398", "pid=1;bad=x"), BOTH) < 0,
