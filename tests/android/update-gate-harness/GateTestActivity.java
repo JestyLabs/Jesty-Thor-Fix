@@ -162,5 +162,7 @@ public final class GateTestActivity extends Activity {
                 .putString(key, value).commit()) {
             throw new IllegalStateException("could not persist " + key);
         }
+        // Only bounded test outcomes reach CI; no private preference access needed.
+        android.util.Log.i("ThorGateCI", "STATE " + key + "=" + value);
     }
 }
