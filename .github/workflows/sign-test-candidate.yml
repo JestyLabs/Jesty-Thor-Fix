@@ -21,6 +21,15 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      - name: Authorize test-signing operator
+        shell: pwsh
+        env:
+          ORIGINAL_ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        run: |
+          if ($env:ORIGINAL_ACTOR -cne 'SirJesty' -or $env:TRIGGERING_ACTOR -cne 'SirJesty') {
+              throw 'Only the designated JestyLabs release operator may sign test candidates'
+          }
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
@@ -46,6 +55,9 @@ jobs:
           }
 
           $run = gh api "repos/${{ github.repository }}/actions/runs/$env:RUN_ID" | ConvertFrom-Json
+          if ($run.path -ne '.github/workflows/host-tests.yml') {
+              throw 'Source run must use the trusted CI workflow file'
+          }
           if ($run.name -ne 'CI') {
               throw "Source run is not the CI workflow: $($run.name)"
           }
