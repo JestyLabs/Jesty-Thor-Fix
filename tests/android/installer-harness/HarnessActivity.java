@@ -43,7 +43,7 @@ public final class HarnessActivity extends Activity {
         } catch (Exception failure) {
             // Test-only diagnostic: record the failing API stage and exception.
             // No APK bytes, private device data or authentication tokens are logged.
-            android.util.Log.e("ThorInstallerCI", "harness mode=" + mode, failure);
+            android.util.Log.e("ThorInstallerCI", "Harness operation failed", failure);
             String reason = failure.getMessage();
             if (reason == null) reason = "";
             reason = reason.replaceAll("[\\r\\n\\t]", " ");
@@ -159,7 +159,16 @@ public final class HarnessActivity extends Activity {
     private void record(String key, String value) {
         if (!getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .edit().putString(key, value).commit()) {
-            throw new IllegalStateException("could not persist " + key);
+            throw new IllegalStateException("could not persist test state");
+        }
+        if ("failure".equals(key)) {
+            // Fixed marker only: do not expose untrusted test mode or exception text.
+            android.util.Log.e("ThorInstallerCI", "STATE failure=ERROR");
+        } else if (key.matches("[a-z_]{1,40}") && value.matches("[A-Z0-9_]{1,50}")) {
+            // Only closed-form test statuses are emitted to the emulator log.
+            android.util.Log.i("ThorInstallerCI", "STATE " + key + "=" + value);
+        } else {
+            throw new IllegalStateException("unexpected diagnostic status");
         }
     }
 }
