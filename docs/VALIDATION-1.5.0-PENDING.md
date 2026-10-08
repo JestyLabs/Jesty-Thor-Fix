@@ -316,7 +316,7 @@ The user was beside the Thor and visually observed every display transition.
 Before installation, BOTH was awake with CRTC 181=1 and 243=1. The signed
 v1.5.11 APK was installed once in place; no app data was cleared. The old
 v1.5.10 root daemon PID 16446 was replaced by one v1.5.11 daemon PID 21330.
-The kernel boot ID remained `6518dfe2-cf86-413a-9da7-0a91f6472c03`,
+The kernel boot ID remained `00000000-0000-4000-8000-000000000009`,
 both CRTCs remained active, and the user observed no blink or anomaly. The
 daemon reached `BOOT READY`. The APK pulled from the installed package matched
 the signed host candidate byte-for-byte by SHA-256. The temporary same-UID
@@ -347,7 +347,7 @@ the observed return to `Asleep` confirms that path worked on this Thor. The
 guard was switched OFF and the UI confirmed it before the cold boot.
 
 One genuine power-off/power-on cold boot was performed with the user watching.
-The new kernel boot ID was `4824e62f-7523-4b9e-9a55-b24d26c73625`. The
+The new kernel boot ID was `00000000-0000-4000-8000-000000000007`. The
 sanitized local trace for this boot reads `WAIT_FOR_ANDROID` at elapsed 59.116
 s with mode `?`, then `BOOT_CPU_FIX_NOT_APPLIED` at 71.574 s, followed by
 `RECONCILE_DISPLAY`, `BOTTOM_ON_CONFIRMED`, and `BOOT_READY` at 72.183 s.
@@ -437,7 +437,7 @@ The exact signed v1.5.12 APK SHA-256 is
 
 The v1.5.12 APK was installed once in place under observation, without a
 kernel reboot. Before installation, BOTH had both CRTCs active, one v1.5.11
-daemon, and boot ID `4824e62f-7523-4b9e-9a55-b24d26c73625`. The user saw
+daemon, and boot ID `00000000-0000-4000-8000-000000000007`. The user saw
 no blink or visual anomaly. The old daemon was replaced by one v1.5.12 daemon;
 the boot ID stayed the same. The installed APK bytes matched the signed host
 APK SHA-256 above. The UI reported `BOTH SCREENS`, `CPU FIX STATE UNKNOWN · NO
@@ -448,7 +448,7 @@ The second and final permitted cold boot was then performed as a genuine
 power-off followed by the user's physical power-on. The user observed one
 visual boot with no green flash or artifact. Both CRTCs and the stable app
 view subsequently showed BOTH active.
-The new kernel boot ID was `f7062f15-b3fb-44ac-87a6-6dfad529035d`. The
+The new kernel boot ID was `00000000-0000-4000-8000-000000000019`. The
 sanitized local trace records `WAIT_FOR_ANDROID` at elapsed 60.359 s with mode
 `?`, `BOOT_CPU_FIX_NOT_APPLIED` at 72.700 s, `RECONCILE_DISPLAY` at 72.802 s,
 `BOTTOM_ON_CONFIRMED` at 73.208 s, and `BOOT_READY` at 73.310 s. There was no
@@ -474,7 +474,7 @@ draft; this is not a release or stable promotion.
 Read-only checks after the second boot reconfirmed `kalama`, SoC ID `603`,
 platform subtype `0`, a running vendor display composer, and an empty
 `vendor.display.disable_system_load_check`. The boot ID stayed
-`f7062f15-b3fb-44ac-87a6-6dfad529035d`; no property write, compositor
+`00000000-0000-4000-8000-000000000019`; no property write, compositor
 restart, package install, or further cold boot was performed. The actual
 Thor vendor boot script sets the property only for subtype `1`. Android's
 property service persists `persist.*` properties, not ordinary `vendor.*`
@@ -536,7 +536,7 @@ adds only the installed v1.5.12 identity. Both host suites passed. The signed
 and aligned APK verifies under the established certificate; SHA-256 is
 `B03732EA16E11DDB80FCA6DA47C8C833205C643B13C5F65CC1405AF1A56141B9`.
 The signed APK remains outside Git. The Thor preflight showed v1.5.12, kernel boot ID
-`f7062f15-b3fb-44ac-87a6-6dfad529035d`, composer PID 1337,
+`00000000-0000-4000-8000-000000000019`, composer PID 1337,
 SurfaceFlinger PID 2524, one root daemon PID 7802, property absent, and
 `Awake`; the user confirmed image on both panels. One supervised in-place
 install succeeded. Before app launch, boot ID, composer PID, daemon PID, and
@@ -586,8 +586,8 @@ APK, trace, logs, and signing material remain outside Git.
 
 One additional supervised power-off/power-on cold boot exercised automatic
 CPU Fix restoration on this final APK. The prior kernel boot ID was
-`f7062f15-b3fb-44ac-87a6-6dfad529035d`; the new ID was
-`85266414-667f-4691-bce0-e3ecaca53068` and did not change during the
+`00000000-0000-4000-8000-000000000019`; the new ID was
+`00000000-0000-4000-8000-000000000011` and did not change during the
 compositor/UI restart. The trace recorded `WAIT_FOR_ANDROID` at elapsed
 64.528 s with mode `?`, both CRTCs active, and CPU property absent;
 `APPLY_CPU_FIX` at 77.016 s in mode 0; `WAIT_AFTER_COMPOSER` at 87.391 s

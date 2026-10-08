@@ -50,7 +50,7 @@ Tested CI merge candidate: `9ec3ad26f03fdf4dcc9da1dd9eb0ff0323212c36`
 Signed test APK SHA-256: `CB18BC9A0EB77F0256D23E856658D160E9B838912A6437ED38D9C86DB0646A73`
 
 Physical cold-boot record:
-- boot ID `335174a3-a5a2-4b1b-8e28-479ec964bef7`
+- boot ID `00000000-0000-4000-8000-000000000005`
 - imported phase `RESTART_REQUESTED`
 - baseline composer PID `1221`
 - successor composer PID `2314`
