@@ -26,6 +26,18 @@ is substituted for those missing counts.
 
 ## Supervised device checklist
 
+Prepared local signed candidate (not installed):
+
+- Source commit: `c8838d179816e13afff3320ce5dd38e1bd44354d`.
+- APK: `Jesty-Thor-Fix-1.7.0.apk`, package 1.7.0 / code 71.
+- SHA-256: `0c237de7bb730e90cf1beb76118d21bd53a090de3dcf4ed605a7006f7c4f31c8`.
+- Certificate SHA-256: `727d4850779bed1e51018108e13bc399d4da38cfc68f4f7504120ad5e2dad6fc`.
+- Build, DEX merge, alignment and v1/v2/v3 signature verification: PASS.
+- Decoded signed APK confirms both VERSION and RUNTIME_ID are 1.7.0 and the
+  successful-repair result/health log is packaged. Host suites passed.
+- Raw build/test/decode evidence stays locally outside Git under
+  `C:\Temp\jesty-thor-v1.7.0-candidate-evidence`.
+
 1. Owner approval for the exact signed APK installation/open, with the Thor
    awake in BOTH and both CRTCs active. Preserve all app data and proof records.
 2. Confirm installed APK SHA-256, runtime 1.7.0, one healthy daemon, BOOT_READY,
