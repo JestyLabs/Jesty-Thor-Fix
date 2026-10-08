@@ -83,6 +83,17 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Authorize signed main candidate
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          ORIGINAL_ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        run: |
+          if ($env:ORIGINAL_ACTOR -cne 'SirJesty' -or $env:TRIGGERING_ACTOR -cne 'SirJesty') {
+              throw 'Signed main candidates require the designated JestyLabs release operator'
+          }
+
       - name: Prepare signing material
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
