@@ -56,7 +56,47 @@ public final class UpdateCommitGateTest {
                     "accepted cancellation matches model state");
             concurrent.finish();
         }
+        // Deterministically force both thread orders. A scheduling-dependent
+        // race alone cannot prove that a prior accepted Cancel blocks handoff.
+        for (int iteration = 0; iteration < 32; iteration++) {
+            checkOrderedHandoff(true);
+            checkOrderedHandoff(false);
+        }
         System.out.println("UpdateCommitGateTest passed");
+    }
+
+    private static void checkOrderedHandoff(boolean cancelFirst) throws Exception {
+        UpdateCommitGate gate = new UpdateCommitGate();
+        check(gate.start(), "ordered handoff starts");
+        CountDownLatch firstFinished = new CountDownLatch(1);
+        AtomicBoolean firstAccepted = new AtomicBoolean(false);
+        AtomicBoolean secondAccepted = new AtomicBoolean(false);
+        Thread first = new Thread(() -> {
+            try {
+                firstAccepted.set(cancelFirst ? gate.cancel() : gate.beginCommit());
+            } finally {
+                firstFinished.countDown();
+            }
+        }, "ordered-first");
+        Thread second = new Thread(() -> {
+            await(firstFinished);
+            secondAccepted.set(cancelFirst ? gate.beginCommit() : gate.cancel());
+        }, "ordered-second");
+        first.start();
+        second.start();
+        first.join();
+        second.join();
+
+        check(firstAccepted.get(), "first decision must win");
+        check(!secondAccepted.get(), "late decision must be rejected");
+        check(gate.wasCancelled() == cancelFirst,
+                "cancellation state must reflect winning decision");
+        check(!gate.beginCommit(), "cannot start a second commit in same attempt");
+        gate.finish();
+        check(gate.start(), "cleanup permits a fresh attempt");
+        check(gate.cancel(), "fresh attempt may be cancelled");
+        check(!gate.beginCommit(), "fresh cancellation still blocks commit");
+        gate.finish();
     }
 
     private static void await(CountDownLatch latch) {
