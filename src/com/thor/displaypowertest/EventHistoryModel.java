@@ -168,12 +168,32 @@ public final class EventHistoryModel {
             try {
                 long timestamp = Long.parseLong(parts[0]);
                 Type type = Type.valueOf(parts[1]);
-                result.append(timestamp, type, parts[2]);
+                // Serialized values are untrusted, even though live samples are allow-listed.
+                if (detailAllowed(type, parts[2])) result.append(timestamp, type, parts[2]);
             } catch (IllegalArgumentException ignored) {
                 // Entries are observational only; damaged history is disposable.
             }
         }
         return result;
+    }
+
+    /** Verify each stored type/detail pair, not just its character set. */
+    private static boolean detailAllowed(Type type, String detail) {
+        if (type == null || detail == null) return false;
+        switch (type) {
+            case DAEMON_CONNECTED: return "Q_REPLY".equals(detail);
+            case DAEMON_UNAVAILABLE: return "NO_Q_REPLY".equals(detail);
+            case BOOT_HOLD_ENTERED: return "DISPLAY_ACTIONS_HELD".equals(detail);
+            case BOOT_HOLD_CLEARED: return "DISPLAY_ACTIONS_RESUMED".equals(detail);
+            case WATCHER_RUNNING: return "RUNNING".equals(detail);
+            case WATCHER_NOT_RUNNING: return "NOT_RUNNING".equals(detail);
+            case WAKE_OBSERVED: return "WAKE_COUNTER_ADVANCED".equals(detail);
+            case REPAIR_STATUS: return repairStatus(detail);
+            case CPU_PHASE: return cpuPhase(detail);
+            case DISPLAY_OBSERVED:
+                return detail.matches("MODE_[012]_TOP_[01]_BOTTOM_[01]");
+            default: return false;
+        }
     }
 
     /** Explicit firmware/daemon values only; never persist arbitrary IPC text. */
