@@ -22,17 +22,20 @@ fail_logs() {
 trap fail_logs ERR
 
 adb_avd install -r "$HARNESS" >/dev/null
+# A fresh result stream prevents false passes from earlier harness executions.
+adb_avd logcat -c
 adb_avd shell am start -W -n "$COMPONENT" --es mode init >/dev/null
 adb_avd shell appops set "$PKG" REQUEST_INSTALL_PACKAGES allow
 adb_avd push "$HARNESS" "/sdcard/Android/data/$PKG/files/candidate.apk" >/dev/null
-prefs() {
-  adb_avd shell run-as "$PKG" cat shared_prefs/update_gate_ci.xml 2>/dev/null | tr -d '\r'
+results() {
+  # Only the CI harness tag is inspected. No private app data is accessible.
+  adb_avd logcat -d -v brief -s ThorGateCI:I '*:S' | tr -d '\r'
 }
 assert_state() {
   local key="$1" wanted="$2" value
-  value="$(prefs)"
-  grep -Fq "name=\"$key\">$wanted</string>" <<< "$value" || {
-    echo "Expected $key=$wanted. Current results: $value" >&2
+  value="$(results)"
+  grep -Fq "STATE $key=$wanted" <<< "$value" || {
+    echo "Expected $key=$wanted. Current test markers: $value" >&2
     return 1
   }
 }
@@ -40,8 +43,8 @@ wait_state() {
   local key="$1" wanted="$2" tries
   for ((tries=0; tries<60; tries++)); do
     if assert_state "$key" "$wanted" 2>/dev/null; then return 0; fi
-    if grep -Fq 'name="result">FAIL</string>' <<< "$(prefs)"; then
-      echo "Gate harness reported failure: $(prefs)" >&2
+    if grep -Fq 'STATE result=FAIL' <<< "$(results)"; then
+      echo "Gate harness reported failure: $(results)" >&2
       return 1
     fi
     sleep 1
