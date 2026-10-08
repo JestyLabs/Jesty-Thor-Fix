@@ -24,6 +24,8 @@ trap fail_logs ERR
 # production installation. CI's emulator is fresh and isolated.
 adb_avd shell pm path "$TARGET" | grep -q '^package:'
 adb_avd install -r "$HARNESS"
+# Each CI invocation starts with a clean, emulator-only diagnostic stream.
+adb_avd logcat -c
 adb_avd shell am start -W -n "$COMPONENT" --es mode init >/dev/null
 
 # On this ephemeral AVD only, grant the test harness permission to request
@@ -33,24 +35,29 @@ adb_avd shell appops set "$AGENT" REQUEST_INSTALL_PACKAGES allow
 DEST="/sdcard/Android/data/$AGENT/files/candidate.apk"
 adb_avd push "$CANDIDATE" "$DEST" >/dev/null
 
-prefs() {
-  adb_avd shell run-as "$AGENT" cat shared_prefs/installer_ci.xml 2>/dev/null | tr -d '\r'
+results() {
+  # Scoped CI markers only; no debuggable APK or private prefs access.
+  adb_avd logcat -d -v brief -s ThorInstallerCI:I '*:S' | tr -d '\r'
 }
 assert_state() {
-  local key="$1" value="$2" result
-  result="$(prefs)"
-  grep -Fq "name=\"$key\">$value</string>" <<< "$result" || {
-    echo "Unexpected $key (expected $value). Saved diagnostics: $result" >&2
+  local key="$1" expected="$2" result
+  result="$(results)"
+  grep -Fq "STATE $key=$expected" <<< "$result" || {
+    echo "Unexpected $key (expected $expected). Test markers: $result" >&2
     return 1
   }
 }
 wait_state() {
-  local key="$1" value="$2" tries
+  local key="$1" expected="$2" tries
   for ((tries=0; tries<30; tries++)); do
-    if assert_state "$key" "$value" 2>/dev/null; then return 0; fi
+    if assert_state "$key" "$expected" 2>/dev/null; then return 0; fi
+    if grep -Eq 'STATE (failure=ERROR|callback_result=UNEXPECTED|callback_result=SESSION_MISMATCH)' <<< "$(results)"; then
+      echo "Harness reported a terminal diagnostic error: $(results)" >&2
+      return 1
+    fi
     sleep 1
   done
-  assert_state "$key" "$value"
+  assert_state "$key" "$expected"
 }
 last_updated() {
   adb_avd shell dumpsys package "$TARGET" | tr -d '\r' \
@@ -68,12 +75,15 @@ confirmation_focus() {
 }
 baseline="$(last_updated)"
 test -n "$baseline" || { echo "Cannot read baseline lastUpdateTime" >&2; exit 1; }
+wait_state init_result READY
 
 # Session is written, then abandoned before commit. No install callback should
 # be generated, and target package timestamp must remain unchanged.
 # Repeat on the *same* Android emulator to expose delayed session removal.
 # Each invocation resets abandon_result before creating a new session.
 for attempt in 1 2 3 4 5; do
+  # Reject stale ABANDONED/CONFIRMED_GONE markers from any previous iteration.
+  adb_avd logcat -c
   adb_avd shell am start -W -n "$COMPONENT" --es mode abandon >/dev/null
   wait_state abandon_result ABANDONED
   wait_state abandon_phase CONFIRMED_GONE
@@ -86,6 +96,7 @@ done
 # Real PackageInstaller.commit with a private PendingIntent result. Demand the
 # platform-provided confirmation callback, rather than asserting a synthetic
 # mocked intent was delivered.
+adb_avd logcat -c
 adb_avd shell am start -W -n "$COMPONENT" --es mode commit >/dev/null
 wait_state commit_result COMMIT_CALLED
 wait_state callback_result PENDING_USER_ACTION
