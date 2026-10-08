@@ -57,7 +57,7 @@ The pre-compositor hook stays research-only until timing, fallback, boot-loop
 escape and uninstall cleanup can all be proved.
 
 The historical runtime property, panel-cycle and composer-restart experiments
-have now been recovered from thread `01a0cbaa-8916-7ee0-8dfb-df13250c180c`.
+have now been recovered from thread `00000000-0000-4000-8000-000000000001`.
 Their results and the minimal supervised next-session test are consolidated in
 [CPU Fix restart options](CPU-FIX-RESTART-OPTIONS.md). Runtime ON/OFF still
 needs one confirmed visual compositor/framework restart; the open question is

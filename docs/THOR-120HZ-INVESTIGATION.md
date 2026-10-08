@@ -94,8 +94,7 @@ rollback in `finally`. The user reported **two brief black blinks in total**;
 the first was identified on the lower screen. The visual timing of the other
 blink was not captured precisely. This is a confirmed visual disruption report,
 not a claim that either panel was damaged. No reboot occurred, the composer PID
-remained `2305` (`2319` is SurfaceFlinger), the captured boot was unchanged,
-and both CRTCs were active at the
+remained unchanged, as did the captured boot; both CRTCs were active at the
 final 60/60 check.
 
 This capture differs materially from the earlier 12:28 probe:

@@ -145,7 +145,7 @@ SELinux/readability proof before runtime use.
 Physical Thor validation passed on 2026-10-07.
 
 Observed boot ID:
-`335174a3-a5a2-4b1b-8e28-479ec964bef7`
+`00000000-0000-4000-8000-000000000005`
 
 Evidence:
 - early attempt imported as `RESTART_REQUESTED` with baseline composer PID `1221`;
