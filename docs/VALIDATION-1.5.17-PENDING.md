@@ -104,7 +104,7 @@ On the Thor observed on 2026-10-04, ADB shell has no `su`. The collector reads
 the DRM state and vendor init files directly; `/data/tombstones` and `/data/adb`
 are not readable to shell. Record those as unavailable rather than interpreting
 an empty result as evidence of no tombstone or no root manager. The boot ID
-`b0953070-65f0-4fbf-93be-b3429828b571` was already about 55 hours old when
+`00000000-0000-4000-8000-000000000013` was already about 55 hours old when
 the Thor was connected, so that wake is not the v1.5.16 baseline. Its trace
 remains a secondary timing reference (`BOOT_READY` 65.479 s), without retained
 visible-finish events.
@@ -172,8 +172,8 @@ prepare a signed forward correction; do not clear data by default.
 
 The owner observed one cold boot in BOTH with both displays normal and no green
 flash or unexpected visual cycle. The kernel boot ID changed once from
-`b0953070-65f0-4fbf-93be-b3429828b571` to
-`02623caf-7cd6-43ae-889d-7ea95ff87ab2`. The existing v1.5.16 APK
+`00000000-0000-4000-8000-000000000013` to
+`00000000-0000-4000-8000-000000000002`. The existing v1.5.16 APK
 (`versionCode 65`) and CPU Fix preference were unchanged. The property finished
 at `1`, both physical CRTCs 181/243 were active, and the successor daemon
 reached `BOOT_READY` at 59.446 s. The first `sf_stop_bootanim` was 17.899 s
@@ -228,7 +228,7 @@ read-only, not evidence that shortening the grace is safe. The initial
 The exact signed v1.5.17 APK with the hash above was installed with `adb
 install -r` over v1.5.16; Android reported `versionCode 66` and
 `versionName 1.5.17`. Data was not cleared. Kernel boot ID stayed
-`02623caf-7cd6-43ae-889d-7ea95ff87ab2`; system_server, SurfaceFlinger and
+`00000000-0000-4000-8000-000000000002`; system_server, SurfaceFlinger and
 composer PIDs stayed unchanged. The old root daemon PID 9320 remained until
 the newly opened app completed its guarded migration, then one new root daemon
 PID 19556 started. Its trace shows stable CRTC samples at 500 ms cadence,
@@ -239,7 +239,7 @@ of the upgraded app is recorded separately from these ADB facts.
 ### 2026-10-04 v1.5.17 BOTH cold boot #1
 
 The kernel boot ID changed once to
-`e5e95d4f-672e-493f-8d8b-c32c34b8c386`. The post-boot collector saved
+`00000000-0000-4000-8000-000000000017`. The post-boot collector saved
 `C:\Temp\jesty-thor-1517-evidence\20261004-035732-both-1517-1-postboot`;
 the early events capture is paired by that boot ID. The daemon reached
 `BOOT_READY` at 60.924 s with CPU property `1`, AYN mode BOTH and CRTCs
@@ -290,7 +290,7 @@ Do not make that signal a v1.5.18 gate without a stronger condition.
 
 The owner observed the top display normal and the lower panel physically off,
 without green flash, artifact or unexpected visual cycle. The kernel boot ID
-changed once to `e5846afa-d7f9-4f9c-bfdb-814475e2f215`. The early and
+changed once to `00000000-0000-4000-8000-000000000016`. The early and
 post-boot evidence is outside Git under
 `C:\Temp\jesty-thor-1517-evidence\20261004-040152-top-1517-1-early` and
 `20261004-040309-top-1517-1-postboot`. The second `sf_stop_bootanim` was
@@ -318,7 +318,7 @@ with the physical AYN control and the owner confirmed normal image on both
 screens. The final read-only snapshot is outside Git at
 `C:\Temp\jesty-thor-1517-evidence\20261004-040550-session-final-both`:
 v1.5.17/versionCode 66 installed, kernel boot ID
-`e5846afa-d7f9-4f9c-bfdb-814475e2f215`, Android `Awake`, AYN mode `0`,
+`00000000-0000-4000-8000-000000000016`, Android `Awake`, AYN mode `0`,
 CPU property `1`, composer running, CRTCs 181 and 243 active, one root daemon
 PID 8888. Its command line carries display/CPU preferences ON and lid guard
 OFF. No data was cleared, no APK was downgraded, and no v1.5.18/1.5.19 patch
@@ -340,8 +340,8 @@ v1.5.17 remains a pre-release and v1.5.16 remains the stable release.
 ### 2026-10-04 v1.5.17 BOTH graphics investigation boot #2
 
 The owner later authorized one more reboot while observing the Thor. Kernel
-boot ID changed once from `e5846afa-d7f9-4f9c-bfdb-814475e2f215` to
-`599c48a0-4d31-4d90-91b0-287eb5c8577d`. The first and second visual
+boot ID changed once from `00000000-0000-4000-8000-000000000016` to
+`00000000-0000-4000-8000-000000000008`. The first and second visual
 phases finished at 17.743 and 59.106 s (`sf_stop_bootanim` event payloads).
 The owner confirmed both phases normal in BOTH, with no flash or panel
 anomaly. No APK or app data was changed.
