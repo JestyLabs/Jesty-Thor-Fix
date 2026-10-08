@@ -29,6 +29,8 @@
   <img src="https://github.com/user-attachments/assets/d1f1d875-792b-4b84-8d52-41b307d11ae4" alt="Jesty Thor Fix on the Thor: true lower-screen power-off compared with stock TOP mode" width="900">
 </p>
 
+---
+
 ### What it fixes
 
 | Control | What it does |
@@ -46,6 +48,8 @@ Open the dashboard to see the lower screen's real hardware state, CPU speeds, es
 <p align="center">
   <sub>The app dashboard running on a real AYN Thor.</sub>
 </p>
+
+---
 
 ### Measured on a real Thor
 
@@ -74,6 +78,8 @@ See [benchmarks](docs/BENCHMARKS.md), [architecture](docs/ARCHITECTURE.md) and [
 
 Full method + raw CSVs → [benchmarks](docs/BENCHMARKS.md)
 
+---
+
 ### Current investigations
 
 We're also exploring a few improvements. **These are still being researched, not included as fixes in v1.6.0.**
@@ -82,6 +88,8 @@ We're also exploring a few improvements. **These are still being researched, not
 - **⚡ Background efficiency** — Finding ways to reduce background work without making screen fixes slower.
 - **🔌 Device-service reliability** — Investigating a case where a built-in Thor service became unavailable.
 - **🎮 TOP-mode focus** — Checking whether games can lose focus when only the upper screen is in use.
+
+---
 
 ### How to use
 
@@ -94,6 +102,8 @@ The app uses the Thor’s own privileged bridge. No Magisk or root required.
 
 > **Note:** Changing the CPU Fix restarts Android UI/display once and closes open apps. The Thor's Qualcomm display stack caches this vendor setting when the composer starts, so a running-system change cannot be applied safely without replacing that composer. On stock Thor firmware, no safe app-controlled path was found that can set the property before the first composer starts. v1.6.0 therefore moves the required boot-time recovery into the natural startup window instead of letting it happen later; a slightly longer black startup phase is normal. Removing that restart entirely would require new vendor/firmware/init support or equivalent earlier privileged execution.
 
+---
+
 ### Safety
 
 - Does **not** write CPU frequencies, voltages, thermal limits, or firmware
@@ -103,6 +113,8 @@ The app uses the Thor’s own privileged bridge. No Magisk or root required.
 - No gameplay micro-stutter or thermal regression has been demonstrated from the background watcher. Its real idle cost is being measured before any polling change is considered.
 
 More details on resource use and known limitations are in the documentation below.
+
+---
 
 ### Compatibility
 
@@ -114,6 +126,8 @@ More details on resource use and known limitations are in the documentation belo
 
 Power savings depend on usage, brightness, firmware and workload. **No fixed battery-life percentage is claimed.**
 
+---
+
 ### Roadmap
 
 Beyond the investigations above, the next priorities are:
@@ -122,6 +136,8 @@ Beyond the investigations above, the next priorities are:
 - **More edge-case coverage** — BOTTOM-only/dock behaviour, external-display and lid transitions, updater testing, and clearer hardware profiles.
 
 Changes only move into a release after the required hardware validation. See the [full roadmap](docs/ROADMAP.md).
+
+---
 
 ### Support the project
 
@@ -137,6 +153,8 @@ Jesty Thor Fix is free and open source. No features are locked behind donations.
 - 🧪 Share results from another firmware
 - 🐛 Report reproducible issues
 - 💬 Join the original [Reddit discussion](https://www.reddit.com/r/AynThor/comments/1wrsmmo/found_two_weird_ayn_thor_issues_top_only_doesnt/)
+
+---
 
 ### Documentation
 
