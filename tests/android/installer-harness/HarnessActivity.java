@@ -1,0 +1,136 @@
+package org.jestylabs.thorfix.installerharness;
+
+import android.app.Activity;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageInstaller;
+import android.content.pm.PackageManager;
+import android.os.Build;
+import android.os.Bundle;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.OutputStream;
+
+/**
+ * Disposable Android emulator-only test component. It never runs as the Thor
+ * application and is deliberately not included in any production APK.
+ */
+public final class HarnessActivity extends Activity {
+    static final String PREFS = "installer_ci";
+    static final String ACTION_STATUS = "org.jestylabs.thorfix.installerharness.STATUS";
+    private static final String TARGET_PACKAGE = "com.thor.displaypowertest";
+    private static final String CANDIDATE_FILE = "candidate.apk";
+
+    @Override public void onCreate(Bundle state) {
+        super.onCreate(state);
+        String mode = getIntent().getStringExtra("mode");
+        if (mode == null) mode = "unknown";
+        try {
+            if ("init".equals(mode)) {
+                if (getExternalFilesDir(null) == null) throw new IllegalStateException("no app files dir");
+                record("init_result", "READY");
+            } else if ("abandon".equals(mode)) {
+                testAbandon();
+            } else if ("commit".equals(mode)) {
+                testCommit();
+            } else if ("confirm".equals(mode)) {
+                openSystemConfirmation();
+            } else {
+                throw new IllegalArgumentException("unsupported test mode");
+            }
+        } catch (Exception failure) {
+            record("failure", mode + ":" + failure.getClass().getSimpleName());
+        } finally {
+            finish();
+        }
+    }
+
+    private PackageInstaller installer() {
+        return getPackageManager().getPackageInstaller();
+    }
+
+    private File candidate() {
+        File root = getExternalFilesDir(null);
+        if (root == null) throw new IllegalStateException("no candidate directory");
+        File file = new File(root, CANDIDATE_FILE);
+        if (!file.isFile() || file.length() < 1000L) {
+            throw new IllegalStateException("candidate file missing or too small");
+        }
+        return file;
+    }
+
+    private int createPopulatedSession() throws Exception {
+        File apk = candidate();
+        PackageInstaller.SessionParams params =
+                new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
+        params.setAppPackageName(TARGET_PACKAGE);
+        if (Build.VERSION.SDK_INT >= 31) {
+            params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_REQUIRED);
+        }
+        int id = installer().createSession(params);
+        boolean prepared = false;
+        try (PackageInstaller.Session session = installer().openSession(id);
+             FileInputStream from = new FileInputStream(apk);
+             OutputStream to = session.openWrite("base.apk", 0, apk.length())) {
+            byte[] block = new byte[32768];
+            int size;
+            while ((size = from.read(block)) != -1) to.write(block, 0, size);
+            session.fsync(to);
+            prepared = true;
+        } finally {
+            if (!prepared) {
+                try { installer().abandonSession(id); } catch (Exception ignored) { }
+            }
+        }
+        return id;
+    }
+
+    private void testAbandon() throws Exception {
+        int id = createPopulatedSession();
+        installer().abandonSession(id);
+        boolean stillOpen = false;
+        for (PackageInstaller.SessionInfo item : installer().getMySessions()) {
+            if (item.getSessionId() == id) stillOpen = true;
+        }
+        if (stillOpen) throw new IllegalStateException("abandoned session still active");
+        record("abandon_result", "ABANDONED");
+    }
+
+    private void testCommit() throws Exception {
+        getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .remove("callback_result").remove("confirmation_result").remove("failure")
+                .commit();
+        int id = createPopulatedSession();
+        record("commit_result", "SESSION_PREPARED");
+        Intent callback = new Intent(this, InstallerStatusReceiver.class)
+                .setAction(ACTION_STATUS)
+                .putExtra("expected_session", id);
+        PendingIntent result = PendingIntent.getBroadcast(this, id, callback,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
+        try (PackageInstaller.Session session = installer().openSession(id)) {
+            // This is the actual Android API path, not 'adb install -r'.
+            session.commit(result.getIntentSender());
+        }
+        record("commit_result", "COMMIT_CALLED");
+    }
+
+    private void openSystemConfirmation() {
+        Intent confirmation = InstallerStatusReceiver.takeConfirmation();
+        if (confirmation == null) {
+            record("confirmation_result", "MISSING_PENDING_INTENT");
+            return;
+        }
+        record("confirmation_result", "OPENED_SYSTEM_UI");
+        confirmation.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(confirmation);
+    }
+
+    private void record(String key, String value) {
+        if (!getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit().putString(key, value).commit()) {
+            throw new IllegalStateException("could not persist " + key);
+        }
+    }
+}
