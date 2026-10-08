@@ -3,5 +3,6 @@
 /.github/CODEOWNERS @SirJesty
 /build.ps1 @SirJesty
 /scripts/prepublish.ps1 @SirJesty
+/scripts/test-release-policy.ps1 @SirJesty
 /docs/GITHUB-ACTIONS.md @SirJesty
 /docs/BUILD-AND-RELEASE.md @SirJesty
