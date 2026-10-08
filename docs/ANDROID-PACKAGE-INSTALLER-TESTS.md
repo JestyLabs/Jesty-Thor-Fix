@@ -100,7 +100,23 @@ the revised job must pass before the denial case is accepted.
    plan and both CRTCs observed. Do not force a vendor-service outage.
 2. Extend instrumentation to exercise app-owned `UpdateInstallReceiver`
    callback paths, including missing confirmation and interrupted lifecycle.
-3. Keep [PR #49](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/49)
-   independent and draft until Cancel-vs-commit races and physical user
-   confirmation have been validated.
-4. No merge or stable release from these tests alone.
+3. [PR #49](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/49)
+   has merged independently after host races and Android 13 native-session
+   cancellation tests. This harness checks the platform confirmation/refusal
+   callback, not the production updater's in-process receiver.
+4. Emulator acceptance is not evidence of a successful signed upgrade on
+   the physical Thor. No release is created by this test-only PR.
+
+## Integration hardening (2026-10-08)
+- Resolved review findings in the isolated test APK: the manifest no longer
+  enables debugging, and error logging no longer includes the untrusted
+  test-mode Intent value.
+- The emulator harness now emits bounded `ThorInstallerCI` result markers
+  into the Android log; CI no longer requires `run-as` or access to the app's
+  private preferences. Stored test statuses remain internal to the harness.
+- Each of the five abandon attempts clears the emulator test markers to prevent
+  stale successful events from satisfying a new iteration.
+- The CI workflow preserves the existing mainline signing protection and
+  incorporates the installer test as part of the Android lifecycle job.
+- These checks are confined to a disposable AVD, do not alter production
+  installer behavior, and do not install or upgrade software on a physical Thor.
