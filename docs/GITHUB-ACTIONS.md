@@ -88,9 +88,11 @@ reviewer or a deliberately designed owner-controlled bypass first.
 **Current protection boundary:** runtime operator guards are implemented in
 the workflow YAML. Environment approvals, secret re-scoping, a separate
 signing job and protected code-owner review settings are **not yet
-configured or claimed to be enforced**. Until they are, keep manual approval
-of all release-signing and publication runs and do not treat the workflow
-guards alone as sufficient for production supply-chain security.
+configured or claimed to be enforced**. In particular, **main CI still signs
+automatically after an authorized push and has no manual approval gate**. Do
+not merge unreviewed changes that can execute with signing secrets, manually
+scrutinize experimental signing and publication dispatches, and do not treat
+the operator guards alone as sufficient production supply-chain security.
 
 
 ## Pull requests
