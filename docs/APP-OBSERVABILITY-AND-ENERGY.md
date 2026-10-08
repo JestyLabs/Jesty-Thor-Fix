@@ -16,7 +16,7 @@ in existing foreground telemetry availability, AYN mode, CRTC flags, requested
 display/lid choices, desired CPU choice, CPU property and boot action hold.
 Desired/requested choices and the CPU property do not prove effective hardware
 state or that the composer reloaded a property.
-Identical telemetry samples cause no additional history writes. Only existing
+Typed edges distinguish daemon availability, watcher readiness, boot holds, CPU Fix phases, allowed repair results and wake counter advances. Mode and both CRTC flags produce a DISPLAY_OBSERVED event only after two consecutive valid, identical samples; this remains an app observation, not physical panel proof. Requested fix choices and reported CPU property changes use distinct CONFIG_OBSERVED events. No separate EVENTS screen, clipboard history or second journal is created. Identical telemetry samples cause no additional history writes. Only existing
 authenticated `Q` samples are reused; no new request or command is introduced.
 There is no diagnostics timer, sleep collector, wakelock or daemon change.
 Asynchronous preference persistence can lose the final event if the process is
@@ -156,7 +156,7 @@ boot/lid/IPC suites, public-content and release-policy checks, and unsigned APK
 compilation/alignment. Device export, Android exit-history behaviour and energy
 measurements remain unvalidated; no candidate was installed for this PR.
 
-- Host: retention, corrupt persistent input, arbitrary-field rejection, relative
+- Host: typed status/detail allowlists, two-sample CRTC confirmation, unknown-value rejection, wake counter resets, disconnect/reconnect baselines, pause gaps, one shared 64-entry ring, retention, corrupt persistent input, arbitrary-field rejection, relative
   ages, unavailable samples, future reason codes, export bounds, app compilation,
   dashboard and boot/lid/IPC suites, publication privacy checks.
 - Candidate device: preview; save/cancel/unavailable picker; background/recreate

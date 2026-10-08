@@ -20,7 +20,7 @@ Jesty Thor Fix is split between a normal Android dashboard and a privileged root
 - `BootReceiver` starts that service after a normal boot.
 - `AppDiagnostics` records bounded Activity/telemetry transitions in private
   preferences and queries this package's Android exit history on demand.
-  `AppDiagnosticReport` allowlists fields before persistence/export. It reuses
+  `AppDiagnosticReport` owns the single 64-entry journal; a pure Java classifier contributes only bounded, typed Q transitions (two consecutive valid samples for mode/CRTC observations), not a second store or poll. It reuses
   existing foreground samples and introduces no daemon request or sleep poll.
   See [observability and energy validation](APP-OBSERVABILITY-AND-ENERGY.md).
 - `AppUpdater` checks GitHub releases only while the dashboard is open (at most

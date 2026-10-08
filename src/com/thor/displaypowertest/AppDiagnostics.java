@@ -41,6 +41,7 @@ final class AppDiagnostics {
 
     void record(String event) {
         synchronized (report) {
+            if ("BACKGROUND".equals(event)) report.pauseObservations();
             storage.edit().putString("events", report.record(System.currentTimeMillis(), event)).apply();
         }
     }

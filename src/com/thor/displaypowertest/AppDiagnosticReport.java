@@ -14,6 +14,8 @@ public final class AppDiagnosticReport {
     private final List<String> events = new ArrayList<>();
     private String telemetry = "available=unknown";
     private long sampleAt = -1;
+    // No second journal or persistence: classifier only tracks Q baselines.
+    private final AppTelemetryTransitions transitions = new AppTelemetryTransitions();
 
     public AppDiagnosticReport(String stored) {
         if (stored == null || stored.length() > 16000) return;
@@ -38,14 +40,24 @@ public final class AppDiagnosticReport {
         return stored();
     }
 
-    /** Consumes the already-recorded foreground Q sample; never requests another. */
+    /** Consumes only existing foreground Q samples; persists typed edges once per batch. */
     public synchronized boolean sample(long wallMs, long elapsedMs, Map<String, String> values) {
-        String next = snapshot(values);
-        boolean changed = !next.equals(telemetry);
-        telemetry = next;
+        telemetry = snapshot(values); // Current snapshot is observational, not a confirmed edge.
         sampleAt = elapsedMs;
-        if (changed) record(wallMs, "TELEMETRY_CHANGED", next);
+        boolean changed = false;
+        for (AppTelemetryTransitions.Change edge : transitions.observe(values)) {
+            if (AppTelemetryTransitions.allowed(edge.type, edge.detail) && wallMs >= 0) {
+                events.add(wallMs + "|" + edge.type + "|" + edge.detail);
+                trim();
+                changed = true;
+            }
+        }
         return changed;
+    }
+
+    /** A paused dashboard cannot infer transitions across an unobserved interval. */
+    public synchronized void pauseObservations() {
+        transitions.pause();
     }
 
     public synchronized String stored() {
@@ -78,7 +90,10 @@ public final class AppDiagnosticReport {
             String[] parts = line.split("\\|", -1);
             out.append("\nevent;age_ms=").append(age(wallMs, Long.parseLong(parts[0])))
                     .append(";code=").append(parts[1]);
-            if (!parts[2].isEmpty()) out.append(';').append(parts[2]);
+            if (!parts[2].isEmpty()) {
+                if ("TELEMETRY_CHANGED".equals(parts[1])) out.append(';').append(parts[2]);
+                else out.append(";detail=").append(parts[2]);
+            }
         }
         out.append("\nlimits=activity_events_are_not_process_deaths;exit_history_is_not_complete;"
                 + "crtc_flags_are_not_panel_power;foreground_samples_are_not_sleep_measurements\n");
@@ -134,11 +149,15 @@ public final class AppDiagnosticReport {
         catch (NumberFormatException error) { return false; }
         boolean known = false;
         for (String candidate : EVENTS) known |= candidate.equals(parts[1]);
-        if (!known) return false;
-        if (!"TELEMETRY_CHANGED".equals(parts[1])) return parts[2].isEmpty();
-        return parts[2].matches("available=0|available=1;mode=[012?];top_crtc=[01?];bottom_crtc=[01?]"
-                + ";display_fix_requested=[01?];cpu_fix_desired=[01?];cpu_property=[01?]"
-                + ";lid_guard_requested=[01?];actions_held=[01?]");
+        if ("TELEMETRY_CHANGED".equals(parts[1])) {
+            // Legacy #55-format snapshots are readable but no longer appended
+            // as unconfirmed per-sample display events.
+            return parts[2].matches("available=0|available=1;mode=[012?];top_crtc=[01?];bottom_crtc=[01?]"
+                    + ";display_fix_requested=[01?];cpu_fix_desired=[01?];cpu_property=[01?]"
+                    + ";lid_guard_requested=[01?];actions_held=[01?]");
+        }
+        if (known) return parts[2].isEmpty();
+        return AppTelemetryTransitions.allowed(parts[1], parts[2]);
     }
 
     private void trim() { while (events.size() > MAX_EVENTS) events.remove(0); }
