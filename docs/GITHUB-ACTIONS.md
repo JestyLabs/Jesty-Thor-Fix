@@ -1,15 +1,18 @@
 # GitHub Actions build and release
 
-The repository has two GitHub Actions workflows:
+The repository has **four** GitHub Actions workflows:
 
-- `.github/workflows/host-tests.yml` runs on pull requests, pushes to `main`,
-  and manual dispatch. It runs the host suites and builds an unsigned APK.
-  A successful push to `main` also builds one signed candidate and stores that
-  exact APK as an Actions artifact for 30 days.
-- `.github/workflows/release.yml` is manual. It takes the run ID of a successful
-  `main` CI build, downloads that exact signed candidate, verifies its source
-  commit, version, SHA-256 and signing certificate, then creates a pre-release
-  or promotes the same unchanged APK to stable.
+- `.github/workflows/host-tests.yml` (`CI`) runs on pull requests, pushes to
+  `main` and manual dispatch. It runs the host suites, builds an unsigned APK,
+  and on a trusted push to `main` also signs a candidate for device testing.
+- `.github/workflows/codeql.yml` (`CodeQL Advanced`) scans GitHub Actions and
+  Java/Kotlin on pull requests, pushes to `main` and a weekly schedule.
+- `.github/workflows/sign-test-candidate.yml` (`Sign test candidate`) is a
+  manually dispatched test-only signing path for a successful same-repository
+  pull-request CI run; it cannot publish that APK through the release workflow.
+- `.github/workflows/release.yml` (`Publish tested candidate`) is manually
+  dispatched after physical validation; it verifies and releases the exact
+  signed APK from a successful `main` CI run.
 
 This preserves the physical-validation rule: **test the exact signed APK that
 will be released; do not rebuild after the Thor test.**
@@ -43,8 +46,52 @@ Until both secrets exist, pushes to `main` will fail deliberately at the
 signed-candidate step. Pull-request and unsigned builds do not need the signing
 secrets.
 
-Because a workflow merged into `main` can use repository secrets, keep `main`
-protected and require the CI/review policy appropriate for this repository.
+## Release authorization and outstanding administrative controls
+
+The signed-main, manual test-signing and manual publication workflows now fail
+before privileged work unless **both** `github.actor` and
+`github.triggering_actor` are `SirJesty`. The source test-signing workflow
+also verifies that the selected CI run used `.github/workflows/host-tests.yml`,
+not merely a workflow with the same display name. These are **defense-in-depth
+checks**, not a replacement for GitHub repository permissions: anyone allowed
+to merge arbitrary workflow edits into `main` could remove these checks.
+
+`.github/CODEOWNERS` names an owner for release workflows, signing/build
+scripts and this guide. This file is **advisory until** a branch rule requires
+code-owner reviews. Requiring such reviews on a one-person repository can
+prevent the author from merging their own PR, so arrange a trusted second
+reviewer or a deliberately designed owner-controlled bypass first.
+
+**Administrative work that cannot be completed by changing repository files:**
+
+1. Under **Settings -> Branches / Rules**, confirm `main` requires PRs, the
+   `build`, `Analyze (actions)` and `Analyze (java-kotlin)` checks, resolved
+   conversations and no force-push/delete. Review any admin bypasses.
+2. Under **Settings -> Actions -> General**, limit workflow-token defaults to
+   read-only; permit write only per job (publication currently needs
+   `contents: write`). Restrict who has repository write/admin access.
+3. Create a protected **signing environment** with required reviewer(s),
+   permitted branch `main` and the two signing secrets scoped to that
+   environment. Then **split main CI unsigned tests from signing** into
+   separate jobs (so PR tests do not wait for signing approval), declare the
+   signing environment on both secret-using jobs, verify gating end-to-end,
+   and remove the old repository-scoped secrets. Merely naming an
+   environment in YAML does not protect secrets; unconfigured environments
+   can be created without reviewers, and repo secrets can still be visible.
+4. Create a separate **publication environment** with permitted `main` and
+   required reviewer(s), and declare it on the `publish` job. Confirm
+   release permissions and that a refused approval cannot publish anything.
+5. Verify with a harmless unauthorized-dispatch attempt, an authorized
+   approval, an unchanged signed-APK checksum, and a blocked workflow-edit PR.
+   Do not test by exposing keystores or publishing dummy stable releases.
+
+**Current protection boundary:** runtime operator guards are implemented in
+the workflow YAML. Environment approvals, secret re-scoping, a separate
+signing job and protected code-owner review settings are **not yet
+configured or claimed to be enforced**. Until they are, keep manual approval
+of all release-signing and publication runs and do not treat the workflow
+guards alone as sufficient for production supply-chain security.
+
 
 ## Pull requests
 
