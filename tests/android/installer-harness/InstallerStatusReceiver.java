@@ -23,6 +23,7 @@ public final class InstallerStatusReceiver extends BroadcastReceiver {
         if (expected <= 0 || session != expected) {
             context.getSharedPreferences(HarnessActivity.PREFS, Context.MODE_PRIVATE).edit()
                     .putString("callback_result", "SESSION_MISMATCH").commit();
+            android.util.Log.e("ThorInstallerCI", "STATE callback_result=SESSION_MISMATCH");
             return;
         }
         int status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS,
@@ -38,7 +39,20 @@ public final class InstallerStatusReceiver extends BroadcastReceiver {
         } else {
             result = "FAILURE_STATUS_" + status;
         }
-        context.getSharedPreferences(HarnessActivity.PREFS, Context.MODE_PRIVATE).edit()
-                .putString("callback_result", result).commit();
+        if (!context.getSharedPreferences(HarnessActivity.PREFS, Context.MODE_PRIVATE)
+                .edit().putString("callback_result", result).commit()) {
+            android.util.Log.e("ThorInstallerCI", "STATE failure=ERROR");
+            return;
+        }
+        // Emit only hardcoded protocol outcomes, never raw Intent fields.
+        if ("PENDING_USER_ACTION".equals(result)) {
+            android.util.Log.i("ThorInstallerCI", "STATE callback_result=PENDING_USER_ACTION");
+        } else if ("USER_ABORTED".equals(result)) {
+            android.util.Log.i("ThorInstallerCI", "STATE callback_result=USER_ABORTED");
+        } else if ("INSTALLED".equals(result)) {
+            android.util.Log.i("ThorInstallerCI", "STATE callback_result=INSTALLED");
+        } else {
+            android.util.Log.e("ThorInstallerCI", "STATE callback_result=UNEXPECTED");
+        }
     }
 }
