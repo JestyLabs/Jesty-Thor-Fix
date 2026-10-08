@@ -95,17 +95,36 @@ public final class HarnessActivity extends Activity {
     }
 
     private void testAbandon() throws Exception {
+        // Each invocation has a new result so repeated tests cannot accidentally
+        // pass from a previous invocation's persisted success marker.
+        record("abandon_result", "STARTED");
         record("abandon_phase", "CREATING_SESSION");
         int id = createPopulatedSession();
         record("abandon_phase", "SESSION_POPULATED");
         installer().abandonSession(id);
         record("abandon_phase", "ABANDON_SENT");
-        boolean stillOpen = false;
-        for (PackageInstaller.SessionInfo item : installer().getMySessions()) {
-            if (item.getSessionId() == id) stillOpen = true;
+
+        // PackageInstaller session inventory is observed through a separate
+        // system-server query. Allow a bounded asynchronous removal window
+        // rather than assuming the listing changes synchronously with abandon().
+        // Never ignore a stuck session: fail with the precise stage and session ID.
+        for (int attempt = 0; attempt < 21; attempt++) {
+            boolean stillOpen = false;
+            for (PackageInstaller.SessionInfo item : installer().getMySessions()) {
+                if (item.getSessionId() == id) {
+                    stillOpen = true;
+                    break;
+                }
+            }
+            if (!stillOpen) {
+                record("abandon_phase", "CONFIRMED_GONE");
+                record("abandon_result", "ABANDONED");
+                return;
+            }
+            if (attempt < 20) Thread.sleep(100L);
         }
-        if (stillOpen) throw new IllegalStateException("abandoned session still active");
-        record("abandon_result", "ABANDONED");
+        record("abandon_phase", "TIMED_OUT");
+        throw new IllegalStateException("session " + id + " still listed after 2s");
     }
 
     private void testCommit() throws Exception {
