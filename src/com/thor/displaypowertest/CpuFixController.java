@@ -542,12 +542,16 @@ public final class CpuFixController {
 
     private void onHelperExit(int exit, boolean bootHandoff, String beforeComposerPid,
             String previousCpu, String desiredValue) {
+        boolean held = BootSafety.isHeld();
+        boolean watcherRunning = "RUNNING".equals(WatcherSupervisor.health());
         HandoffRecoveryModel.Action action = HandoffRecoveryModel.afterHelperExit(
-                exit, bootHandoff, BootSafety.isHeld(),
-                "RUNNING".equals(WatcherSupervisor.health()));
+                exit, bootHandoff, held, watcherRunning);
         trace.mark("HELPER_EXIT_OBSERVED", "exit=" + exit
                 + ";reason=" + HandoffRecoveryModel.reason(exit)
-                + ";action=" + action.name());
+                + ";action=" + action.name()
+                + ";boot=" + (bootHandoff ? "1" : "0")
+                + ";held=" + (held ? "1" : "0")
+                + ";watcher_running=" + (watcherRunning ? "1" : "0"));
         if (action == HandoffRecoveryModel.Action.NONE) return;
         if (HandoffRecoveryModel.composerNotRestarted(exit)) {
             // Same rule as a failed ctl.restart: report ERROR and restore
