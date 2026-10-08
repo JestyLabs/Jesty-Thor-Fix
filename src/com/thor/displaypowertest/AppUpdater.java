@@ -181,7 +181,8 @@ final class AppUpdater {
     }
 
     void shutdown() {
-        cancelled.set(true);
+        // A lifecycle teardown may cancel only before the Android handoff.
+        if (commitGate.cancel()) cancelled.set(true);
         if (progressDialog != null) dismiss(progressDialog);
         progressDialog = null;
         worker.shutdownNow();
