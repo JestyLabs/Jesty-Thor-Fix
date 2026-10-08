@@ -303,9 +303,13 @@ dependencies on that level:
 - Targets 31 and higher add explicit `android:exported` and `PendingIntent`
   mutability requirements; the manifest and updater already declare them.
 
-None of this has been tested above 25 on a Thor. A raise must be its own
-release, verified for boot launch, the privileged bridge, updates and
-Android's compatibility warnings.
+None of this has been tested above 25 on a Thor. A raise must be isolated
+from stable runtime changes, verified for boot launch, the privileged bridge,
+updates and Android's compatibility warnings, then subjected to a separate
+release decision. See [Target SDK 25 migration audit](TARGET-SDK-25-MIGRATION.md)
+for dependency-by-dependency blockers and supervised test gates, and
+[Failure validation matrix](FAILURE-VALIDATION-MATRIX.md) for updater,
+daemon, handoff and absent Binder scenarios.
 
 ## Why Java and smali are both present
 
