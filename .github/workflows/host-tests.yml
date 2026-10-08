@@ -303,5 +303,10 @@ jobs:
           profile: pixel_2
           disable-animations: true
           script: |
+            # A fresh AVD shows an immersive-mode tutorial over the actual
+            # PackageInstaller confirmation. Dismiss that emulator-only overlay
+            # before exercising system UI input, otherwise BACK hits the tutorial.
+            adb -s emulator-5554 shell settings put secure immersive_mode_confirmations confirmed
+            test "$(adb -s emulator-5554 shell settings get secure immersive_mode_confirmations | tr -d '\r')" = confirmed
             bash scripts/test-android-emulator-smoke.sh emulator-input/emulator-test.apk "${{ needs.build.outputs.version }}"
             bash scripts/test-android-installer-session.sh emulator-input/emulator-test.apk emulator-input/installer-ci-harness.apk
