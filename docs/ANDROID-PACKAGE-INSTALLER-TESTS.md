@@ -51,6 +51,24 @@ wait is **only** in the disposable test harness; app production behavior
 and the updater are unchanged. If the repeated test still fails, inspect
 `ThorInstallerCI` and stop rather than relaxing the requirement.
 
+## Current emulator denial-callback investigation (2026-10-08)
+
+The post-history-rewrite CI build and CodeQL checks passed, as did five
+independent pre-commit session abandonment cycles and a real
+`PENDING_USER_ACTION` callback. The same run did **not** observe
+`USER_ABORTED` after a simulated BACK keypress on the install confirmation UI:
+the recorded callback remained `PENDING_USER_ACTION` after the bounded wait.
+
+This is a failure of the current emulator acceptance check, not evidence that
+the production updater completed an unwanted install. The run stopped before
+the final package timestamp assertion; do not mark refusal verified.
+
+The emulator-only script now records the focused window and resumed Android
+activity immediately before and after BACK, without changing the installation
+flow or relaxing the required terminal status. Inspect those observations
+before deciding whether the UI was actually shown, whether BACK was delivered
+to the intended activity, or whether the platform omitted a terminal callback.
+
 ## Evidence limits
 
 - **Platform-level integration**, not a test of Jesty Thor Fix's
