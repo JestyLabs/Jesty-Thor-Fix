@@ -15,7 +15,7 @@ test -f "$CANDIDATE" && test -f "$HARNESS"
 
 fail_logs() {
   echo "Installer harness failure. Recent relevant emulator logcat:" >&2
-  adb_avd logcat -d -s AndroidRuntime:E PackageInstaller:W PackageManager:W \
+  adb_avd logcat -d -s ThorInstallerCI:E AndroidRuntime:E PackageInstaller:W PackageManager:W \
     | tail -n 60 >&2 || true
 }
 trap fail_logs ERR
