@@ -430,14 +430,25 @@ final class AppUpdater {
         AlertDialog progress = dialog().setTitle("Updating")
                 .setView(box)
                 .setCancelable(false)
-                .setNegativeButton("Cancel", (d, which) -> {
+                // Builder button listeners auto-dismiss even when cancellation loses
+                // the commit race. Install our own click listener after showing.
+                .setNegativeButton("Cancel", null)
+                .show();
+        progress.getButton(android.content.DialogInterface.BUTTON_NEGATIVE)
+                .setOnClickListener(v -> {
                     if (commitGate.cancel()) {
+                        // The gate is changed first: even before this flag is
+                        // observed, the worker cannot cross the commit boundary.
                         cancelled.set(true);
+                        label.setText("Cancelling update...");
                     } else {
+                        label.setText("Waiting for Android's installer...");
                         toast("Android install confirmation is already being prepared");
                     }
-                })
-                .show();
+                    // Keep progress visible until the worker performs cleanup.
+                    // A second Cancel must not imply cancellation was accepted.
+                    v.setEnabled(false);
+                });
         progressDialog = progress;
 
         worker.execute(() -> {
