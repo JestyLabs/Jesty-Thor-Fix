@@ -280,8 +280,10 @@ only if repeated latency testing shows an unacceptable user-visible difference.
 The inherited CPU import fix deserves its own focused review because it affects
 proof acceptance independently of watcher scheduling.
 
-The test device currently runs signed `1.6.0-watcher-exp2` (package 1.6.0/70),
-not the stable runtime. Published v1.6.0 remains the recommendation for normal
+At completion of the A/B phase the device ran signed `1.6.0-watcher-exp2`
+(package 1.6.0/70). The subsequent authorized v1.7.0 installation and its final
+checks are recorded in [the candidate checklist](VALIDATION-1.7.0-PENDING.md).
+Published v1.6.0 remains the recommendation for normal
 use. Rollback means installing the verified published asset with owner approval;
 the published daemon does not recognize exp2 for in-place prior-daemon handover,
 so a supervised normal reboot may be required. Do not kill services, edit proof

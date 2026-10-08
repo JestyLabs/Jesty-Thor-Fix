@@ -156,6 +156,14 @@ do not establish a latency distribution, exact call-count reduction, gameplay
 benefit or battery-life improvement. Full conditions, limitations and remaining
 promotion gates: [validation report](docs/WATCHER-VALIDATION-2026-10-08.md).
 
+The owner subsequently accepted GO to prepare v1.7.0 / code 71, deferring
+gameplay/battery studies. Production-identity candidate source `c8838d1` was
+signed, authorized for installation and verified against its installed hash.
+Guarded exp2 handover preserved completed CPU proof without a compositor/kernel
+restart. BOTH/TOP transitions and two dashboard-closed wakes passed, with direct
+OFF_OK/RUNNING result logs. Supervised new-boot validation remains separate;
+see [the exact-candidate checklist](docs/VALIDATION-1.7.0-PENDING.md).
+
 ## Evidence discipline
 
 Technical claims should be labelled internally as one of:

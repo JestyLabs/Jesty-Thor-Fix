@@ -26,7 +26,7 @@ is substituted for those missing counts.
 
 ## Supervised device checklist
 
-Prepared local signed candidate (not installed):
+Prepared local signed candidate:
 
 - Source commit: `c8838d179816e13afff3320ce5dd38e1bd44354d`.
 - APK: `Jesty-Thor-Fix-1.7.0.apk`, package 1.7.0 / code 71.
@@ -37,6 +37,32 @@ Prepared local signed candidate (not installed):
   successful-repair result/health log is packaged. Host suites passed.
 - Raw build/test/decode evidence stays locally outside Git under
   `C:\Temp\jesty-thor-v1.7.0-candidate-evidence`.
+
+Authorized install/handover: **PASS** on Thor firmware .377 / Android 13, awake
+BOTH with CRTC 1/1. The installed base.apk SHA-256 exactly matches the candidate.
+The existing roughly 30 s prior-daemon grace identified and replaced exp2;
+one daemon reported READY 1.7.0, EARLY_CPU_ATTEMPT_PROGRESS_KEPT (APPLIED),
+CPU_GATE_COMPLETE with composer_restart=not_needed, then BOOT_READY.
+Kernel boot ID, composer/SF identities and CPU property 1 stayed unchanged.
+The legitimate dashboard displayed v1.7.0, BOTH SCREENS and CPU FIX ACTIVE /
+CLOCKS NORMAL. No marker edit, CPU toggle, app data clear or reboot occurred.
+Dashboard was then closed for the physical tests.
+
+Exact-candidate physical regression: **PASS for the scoped checks**. The owner
+performed BOTH -> TOP -> BOTH -> TOP and two power-button sleep/wake cycles,
+reporting normal images without flash, failure or abnormal delay. The continuous
+timeline captured CRTC 1/1 -> 1/0 -> 1/1 -> 1/0 and the first wake returning to
+1/0. That sampler ended during the second sleep; the separate final snapshot
+after the second wake confirmed Awake TOP / CRTC 1/0. Do not claim continuous
+CRTC coverage of that second wake.
+
+Both repairs logged directly `WAKE_REPAIR_RESULT result=OFF_OK;watcher_health=RUNNING`.
+Framework wake -> repair OFF action was 1.243 / 1.251 s; wake -> explicit result
+log was 1.272 / 1.301 s. Stable's single 1.240 s comparison used the OFF-action
+definition. These few observations do not establish latency distributions.
+Kernel boot ID, composer/SF identities and CPU property remained unchanged.
+Host suites, signed packaging checks, CI build and all CodeQL checks passed on
+the prepared source/documentation head `1837f3d`.
 
 1. Owner approval for the exact signed APK installation/open, with the Thor
    awake in BOTH and both CRTCs active. Preserve all app data and proof records.
