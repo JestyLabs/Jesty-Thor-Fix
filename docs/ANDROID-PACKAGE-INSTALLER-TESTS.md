@@ -63,11 +63,21 @@ This is a failure of the current emulator acceptance check, not evidence that
 the production updater completed an unwanted install. The run stopped before
 the final package timestamp assertion; do not mark refusal verified.
 
-The emulator-only script now records the focused window and resumed Android
-activity immediately before and after BACK, without changing the installation
-flow or relaxing the required terminal status. Inspect those observations
-before deciding whether the UI was actually shown, whether BACK was delivered
-to the intended activity, or whether the platform omitted a terminal callback.
+**Root cause identified in diagnostic run 37847715921:** the focused window
+remained `ImmersiveModeConfirmation` before and after BACK, while Android's
+`PackageInstallerActivity` was the resumed activity behind that tutorial.
+Therefore the keypress did not demonstrate actual refusal of the install UI.
+
+The emulator-only workflow now sets Android's documented secure immersive
+confirmation flag to `confirmed` before running either lifecycle smoke or
+installer checks. The installer harness also verifies the installer owns
+the focused window before injecting BACK, preserving a hard failure if any
+tutorial or unrelated UI still intercepts the input.
+
+These are **emulator-test environment changes only**. No app/update/daemon
+behavior or callback expectation has changed. The real terminal
+`USER_ABORTED` callback and unchanged target APK timestamp remain mandatory;
+the revised job must pass before the denial case is accepted.
 
 ## Evidence limits
 
