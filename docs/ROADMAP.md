@@ -66,6 +66,27 @@ The app intentionally does not spoof hardware subtype, patch `/vendor`, or insta
 
 Historical splash / second-boot experiments are archived in [recovery-splash research](archive/RECOVERY-SPLASH-RESEARCH.md).
 
+## Active research: PServerBinder lifecycle anomaly
+
+A physical setup run found stock `pservice` alive while `PServerBinder` was absent from
+ServiceManager. Restarting only `pservice` restored the Binder while composer and
+SurfaceFlinger PIDs stayed unchanged. This proves recovery, not cause.
+
+Current work is read-only and keeps these hypotheses separate:
+
+- initial registration did not complete or stick;
+- a previously registered Binder was later lost while pservice survived;
+- ServiceManager state was replaced/reset and pservice did not republish;
+- SELinux/service-manager policy affected add/find;
+- client lookup failed independently.
+
+Do not add aggressive retries or automatic service recovery. First capture boot ID,
+pservice/servicemanager PID + process start time, ServiceManager visibility and logs during a
+real recurrence, then use the hash-matched stock binary to reconstruct the exact registration
+path.
+
+See [PServerBinder lifecycle investigation](PSERVERBINDER-LIFECYCLE-INVESTIGATION.md).
+
 ## Active research: TOP-mode focus / input
 
 Some dual-screen cases may lose focus to the inactive lower display.
