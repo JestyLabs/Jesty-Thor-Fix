@@ -1,8 +1,8 @@
 # App observability and controlled energy investigation
 
-Priority: **P2**. App diagnostics are implemented in this candidate. Device
-validation is pending. Controlled energy measurements and any resulting runtime
-fix remain **planned**.
+Priority: **P2**. App diagnostics and the opt-in two-boundary passive measurement candidate are
+implemented. Device validation is pending. Calibrated energy measurements,
+physical panel-power attribution and any runtime energy fix remain **planned**.
 
 ## Structured app history and export
 
@@ -45,6 +45,89 @@ logcat, crash stack, ANR trace, exit description, process name, PID, UID, serial
 boot ID, session ID, absolute wall time, filesystem path or account data is
 included. Private history timestamps become relative ages; clock rollback
 produces unknown age. Invalid values remain unknown.
+
+## Passive sleep trial (opt-in candidate; not hardware validated)
+
+**Where:** APP DIAGNOSTICS → **Sleep trial** → **Start trial**.
+The action arms a one-shot trial; it does not start a background collector.
+Leave the dashboard normally, let the Thor sleep **unplugged** for at least
+five minutes, then return to the app and open Sleep trial again. The result
+also appears as one `passive_sleep` line in the ordinary diagnostics export.
+Use **Cancel trial** if you arm a trial by mistake. Starting a new one
+replaces only the previous sleep trial, not the 64-event app journal.
+
+### Implementation and interpretation
+
+- `PassiveSleepMonitor` records one Android snapshot when the Activity is
+  paused (after stopping the existing foreground Q poller) and another when
+  the Activity resumes. The start is synchronously persisted to private
+  SharedPreferences, so process recreation *may* recover it. A hard kill,
+  failed storage commit or Android lifecycle interruption can still lose
+  the trial. A later app launch ends the interval; waking the screen is **not**
+  itself an app resume.
+- No periodic polling, background service, wakelock, daemon command, privileged
+  hardware read, alarms or CPU/display policy change is introduced. The normal
+  root daemon continues its own existing behavior independently.
+- `elapsedRealtime()` counts suspended time while `uptimeMillis()` does not.
+  Subtracting their **deltas** estimates system suspend-clock time. It cannot
+  identify wake causes, verify kernel suspend residency beyond the clock
+  semantics, establish uninterrupted sleep or determine physical lower-panel
+  rails/scanning. The trial includes time awake while leaving/reopening the app.
+- The public `BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER` is checked for
+  integrated energy in nWh. If present and decreasing, its difference / 1e9
+  is reported as **Wh**. If unavailable, a decreasing
+  `BATTERY_PROPERTY_CHARGE_COUNTER` in µAh multiplied by the mean endpoint
+  voltage (mV) / 1e9 provides an **explicitly labelled approximation**.
+  Zero deltas or unavailable readings are **unknown**, not evidence of
+  zero-power sleep. BatteryManager properties can be absent or inaccurate.
+- Mean watts use total-device energy over the entire observed interval, not
+  separate sleep-only power. Neither method measures the bottom panel alone.
+  Battery temperature is read as contextual input, not a thermal guarantee.
+- Boot-count changes (when readable), invalid clock deltas, connected or
+  unknown external power and changed **saved requested** fix choices reject
+  an energy comparison. Unsupported boot-count verification is separately
+  labelled `BOOT_NOT_VERIFIED`; reboot detection cannot be guaranteed then.
+  Intervals shorter than five minutes are `SHORT_TRIAL`; remaining results
+  are deliberately `PROVISIONAL`. Saved fix requests are not proof that the
+  hardware accepted the configuration, and plugged-state changes between
+  samples are not detectable if both endpoints look unplugged.
+- The report includes bounded numeric aggregates and status tokens only,
+  without raw sysfs reads, root replies, absolute timestamps, serial numbers,
+  full boot identifiers or OS process descriptions. Snapshot state is private,
+  not part of the saved public text report.
+
+### Read-only capability check, later when the Thor is available
+
+```powershell
+adb shell cat /sys/class/power_supply/battery/charge_counter
+adb shell cat /sys/class/power_supply/battery/energy_now
+adb shell cat /sys/class/power_supply/battery/voltage_now
+adb shell ls /sys/power/suspend_stats
+```
+
+Some paths may be missing or permission denied. These sysfs nodes are optional
+discovery probes, not prerequisites for the public BatteryManager API. **Do
+not keep USB/ADB connected during the sleep-energy trials**: the connection
+can alter charging, wakeup behavior and suspend residency.
+
+### Validation still required on real hardware
+
+- Confirm Android battery property availability and units. Do not infer that
+  a valid field is calibrated; compare against an external instrument if
+  possible and document resolution, repeatability, and uncertainty.
+- Confirm arm → leave app → overnight/normal sleep → reopen, short trials,
+  cancellation, Activity recreation and process kill behavior. Make sure a
+  document picker, Android settings or other accidental short background
+  transition is not mistaken for an actual sleep session.
+- Check that the app/daemon remain functional, with normal BOTH/TOP display,
+  switches and wake repair, and that no new wakelocks or background wakeups
+  arise. Do not introduce forced display restarts or sysfs writes.
+- Repeat matched OFF/ON trials in controlled conditions. Record AYN mode,
+  effective hardware state, battery range, temperature, brightness/network,
+  user wake time and clock uncertainty separately. The existing
+  `scripts/analyze-thor-energy.py` consumes Wh measurements, but its
+  `suspend_verified=yes` field **must not** be filled solely from the
+  suspend-clock difference; independent evidence remains necessary.
 
 ## Pending: sleep and lower-display power
 
@@ -159,6 +242,9 @@ measurements remain unvalidated; no candidate was installed for this PR.
 - Host: typed status/detail allowlists, two-sample CRTC confirmation, unknown-value rejection, wake counter resets, disconnect/reconnect baselines, pause gaps, one shared 64-entry ring, retention, corrupt persistent input, arbitrary-field rejection, relative
   ages, unavailable samples, future reason codes, export bounds, app compilation,
   dashboard and boot/lid/IPC suites, publication privacy checks.
+- Candidate device: passive sleep boundary snapshots, unsupported energy
+  counters and charge/voltage fallback, clock delta, boot count, short/invalid
+  samples, app process recreation, no added wakeups or deep-sleep regression.
 - Candidate device: preview; save/cancel/unavailable picker; background/recreate
   Activity while picker is open; readable sanitized output, persisted retention
   and stale-sample labels.
