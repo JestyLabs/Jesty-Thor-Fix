@@ -31,6 +31,7 @@ jobs:
   publish:
     if: github.ref == 'refs/heads/main'
     runs-on: windows-latest
+    environment: thor-publication
 
     steps:
       - name: Authorize release operator
@@ -38,7 +39,11 @@ jobs:
         env:
           ORIGINAL_ACTOR: ${{ github.actor }}
           TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          PUBLICATION_ENV_READY: ${{ vars.THOR_PUBLICATION_ENV_READY }}
         run: |
+          if ($env:PUBLICATION_ENV_READY -cne 'true') {
+              throw 'thor-publication environment not ready: configure reviewers, branch restriction, and THOR_PUBLICATION_ENV_READY=true'
+          }
           if ($env:ORIGINAL_ACTOR -cne 'SirJesty' -or $env:TRIGGERING_ACTOR -cne 'SirJesty') {
               throw 'Only the designated JestyLabs release operator may publish releases'
           }
