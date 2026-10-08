@@ -23,8 +23,13 @@ permissions:
 env:
   EXPECTED_SIGNER_SHA256: '727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC'
 
+concurrency:
+  group: publish-tested-candidate-${{ github.repository }}
+  cancel-in-progress: false
+
 jobs:
   publish:
+    if: github.ref == 'refs/heads/main'
     runs-on: windows-latest
 
     steps:
