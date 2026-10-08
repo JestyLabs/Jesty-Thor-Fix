@@ -1,6 +1,6 @@
 # v1.7.0 production candidate validation
 
-Status: **GO: scoped exact local-candidate validation passed. Not published; merge/publication require a separate request.**
+Status: **GO: scoped exact-APK validation passed. Owner authorized PR #41 merge and stable/Latest publication of this unchanged APK.**
 
 The owner accepted preparing the production candidate after measured exp2 CPU
 benefit and scoped display/wake checks. Gameplay and battery studies are deferred
@@ -116,12 +116,15 @@ BOTTOM-only/dock/closed-lid cases. Gameplay and battery work remain deferred.
 
 ## Publication boundary
 
-Work remains isolated to PR #41. No merge, tag or release is authorized by
-candidate preparation. The automated publication route requires a signed
-candidate from a successful main push. A PR/local signed build is for supervised
-testing; it is not eligible for that workflow. When a main candidate eventually
-exists, verify and test its exact hash before publication. Never assume a rebuilt
-APK is the same file as a physically tested candidate.
+The owner explicitly authorized PR #41 merge and stable/Latest publication using
+the exact signed APK tested here. Use the documented local/manual release route
+to preserve that file, without rebuilding it. The runtime source/resources/build
+script must still match candidate source `c8838d1` after merging current main;
+only documentation/integration metadata may differ. Record the final main/tag
+identity and verify both GitHub asset digest and a downloaded copy against the
+pinned APK hash. The main CI signed artifact is a separate build; this local APK
+is not eligible for the automated `Publish tested candidate` workflow. Do not
+silently substitute that rebuilt artifact for the physically tested file.
 
 Rollback to published v1.6.0 requires owner approval and may require a supervised
 normal reboot because the published daemon does not recognize newer identities.

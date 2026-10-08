@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.7.0 (validated local production candidate; publication pending)
+## 1.7.0 (stable release; scoped Thor validation)
 
 - Reduce idle watcher work with a 500 ms Settings safety poll, existing display
   callbacks, a 20 ms transition burst, a 1 s DRM safety interval and paired
@@ -15,7 +15,8 @@
 - The exact local signed candidate passed guarded handover, BOTH/TOP transitions,
   two direct OFF_OK/RUNNING wake checks and one normal supervised TOP reboot.
   See [candidate results](docs/VALIDATION-1.7.0-PENDING.md) and the existing
-  documented early firmware EGL limitation. No release is published yet.
+  documented early firmware EGL limitation. The owner authorized promotion of
+  the unchanged tested signed APK to stable/Latest.
 
 ## 1.5.20 (stable release; scoped Thor validation)
 
