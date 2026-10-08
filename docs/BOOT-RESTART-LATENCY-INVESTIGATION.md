@@ -26,7 +26,7 @@ restart earlier would need a CPU-only readiness gate while all display/sleep
 actions stay held, plus new host and physical tests. No grace was shortened.
 
 The reference boot is BOTH, kernel boot ID
-`599c48a0-4d31-4d90-91b0-287eb5c8577d`. Times below use the early
+`00000000-0000-4000-8000-000000000008`. Times below use the early
 `03-graphics-monotonic.txt` and the daemon trace. The first-phase event
 payloads agree with the monotonic column in this boot. Earlier v1.5.16 logs
 have a clock-conversion offset; see the SurfaceFlinger investigation.

@@ -119,7 +119,7 @@ Other routes remain limited:
 1. **No write, no reboot first.** Recheck installed version, battery, BOTH
    image/CRTCs, boot ID, CPU preference/property, composer/daemon PIDs and
    known early SurfaceFlinger abort signature. Run
-   `scripts/collect-thor-boot.ps1 -Serial 96f052f5 -Label cpu-early-preflight -InspectInit`
+   `scripts/collect-thor-boot.ps1 -Serial DEVICE_SERIAL_REDACTED -Label cpu-early-preflight -InspectInit`
    while ADB is connected. Confirm a usable early hook and its actual order;
    package or executable absence from ADB shell is not conclusive.
 2. **Go/no-go before any candidate.** A safe trial requires an opt-in,
