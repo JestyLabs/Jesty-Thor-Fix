@@ -1,12 +1,17 @@
 # Current roadmap
 
-Last updated: 2026-10-07.
+Last updated: 2026-10-08.
 
 Stable release behaviour stays unchanged until a change is physically validated on hardware.
 
-## Active: quantify and reduce watcher / DRM background work
+## Completed for v1.7.0: reduce watcher / DRM background work
 
-The current watcher is functional and has not been shown to cause gameplay stutter, thermal trouble or a user-visible performance regression. The remaining concern is narrower: its **background cost has not yet been quantified directly**, so the project should measure it before deciding whether a more event-driven design is worth the risk.
+Hardware A/B measured about 89% lower daemon CPU and 95% fewer voluntary watcher
+context switches in awake BOTH/TOP. The exact signed v1.7.0 APK passed guarded
+update, BOTH/TOP, two wakes and one supervised normal TOP reboot; the owner
+authorized stable promotion. Gameplay/battery studies and exact stable request
+count percentages remain deferred. The baseline facts and investigation plan
+below describe the completed research, not additional release gates.
 
 Current v1.6.0 implementation facts:
 
@@ -18,7 +23,7 @@ Current v1.6.0 implementation facts:
 
 These are code-path counts, **not evidence of a performance problem**. No micro-stutter claim should be made without measurement.
 
-### Investigation plan
+### Original investigation plan
 
 1. instrument a test candidate with counters for Settings samples, DRM opens and display callbacks;
 2. capture daemon process CPU time over fixed idle and gaming windows with the dashboard closed;
@@ -34,7 +39,8 @@ Go criterion: measurable reduction in daemon CPU/wakeups or I/O with no regressi
 
 No-go criterion: if the current cost is already negligible, or an event-driven replacement misses transitions, keep the existing implementation.
 
-See [Watcher / DRM polling investigation](WATCHER-POLLING-INVESTIGATION.md) once the research branch lands.
+See [hardware A/B](WATCHER-VALIDATION-2026-10-08.md) and
+[exact v1.7.0 validation](VALIDATION-1.7.0-PENDING.md).
 
 ## Closed: CPU Fix startup recovery
 
