@@ -97,6 +97,13 @@ adb_avd shell am start -W -n "$COMPONENT" --es mode confirm >/dev/null
 wait_state confirmation_result OPENED_SYSTEM_UI
 sleep 2
 confirmation_focus "before BACK"
+# Do not send BACK into a tutorial, IME or other window while the installer
+# happens to be only the focused Activity behind an overlay.
+focused_window="$(adb_avd shell dumpsys window | grep -m 1 'mCurrentFocus=' || true)"
+case "$focused_window" in
+  *com.android.packageinstaller*) ;;
+  *) echo "Refusing denial input: PackageInstaller is not the focused window: $focused_window" >&2; exit 1 ;;
+esac
 adb_avd shell input keyevent KEYCODE_BACK
 sleep 1
 confirmation_focus "after BACK"
