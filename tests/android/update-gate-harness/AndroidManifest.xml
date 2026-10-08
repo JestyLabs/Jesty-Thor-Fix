@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.jestylabs.thorfix.updategateharness">
+    <uses-sdk android:minSdkVersion="28" android:targetSdkVersion="33" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <application android:label="Thor Update Gate CI" android:debuggable="true"
+        android:allowBackup="false">
+        <activity android:name=".GateTestActivity" android:exported="true" />
+    </application>
+</manifest>
