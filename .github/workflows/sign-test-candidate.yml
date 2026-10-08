@@ -17,7 +17,7 @@ env:
 
 jobs:
   sign:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.actor == 'SirJesty' && github.triggering_actor == 'SirJesty'
     runs-on: windows-latest
     environment: thor-signing
     concurrency:

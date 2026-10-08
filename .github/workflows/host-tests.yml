@@ -93,7 +93,7 @@ jobs:
   sign_main_candidate:
     name: Sign main candidate
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor == 'SirJesty' && github.triggering_actor == 'SirJesty'
     runs-on: windows-latest
     environment: thor-signing
     concurrency:
@@ -211,6 +211,7 @@ jobs:
               throw 'Signed APK package/version differs from unsigned CI artifact'
           }
           $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $apk.FullName).Hash.ToUpperInvariant()
+          $unsignedHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $env:UNSIGNED_APK).Hash.ToUpperInvariant()
           $metadata = [ordered]@{
               version = '${{ needs.build.outputs.version }}'
               versionCode = '${{ needs.build.outputs.version_code }}'
@@ -218,6 +219,9 @@ jobs:
               apk = $apk.Name
               sha256 = $hash
               signerSha256 = $env:EXPECTED_SIGNER_SHA256
+              unsignedSha256 = $unsignedHash
+              sourceRunId = '${{ github.run_id }}'
+              sourceRunAttempt = '${{ github.run_attempt }}'
           }
           $metadata | ConvertTo-Json | Set-Content -LiteralPath 'dist/candidate-metadata.json' -Encoding utf8
           "$hash  $($apk.Name)" | Set-Content -LiteralPath 'dist/candidate-sha256.txt' -Encoding ascii

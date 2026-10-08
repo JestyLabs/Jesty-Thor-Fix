@@ -18,7 +18,22 @@ The repository has **four** GitHub Actions workflows:
 This preserves the physical-validation rule: **test the exact signed APK that
 will be released; do not rebuild after the Thor test.**
 
-## Protected environments and one-time migration (not yet applied by GitHub settings)
+## Protected environments and one-time migration
+
+Administrative readback on 2026-10-08 confirmed `thor-signing` and
+`thor-publication`: only the **branch** `main` is allowed, `SirJesty` is the
+required reviewer, self-review is allowed for the solo maintainer, and
+administrator bypass is disabled. The readiness variables are scoped to their
+respective environments. Both signing secrets are staged in `thor-signing`;
+the existing local keystore certificate matches the established signer.
+
+Repository-scoped copies are temporarily retained until a protected signing run
+has succeeded and its artifact has been checked. Therefore repository-wide
+secret isolation is **not yet complete**. Do not treat PR CI success or Settings
+readback as evidence that a protected signing/publication job has run.
+
+The following is the migration/recovery procedure, not a claim that all runtime
+acceptance tests have completed:
 
 The workflow files declare **two named GitHub Environments**. A YAML reference
 alone does **not** create reviewers or protect secrets: configure the environments
@@ -76,7 +91,8 @@ but cannot prevent another, malicious workflow merged by an authorized
 writer from using repository-level secrets while those still exist.
 
 **Authorization:** both the original and rerun actors must be `SirJesty`,
-checked at workflow runtime. This is only defense in depth; branch rules,
+checked before a privileged job requests an environment and again at runtime.
+This is only defense in depth; branch rules,
 review rights and protected environments are the meaningful trust boundary.
 
 ### Current job permissions and artifacts
@@ -90,6 +106,8 @@ review rights and protected environments are the meaningful trust boundary.
   `signed-candidate-v<version>-<commit>` artifact and metadata.
   It uses the signing keystore in an ephemeral temporary directory and
   deletes it before the verification/upload steps.
+  Metadata records the unsigned input SHA-256, source run/attempt, signed APK
+  SHA-256 and certificate; unsigned and signed whole-file hashes differ normally.
 - `Sign test candidate / sign`: manual signing from a successful same-repo
   pull-request CI artifact only, also gated by `thor-signing` and operator.
   Its signed **test** APK is not publishable through the production release path.

@@ -7,6 +7,19 @@ $ci = Get-Content -LiteralPath (Join-Path $root '.github/workflows/host-tests.ym
 $testSigner = Get-Content -LiteralPath (Join-Path $root '.github/workflows/sign-test-candidate.yml') -Raw
 $publisher = Get-Content -LiteralPath (Join-Path $root '.github/workflows/release.yml') -Raw
 
+foreach ($workflow in @($ci, $testSigner, $publisher)) {
+    if ($workflow -notmatch "(?m)^    if: .*github\.actor == 'SirJesty'.*github\.triggering_actor == 'SirJesty'" -or
+        $workflow -notmatch 'ORIGINAL_ACTOR: \$\{\{ github.actor \}\}' -or
+        $workflow -notmatch 'TRIGGERING_ACTOR: \$\{\{ github.triggering_actor \}\}') {
+        throw 'Privileged jobs must reject unauthorized original/rerun actors before environment approval and recheck at runtime.'
+    }
+}
+if ($ci -match '(?m)^\s+contents: write\s*$' -or $testSigner -match '(?m)^\s+contents: write\s*$' -or
+    $publisher -notmatch '(?ms)^permissions:\s*\r?\n  actions: read\s*\r?\n  contents: read\s*\r?\n' -or
+    $publisher -notmatch '(?ms)^    permissions:\s*\r?\n      actions: read\s*\r?\n      contents: write\s*\r?\n') {
+    throw 'Only the environment-protected publication job may request contents: write.'
+}
+
 # Regression-only structural checks. GitHub Environment access rules and secrets
 # MUST still be verified in Settings; this script cannot enforce administration.
 $sections = [regex]::Match($ci, '(?ms)^  build:\s*\r?\n(?<build>.*?)(?=^  sign_main_candidate:)')
