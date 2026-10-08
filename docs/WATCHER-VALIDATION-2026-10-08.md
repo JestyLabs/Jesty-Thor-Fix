@@ -257,7 +257,7 @@ publishing their raw contents.
 
 ## Recommendation and remaining work
 
-**GO to prepare and test v1.7.0; publication remains pending final validation.**
+**GO: exact local v1.7.0 candidate passed scoped validation; publication is separate.**
 The initial INCONCLUSIVE recommendation applied the full exploratory evidence
 list as a promotion gate. After discussion, the owner accepted candidate
 preparation based on measured idle CPU/context-switch benefit and scoped
@@ -266,11 +266,11 @@ not required for this change. Missing exact baseline request-count percentages
 limit that claim, but do not invalidate measured CPU benefit; those count targets
 are no longer a blocker to candidate preparation.
 
-Remaining publication gates are the exact production-identity signed candidate,
-its guarded handover/CPU proof, repeated BOTH/TOP and wake checks with direct
-OFF_OK/health evidence, and separately authorized supervised startup validation.
-See [v1.7.0 checklist](VALIDATION-1.7.0-PENDING.md). No fresh boot was performed
-during the A/B investigation. Repeated lid cycles, larger latency distributions,
+The subsequent exact production-identity signed candidate passed guarded
+handover/CPU proof, BOTH/TOP and two direct OFF_OK/RUNNING wake checks, plus one
+authorized normal supervised TOP reboot. See [v1.7.0 results](VALIDATION-1.7.0-PENDING.md).
+No fresh boot occurred during the earlier A/B phase; the reboot is recorded
+separately with its new boot-scoped proof. Repeated lid cycles, larger latency distributions,
 game/load callback rates and framework replacement remain unmeasured; this run
 does not establish gameplay benefit or universal callback-storm resilience.
 

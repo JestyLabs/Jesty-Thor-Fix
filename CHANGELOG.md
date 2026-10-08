@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.7.0 (production candidate; final hardware validation pending)
+## 1.7.0 (validated local production candidate; publication pending)
 
 - Reduce idle watcher work with a 500 ms Settings safety poll, existing display
   callbacks, a 20 ms transition burst, a 1 s DRM safety interval and paired
@@ -12,8 +12,10 @@
 - Restore production identity 1.7.0 / code 71 and permit guarded BOTH-only
   handover from the exact tested exp2 identity. Keep minute diagnostic counters
   and log successful wake-repair result/health for final validation.
-- Release remains pending exact-candidate transitions, wake and supervised
-  startup checks. See [candidate checklist](docs/VALIDATION-1.7.0-PENDING.md).
+- The exact local signed candidate passed guarded handover, BOTH/TOP transitions,
+  two direct OFF_OK/RUNNING wake checks and one normal supervised TOP reboot.
+  See [candidate results](docs/VALIDATION-1.7.0-PENDING.md) and the existing
+  documented early firmware EGL limitation. No release is published yet.
 
 ## 1.5.20 (stable release; scoped Thor validation)
 

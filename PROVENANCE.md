@@ -161,7 +161,10 @@ gameplay/battery studies. Production-identity candidate source `c8838d1` was
 signed, authorized for installation and verified against its installed hash.
 Guarded exp2 handover preserved completed CPU proof without a compositor/kernel
 restart. BOTH/TOP transitions and two dashboard-closed wakes passed, with direct
-OFF_OK/RUNNING result logs. Supervised new-boot validation remains separate;
+OFF_OK/RUNNING result logs. One subsequently authorized normal TOP reboot
+confirmed current-boot CPU attempt APPLIED, BOOT_READY at 41.196 s and final
+CRTC 1/0, without a second late recovery in the bounded observation. The known
+early EGL signature remains documented. Merge/publication are separate;
 see [the exact-candidate checklist](docs/VALIDATION-1.7.0-PENDING.md).
 
 ## Evidence discipline

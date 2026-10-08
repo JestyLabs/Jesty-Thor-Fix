@@ -1,6 +1,6 @@
 # v1.7.0 production candidate validation
 
-Status: **GO to prepare and test; NOT approved for publication.**
+Status: **GO: scoped exact local-candidate validation passed. Not published; merge/publication require a separate request.**
 
 The owner accepted preparing the production candidate after measured exp2 CPU
 benefit and scoped display/wake checks. Gameplay and battery studies are deferred
@@ -24,7 +24,7 @@ is substituted for those missing counts.
   after the production identity and migration change. Signed artifact identity
   and verification results are recorded below after build.
 
-## Supervised device checklist
+## Candidate identity and supervised results
 
 Prepared local signed candidate:
 
@@ -81,6 +81,38 @@ the prepared source/documentation head `1837f3d`.
 
 No installation, physical result or reboot is implied by host/build success.
 The existing 11-minute timeout remains the owner's requested setting.
+
+## Supervised reboot
+
+Supervised normal reboot in TOP: **PASS**. The owner rebooted through the normal
+power menu, keeping TOP and the lid open, and reported a normal boot at the USB
+menu. A changed kernel boot ID and reset uptime confirm a new boot. The earlier
+unchanged-boot interaction was not counted as startup validation.
+
+The daemon imported the current-boot RESTART_REQUESTED early record, verified a
+successor composer against its recorded baseline, and durably marked APPLIED.
+CPU_GATE_COMPLETE at 34.789 s reported composer_restart=applied. Display boot
+hold/grace completed, BOTTOM_OFF_CONFIRMED followed at 41.177 s, and BOOT_READY
+at 41.196 s with mode TOP, CRTC 1/0 and CPU property 1. No CPU Fix setting was
+toggled and no manual service restart was sent.
+
+The daemon/composer/SF identities were unchanged from the first post-boot
+observation through the 138.15 s final snapshot; later daemon metrics still
+advanced at 155.174 s. Reopening the legitimate app returned trusted-daemon
+healthy and displayed TOP ONLY / TRUE OFF and CPU FIX ACTIVE / CLOCKS NORMAL.
+The dashboard was then closed. Installed APK hash still matches the pinned
+candidate; the requested 11-minute timeout remains in place. No second late
+recovery was observed in this bounded observation, not an indefinite guarantee.
+
+The known pre-daemon EGL/SurfaceFlinger signature also occurred; retain the
+existing [documented limitation](VALIDATION-1.5.20-PENDING.md) rather than reopening
+that investigation or claiming a crash-free boot. The private early-hook trace
+and daemon log are not shell-readable; imported durable proof, boot trace,
+logcat, process continuity and physical/UI observations provide the evidence.
+
+Raw file references and hashes: [candidate evidence index](VALIDATION-1.7.0-SHA256.txt).
+This is one normal supervised reboot, not a cold-power-cycle quota or proof for
+BOTTOM-only/dock/closed-lid cases. Gameplay and battery work remain deferred.
 
 ## Publication boundary
 

@@ -1,6 +1,6 @@
 # Watcher / DRM polling reduction — measurement prototype
 
-Status: **GO to prepare v1.7.0; exact production-candidate hardware validation pending. Published v1.6.0 remains the stable recommendation.**
+Status: **GO: v1.7.0 local signed candidate passed scoped hardware validation. Publication pending; v1.6.0 remains the published stable release.**
 
 Continuation results: [2026-10-08 validation](WATCHER-VALIDATION-2026-10-08.md).
 
@@ -118,8 +118,8 @@ The owner accepted preparing **v1.7.0 / versionCode 71** based on measured CPU
 benefit and the scoped physical results. Current source restores
 `DaemonIdentity.RUNTIME_ID = VERSION`, retains stable `1.6.0` and exact exp2 in
 the guarded previous-daemon allowlist, and keeps minute diagnostic metrics.
-Release notes/changelog are prepared; the signed production candidate must pass
-the [final physical/startup checklist](VALIDATION-1.7.0-PENDING.md).
+Release notes/changelog are prepared; the exact local signed production candidate
+passed the [scoped physical/startup checks](VALIDATION-1.7.0-PENDING.md).
 
 If the benefit is negligible, close the research PR and ship nothing.
 
