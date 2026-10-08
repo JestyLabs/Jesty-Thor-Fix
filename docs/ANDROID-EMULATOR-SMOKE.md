@@ -51,3 +51,4 @@ Do not publish it as a test release or enable any real device in this script.
 - Only consider making this job mandatory once reliability and runtime cost have
   been measured in multiple CI runs.
 
+This harness uses this repository's existing Apktool + Java + Smali build.
