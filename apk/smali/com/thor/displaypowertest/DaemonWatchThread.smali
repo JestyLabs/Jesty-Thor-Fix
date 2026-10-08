@@ -44,6 +44,7 @@
     invoke-virtual {v13, v2, v3}, Landroid/os/Bundle;->putInt(Ljava/lang/String;I)V
 
     :watch_loop
+    invoke-static {}, Lcom/thor/displaypowertest/WatcherCadence;->beginSample()V
     invoke-interface/range {v8 .. v13}, Landroid/content/IContentProvider;->call(Landroid/content/AttributionSource;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Landroid/os/Bundle;)Landroid/os/Bundle;
     move-result-object v14
     if-eqz v14, :watch_sleep
@@ -55,8 +56,7 @@
     invoke-static {}, Lcom/thor/displaypowertest/WatcherSupervisor;->noteSample()V
 
     :watch_sleep
-    const-wide/16 v2, 0x14
-    invoke-static {v2, v3}, Ljava/lang/Thread;->sleep(J)V
+    invoke-static {}, Lcom/thor/displaypowertest/WatcherCadence;->awaitNextSample()V
     goto :watch_loop
     :try_end_0
     .catch Ljava/lang/Throwable; {:try_start_0 .. :try_end_0} :watch_error

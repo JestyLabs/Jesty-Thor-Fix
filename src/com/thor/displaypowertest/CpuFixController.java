@@ -84,6 +84,11 @@ public final class CpuFixController {
                                 "phase=" + early.attempt.phase.name());
                         return "ok=1;early_attempt=matched";
 
+                    case KEEP_PROGRESS:
+                        trace.mark("EARLY_CPU_ATTEMPT_PROGRESS_KEPT",
+                                "phase=" + durable.attempt.phase.name());
+                        return "ok=1;early_attempt=progress_kept";
+
                     case REPLACE_STALE_DURABLE:
                         CpuBootAttemptStore.deleteTrusted();
                         CpuBootAttemptStore.ReadResult afterDelete = CpuBootAttemptStore.read();

@@ -1,5 +1,22 @@
 # Release integrity
 
+## 1.7.0 stable promotion
+
+- Package/version: `com.thor.displaypowertest`, 1.7.0 / code 71.
+- APK: `Jesty-Thor-Fix-1.7.0.apk`.
+- Exact tested/release APK SHA-256:
+  `0c237de7bb730e90cf1beb76118d21bd53a090de3dcf4ed605a7006f7c4f31c8`.
+- Signing certificate SHA-256:
+  `727d4850779bed1e51018108e13bc399d4da38cfc68f4f7504120ad5e2dad6fc`.
+- Built from `c8838d179816e13afff3320ce5dd38e1bd44354d`. Later PR/main integration
+  preserves the same runtime source/resources/build script. No APK rebuild is
+  used for publication: the owner authorized promoting the unchanged file.
+- Host suites, alignment and v1/v2/v3 signatures passed. The installed APK hash
+  matched exactly, and guarded handover, BOTH/TOP, two direct OFF_OK/RUNNING
+  wakes and one supervised normal TOP reboot passed. See
+  [validation](VALIDATION-1.7.0-PENDING.md). Raw diagnostics and signing material
+  remain outside Git. The existing early EGL limitation stays documented.
+
 ## 1.5.20 stable release
 
 - Package: `com.thor.displaypowertest`

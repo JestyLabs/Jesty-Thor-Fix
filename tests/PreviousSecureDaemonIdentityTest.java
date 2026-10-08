@@ -41,6 +41,29 @@ public final class PreviousSecureDaemonIdentityTest {
         check(PreviousSecureDaemonIdentity.safePid(
                 HEALTH.replace("1.5.3", "1.5.20-earlycpu-p33"), BOTH) == 11398,
                 "the exact hardware-tested prototype may be replaced by v1.6.0");
+        check(PreviousSecureDaemonIdentity.safePid(
+                HEALTH.replace("1.5.3", "1.6.0"), BOTH) == 11398,
+                "stable v1.6.0 may be replaced by the production candidate in BOTH");
+        String exp1 = HEALTH.replace("1.5.3", "1.6.0-watcher-exp1");
+        check(PreviousSecureDaemonIdentity.safePid(exp1, BOTH) == 11398,
+                "only the exact earlier watcher candidate can be replaced in BOTH");
+        check(PreviousSecureDaemonIdentity.safePid(exp1, BOTH.replace("mode=0", "mode=1")) < 0,
+                "research handover remains BOTH-only");
+        String exp2 = HEALTH.replace("1.5.3", "1.6.0-watcher-exp2");
+        check(PreviousSecureDaemonIdentity.safePid(exp2, BOTH) == 11398,
+                "the hardware-tested exp2 may be replaced by the production candidate");
+        check(PreviousSecureDaemonIdentity.safePid(exp2, BOTH.replace("mode=0", "mode=1")) < 0,
+                "exp2 handover remains BOTH-only");
+        check(PreviousSecureDaemonIdentity.safePid(exp2, BOTH.replace("bottom_crtc=1", "bottom_crtc=0")) < 0,
+                "exp2 handover requires the bottom CRTC active");
+        check(PreviousSecureDaemonIdentity.safePid(exp2.replace("watcher=RUNNING", "watcher=FAILED"), BOTH) < 0,
+                "exp2 handover requires a healthy watcher");
+        check(PreviousSecureDaemonIdentity.safePid(
+                HEALTH.replace("1.5.3", "1.6.0-watcher-exp3"), BOTH) < 0,
+                "unrecognized experiment must not be killed");
+        check(PreviousSecureDaemonIdentity.safePid(
+                HEALTH.replace("1.5.3", "1.7.0"), BOTH) < 0,
+                "current production identity is not a previous-daemon allowance");
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.5.4"), BOTH) < 0,
                 "unknown version must not be killed");
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("pid=11398", "pid=1;bad=x"), BOTH) < 0,

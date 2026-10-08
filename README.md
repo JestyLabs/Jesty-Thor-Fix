@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.6.0"><strong>Download v1.6.0</strong></a>
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.0"><strong>Download v1.7.0</strong></a>
   · <a href="#what-it-fixes">Features</a>
   · <a href="#measured-on-a-real-thor">Results</a>
   · <a href="#current-investigations">Research</a>
@@ -82,10 +82,9 @@ Full method + raw CSVs → [benchmarks](docs/BENCHMARKS.md)
 
 ### Current investigations
 
-We're also exploring a few improvements. **These are still being researched, not included as fixes in v1.6.0.**
+We're also exploring a few improvements. **These remain research, not supported fixes in v1.7.0.**
 
 - **🖥️ 120 Hz / screen tearing** — Investigating display issues when the two screens use different refresh rates.
-- **⚡ Background efficiency** — Finding ways to reduce background work without making screen fixes slower.
 - **🔌 Device-service reliability** — Investigating a case where a built-in Thor service became unavailable.
 - **🎮 TOP-mode focus** — Checking whether games can lose focus when only the upper screen is in use.
 
@@ -93,7 +92,7 @@ We're also exploring a few improvements. **These are still being researched, not
 
 ### How to use
 
-1. [Download the latest signed APK](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.6.0)
+1. [Download the latest signed APK](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.0)
 2. Install and open **Jesty Thor Fix**
 3. Enable the controls you want
 4. Close the app (or swipe it away). The fixes continue in the background.
@@ -110,7 +109,7 @@ The app uses the Thor’s own privileged bridge. No Magisk or root required.
 - Validates the result after every change
 - Automatically restores normal behaviour if something looks wrong
 - Closed-Lid Wake Guard is off by default
-- No gameplay micro-stutter or thermal regression has been demonstrated from the background watcher. Its real idle cost is being measured before any polling change is considered.
+- v1.7.0 reduces idle watcher work. Pre-release hardware A/B measured about 89% lower daemon CPU in BOTH and TOP; this is not a battery-life or gameplay-performance claim. [Validation](docs/VALIDATION-1.7.0-PENDING.md).
 
 More details on resource use and known limitations are in the documentation below.
 
@@ -161,7 +160,7 @@ Jesty Thor Fix is free and open source. No features are locked behind donations.
 [Architecture](docs/ARCHITECTURE.md) · 
 [Compatibility](docs/COMPATIBILITY.md) · 
 [Benchmarks](docs/BENCHMARKS.md) · 
-[Release notes](docs/RELEASE-NOTES-1.6.0.md) · 
+[Release notes](docs/RELEASE-NOTES-1.7.0.md) ·
 [Build from source](docs/BUILD-AND-RELEASE.md) · 
 [Release integrity](docs/RELEASE-INTEGRITY.md)
 
