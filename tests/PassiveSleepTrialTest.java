@@ -24,6 +24,9 @@ public final class PassiveSleepTrialTest {
         test(r.method.equals("ENERGY_COUNTER"),"direct method");
         test(Math.abs(r.energyWh-.3)<1e-9 && Math.abs(r.meanW-.3)<1e-9,"nWh to Wh to W");
         test(r.reportLine().contains("suspend_clock_delta_ms=3540000"),"sanitized report");
+        test(r.reportLine().contains("voltage_start_mv=3900")
+                && r.reportLine().contains("temperature_start_deci_c=300"),
+                "bounded endpoint conditions");
         PassiveSleepTrial.Result estimate=PassiveSleepTrial.evaluate(
                 s(100000,50000,-1,1000000,4000,0,12,1),
                 s(3700000,110000,-1,900000,3800,0,12,1));

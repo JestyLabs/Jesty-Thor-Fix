@@ -46,13 +46,17 @@ public final class PassiveSleepTrial {
         public final long totalMs, awakeMs, suspendedMs;
         public final double energyWh, meanW;
         public final boolean bootVerified;
-        public final int fixes;
+        public final int fixes, voltageStartMv, voltageEndMv, temperatureStartDeciC, temperatureEndDeciC;
         private Result(String state, String method, long totalMs, long awakeMs,
-                long suspendedMs, double wh, boolean bootVerified, int fixes) {
+                long suspendedMs, double wh, boolean bootVerified, int fixes,
+                int voltageStartMv, int voltageEndMv, int temperatureStartDeciC, int temperatureEndDeciC) {
             this.state = state; this.method = method;
             this.totalMs = totalMs; this.awakeMs = awakeMs; this.suspendedMs = suspendedMs;
             this.energyWh = wh; this.meanW = totalMs > 0 && wh >= 0 ? wh * 3600000d / totalMs : -1d;
             this.bootVerified = bootVerified; this.fixes = fixes;
+            this.voltageStartMv = voltageStartMv; this.voltageEndMv = voltageEndMv;
+            this.temperatureStartDeciC = temperatureStartDeciC;
+            this.temperatureEndDeciC = temperatureEndDeciC;
         }
         public String reportLine() {
             return "passive_sleep;state=" + state + ";interval_ms=" + totalMs
@@ -60,7 +64,11 @@ public final class PassiveSleepTrial {
                     + ";suspend_percent=" + percent(suspendedMs, totalMs)
                     + ";energy_method=" + method + ";energy_wh=" + number(energyWh)
                     + ";mean_device_w=" + number(meanW)
-                    + ";boot_verified=" + (bootVerified ? 1 : 0) + ";fixes_requested_mask=" + fixes;
+                    + ";boot_verified=" + (bootVerified ? 1 : 0) + ";fixes_requested_mask=" + fixes
+                    + ";voltage_start_mv=" + known(voltageStartMv)
+                    + ";voltage_end_mv=" + known(voltageEndMv)
+                    + ";temperature_start_deci_c=" + known(temperatureStartDeciC)
+                    + ";temperature_end_deci_c=" + known(temperatureEndDeciC);
         }
         public String describe() {
             return "State: " + state + "\nDuration: " + totalMs / 1000 + " seconds"
@@ -68,6 +76,9 @@ public final class PassiveSleepTrial {
                     + percent(suspendedMs, totalMs) + "%)"
                     + "\nEnergy: " + number(energyWh) + " Wh (" + method + ")"
                     + "\nMean whole-device draw: " + number(meanW) + " W"
+                    + "\nBattery voltage: " + known(voltageStartMv) + " → " + known(voltageEndMv) + " mV"
+                    + "\nBattery temperature: " + known(temperatureStartDeciC)
+                    + " → " + known(temperatureEndDeciC) + " (0.1°C)"
                     + "\nOS boot count verified: " + (bootVerified ? "yes" : "no")
                     + "\nRequested switches (display, CPU, lid): "
                     + ((fixes & 1) != 0 ? "ON" : "OFF") + ", "
@@ -107,12 +118,15 @@ public final class PassiveSleepTrial {
         String state = duration < MIN_MS ? "SHORT_TRIAL"
                 : wh < 0 ? "ENERGY_UNAVAILABLE_OR_UNRESOLVED"
                 : !bootVerified ? "BOOT_NOT_VERIFIED" : "PROVISIONAL";
-        return new Result(state, method, duration, awake, suspended, wh, bootVerified, a.fixes);
+        return new Result(state, method, duration, awake, suspended, wh, bootVerified, a.fixes,
+                a.voltageMv, b.voltageMv, a.temperatureDeciC, b.temperatureDeciC);
     }
     private static Result invalid(String reason, boolean boot, long duration,
             long awake, long suspended, int fixes) {
-        return new Result(reason, "UNAVAILABLE", duration, awake, suspended, -1, boot, fixes);
+        return new Result(reason, "UNAVAILABLE", duration, awake, suspended, -1, boot, fixes,
+                -1, -1, -1, -1);
     }
+    private static String known(int n) { return n >= 0 ? Integer.toString(n) : "unknown"; }
     private static String number(double n) {
         return n >= 0 && Double.isFinite(n) ? String.format(Locale.US, "%.6f", n) : "unknown";
     }
