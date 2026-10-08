@@ -101,3 +101,6 @@ if ($LASTEXITCODE -ne 0) { throw 'Refresh capture analyzer tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Refresh binary analyzer tests failed.' }
 
 Write-Host 'Refresh investigation contract tests passed.'
+
+& (Join-Path $PSScriptRoot 'test-refresh-collector.ps1')
+if (-not $?) { throw 'Refresh collector selection tests failed.' }

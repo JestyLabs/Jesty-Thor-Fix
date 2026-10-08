@@ -1,182 +1,129 @@
 # Current roadmap
 
-Last updated: 2026-10-07.
+Last updated: 2026-10-08.
 
-Jesty Thor Fix v1.6.0 is the current stable release. The cleaner CPU Fix boot path
-is complete: the required Qualcomm composer recovery now happens during normal
-startup, with strict restart provenance and fail-safe handling preserved.
+Stable release behaviour stays unchanged until a change is physically validated on hardware.
 
-The project keeps a Thor-first rule: measure the real device, separate evidence
-from hypotheses, make the smallest isolated change, then validate on hardware.
-Stable release behavior stays unchanged until a change is physically validated.
+## Completed for v1.7.0: reduce watcher / DRM background work
 
-## Completed: cleaner CPU Fix startup
+Hardware A/B measured about 89% lower daemon CPU and 95% fewer voluntary watcher
+context switches in awake BOTH/TOP. The exact signed v1.7.0 APK passed guarded
+update, BOTH/TOP, two wakes and one supervised normal TOP reboot; the owner
+authorized stable promotion. Gameplay/battery studies and exact stable request
+count percentages remain deferred. The baseline facts and investigation plan
+below describe the completed research, not additional release gates.
 
-v1.6.0 replaces the old late second boot-like interruption with an early
-stock-`pservice` boot hook. The production path was physically validated on the
-Thor without the manual prototype marker.
+Current v1.6.0 implementation facts:
 
-The property is cached by Qualcomm `ResourceImpl::Init()`. A late write needs
-a new composer; same-process TOP/BOTH recreation does not reload it, and no
-supported same-process reload path was found on the tested firmware. The stock
-`pservice` hook runs after the first composer, so it cannot prove a zero-restart
-boot. The inspected init tree offers no safe app-controlled pre-composer hook.
-The app does not spoof hardware subtype, patch `/vendor`, or install speculative
-system modifications to eliminate the remaining restart.
+- the hidden Settings-provider watcher samples `dual_screen_display_mode` every **20 ms** (up to ~50 provider calls/s);
+- while True Bottom Screen Off is enabled and the display is in a normal stable state, `DisplayActionCoordinator` throttles physical CRTC checks to at most once every **250 ms**;
+- those steady coordinator checks currently read TOP and BOTTOM separately, so that is up to **8 individual DRM debugfs opens/s** from the coordinator;
+- the visible dashboard adds its own once-per-second telemetry query while the Activity is open; that is not part of the closed-app background path;
+- urgent wake-repair logic intentionally bypasses the steady throttle when fast confirmation is needed.
 
-The previous recovery-splash, boot-animation suppression and pre-composer-hook
-experiments are historical research, not active work. They remain useful as
-evidence for rejected approaches, but they are no longer release goals.
+These are code-path counts, **not evidence of a performance problem**. No micro-stutter claim should be made without measurement.
 
-See [stock pservice early CPU restart](PSERVICE-EARLY-CPU-RESTART.md).
-Historical splash research is in [recovery-splash research](archive/RECOVERY-SPLASH-RESEARCH.md).
+### Original investigation plan
 
-## Active: 120 Hz / mixed-refresh investigation
+1. instrument a test candidate with counters for Settings samples, DRM opens and display callbacks;
+2. capture daemon process CPU time over fixed idle and gaming windows with the dashboard closed;
+3. record transition latency for BOTH↔TOP, sleep/wake and the known bottom-screen wake-repair case;
+4. prototype an adaptive policy:
+   - event/display callback starts a short fast burst;
+   - unknown/transition state uses a short fast cadence;
+   - known stable state falls back to a **500–1000 ms safety poll**;
+   - DRM is read on state changes / pending repair and at a slower safety cadence rather than on every mode sample;
+5. compare the candidate against v1.6.0 on the same Thor before changing release behavior.
 
-The upper Thor panel is 120 Hz-capable while the lower panel is physically a
-different panel. Android and Thor community projects sometimes report the lower
-logical display as 120 Hz, while other code treats that panel as 60 Hz.
+Go criterion: measurable reduction in daemon CPU/wakeups or I/O with no regression in display-state correctness or repair latency.
 
-The active question is therefore not merely "does Android say 120?":
+No-go criterion: if the current cost is already negligible, or an event-driven replacement misses transitions, keep the existing implementation.
 
-> Does the lower panel physically scan at the rate Android reports, or is there
-> a logical/render-rate layer that can claim 120 Hz over a 60 Hz scanout?
+See [hardware A/B](WATCHER-VALIDATION-2026-10-08.md) and
+[exact v1.7.0 validation](VALIDATION-1.7.0-PENDING.md).
 
-Work is read-only first:
+## Closed: CPU Fix startup recovery
 
-1. capture Android `Display.Mode` / DisplayModeDirector state for both displays;
-2. capture SurfaceFlinger physical display modes and scheduler/vsync state;
-3. capture DRM connector/CRTC state and any kernel-exposed mode timing;
-4. pull the relevant Qualcomm display binaries for local static analysis;
-5. compare the Thor behavior with AOSP multi-display scheduling and public
-   Qualcomm SDM implementations;
-6. only after the mismatch layer is proven, design a minimal experiment.
+v1.6.0 closed the late-second-recovery problem for the supported stock Thor path.
 
-No refresh-rate setting, HWC command, DRM write, display power write or reboot
-belongs in the first evidence pass.
+What is proven:
 
-See [Thor 120 Hz investigation](THOR-120HZ-INVESTIGATION.md).
+- `vendor.display.disable_system_load_check` is consumed by Qualcomm `ResourceImpl::Init()` and cached by the running composer;
+- a late property change therefore needs a replacement composer before the fix becomes effective;
+- same-process TOP/BOTH recreation does not reload that state;
+- no supported same-process ResourceImpl reload path was found on the tested firmware;
+- the inspected stock Thor init tree exposes no safe app-controlled hook early enough to set the property before the first composer starts;
+- the stock `pservice -> /data/boot_start.sh` path starts slightly **after** the first composer, so it cannot provide a zero-restart first-composer proof;
+- v1.6.0 uses that stock pservice path to perform the one required recovery during the natural startup window, with durable restart provenance and no later second CPU-fix recovery.
 
-## Short term
+Therefore the current one-restart design is the best **safe app-only stock-firmware** solution established by the evidence. Eliminating the restart entirely would require one of:
 
-### TOP-mode focus / input
+- AYN/Qualcomm firmware changing the early vendor init behavior for this hardware;
+- modifying/overlaying immutable vendor/init content;
+- or new evidence of a trusted privileged mechanism that executes before the first composer.
 
-Reproduce the reported case where a game or app appears to lose controller/input
-focus to the second logical display. Compare stock TOP with True Bottom Screen Off
-and record focused display/task/input routing. A fix requires a reproducible A/B;
-do not infer causality from the display merely being black or powered off.
-Powering off the lower physical panel does not necessarily remove Android's
-lower logical display; the focus issue is not claimed fixed.
+The app intentionally does not spoof hardware subtype, patch `/vendor`, or install speculative system modifications to chase a zero-restart boot.
 
-### BOTTOM ONLY and dock validation
+Historical splash / second-boot experiments are archived in [recovery-splash research](archive/RECOVERY-SPLASH-RESEARCH.md).
 
-Close two remaining support gaps on physical hardware:
+## Active research: TOP-mode focus / input
 
-- BOTTOM ONLY display behavior;
-- dock/external-display behavior with True Bottom Screen Off and Wake Guard.
+Some dual-screen cases may lose focus to the inactive lower display.
 
-External displays must never be treated as the Thor lower internal panel.
+Jesty Thor Fix already powers the lower **physical** display off in TOP mode, but Android can still keep a logical display object around. We therefore do not claim this bug fixed yet.
 
-### Updater end-to-end install
+Test plan:
 
-The updater already verifies version, package, size, SHA-256 and signing
-certificate. Exercise one real newer-version install through the updater itself
-when a suitable release exists.
+1. reproduce the focus loss on stock TOP mode;
+2. repeat with True Bottom Screen Off enabled;
+3. compare focused display / input routing before and after;
+4. only advertise a fix if the A/B result is repeatable.
 
-### Dashboard wording / state cleanup
+## Active: 120 Hz screen tearing / mixed refresh (#37)
 
-Keep technically distinct UNKNOWN, PENDING, MISMATCH and ERROR states, but make
-their user-facing text easier to understand where evidence shows ambiguity.
+The upper Thor panel supports 120 Hz while the lower panel is physically 60 Hz. AYN exposes a 120 Hz system mode for the dual-screen setup, so the first question is **where the lower display is made to look or behave like 120 Hz**.
 
-### PServerBinder disappearance
+Read-only investigation should compare 60/60, 120/60 and the AYN 120 Hz dual-screen mode across:
 
-Investigate separately why `PServerBinder` was once absent from ServiceManager
-while stock `pservice` remained alive. An isolated `pservice` restart restored
-the Binder without changing composer or SurfaceFlinger. Do not hide this with
-aggressive retries until the failure mode is understood.
+- SurfaceFlinger display configs and vsync periods;
+- Qualcomm HWC / SDM composition state;
+- DRM / CRTC timing and vblank evidence;
+- present fences and GPU composition.
 
-## Parallel active research
+Do not tune vsync offsets blindly. First prove whether the mismatch is in Android scheduling, Qualcomm HWC/SDM, DRM/DSI timing, or the panel configuration.
 
-### Watcher / DRM polling cost (#41)
+The exact .377 SurfaceFlinger logs a foreign display-mode identity but continues
+to HWC with an inverted lower config ID. That explains the `invalid mode` error;
+it does not prove lower optical 120 Hz or the cause of tearing. Further policy
+writes remain paused after two observed black blinks. Continue with local
+binary/trace analysis and read-only captures before designing another experiment.
 
-The current watcher works; gameplay stutter or thermal impact has not been
-demonstrated. Code-path counts, rather than measured cost, are known:
+See [exact binary analysis](THOR-120HZ-EXACT-BINARY-OFFLINE-20261008.md),
+[event order and mode identity](THOR-120HZ-EVENT-ORDER-AND-MODE-PROVENANCE.md)
+and [PR #37 handoff](THOR-120HZ-PR37-OFFLINE-HANDOFF-20261008.md).
 
-- the Settings-provider watcher samples `dual_screen_display_mode` every 20 ms
-  (up to about 50 calls/s);
-- with True Bottom Screen Off enabled in a stable mode, the coordinator checks
-  CRTCs at most every 250 ms, reading TOP and BOTTOM separately (up to eight
-  DRM debugfs opens/s);
-- the visible dashboard adds its own once-per-second telemetry query;
-- urgent wake repair bypasses the steady-state throttle.
+## Next: Retroid Pocket Duo compatibility
 
-Measure daemon CPU/wakeups and DRM opens with the dashboard closed, then compare
-fixed idle and gaming windows. If the cost is meaningful, prototype a short
-fast burst after display/wake events and a 500–1000 ms stable-state safety
-poll. Preserve lost-callback recovery, physical CRTC verification, and
-BOTH↔TOP / sleep-wake repair latency. Keep the current watcher if its cost is
-negligible or the replacement misses transitions.
+Goal: make the codebase ready to support more than one dual-screen handheld without weakening Thor safety.
 
-This work is tracked separately in draft PR #41 and must remain measurement-led:
-v1.6.0 is the baseline, and lower polling counts alone are not a promotion
-criterion.
+Pocket Duo support is **not claimed yet**. Compatibility must be tested feature by feature:
 
-## Medium term
+- True Bottom Screen Off;
+- display / CPU telemetry;
+- wake repair;
+- lid / hall behaviour;
+- focus / input routing;
+- whether the Thor-specific CPU Fix is needed at all.
 
-### Hardware profiles
+We are looking for Pocket Duo owners willing to run read-only probes and supervised test builds.
 
-Continue moving measured Thor-specific IDs and capabilities behind explicit
-profiles. Do not generalize write paths until a second device has been measured.
+See [Retroid SDM comparison](RETROID-SDM-COMPARISON.md) for the Qualcomm background.
 
-### Retroid Pocket Duo research
+## Deferred but still open
 
-The Pocket Duo is the strongest candidate for a second dual-screen profile.
-Start with read-only topology: logical/physical display IDs, CRTCs, Hall/lid
-input and Qualcomm SDM behavior. Compare the system-load-check path before
-testing True Bottom Screen Off or wake repair. Never reuse Thor IDs.
+- physical BOTTOM ONLY and dock validation;
+- updater end-to-end install validation;
+- minor dashboard wording / unavailable-state cleanup;
+- continue removing Thor-specific assumptions behind explicit hardware profiles.
 
-See [Retroid SDM comparison](RETROID-SDM-COMPARISON.md).
-
-### Lid / dock / external-display edge cases
-
-Expand Wake Guard validation around legitimate external-display use and closed-lid
-states so a guard intended for false wakes cannot suppress an intentional session.
-
-### Bottom-screen Android UI quirks
-
-Track navigation-bar, task-placement and lower-display UI behavior only when it
-is reproducible. Keep this separate from physical panel power and refresh-rate
-research.
-
-## Long term
-
-### More dual-screen devices
-
-If the Pocket Duo work succeeds, evolve the architecture toward explicit
-capability profiles rather than a collection of model checks.
-
-### Cross-firmware evidence
-
-Collect the same small evidence set from multiple Thor firmware revisions and
-hardware variants. Focus on mixed refresh, focus/input, Hall behavior, dock use
-and Qualcomm composition.
-
-### Architectural simplification
-
-Remove old hardening or compatibility branches only when current hardware
-evidence proves they are obsolete. Historical complexity is not a reason by
-itself to weaken a safety guarantee.
-
-### Optional device-specific recovery work
-
-Ideas such as Wi-Fi recovery stay out of the app unless there is a reproducible
-Thor defect, a narrow mechanism and a separate safety case. Jesty Thor Fix is
-not intended to become a generic tweak pack.
-
-## Working rule
-
-**Measure -> prove -> change -> validate.**
-
-Keep findings labelled **PROVEN**, **OBSERVED**, or **HYPOTHESIS**. Prefer static
-analysis, CI and read-only collectors. A physical reboot or state-changing probe
-must answer a concrete question that cannot be closed safely another way.
+Historical planning and timing notes remain in [ROADMAP-AFTER-1.5.17.md](ROADMAP-AFTER-1.5.17.md).

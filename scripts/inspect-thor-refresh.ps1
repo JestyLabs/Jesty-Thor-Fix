@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
-    [string]$Serial = "",
+    [Parameter(Mandatory=$true)]
+    [ValidatePattern('^[A-Za-z0-9._:-]+$')]
+    [string]$Serial,
     [string]$OutputDir = "",
     [switch]$PullBinaries
 )
@@ -10,14 +12,21 @@ $CollectorVersion = 'THOR_REFRESH_INVESTIGATION_V2'
 
 if (-not $OutputDir) {
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-    $OutputDir = Join-Path $PWD "thor-refresh-inspect-$stamp"
+    $OutputDir = Join-Path ([IO.Path]::GetTempPath()) ("thor-refresh-inspect-$stamp-" + [Guid]::NewGuid().ToString('N'))
+}
+$OutputDir = [IO.Path]::GetFullPath($OutputDir)
+$repository = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
+if ($OutputDir.Equals($repository, [StringComparison]::OrdinalIgnoreCase) -or
+    $OutputDir.StartsWith($repository + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Raw evidence must be saved outside the repository.'
+}
+
+$adbBase = @('-s', $Serial)
+$deviceState = & adb @adbBase get-state 2>&1
+if ($LASTEXITCODE -ne 0 -or ($deviceState -join "`n").Trim() -ne 'device') {
+    throw 'Selected ADB device is not connected and authorized; no capture was created.'
 }
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
-
-$adbBase = @()
-if ($Serial) {
-    $adbBase += @('-s', $Serial)
-}
 
 function Invoke-AdbCapture {
     param(

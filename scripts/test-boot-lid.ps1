@@ -28,6 +28,10 @@ if ($watcher -notmatch 'DisplayActionCoordinator;->onWatcherSample\(Ljava/lang/S
 if ($watcher -match 'setDisplayPowerMode|SystemProperties;->set|WakeRepairScheduler;->') {
     throw 'Mode watcher must not change hardware, properties, or wake-repair state directly.'
 }
+if ($watcher -notmatch 'WatcherCadence;->awaitNextSample\(\)V' -or
+    $watcher -match 'const-wide/16\s+v\d+,\s+0x14\s+invoke-static \{v\d+, v\d+\}, Ljava/lang/Thread;->sleep') {
+    throw 'Mode watcher must use the event-woken cadence instead of a fixed 20 ms loop.'
+}
 $displayWriters = @(Get-ChildItem -LiteralPath (Join-Path $repository 'src') -Filter '*.java' -Recurse |
     Where-Object { $_.Name -ne 'DisplayHardware.java' } |
     Select-String -Pattern 'setDisplayPowerMode|SystemProperties.*set\(|"display.power.state"' |
@@ -103,6 +107,42 @@ if ($cpuFixSource -notmatch 'CpuBootAttemptStore\.read\(' -or
     $runtimeSource -notmatch 'if \(!coordinating\) cpuFix\.resumePersistedAttempt\(\)') {
     throw 'CPU restart provenance must be integrated into the runtime and normal-daemon recovery.'
 }
+$watcherMeasurePath = Join-Path $repository 'scripts\measure-watcher-load.ps1'
+$watcherMeasure = Get-Content -LiteralPath $watcherMeasurePath -Raw
+$measureTokens = $null
+$measureErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+    $watcherMeasurePath, [ref]$measureTokens, [ref]$measureErrors) | Out-Null
+if ($measureErrors.Count -gt 0) {
+    throw "Watcher measurement script has PowerShell syntax errors: $($measureErrors[0].Message)"
+}
+& (Join-Path $PSScriptRoot 'test-watcher-measurement.ps1')
+& (Join-Path $PSScriptRoot 'test-watcher-runtime.ps1')
+if ($watcher -notmatch 'WatcherCadence;->beginSample\(\)V\s+invoke-interface/range') {
+    throw 'Capture callback generation before the Settings Binder read.'
+}
+if ($watcherMeasure -match '(?im)\badb\s+(?:reboot|install|push|root|remount)\b' -or
+    $watcherMeasure -match '(?im)\bsetprop\b' -or
+    $watcherMeasure -match '(?im)\bctl\.(?:start|stop|restart)\b' -or
+    $watcherMeasure -match '(?im)\b(?:rm|mv|cp|chmod|chown|mkdir|touch)\s') {
+    throw 'Watcher measurement script must remain read-only.'
+}
+
+# Regression: a single [string[]] function parameter must receive one named
+# array argument. Positional array splatting spreads each adb token into a
+# separate PowerShell function argument and can fail before measurements start.
+if ($watcherMeasure -match 'Invoke-AdbText\s+@\(' -or
+    $watcherMeasure -notmatch 'Invoke-AdbText\s+-Arguments\s+@\(') {
+    throw 'Watcher measurement ADB calls must bind the Arguments array explicitly.'
+}
+# PID alone is not process identity: the procfs field-22 starttime is required
+# to reject PID/TID reuse when comparing two sampling endpoints.
+if ($watcherMeasure -notmatch 'StartTime\s*=\s*\[int64\]\$fields\[19\]' -or
+    $watcherMeasure -notmatch 'daemonEnd.StartTime -ne \$daemonStart.StartTime' -or
+    $watcherMeasure -notmatch 'start.StartTime -ne \$end.StartTime') {
+    throw 'Watcher measurements must reject recycled daemon PIDs and thread IDs.'
+}
+
 $preComposerInspect = Get-Content -LiteralPath (Join-Path $repository 'scripts\inspect-thor-precomposer.ps1') -Raw
 if ($preComposerInspect -match '(?im)\badb\s+(?:reboot|install|push|root|remount)\b' -or
     $preComposerInspect -match '(?im)\bsetprop\b' -or
@@ -178,6 +218,26 @@ if ($hardwareLiterals.Count -gt 0) {
 $profile = Get-Content -LiteralPath (Join-Path $repository 'src\com\thor\displaypowertest\ThorHardwareProfile.java') -Raw
 $logicalId = [int][regex]::Match($profile, 'BOTTOM_LOGICAL_DISPLAY_ID = (\d+);').Groups[1].Value
 $callback = Get-Content -LiteralPath (Join-Path $repository 'apk\smali\com\thor\displaypowertest\DisplayEventCallback.smali') -Raw
+if ($callback -notmatch 'WatcherCadence;->onDisplayEvent\(\)V') {
+    throw 'Relevant DisplayManager callbacks must wake the watcher cadence.'
+}
+$coordinator = Get-Content -LiteralPath (Join-Path $daemonPackage 'DisplayActionCoordinator.java') -Raw
+$watchStart = $coordinator.IndexOf('public static void onWatcherSample')
+$watchEnd = $coordinator.IndexOf('public static String requestFix', $watchStart)
+if ($watchStart -lt 0 -or $watchEnd -le $watchStart) {
+    throw 'Could not isolate watcher coordinator method.'
+}
+$watchBody = $coordinator.Substring($watchStart, $watchEnd - $watchStart)
+if ($watchBody -notmatch 'WatcherCadence\.beginDrmRead' -or
+    $watchBody -notmatch 'Telemetry\.crtcActivePair\(\)' -or
+    $watchBody -match 'Telemetry\.(?:top|bottom)CrtcActive\(\)') {
+    throw 'Watcher path must gate one paired DRM snapshot through WatcherCadence.'
+}
+$daemonStateSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'DaemonState.java') -Raw
+if ($daemonStateSource -notmatch 'Telemetry\.crtcActivePair\(\)' -or
+    $daemonStateSource -notmatch 'WatcherCadence\.snapshotFields\(\)') {
+    throw 'Dashboard snapshot must use one paired DRM read and expose watcher metrics.'
+}
 $smaliIds = [regex]::Matches($callback, 'const/4 v[01], 0x([0-9a-f]+)\s+(?:if-ne p1|invoke-interface \{v0, v1\})')
 if ($smaliIds.Count -ne 3 -or @($smaliIds | Where-Object { [Convert]::ToInt32($_.Groups[1].Value, 16) -ne $logicalId }).Count -gt 0) {
     throw 'DisplayEventCallback.smali must use ThorHardwareProfile.BOTTOM_LOGICAL_DISPLAY_ID.'
@@ -215,6 +275,7 @@ $sources = @(
     (Join-Path $repository 'src\com\thor\displaypowertest\DashboardStateModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\ThorHardwareProfile.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\HallNodeModel.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\BridgeFailureDiagnostic.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\HandoffRecoveryModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\DaemonArgs.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\CpuBootAttemptModel.java'),
@@ -223,6 +284,7 @@ $sources = @(
     (Join-Path $repository 'src\com\thor\displaypowertest\EarlyCpuBootHookScript.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\EarlyCpuAttemptImportModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\EarlyCpuGateModel.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\WatcherCadenceModel.java'),
     (Join-Path $repository 'tests\BootAndLidModelTest.java'),
     (Join-Path $repository 'tests\BootLatencyTest.java'),
     (Join-Path $repository 'tests\DaemonLaunchModelTest.java'),
@@ -234,6 +296,7 @@ $sources = @(
     (Join-Path $repository 'tests\PreviousSecureDaemonIdentityTest.java'),
     (Join-Path $repository 'tests\PropertyStateTest.java'),
     (Join-Path $repository 'tests\HallNodeModelTest.java'),
+    (Join-Path $repository 'tests\BridgeFailureDiagnosticTest.java'),
     (Join-Path $repository 'tests\HandoffRecoveryModelTest.java'),
     (Join-Path $repository 'tests\DaemonArgsTest.java'),
     (Join-Path $repository 'tests\CpuBootAttemptModelTest.java'),
@@ -241,7 +304,8 @@ $sources = @(
     (Join-Path $repository 'tests\EarlyCpuBootHookModelTest.java'),
     (Join-Path $repository 'tests\EarlyCpuBootHookScriptTest.java'),
     (Join-Path $repository 'tests\EarlyCpuAttemptImportModelTest.java'),
-    (Join-Path $repository 'tests\EarlyCpuGateModelTest.java')
+    (Join-Path $repository 'tests\EarlyCpuGateModelTest.java'),
+    (Join-Path $repository 'tests\WatcherCadenceModelTest.java')
 )
 & javac -source 8 -target 8 -d $output $sources
 if ($LASTEXITCODE -ne 0) { throw 'Boot/lid test compilation failed.' }
@@ -259,6 +323,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Early CPU boot-hook script tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Early CPU attempt import model tests failed.' }
 & java -cp $output EarlyCpuGateModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Early CPU gate model tests failed.' }
+& java -cp $output WatcherCadenceModelTest
+if ($LASTEXITCODE -ne 0) { throw 'Watcher cadence model tests failed.' }
 & java -cp $output BootLatencyTest
 if ($LASTEXITCODE -ne 0) { throw 'Boot latency tests failed.' }
 & java -cp $output DaemonLaunchModelTest
@@ -281,5 +347,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Previous secure daemon identity tests failed.'
 if ($LASTEXITCODE -ne 0) { throw 'Hall node model tests failed.' }
 & java -cp $output HandoffRecoveryModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Handoff recovery model tests failed.' }
+& java -cp $output BridgeFailureDiagnosticTest
+if ($LASTEXITCODE -ne 0) { throw 'PServer bridge diagnostic tests failed.' }
 & java -cp $output DaemonArgsTest
 if ($LASTEXITCODE -ne 0) { throw 'Daemon argument tests failed.' }

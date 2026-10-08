@@ -19,6 +19,7 @@ public final class WatcherSupervisor implements Runnable {
     public static void noteSample() {
         lastSampleAt = SystemClock.elapsedRealtime();
         health = "RUNNING";
+        WatcherCadence.noteSample();
     }
 
     public static String health() {

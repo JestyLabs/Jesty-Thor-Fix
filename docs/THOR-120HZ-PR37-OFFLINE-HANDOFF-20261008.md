@@ -1,5 +1,10 @@
 # PR #37 — comentário técnico e handoff offline, 2026-10-08
 
+> Historical offline handoff. The owner resumed this work with the Thor attached;
+> current read-only checks and integration are recorded in
+> [PR #37 resumed validation](THOR-120HZ-PR37-RESUME-20261008.md).
+> The offline restrictions below describe the earlier session.
+
 **Texto preparado localmente; não publicado.** A regra offline impede consultar
 todos os comentários atuais, fazer push, publicar comentário ou executar CI remoto.
 Manter draft/research-only; não fazer merge/release. O corpo local guardado do PR
