@@ -33,6 +33,25 @@ The script strictly refuses non-emulator ADB serials and checks the AVD
 identity. It never performs privileged vendor commands, restarts
 SurfaceFlinger, triggers CPU Fix or manipulates DRM/CRTC.
 
+## Known initial CI failure and guard against flakiness
+
+The first emulator integration run (37836879071) failed during the
+pre-commit abandon test with `IllegalStateException`; that early version
+recorded neither a stage nor an exception message. The precise cause is
+**not proven**. One plausible cause was an immediate `getMySessions()`
+query still listing the just-abandoned session. Later CI runs succeeded
+with exactly that implementation, so an intermittent visibility delay remains
+possible, not established.
+
+To avoid assuming synchronous removal, the harness now observes the list for
+up to **2 seconds**, fails explicitly if the abandoned session remains,
+records the stage, and resets the result on every invocation. The emulator
+job repeats **five independent abandon cycles** before testing real
+`PENDING_USER_ACTION` and `STATUS_FAILURE_ABORTED` callbacks. The extra
+wait is **only** in the disposable test harness; app production behavior
+and the updater are unchanged. If the repeated test still fails, inspect
+`ThorInstallerCI` and stop rather than relaxing the requirement.
+
 ## Evidence limits
 
 - **Platform-level integration**, not a test of Jesty Thor Fix's
