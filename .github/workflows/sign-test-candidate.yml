@@ -19,6 +19,10 @@ jobs:
   sign:
     if: github.ref == 'refs/heads/main'
     runs-on: windows-latest
+    environment: thor-signing
+    concurrency:
+      group: thor-release-keystore-${{ github.repository }}
+      cancel-in-progress: false
 
     steps:
       - name: Authorize test-signing operator
@@ -26,7 +30,11 @@ jobs:
         env:
           ORIGINAL_ACTOR: ${{ github.actor }}
           TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          SIGNING_ENV_READY: ${{ vars.THOR_SIGNING_ENV_READY }}
         run: |
+          if ($env:SIGNING_ENV_READY -cne 'true') {
+              throw 'thor-signing environment not ready: configure reviewers, main restriction, environment secrets, THOR_SIGNING_ENV_READY=true'
+          }
           if ($env:ORIGINAL_ACTOR -cne 'SirJesty' -or $env:TRIGGERING_ACTOR -cne 'SirJesty') {
               throw 'Only the designated JestyLabs release operator may sign test candidates'
           }
