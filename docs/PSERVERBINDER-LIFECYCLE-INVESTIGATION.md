@@ -32,8 +32,13 @@ not sufficient by itself to explain an absent ServiceManager registry entry.
 ## Read-only collector
 
 Use `scripts/collect-thor-pserverbinder-readonly.ps1` with the explicitly selected
-device serial and an output directory outside the repository. The default is one
-snapshot. A short passive sequence may be used during a naturally occurring anomaly.
+device serial and a **new private output directory outside every Git checkout**.
+Both parameters are mandatory. The collector rejects Git output paths, symlink or
+junction ancestors, existing output directories, and a selected model that is not
+Thor. The default is one snapshot. A short passive sequence may be used during a
+naturally occurring anomaly. `-AdbPath` may select a locally verified ADB binary.
+Optional `-LocalPservice` and `-ExpectedPserviceSha256` are supplied locally; no
+device-specific binary path or hash is embedded in this public collector.
 
 The collector records boot/process identities, ServiceManager visibility, hashes,
 readable Binder state and bounded investigation context. Each command's exit code
@@ -45,17 +50,29 @@ invoke the vendor command handler, restart services, signal processes, change
 properties/settings/SELinux or mutate device files. Raw logs can contain personal
 data and must remain local. Only sanitized summaries may be published.
 
+### Collector validation
+
+Host fixtures passed for empty inputs, Git checkout/worktree output rejection,
+wrong-model and offline stops, pinned ADB calls, nonzero probe preservation,
+UNKNOWN local comparison and overwrite refusal. These fixtures invoke no device.
+A single supervised read-only Thor capture completed with the Binder found;
+process-identity and Binder-state probes returned nonzero and their output was
+preserved for private inspection. This confirms collection and failure recording,
+not full access to those sources or a diagnosis of the historical anomaly.
+
 ## Next work
 
 1. Use boot/PID/starttime identity for both pservice and ServiceManager.
 2. Record process ancestry, groups, cgroups and OOM metadata when readable.
 3. Preserve each missing/denied read explicitly.
-4. Add isolated client diagnostic classification if a concrete failure needs it.
+4. Use the client classification and helper-exit context delivered by PR #50;
+   correlate application events with this collector's process/registry samples.
 5. Capture a natural incident before any recovery; do not deliberately trigger one.
 
-Possible client classifications are LOOKUP_NULL, LOOKUP_EXCEPTION, BINDER_DEAD,
-TRANSACT_FALSE and TRANSACT_EXCEPTION. These are diagnostic requirements, not a
-reason to add automatic retries or replay an ambiguous side-effecting command.
+PR #50 distinguishes lookup-null, rejected transact and sanitized exception
+categories. See [implemented diagnostics](PSERVER-HANDOFF-DIAGNOSTICS.md).
+These observations do not prove Binder death or select a root cause. Do not add
+automatic retries or replay an ambiguous side-effecting command.
 
 Stop if further progress requires service restarts, policy changes, destructive
 lifecycle testing or a speculative production fix. Any future implementation

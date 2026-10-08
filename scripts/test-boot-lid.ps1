@@ -151,6 +151,7 @@ if ($preComposerInspect -match '(?im)\badb\s+(?:reboot|install|push|root|remount
     throw 'Pre-composer collector must remain read-only and must not mutate the Thor.'
 }
 $pserverBinderCollector = Get-Content -LiteralPath (Join-Path $repository 'scripts\collect-thor-pserverbinder-readonly.ps1') -Raw
+& (Join-Path $PSScriptRoot 'test-pserver-collector.ps1')
 if ($pserverBinderCollector -match '(?im)\badb\s+(?:reboot|install|push|root|remount)\b' -or
     $pserverBinderCollector -match '(?im)^\s*(?:setprop|reboot|kill|pkill|su)\b' -or
     $pserverBinderCollector -match '(?im)\bctl\.(?:start|stop|restart)\b' -or

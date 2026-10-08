@@ -30,7 +30,7 @@ does not establish survival after cleaner, Force Stop, deep sleep or package upd
 | Work | Result required | Gate |
 |---|---|---|
 | Passive lifecycle diagnostics | Paired process identity and Binder-visibility samples, explicit read failures | Read-only research |
-| Client failure taxonomy | Distinguish lookup-null, lookup-exception, dead Binder, rejected transact and transact exception | Isolated diagnostics, host validation |
+| Client failure taxonomy | PR #50 delivered lookup-null, rejected transact and sanitized exception categories; Binder death/root cause still requires evidence | Host-tested; normal-operation Thor smoke passed |
 | Helper ownership model | Exact boot/PID/starttime plus UID/cmdline and authenticated peer identity where available | No kill by name or socket occupancy |
 | Flip 2 survival experiment | Harmless leased sentinel, exact identity and continuing heartbeat through Clear All | Separation OFF, owner supervised |
 | Future transport design | Typed operations, bounded waits and no blind replay of ambiguous writes | Only after a concrete failure warrants it |
