@@ -1,6 +1,8 @@
 # Watcher / DRM polling reduction — measurement prototype
 
-Status: **UNTESTED on hardware. Research branch only. Stable v1.6.0 remains unchanged.**
+Status: **Measured idle CPU benefit; INCONCLUSIVE for production promotion. Published v1.6.0 remains the stable recommendation.**
+
+Continuation results: [2026-10-08 validation](WATCHER-VALIDATION-2026-10-08.md).
 
 Research record: `JTF-RR-20261007-WATCHER-POLLING`
 
@@ -25,7 +27,7 @@ This is technical debt, not a proven battery/performance bug. If there is a mean
 
 **NOT PROVEN**
 
-- that the old polling consumes enough CPU or power to matter to a user;
+- that the measured daemon CPU reduction improves battery life or gameplay;
 - that every AYN mode change emits a useful DisplayManager callback;
 - that debugfs polling causes compositor jank;
 - that this prototype is release-safe before physical transition/wake testing.
@@ -50,7 +52,7 @@ Instead it reuses the DisplayManager callback that the daemon already depends on
 7. Watcher CRTC reads use one `crtcActivePair()` snapshot instead of separate TOP/BOTTOM file opens.
 8. Dashboard `Q` telemetry also uses one paired DRM snapshot.
 
-Callbacks improve latency; they are **not a correctness dependency**. If every callback is lost, the watcher still samples mode within 500 ms and DRM within 1 s.
+Callbacks can improve latency; they are **not a correctness dependency**. If every callback is lost, the scheduled safety waits remain 500 ms for mode and 1 s for DRM, plus processing/scheduling time. Hardware testing on firmware .377 observed callbacks on a wake path but none on the initial physical mode edge; acceleration is not guaranteed.
 
 
 ## ContentObserver fallback — not first prototype
@@ -78,7 +80,7 @@ These are source-derived upper-order figures, not device measurements:
 | Watcher DRM cycles | up to ~4/s | ~1/s safety |
 | debugfs opens per watcher cycle | 2 | 1 |
 
-During a real display transition the prototype temporarily returns to 20 ms sampling, so response latency is not traded permanently for low idle activity.
+After detecting a display transition, the prototype temporarily returns to 20 ms sampling. Initial detection without a callback can still wait for the 500 ms safety poll; the burst does not remove that tradeoff.
 
 ## Instrumentation
 
@@ -104,7 +106,11 @@ The research APK intentionally keeps:
 
 but uses daemon wire identity:
 
-`1.6.0-watcher-exp1`
+`1.6.0-watcher-exp2`
+
+Exp1 was replaced after an inherited CPU provenance import defect surfaced
+during the authorized in-place handover. Exp2 preserves matching completed
+proof without replaying its earlier phase; see the continuation report.
 
 This lets an in-place signed test replace stable v1.6.0 through the existing authenticated BOTH-only previous-daemon gate without consuming a production version number.
 
@@ -145,7 +151,7 @@ Dashboard closed. Capture separately:
 Run:
 
 ```powershell
-.\scripts\measure-watcher-load.ps1 -Seconds 60 -Label stable-both
+.\scripts\measure-watcher-load.ps1 -Serial '<confirmed-thor-serial>' -Seconds 60 -Label stable-both -OutputPath 'C:\Temp\stable-both.json'
 ```
 
 and equivalent labels for each state.

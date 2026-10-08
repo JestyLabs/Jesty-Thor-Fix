@@ -144,7 +144,17 @@ desired/previous values and baseline composer, and non-decreasing phase time.
 It does not overwrite or re-import the earlier phase. Existing current-composer
 and property verification still decides whether the retained proof authorizes
 confirmation. Conflict/corruption/OFF/failed/chronology tests remain fail-safe.
-Physical exp2 confirmation is a separate gate; no marker was manually edited.
+Physical exp2 handover logged completed-proof preservation, CPU_GATE_COMPLETE
+without composer restart, and BOOT_READY; no marker was manually edited.
+
+**OBSERVED in three awake idle windows per implementation/mode:** mean daemon
+CPU (percent of one core) fell 0.882 -> 0.093 in BOTH and 3.203 -> 0.350 in TOP.
+Watcher voluntary context switches fell about 95%. Two experimental TOP
+power-button wake repairs ended with bottom CRTC inactive at 1.219 and 1.262 s
+after framework wake; one stable comparison was 1.240 s. These few observations
+do not establish a latency distribution, exact call-count reduction, gameplay
+benefit or battery-life improvement. Full conditions, limitations and remaining
+promotion gates: [validation report](docs/WATCHER-VALIDATION-2026-10-08.md).
 
 ## Evidence discipline
 
