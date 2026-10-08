@@ -54,8 +54,9 @@ public final class DaemonState {
         long now = SystemClock.elapsedRealtime();
         Telemetry.CpuSnapshot cpu = Telemetry.readCpu();
         Telemetry.PowerSnapshot power = Telemetry.readPower();
-        String topCrtc = Telemetry.topCrtcActive();
-        String bottomCrtc = Telemetry.bottomCrtcActive();
+        String[] crtc = Telemetry.crtcActivePair();
+        String topCrtc = crtc[0];
+        String bottomCrtc = crtc[1];
         return "ok=1"
                 + ";boot_phase=" + clean(BootSafety.phase()).replace(' ', '_')
                 + ";boot_phase_ms=" + BootSafety.phaseAgeMs()
@@ -74,6 +75,7 @@ public final class DaemonState {
                 + ";display_generation=" + DisplayActionCoordinator.generation()
                 + ";watcher_health=" + WatcherSupervisor.health()
                 + ";watcher_last_sample_ms=" + WatcherSupervisor.lastSampleAt()
+                + WatcherCadence.snapshotFields()
                 + ";mode=" + clean(mode)
                 + ";power=" + clean(DisplayHardware.getProperty())
                 + ";top_crtc=" + clean(topCrtc)

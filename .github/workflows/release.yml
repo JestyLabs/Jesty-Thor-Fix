@@ -18,16 +18,38 @@ on:
 
 permissions:
   actions: read
-  contents: write
+  contents: read
 
 env:
   EXPECTED_SIGNER_SHA256: '727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC'
 
+concurrency:
+  group: publish-tested-candidate-${{ github.repository }}
+  cancel-in-progress: false
+
 jobs:
   publish:
+    if: github.ref == 'refs/heads/main' && github.actor == 'SirJesty' && github.triggering_actor == 'SirJesty'
     runs-on: windows-latest
+    environment: thor-publication
+    permissions:
+      actions: read
+      contents: write
 
     steps:
+      - name: Authorize release operator
+        shell: pwsh
+        env:
+          ORIGINAL_ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          PUBLICATION_ENV_READY: ${{ vars.THOR_PUBLICATION_ENV_READY }}
+        run: |
+          if ($env:PUBLICATION_ENV_READY -cne 'true') {
+              throw 'thor-publication environment not ready: configure reviewers, branch restriction, and THOR_PUBLICATION_ENV_READY=true'
+          }
+          if ($env:ORIGINAL_ACTOR -cne 'SirJesty' -or $env:TRIGGERING_ACTOR -cne 'SirJesty') {
+              throw 'Only the designated JestyLabs release operator may publish releases'
+          }
       - name: Resolve candidate run
         id: source
         shell: pwsh

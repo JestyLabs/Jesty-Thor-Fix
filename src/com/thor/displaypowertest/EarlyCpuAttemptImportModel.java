@@ -7,6 +7,7 @@ public final class EarlyCpuAttemptImportModel {
         IMPORT,
         REPLACE_STALE_DURABLE,
         KEEP_MATCHING,
+        KEEP_PROGRESS,
         FAIL_SAFE
     }
 
@@ -27,6 +28,18 @@ public final class EarlyCpuAttemptImportModel {
 
         if (durable == null) return Action.IMPORT;
         if (currentBootId.equalsIgnoreCase(durable.bootId)) {
+            // A daemon replacement re-reads the original /dev record after its
+            // predecessor has durably completed that exact restart attempt.
+            // Preserve the completed record; never replay the earlier phase.
+            if (early.phase == CpuBootAttemptModel.Phase.RESTART_REQUESTED
+                    && durable.phase == CpuBootAttemptModel.Phase.APPLIED
+                    && early.bootId.equalsIgnoreCase(durable.bootId)
+                    && early.desired.equals(durable.desired)
+                    && early.previous.equals(durable.previous)
+                    && early.baselineComposerPid.equals(durable.baselineComposerPid)
+                    && durable.phaseAtMs >= early.phaseAtMs) {
+                return Action.KEEP_PROGRESS;
+            }
             return durable.encode().equals(early.encode())
                     ? Action.KEEP_MATCHING : Action.FAIL_SAFE;
         }

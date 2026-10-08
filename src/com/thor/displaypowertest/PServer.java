@@ -193,20 +193,39 @@ public final class PServer {
     private static boolean send(String command, String logMessage) {
         Parcel data = null;
         Parcel reply = null;
+        String stage = "SERVICE_CLASS";
         try {
             Class<?> manager = Class.forName("android.os.ServiceManager");
+            stage = "METHOD_LOOKUP";
             Method getService = manager.getDeclaredMethod("getService", String.class);
             getService.setAccessible(true);
+            stage = "SERVICE_BINDER";
             IBinder binder = (IBinder) getService.invoke(null, "PServerBinder");
-            if (binder == null) return false;
+            if (binder == null) {
+                // Event only on a failed request, not an extra Binder probe.
+                Log.w(TAG, "bridge_result=MISSING;stage=SERVICE_BINDER"
+                        + ";elapsed_ms=" + android.os.SystemClock.elapsedRealtime());
+                return false;
+            }
+            stage = "PARCEL";
             data = Parcel.obtain();
             reply = Parcel.obtain();
             data.writeStringArray(new String[]{command, "0"});
+            stage = "TRANSACT";
             boolean sent = binder.transact(0, data, reply, 0);
-            Log.d(TAG, logMessage);
+            if (sent) {
+                Log.d(TAG, logMessage);
+            } else {
+                Log.w(TAG, "bridge_result=TRANSACT_REJECTED;stage=TRANSACT"
+                        + ";elapsed_ms=" + android.os.SystemClock.elapsedRealtime());
+            }
             return sent;
         } catch (Throwable error) {
-            Log.e(TAG, "daemon start failed", error);
+            // Never log the shell command, exception message, device identifiers,
+            // or the contents of a Parcel. These codes do not imply root cause.
+            Log.e(TAG, "bridge_result=" + BridgeFailureDiagnostic.failureReason(error)
+                    + ";stage=" + stage
+                    + ";elapsed_ms=" + android.os.SystemClock.elapsedRealtime());
             return false;
         } finally {
             if (data != null) data.recycle();

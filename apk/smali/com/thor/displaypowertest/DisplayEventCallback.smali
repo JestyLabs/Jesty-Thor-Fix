@@ -26,6 +26,8 @@
 
     :lid_guard_event
 
+    invoke-static {}, Lcom/thor/displaypowertest/WatcherCadence;->onDisplayEvent()V
+
     invoke-static {}, Lcom/thor/displaypowertest/LidGuard;->onWakeEvent()Z
     move-result v0
     if-nez v0, :cond_0
