@@ -150,6 +150,41 @@ if ($preComposerInspect -match '(?im)\badb\s+(?:reboot|install|push|root|remount
     $preComposerInspect -match '(?im)\b(?:rm|mv|cp|chmod|chown|mkdir|touch)\s') {
     throw 'Pre-composer collector must remain read-only and must not mutate the Thor.'
 }
+$pserverBinderCollector = Get-Content -LiteralPath (Join-Path $repository 'scripts\collect-thor-pserverbinder-readonly.ps1') -Raw
+& (Join-Path $PSScriptRoot 'test-pserver-collector.ps1')
+if ($pserverBinderCollector -match '(?im)\badb\s+(?:reboot|install|push|root|remount)\b' -or
+    $pserverBinderCollector -match '(?im)^\s*(?:setprop|reboot|kill|pkill|su)\b' -or
+    $pserverBinderCollector -match '(?im)\bctl\.(?:start|stop|restart)\b' -or
+    $pserverBinderCollector -match '(?im)\bservice\s+call\b' -or
+    $pserverBinderCollector -match '(?im)^\s*(?:rm|mv|cp|chmod|chown|mkdir|touch)\s') {
+    throw 'PServerBinder collector must remain read-only and must not mutate or recover the Thor.'
+}
+if ($pserverBinderCollector -notmatch 'service check PServerBinder' -or
+    $pserverBinderCollector -notmatch 'cat /proc/sys/kernel/random/boot_id' -or
+    $pserverBinderCollector -notmatch 'pidof pservice' -or
+    $pserverBinderCollector -notmatch 'for N in pservice servicemanager' -or
+    $pserverBinderCollector -notmatch 'pidof "\$N"') {
+    throw 'PServerBinder collector must preserve the minimum lifecycle discriminants.'
+}
+$pserverBinderCollectorPath = Join-Path $repository 'scripts\collect-thor-pserverbinder-readonly.ps1'
+$pserverTokens = $null
+$pserverErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+    $pserverBinderCollectorPath, [ref]$pserverTokens, [ref]$pserverErrors) | Out-Null
+if ($pserverErrors.Count -gt 0) {
+    throw "PServerBinder collector has PowerShell syntax errors: $($pserverErrors[0].Message)"
+}
+if ($pserverBinderCollector -notmatch '00-capture-status\.tsv' -or
+    $pserverBinderCollector -notmatch '\$LASTEXITCODE' -or
+    $pserverBinderCollector -notmatch "RequireSuccess" -or
+    $pserverBinderCollector -notmatch "adbState -ne 'device'" -or
+    $pserverBinderCollector -notmatch 'ServiceManager lookups are read-only Binder IPC') {
+    throw 'PServerBinder collector must record command failures, check connectivity and describe Binder IPC accurately.'
+}
+if ($pserverBinderCollector -match 'Invoke-AdbText\s+-Path.*-Args\b') {
+    throw 'PServerBinder collector must use explicit Arguments binding for all adb calls.'
+}
+
 $preComposerProofSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'PreComposerCpuProofModel.java') -Raw
 if ($preComposerProofSource -match 'ProcessBuilder|setprop|ctl\.restart|DisplayActionCoordinator|SurfaceControl|LidGuard') {
     throw 'Pre-composer proof model must stay pure and side-effect free.'
