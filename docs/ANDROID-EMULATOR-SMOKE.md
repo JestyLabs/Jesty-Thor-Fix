@@ -39,9 +39,9 @@ Do not publish it as a test release or enable any real device in this script.
 
 ## Follow-on work
 
-- Complement the existing PR #49 host tests with **separate Android integration**
+- Complement the merged PR #49 gate tests with **separate Android integration**
   coverage of `PackageInstaller.Session` callbacks, cancellation and denied
-  confirmation, without copying another project's implementation.
+  confirmation using the isolated emulator harness.
 - Add a fake-bridge integration seam for daemon-absence/retry policies; preserve
   the production IPC security model and avoid a simulated successful vendor
   service masquerading as real device evidence.

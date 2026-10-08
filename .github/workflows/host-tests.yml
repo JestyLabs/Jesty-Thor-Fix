@@ -242,7 +242,7 @@ jobs:
           retention-days: 30
 
   android_emulator_smoke:
-    name: Android emulator lifecycle smoke (no vendor bridge)
+    name: Android emulator lifecycle and installer sessions (no vendor bridge)
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     needs: build
     runs-on: ubuntu-latest
@@ -264,8 +264,8 @@ jobs:
         with:
           packages: platform-tools
 
-      - name: Install Android signing tools
-        run: sdkmanager "build-tools;35.0.0"
+      - name: Install Android test build tools
+        run: sdkmanager "build-tools;35.0.0" "platforms;android-34"
 
       - name: Download exact unsigned APK from this CI run
         uses: actions/download-artifact@v4
@@ -288,6 +288,11 @@ jobs:
             "emulator-input/Jesty-Thor-Fix-${{ needs.build.outputs.version }}-unsigned.apk"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose emulator-input/emulator-test.apk
 
+      - name: Build isolated installer harness with disposable test key
+        shell: bash
+        run: |
+          bash scripts/build-installer-harness.sh "$RUNNER_TEMP/emulator-test.jks" emulator-input/installer-ci-harness.apk
+
       - name: Enable KVM for emulator
         run: |
           test -c /dev/kvm
@@ -301,4 +306,9 @@ jobs:
           arch: x86_64
           profile: pixel_2
           disable-animations: true
-          script: bash scripts/test-android-emulator-smoke.sh emulator-input/emulator-test.apk "${{ needs.build.outputs.version }}"
+          script: |
+            # Fresh AVD immersive tutorial must not intercept the PackageInstaller UI.
+            adb -s emulator-5554 shell settings put secure immersive_mode_confirmations confirmed
+            test "$(adb -s emulator-5554 shell settings get secure immersive_mode_confirmations | tr -d '\r')" = confirmed
+            bash scripts/test-android-emulator-smoke.sh emulator-input/emulator-test.apk "${{ needs.build.outputs.version }}"
+            bash scripts/test-android-installer-session.sh emulator-input/emulator-test.apk emulator-input/installer-ci-harness.apk
