@@ -21,7 +21,7 @@ $needles = @(
     'SetRefreshRate', 'GetRefreshRate', 'SetActiveConfig', 'GetConfig',
     'DisplayBuiltIn', 'DisplayBase', 'HWDisplayAttributes',
     'active_config', 'display_attributes', 'dsi_display0', 'dsi_display1',
-    'bypass_ram', 'VID_BYPASS_RAM', 'VID_PASS_RAM'
+    'bypass_ram', 'VID_BYPASS_RAM', 'VID_PASS_RAM', 'invalid mode'
 )
 
 function Get-AsciiStrings {
@@ -30,7 +30,7 @@ function Get-AsciiStrings {
     $bytes = [IO.File]::ReadAllBytes($Path)
     $latin1 = [Text.Encoding]::GetEncoding(28591).GetString($bytes)
     foreach ($m in [regex]::Matches($latin1, '[\x20-\x7E]{4,}')) {
-        $m.Value
+        [pscustomobject]@{ offset = $m.Index; text = $m.Value }
     }
 }
 
@@ -50,20 +50,30 @@ $inputs = @(
 )
 
 foreach ($file in $inputs) {
+    # A text report, README or JSON with symbol names is not a binary hit.
+    $stream = [IO.File]::OpenRead($file.FullName)
+    try {
+        $magic = New-Object byte[] 4
+        $count = $stream.Read($magic, 0, 4)
+    } finally { $stream.Dispose() }
+    if ($count -ne 4 -or $magic[0] -ne 0x7f -or
+        $magic[1] -ne 0x45 -or $magic[2] -ne 0x4c -or $magic[3] -ne 0x46) { continue }
     $matches = @(Get-AsciiStrings -Path $file.FullName |
         Where-Object {
-            $line = $_
+            $line = $_.text
             [bool]($needles | Where-Object {
                 $line.IndexOf($_, [StringComparison]::OrdinalIgnoreCase) -ge 0
             })
         } |
-        Select-Object -Unique)
+        Sort-Object offset)
 
     if ($matches.Count -eq 0) { continue }
 
     $report.Add("### $($file.FullName)")
+    $report.Add('sha256=' + (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash)
+    $report.Add('String presence is not execution. Offsets below are file offsets, not ELF virtual addresses.')
     foreach ($line in $matches) {
-        $report.Add($line)
+        $report.Add(('file_offset=0x{0:x} {1}' -f $line.offset, $line.text))
     }
     $report.Add("")
 }
