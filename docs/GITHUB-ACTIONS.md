@@ -31,14 +31,18 @@ The protected main signing run passed after a real reviewer rejection and a
 separately approved rerun. Its signed APK matched the established certificate,
 the recorded unsigned input hash and the original APK payload. Repository-scoped
 signing copies were then removed; a subsequent experimental signing run passed
-using only the environment copies. Organization-level secret inventory remains
-unverified because the administrative token lacks the required organization
-permission.
+using only the environment copies. The API organization-secret inventory was
+permission-limited; a subsequent maintainer-provided Settings capture confirmed
+that JestyLabs had no organization Actions secrets at the time of that visual
+check. The complete evidence remains owner-local.
 
 The independent publication gate was rejected before any job steps ran, and the
-release list remained unchanged. No test release was published and neither
-candidate was installed. Host tests also rejected experimental candidate metadata
-at the production publication source check; this is not a live publication test.
+release list remained unchanged. No test release was published. Neither candidate
+was installed during signing validation. In a later explicitly authorized session,
+the exact experimental diagnostic candidate was installed in place and its
+installed hash verified; dashboard, normal reboot and lid/wake smoke observations
+passed. Host tests also rejected experimental candidate metadata at the production
+publication source check; this is not a live publication test.
 
 The following is the migration/recovery procedure. The completed migration above
 does not establish physical acceptance of a diagnostic candidate:

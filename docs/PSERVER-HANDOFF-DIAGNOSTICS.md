@@ -74,12 +74,24 @@ Java errors (including hidden-API/reflective errors). Existing
 `HandoffRecoveryModelTest` covers the decisions; the additional fields
 allow correlating real device traces to those decisions.
 
-**Pending hardware evidence:** OS binder registration chronology, bridge process
-liveness during an actual event, PackageInstaller replacement creating the next
-healthy daemon, wake-lock ownership after a failed transition and the physical
-top/bottom CRTC result. None is validated by this patch.
+**Supervised normal-operation observations:** the exact signed diagnostic
+candidate was installed in place with its installed hash verified and data
+preserved. The maintainer confirmed a responsive dashboard, normal reboot and
+normal lid/wake after reboot. Current-boot logs showed a fresh healthy daemon and
+`BOOT_READY`; both physical CRTCs were active in the final observation. The
+initial app launch reused the previous same-version daemon; the normal reboot
+loaded the successor. This was an ADB replacement, not a PackageInstaller
+end-to-end validation. Raw evidence remains owner-local.
+
+**Pending failure-event evidence:** OS Binder registration chronology and bridge
+process liveness during an actual failure, PackageInstaller replacement creating
+the next healthy daemon, wake-lock ownership after a failed transition and the
+physical top/bottom CRTC result during that failure. No bridge failure or helper
+exit event occurred during the smoke test; failure handling remains host-tested.
+Do not induce faults or wait indefinitely for an incident as a review gate.
 
 **Stop conditions:** unexpected panel transitions, repeated compositor restart,
 lost daemon identity/protocol, missing wake-lock release evidence, or logs
-containing unexpected private data. Keep this work in a draft research PR
-until host CI and supervised safe observations are complete.
+containing unexpected private data. Host CI and the supervised safe smoke
+observations are complete; physical failure-event coverage remains an explicit
+limitation for review.
