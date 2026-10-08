@@ -11,7 +11,8 @@ if (Test-Path -LiteralPath $output) {
 New-Item -ItemType Directory -Path $output | Out-Null
 
 # The updater is an ordinary app install; it must never reach the root daemon or a shell.
-$updaterSources = @('AppUpdater.java', 'UpdateInstallReceiver.java', 'UpdateVersion.java') |
+$updaterSources = @('AppUpdater.java', 'UpdateInstallReceiver.java', 'UpdateVersion.java',
+    'UpdateCommitGate.java') |
     ForEach-Object { Get-Content -LiteralPath (Join-Path $repository "src\com\thor\displaypowertest\$_") -Raw }
 if (($updaterSources -join "`n") -match 'SocketClient|PServer|Runtime\.getRuntime|ProcessBuilder|"su"') {
     throw 'The in-app updater must not use the root daemon, su or a shell.'
@@ -29,8 +30,10 @@ $warningModel = Join-Path $repository 'src\com\thor\displaypowertest\CpuWarningM
 $warningTest = Join-Path $repository 'tests\CpuWarningModelTest.java'
 $updateModel = Join-Path $repository 'src\com\thor\displaypowertest\UpdateVersion.java'
 $updateTest = Join-Path $repository 'tests\UpdateVersionTest.java'
+$commitGateModel = Join-Path $repository 'src\com\thor\displaypowertest\UpdateCommitGate.java'
+$commitGateTest = Join-Path $repository 'tests\UpdateCommitGateTest.java'
 
-& javac -source 8 -target 8 -d $output $model $test $warningModel $warningTest $updateModel $updateTest
+& javac -source 8 -target 8 -d $output $model $test $warningModel $warningTest $updateModel $updateTest $commitGateModel $commitGateTest
 if ($LASTEXITCODE -ne 0) { throw 'Dashboard test compilation failed.' }
 
 & java -cp $output DashboardStateModelTest
@@ -39,3 +42,5 @@ if ($LASTEXITCODE -ne 0) { throw 'Dashboard tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'CPU warning tests failed.' }
 & java -cp $output UpdateVersionTest
 if ($LASTEXITCODE -ne 0) { throw 'Update version tests failed.' }
+& java -cp $output UpdateCommitGateTest
+if ($LASTEXITCODE -ne 0) { throw 'Update commit cancellation tests failed.' }

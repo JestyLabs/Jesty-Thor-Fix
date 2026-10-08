@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.jestylabs.thorfix.installerharness">
+    <uses-sdk android:minSdkVersion="28" android:targetSdkVersion="33" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <application android:label="Thor Fix CI Installer Harness"
+        android:allowBackup="false">
+        <activity android:name=".HarnessActivity" android:exported="true" />
+        <receiver android:name=".InstallerStatusReceiver" android:exported="false" />
+    </application>
+</manifest>
