@@ -33,3 +33,7 @@ Keep existing license, copyright and provenance notices intact. Forks should cle
 If a contribution or downstream project builds on a non-trivial investigation, test method or implementation from this repository, please preserve the technical credit and link back to the original work. See [NOTICE.md](NOTICE.md) and [PROVENANCE.md](PROVENANCE.md).
 
 If a change materially uses external code, research or prior art, include the upstream project and an exact commit or URL in the PR description or provenance record. Do not remove existing SPDX, authorship or provenance notices.
+
+## Publication privacy
+
+Keep detailed security evidence and device/session identifiers local. Follow [the publication policy](SECURITY-PUBLICATION.md) before pushing research or reports.
