@@ -90,7 +90,37 @@ These are single supervised cycles and discrete software observations, not
 proof of uninterrupted suspend, panel rails, physical cadence or energy. The
 BOTH closed-lid sample differs from the earlier lower-active sleep capture;
 the cause and repeatability remain unknown. Mixed-refresh tests are still
-pending. No refresh-policy or direct sysfs writes were made.
+pending. No refresh-policy or direct sysfs writes were made during the 60 Hz checks.
+
+## Initial 120 Hz selection check
+
+After the 60 Hz references, the owner selected 120 Hz through the normal device
+control and returned to the same moving game content in BOTH mode. System
+min/peak settings read approximately 120 Hz, but both active internal DRM modes
+remained 60 Hz. SurfaceFlinger retained TOP active mode 0 and BOTTOM active mode
+1, both mapped to 60 Hz. Its primary policy range was 0–120 Hz for TOP and
+120–120 Hz for BOTTOM. This is a requested-versus-applied discrepancy, not
+evidence of actual mixed 120/60 operation or physical 120 Hz output. A complete
+read-only capture was saved owner-local.
+
+The owner returned to the diagnostics app without changing the refresh choice
+and reported normal appearance. Its dashboard still reported BOTH, with display
+and CPU fixes requested ON and lid guard OFF. TOP changed to active mode 1
+(120 Hz) in SurfaceFlinger and a 120 Hz DRM mode. BOTTOM also had an active
+120 Hz DRM mode, but SurfaceFlinger retained active mode 1, whose local mapping
+is 60 Hz. This records a cross-layer discrepancy; it does not establish optical
+cadence, frame uniqueness or its cause. No direct display-policy or sysfs
+command was used to force a mode.
+
+On returning to the same game without changing the refresh choice, the owner
+again reported normal moving content. Both active DRM modes returned to 60 Hz,
+with TOP SurfaceFlinger active mode 0 and BOTTOM mode 1. Owner-local photographs
+also show the dashboard retaining its 120-mode label while its current-FPS
+counter reads 120 with the diagnostics app and 60 with the game. The counter
+agrees with these software observations but does not independently measure
+either panel's optical cadence. The reason for the app-dependent transition
+remains unproven. This game session therefore does not validate moving content
+at applied 120 Hz.
 
 ## Follow-up and remaining gates
 
