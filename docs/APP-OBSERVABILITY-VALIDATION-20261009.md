@@ -60,6 +60,31 @@ These findings do not establish BatteryManager energy-counter availability,
 calibration or a suspend count attributable to this trial. No initial baseline
 for cumulative kernel counters was captured overnight.
 
+## Supervised 60 Hz display and lid checks
+
+With USB connected, min/peak policy remained 60/60. Display and CPU fixes were
+requested ON and lid guard OFF. The owner confirmed the upper image was stable
+and the lower screen visually off in TOP mode. Switching only the display fix
+OFF through the app changed the lower CRTC from inactive to active; switching
+ON restored inactive. Visual confirmation for the OFF state remains pending.
+
+The owner selected BOTH using the normal device controls. Both internal CRTCs
+were active at 60 Hz. Closing the lid produced Android Asleep, both logical
+displays OFF and both CRTCs inactive in the captured sample. On opening, the
+owner confirmed both screens recovered normally; both CRTCs became active.
+
+The owner then selected TOP mode and repeated the lid cycle. The closed sample
+again showed Asleep, both logical displays OFF and both CRTCs inactive. On
+opening, the owner confirmed normal upper image with the lower still off;
+upper CRTC was active and lower inactive. Display-service processes remained
+unchanged across both cycles.
+
+These are single supervised cycles and discrete software observations, not
+proof of uninterrupted suspend, panel rails, physical cadence or energy. The
+BOTH closed-lid sample differs from the earlier lower-active sleep capture;
+the cause and repeatability remain unknown. Moving-content and mixed-refresh
+tests are still pending. No refresh-policy or direct sysfs writes were made.
+
 ## Follow-up and remaining gates
 
 The report now retains bounded voltage/temperature context on rejected results
