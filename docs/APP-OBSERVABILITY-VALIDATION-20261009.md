@@ -122,6 +122,15 @@ either panel's optical cadence. The reason for the app-dependent transition
 remains unproven. This game session therefore does not validate moving content
 at applied 120 Hz.
 
+A 60 FPS content cap or app refresh preference could influence the selected
+mode. A 60 FPS producer can also run on a 120 Hz display with repeated frames;
+these two rates must be measured separately. The game's cap, API request and
+vendor policy were not established, so this transition alone does not prove a
+refresh defect. See the [Android frame-rate API documentation](https://developer.android.com/media/optimize/performance/frame-rate).
+The SurfaceFlinger and DRM reads were sequential, not an atomic snapshot;
+repeatable synchronized transition evidence remains necessary before attributing
+the cross-layer observations to stale state or incorrect mode forwarding.
+
 ## Follow-up and remaining gates
 
 The report now retains bounded voltage/temperature context on rejected results
