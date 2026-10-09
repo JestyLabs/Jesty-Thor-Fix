@@ -18,6 +18,16 @@ Jesty Thor Fix is split between a normal Android dashboard and a privileged root
   classifies an unreachable socket pathname before waiting (see *Daemon launch
   and stale sockets*).
 - `BootReceiver` starts that service after a normal boot.
+- `PassiveSleepMonitor` reads two battery and Android-clock snapshots only
+  during an explicitly armed Activity pause/resume interval. The pure-Java
+  `PassiveSleepTrial` class rejects confounded measurements and produces a
+  sanitized aggregate. There is no background sleep poll, daemon IPC or
+  new wakelock; actual accuracy requires device testing.
+- `AppDiagnostics` records bounded Activity/telemetry transitions in private
+  preferences and queries this package's Android exit history on demand.
+  `AppDiagnosticReport` owns the single 64-entry journal; a pure Java classifier contributes only bounded, typed Q transitions (two consecutive valid samples for mode/CRTC observations), not a second store or poll. It reuses
+  existing foreground samples and introduces no daemon request or sleep poll.
+  See [observability and energy validation](APP-OBSERVABILITY-AND-ENERGY.md).
 - `AppUpdater` checks GitHub releases only while the dashboard is open (at most
   hourly), shows the top-bar UPDATE button, and downloads, verifies and hands
   a newer APK to `PackageInstaller`; `UpdateInstallReceiver` (not exported)
