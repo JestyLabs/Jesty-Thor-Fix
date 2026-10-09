@@ -79,11 +79,18 @@ opening, the owner confirmed normal upper image with the lower still off;
 upper CRTC was active and lower inactive. Display-service processes remained
 unchanged across both cycles.
 
+With familiar moving game content in TOP mode, the owner reported normal image
+without noticed tearing, flicker or abnormal pauses. A concurrent read showed
+policy 60/60, upper CRTC active at 60 Hz and lower inactive. This qualitative
+observation is not a measurement of frame rate, pacing or physical cadence.
+The owner then selected BOTH and reported the same moving content remained
+normal; both internal CRTCs were active at 60 Hz and policy remained 60/60.
+
 These are single supervised cycles and discrete software observations, not
 proof of uninterrupted suspend, panel rails, physical cadence or energy. The
 BOTH closed-lid sample differs from the earlier lower-active sleep capture;
-the cause and repeatability remain unknown. Moving-content and mixed-refresh
-tests are still pending. No refresh-policy or direct sysfs writes were made.
+the cause and repeatability remain unknown. Mixed-refresh tests are still
+pending. No refresh-policy or direct sysfs writes were made.
 
 ## Follow-up and remaining gates
 
