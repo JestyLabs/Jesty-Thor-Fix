@@ -80,3 +80,23 @@ Neither finding proves why tearing occurs or that BOTTOM produces 120 distinct
 frames. Keep policy writes paused: the next investigation must distinguish
 kernel/sysfs command semantics, actual per-display commit/timeline behavior and
 optical frame cadence. Do not correct the observed baseline RAM value speculatively.
+
+## 2026-10-09 supervised A → B → C follow-up (read-only)
+
+**OBSERVED — context-associated, not causal.** The same game → Jesty Thor Fix app → game sequence was captured with BOTH selected and 120 requested through the stock Thor control. The TOP **SurfaceFlinger `displayManagerPolicy.primaryRange`** (not physical mode or a proven game request) was `[0,120] → [120,120] → [0,120]` Hz. The global system min/peak settings remained near 120 while DRM and TOP SF reported 60/60 in the game states and 120 in the app state. A 60-FPS content limit alone does not establish why DRM mode changes; an application surface/window frame-rate vote and a vendor game policy are separate **HYPOTHESES**, not measured causes.
+
+| State | TOP SF local mode | BOTTOM SF local mode | TOP DRM | BOTTOM DRM | TOP SF primary policy |
+|---|---|---|---|---|---|
+| A — game | ID0 = 60 Hz | ID1 = 60 Hz | 60cmd | 60vid | [0,120] Hz |
+| B — app | ID1 = 120 Hz | ID1 = 60 Hz | 120cmd | 120vid | [120,120] Hz |
+| C — game | ID0 = 60 Hz | ID1 = 60 Hz | 60cmd | 60vid | [0,120] Hz |
+
+**OBSERVED — namespaces differ.** TOP local ID0 is 60 Hz and ID1 is 120 Hz; BOTTOM local ID0 is 120 Hz and ID1 is 60 Hz in these SF tables. Never compare active mode IDs without the per-display table, physical mapping, HWC ID and clock provenance. At B, BOTTOM SF reports active ID1 = 60 Hz despite a BOTTOM DRM `1080x1240x120vid` mode: this is an **apparent cross-layer reporting discrepancy**, not proof of an applied optical 120 Hz mode, stale bookkeeping or a faulty commit. The BOTTOM primary policy in B is [120,120] even while SF activeModeId remains 1=60: this is an additional policy-vs-active observation. SF and DRM dumps were **sequential**, not synchronized; the long `app-120-requested` collector may include transition back to the game. The individually captured `app-after-120-selected-*` and `game-return-120-*` files are distinct temporal anchors.
+
+**OBSERVED — CRTC state limitations.** In the supervised TOP/display-fix ON check, TOP CRTC remained active and BOTTOM inactive; turning that fix OFF through the app made BOTTOM active, and restoring ON made it inactive. In captured sleep states, `enable=1` can coexist with `active=0`; `active=0` does not establish fully powered-down pipeline, disconnected panel rails, zero energy or optical black. Preserve both distinct sleep observations: an **earlier** BOTH/closed sample showed BOTTOM CRTC active with Android logical displays OFF; on **2026-10-09**, a separately supervised BOTH/closed sample showed both CRTCs inactive, and TOP/closed did too. Different initial conditions, read times, repeatability and cause remain **UNKNOWN**. The owner reported normal recovery after opening in those recent single-cycle observations; there was no optical measurement.
+
+**PROVEN (static binary), not observed runtime return.** The exact .377 vendor ELF's foreign-mode mismatch, HWC remap and default-only bookkeeping are documented in the binary reports. This static control flow does not establish the secondary HWC return, physical commit, vblank/fence timing, optical cadence or the tearing mechanism. Likewise, a 120 DRM mode and a software FPS readout do not establish 120 distinct optical frames.
+
+**Remote evidence scope:** both ZIP manifests verified 124 and 529 entries, respectively; total archive file counts were 125 and 532. Historical sanitized PIDs prevent independently checking process continuity; local original observations of process continuity are not re-proven by this redacted package. Signed APK, signing evidence and owner photos were deliberately absent. Original captures stay owner-local.
+
+**Next gate — no automatic physical test:** build a separate read-only, short SF→DRM→SF / DRM→SF→DRM collector with per-read host and device clock provenance. A stable bracket means only agreement among the samples, not continuous stability or an atomic snapshot. First validate its offline fixtures, then a supervised 60/60 pilot; only subsequently attempt repeated A→B→C. Window/Surface, DisplayModeDirector and game/vendor evidence belong to supplemental read-only captures. Neither the previous failed ftrace trace nor absent events prove a lack of vblank.
