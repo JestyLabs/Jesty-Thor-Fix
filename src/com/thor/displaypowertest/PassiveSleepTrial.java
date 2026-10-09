@@ -47,9 +47,11 @@ public final class PassiveSleepTrial {
         public final double energyWh, meanW;
         public final boolean bootVerified;
         public final int fixes, voltageStartMv, voltageEndMv, temperatureStartDeciC, temperatureEndDeciC;
+        public final int pluggedStart, pluggedEnd;
         private Result(String state, String method, long totalMs, long awakeMs,
                 long suspendedMs, double wh, boolean bootVerified, int fixes,
-                int voltageStartMv, int voltageEndMv, int temperatureStartDeciC, int temperatureEndDeciC) {
+                int voltageStartMv, int voltageEndMv, int temperatureStartDeciC, int temperatureEndDeciC,
+                int pluggedStart, int pluggedEnd) {
             this.state = state; this.method = method;
             this.totalMs = totalMs; this.awakeMs = awakeMs; this.suspendedMs = suspendedMs;
             this.energyWh = wh; this.meanW = totalMs > 0 && wh >= 0 ? wh * 3600000d / totalMs : -1d;
@@ -57,6 +59,7 @@ public final class PassiveSleepTrial {
             this.voltageStartMv = voltageStartMv; this.voltageEndMv = voltageEndMv;
             this.temperatureStartDeciC = temperatureStartDeciC;
             this.temperatureEndDeciC = temperatureEndDeciC;
+            this.pluggedStart = pluggedStart; this.pluggedEnd = pluggedEnd;
         }
         public String reportLine() {
             return "passive_sleep;state=" + state + ";interval_ms=" + totalMs
@@ -68,7 +71,9 @@ public final class PassiveSleepTrial {
                     + ";voltage_start_mv=" + known(voltageStartMv)
                     + ";voltage_end_mv=" + known(voltageEndMv)
                     + ";temperature_start_deci_c=" + known(temperatureStartDeciC)
-                    + ";temperature_end_deci_c=" + known(temperatureEndDeciC);
+                    + ";temperature_end_deci_c=" + known(temperatureEndDeciC)
+                    + ";plugged_start_mask=" + known(pluggedStart)
+                    + ";plugged_end_mask=" + known(pluggedEnd);
         }
         public String describe() {
             return "State: " + state + "\nDuration: " + totalMs / 1000 + " seconds"
@@ -76,6 +81,8 @@ public final class PassiveSleepTrial {
                     + percent(suspendedMs, totalMs) + "%)"
                     + "\nEnergy: " + number(energyWh) + " Wh (" + method + ")"
                     + "\nMean whole-device draw: " + number(meanW) + " W"
+                    + "\nEndpoint power (start → end): " + endpointPower(pluggedStart)
+                    + " → " + endpointPower(pluggedEnd)
                     + "\nBattery voltage: " + known(voltageStartMv) + " → " + known(voltageEndMv) + " mV"
                     + "\nBattery temperature: " + known(temperatureStartDeciC)
                     + " → " + known(temperatureEndDeciC) + " (0.1°C)"
@@ -89,22 +96,22 @@ public final class PassiveSleepTrial {
     }
 
     public static Result evaluate(Sample a, Sample b) {
-        if (a == null || b == null) return invalid("MISSING_SAMPLE", false, 0, 0, 0, 0);
+        if (a == null || b == null) return invalid("MISSING_SAMPLE", false, 0, 0, 0, a, b);
         boolean bootVerified = a.bootCount >= 0 && a.bootCount == b.bootCount;
         if (a.bootCount >= 0 && b.bootCount >= 0 && a.bootCount != b.bootCount)
-            return invalid("REBOOT_DETECTED", false, 0, 0, 0, a.fixes);
+            return invalid("REBOOT_DETECTED", false, 0, 0, 0, a, b);
         long duration = b.elapsedMs - a.elapsedMs;
         long awake = b.uptimeMs - a.uptimeMs;
         if (duration <= 0 || duration > MAX_MS || awake < 0 || awake > duration + 2000)
-            return invalid("CLOCK_INVALID_OR_REBOOT", bootVerified, 0, 0, 0, a.fixes);
+            return invalid("CLOCK_INVALID_OR_REBOOT", bootVerified, 0, 0, 0, a, b);
         long suspended = Math.max(0, duration - awake);
         if (a.plugged != 0 || b.plugged != 0)
-            return invalid("EXTERNAL_POWER_OR_UNKNOWN", bootVerified, duration, awake, suspended, a.fixes);
+            return invalid("EXTERNAL_POWER_OR_UNKNOWN", bootVerified, duration, awake, suspended, a, b);
         if (a.fixes != b.fixes)
-            return invalid("FIX_REQUEST_CHANGED", bootVerified, duration, awake, suspended, a.fixes);
+            return invalid("FIX_REQUEST_CHANGED", bootVerified, duration, awake, suspended, a, b);
         if ((a.energyNwh > 0 && b.energyNwh > a.energyNwh)
                 || (a.chargeUah >= 0 && b.chargeUah > a.chargeUah))
-            return invalid("COUNTER_INCREASE", bootVerified, duration, awake, suspended, a.fixes);
+            return invalid("COUNTER_INCREASE", bootVerified, duration, awake, suspended, a, b);
         String method = "UNAVAILABLE";
         double wh = -1;
         if (a.energyNwh > 0 && b.energyNwh > 0 && a.energyNwh > b.energyNwh) {
@@ -119,12 +126,17 @@ public final class PassiveSleepTrial {
                 : wh < 0 ? "ENERGY_UNAVAILABLE_OR_UNRESOLVED"
                 : !bootVerified ? "BOOT_NOT_VERIFIED" : "PROVISIONAL";
         return new Result(state, method, duration, awake, suspended, wh, bootVerified, a.fixes,
-                a.voltageMv, b.voltageMv, a.temperatureDeciC, b.temperatureDeciC);
+                a.voltageMv, b.voltageMv, a.temperatureDeciC, b.temperatureDeciC, a.plugged, b.plugged);
     }
     private static Result invalid(String reason, boolean boot, long duration,
-            long awake, long suspended, int fixes) {
-        return new Result(reason, "UNAVAILABLE", duration, awake, suspended, -1, boot, fixes,
-                -1, -1, -1, -1);
+            long awake, long suspended, Sample a, Sample b) {
+        return new Result(reason, "UNAVAILABLE", duration, awake, suspended, -1, boot,
+                a == null ? 0 : a.fixes, a == null ? -1 : a.voltageMv, b == null ? -1 : b.voltageMv,
+                a == null ? -1 : a.temperatureDeciC, b == null ? -1 : b.temperatureDeciC,
+                a == null ? -1 : a.plugged, b == null ? -1 : b.plugged);
+    }
+    private static String endpointPower(int mask) {
+        return mask == 0 ? "battery" : mask > 0 && mask <= 15 ? "external" : "unknown";
     }
     private static String known(int n) { return n >= 0 ? Integer.toString(n) : "unknown"; }
     private static String number(double n) {

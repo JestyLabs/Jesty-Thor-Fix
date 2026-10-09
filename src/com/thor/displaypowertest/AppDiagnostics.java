@@ -100,7 +100,8 @@ final class AppDiagnostics {
                 TextView body = new TextView(activity);
                 int padding = (int) (16 * activity.getResources().getDisplayMetrics().density);
                 body.setPadding(padding, padding, padding, padding);
-                body.setText("Recent Android exit reasons and app events. This report does not measure sleep power.\n\n" + text);
+                body.setText("Recent Android exit reasons and app events. A sleep trial estimates whole-device "
+                        + "energy over its full interval; it does not measure panel power.\n\n" + text);
                 body.setTextIsSelectable(true);
                 body.setTextSize(12);
                 ScrollView scroll = new ScrollView(activity);

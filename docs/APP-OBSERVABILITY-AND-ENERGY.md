@@ -1,7 +1,8 @@
 # App observability and controlled energy investigation
 
 Priority: **P2**. App diagnostics and the opt-in two-boundary passive measurement candidate are
-implemented. Device validation is pending. Calibrated energy measurements,
+implemented. Device validation is partial; see [2026-10-09 results](APP-OBSERVABILITY-VALIDATION-20261009.md).
+Calibrated energy measurements,
 physical panel-power attribution and any runtime energy fix remain **planned**.
 
 ## Structured app history and export
@@ -46,12 +47,13 @@ boot ID, session ID, absolute wall time, filesystem path or account data is
 included. Private history timestamps become relative ages; clock rollback
 produces unknown age. Invalid values remain unknown.
 
-## Passive sleep trial (opt-in candidate; not hardware validated)
+## Passive sleep trial (opt-in candidate; partial device validation)
 
 **Where:** APP DIAGNOSTICS → **Sleep trial** → **Start trial**.
 The action arms a one-shot trial; it does not start a background collector.
-Leave the dashboard normally, let the Thor sleep **unplugged** for at least
-five minutes, then return to the app and open Sleep trial again. The result
+Disconnect USB/charging before leaving the dashboard; allow Android's battery
+state to update. Let the Thor sleep **unplugged** for at least five minutes,
+then reopen the app **before reconnecting USB** and open Sleep trial again. The result
 also appears as one `passive_sleep` line in the ordinary diagnostics export.
 Use **Cancel trial** if you arm a trial by mistake. Starting a new one
 replaces only the previous sleep trial, not the 64-event app journal.
@@ -92,7 +94,10 @@ replaces only the previous sleep trial, not the 64-event app journal.
   hardware accepted the configuration, and plugged-state changes between
   samples are not detectable if both endpoints look unplugged.
 - The report includes bounded numeric aggregates and status tokens only,
-  without raw sysfs reads, root replies, absolute timestamps, serial numbers,
+  including each endpoint's plugged mask (`0` battery, nonzero external,
+  `unknown` unavailable). Rejected energy results retain endpoint battery
+  context to explain the rejection; Wh/watts remain unknown. It excludes
+  raw sysfs reads, root replies, absolute timestamps, serial numbers,
   full boot identifiers or OS process descriptions. Snapshot state is private,
   not part of the saved public text report.
 
@@ -233,11 +238,16 @@ in the committed worksheet; test data is explicitly synthetic.
 
 ## Validation gates
 
-2026-10-08 host validation passed: app diagnostic/privacy fixtures (21
+Initial 2026-10-08 host validation passed: app diagnostic/privacy fixtures (21
 assertions), four synthetic energy comparison tests, existing dashboard and
 boot/lid/IPC suites, public-content and release-policy checks, and unsigned APK
 compilation/alignment. Device export, Android exit-history behaviour and energy
-measurements remain unvalidated; no candidate was installed for this PR.
+measurements were unvalidated at that point. On 2026-10-09, diagnostics fixtures
+passed 561 assertions and passive-trial fixtures passed 25 assertions. Physical
+preview, save/cancel, retained app-only stop reasons and overnight persistence
+were exercised; see [the device validation ledger](APP-OBSERVABILITY-VALIDATION-20261009.md).
+The retained overnight result rejects energy because its end boundary records
+USB. Controlled energy comparisons remain pending.
 
 - Host: typed status/detail allowlists, two-sample CRTC confirmation, unknown-value rejection, wake counter resets, disconnect/reconnect baselines, pause gaps, one shared 64-entry ring, retention, corrupt persistent input, arbitrary-field rejection, relative
   ages, unavailable samples, future reason codes, export bounds, app compilation,
@@ -250,8 +260,8 @@ measurements remain unvalidated; no candidate was installed for this PR.
   and stale-sample labels.
 - Candidate device: known app-process termination followed by manual relaunch;
   inspect Android's retained reason without touching daemon/display state.
-  Preparing this PR does not include deliberate crashes/kills or installation
-  on the owner's device. Exercise unsupported/unavailable/empty paths in a
+  The controlled app-only force-stop was exercised; crashes and memory-pressure
+  exits remain unvalidated. Exercise unsupported/unavailable/empty paths in a
   suitable test setup.
 - Energy validation remains separate and pending. Host tests and ordinary
   emulator lifecycle smoke do not validate export, exit reasons or energy.
