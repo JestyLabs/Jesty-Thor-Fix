@@ -15,6 +15,59 @@ Related: [#37 mixed-refresh research](https://github.com/JestyLabs/Jesty-Thor-Fi
 
 120 Hz **selected** is not proof of physical BOTTOM 120 Hz or of a refresh-mode change during the lid event. The lower panel's distinct optical cadence was not measured.
 
+## New finding — offline review of the owner's private RC2 evidence ZIP
+
+**2026-10-11, derived evidence only; source ZIP and raw Android logs remain private.**
+The exact signed corrected v1.7.1-rc2/73 candidate was installed. PowerManager
+`dumpsys power` recorded `mLastSleepReason=lid_switch` for two successive
+BOTH + Lid Guard OFF close/open cycles. The retained Android logcat timeline
+(boot-relative timestamps) includes matching successful
+`ThorDisplayDaemon: WATCH_BOTH ON` messages:
+
+| BOTH lid cycle | PowerManager sleep | Jesty `WATCH_BOTH ON` | Delta after sleep | PowerManager wake | ON before wake |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| First (normal visually) | 66867.512 s | 66868.348 s | **+0.836 s** | 66903.408 s | 35.060 s |
+| Second (owner-observed flash on opening) | 66946.285 s | 66947.135 s | **+0.850 s** | 66988.957 s | 41.822 s |
+
+A separate TOP wake in this capture anchors clock compatibility: PowerManager
+last wake at 66833.239 s, `WAKE REPAIR SCHEDULED` at 66833.556 s and
+`WAKE_REPAIR_RESULT OFF_OK` at 66834.522 s. Clock/source uncertainty and
+capture completeness still apply.
+
+**What this proves, within the captured software observations:** the running
+Display Fix successfully issued a lower-panel ON command approximately
+850 ms **after Android recorded a lid-triggered sleep**, on both cycles.
+The source emits `WATCH_BOTH ON` *after*
+`SurfaceControl.setDisplayPowerMode(bottomToken, 2)` returns.
+It is no longer merely hypothetical that the ON code path executed
+around lid-driven sleep. Note that the `WATCH_BOTH` log does not capture an
+independent contemporaneous backlight level or a per-CRTC snapshot.
+
+**What it does NOT prove:** the visual brightness spike happened **on lid
+opening**, roughly 42 seconds *after* the second ON entry. There is no
+`WATCH_BOTH ON` **at that opening** in the retained filtered logcat; this
+weakens a direct wake-time ON hypothesis but does not rule out earlier
+power-state interference or a vendor-only flash. A single normal first wake
+also demonstrates that the observed ON during sleep is not sufficient
+to produce a visible flash every time. No brightness/fade entries were present
+in the captured filtered source; no synchronized optical/driver brightness
+measurement exists. No root-daemon restart, new app crash or lost CRTC
+steady-state recovery was evidenced by the endpoint checks.
+
+**Specific safety-gap candidate:** `DisplayDecisionModel.reconcile("0",
+"1", "0", true, false, false)` can select ON while Android is in a lid
+sleep transition because that pure model and the coordinator's `WATCH_BOTH`
+path do not gate this automatic ON on the device's *interactive/wake* state.
+This is a source-derived risk, not proof that the transient DRM observation
+was wrong. A blanket suppress/delay of ON might break recovery: first design
+a conservative awake-eligibility or transition-epoch guard, with host
+state-machine tests, unknown-state fail safety, and confirmed wake recovery,
+then test separately on the exact authorized Thor build.
+
+**Triage:** prioritize this ON-during-lid-sleep behavior before intentional
+new lid-cycle reproductions. Do not silently merge a speculative runtime
+fix into the tested RC2. This is not proof of flash root cause.
+
 ## Concrete source-backed hypothesis to test
 
 At the current main source, `DisplayDecisionModel.reconcile()` returns `Action.ON` for **BOTH + TOP CRTC 1 + BOTTOM CRTC 0**, with Display Fix enabled, action gate clear and no pending wake repair. `DisplayActionCoordinator.onWatcherSample()` then calls `attempt(true, "WATCH_BOTH", mode)` (with a short duplicate-attempt throttle). The implementation gates unknown modes and boot hold, reads the paired DRM CRTC state and serializes display actions.
