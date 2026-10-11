@@ -223,9 +223,13 @@ final class LidProtectionRuntime {
 
     private static void trySleep(String reason, boolean blockedWake, long epoch) {
         if (!enabled || epoch != activationEpoch || BootSafety.isHeld()) return;
-        long now = SystemClock.elapsedRealtime();
-        Boolean interactive = interactive();
+        // The external-display probe can block for up to two seconds.
+        // Read interactivity *after* that probe and sample decision time then,
+        // so a stale pre-probe AWAKE observation cannot authorize sleep.
+        // This does not make the Hall event -> input command atomic.
         Boolean external = externalDisplayConnected();
+        Boolean interactive = interactive();
+        long now = SystemClock.elapsedRealtime();
         synchronized (LidProtectionRuntime.class) {
             // A slow synchronous probe must also be discarded after OFF/ON.
             if (!enabled || epoch != activationEpoch) return;
