@@ -680,3 +680,35 @@ No device action. The invalid-mode path, remap and default-only completion are
 resolved offline; see the exact report. Next investigate the CH13726A RAM/TE
 contract and visible frame identity in a separately authorized future session.
 The12:28 desired/pending gate and the cause of physical tearing remain open.
+
+## Cross-workstream RC2 lid-wake observation — 2026-10-11
+
+A separately owner-validated **corrected RC2** (source
+`17bac625fa915d8f8be724e6d0af2bdc16d44dd8`, firmware .377)
+completed TWO lid-close/open cycles in BOTH with 120 Hz *selected*,
+Display Fix ON, CPU Fix ON and Lid Guard OFF. Both ended with TOP and
+BOTTOM CRTCs active, unchanged firmware settings/boot and user-reported
+normal steady output. The second produced a momentary owner-observed
+**bright BOTTOM flash at lid-open**, followed by recovery.
+
+Do **not** fold this into the previously reported two **black blinks**
+during a controlled refresh-policy transition. The triggers and optical
+appearances differ. This RC2 evidence does **not** measure live
+per-display SF/HWC configuration changes during lid-open, actual optical
+brightness, TE, panel timing or lower-panel physical 120 Hz cadence.
+The post-wake CRTCs are activity flags, not proof of displayed frames or
+stable transition-time backlight.
+
+Related [#62 flash investigation](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/62)
+records a distinct application-side `WATCH_BOTH ON` command roughly
+850 ms after the Android lid-sleep timestamps on **both** cycles. The
+reported flash was seen on opening the second cycle, about 42 seconds
+later; this neither proves a direct causal link nor locates a physical
+brightness/fade source. The same command appears in the first cycle,
+which did not have a reported flash.
+
+**Effect on #37:** none of the remaining refresh/tearing questions are
+answered. Do not schedule a new 120 Hz write, PASS/BYPASS-RAM command or
+DSI experiment because of this incident. Reuse existing logs read-only
+if the owner approves an offline correlation. Private device captures
+must stay off the repository.
