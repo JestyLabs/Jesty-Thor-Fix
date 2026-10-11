@@ -269,7 +269,8 @@ $watchBody = $coordinator.Substring($watchStart, $watchEnd - $watchStart)
 $lidFacade = Get-Content -LiteralPath (Join-Path $daemonPackage 'LidGuard.java') -Raw
 $lidRuntime = Get-Content -LiteralPath (Join-Path $daemonPackage 'LidProtectionRuntime.java') -Raw
 foreach ($method in @('setEnabled', 'isEnabled', 'lid', 'state', 'blockedWakes',
-        'lastAction', 'externalDisplay', 'externalDisplayCached', 'onWakeEvent')) {
+        'lastAction', 'externalDisplay', 'externalDisplayCached', 'onWakeEvent',
+        'isSleepDecisionCurrent')) {
     if ($lidFacade -notmatch [regex]::Escape($method + '(')) {
         throw "Lid facade API is missing $method"
     }
@@ -284,8 +285,11 @@ if ($lidRuntime -match 'new ProcessBuilder\("(?:getevent|dumpsys)"' -or
 }
 if ($lidRuntime -notmatch 'model\.evaluateSleep\(' -or
     $lidRuntime -notmatch 'model\.recordSleepIfCurrent\(' -or
-    $lidRuntime -match 'model\.isSleepDecisionCurrent\(') {
-    throw 'Lid sleep must use atomic policy decision and completion, not a split epoch check.'
+    $lidRuntime -notmatch 'model\.isSleepDecisionCurrent\(epoch\)' -or
+    $lidRuntime -notmatch 'requestGuardSleep\(decision\.lidEpoch\)' -or
+    $coordinator -notmatch 'requestGuardSleep\(long authorizedLidEpoch\)' -or
+    $coordinator -notmatch 'LidGuard\.isSleepDecisionCurrent\(authorizedLidEpoch\)') {
+    throw 'Lid sleep requires atomic decision and epoch verification at command boundary.'
 }
 if ($lidRuntime -notmatch 'if \(enabled\) refreshExternalDisplay\(\);' -or
     $lidRuntime -notmatch 'synchronized \(LidProtectionRuntime\.class\)' -or
