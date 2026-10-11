@@ -13,7 +13,12 @@ import re
 import sys
 
 TIMED_LOGCAT_LINE = re.compile(r"^\s*(\d{1,13}(?:\.\d+)?)\s+\d+\s+\d+\s+[A-Z]\s+")
-APP_TAG = re.compile(r"\b(?:ThorDisplayDaemon|ThorLidGuard)\s*:", re.IGNORECASE)
+# Only the actual logcat tag is authoritative. Untrusted messages from
+# unrelated apps may quote "ThorDisplayDaemon: WATCH_BOTH ON".
+APP_TAG = re.compile(
+    r"^\\s*\\d{1,13}(?:\\.\\d+)?\\s+\\d+\\s+\\d+\\s+[A-Z]\\s+"
+    r"(?:ThorDisplayDaemon|ThorLidGuard)\\s*:", re.IGNORECASE
+)
 VENDOR_BRIGHTNESS = re.compile(
     r"\b(?:backlight|brightness|panel1-backlight|onBrightnessFade|bypass_ram)\b",
     re.IGNORECASE,
