@@ -288,8 +288,17 @@ if ($lidRuntime -notmatch 'model\.evaluateSleep\(' -or
     throw 'Lid sleep must use atomic policy decision and completion, not a split epoch check.'
 }
 if ($lidRuntime -notmatch 'if \(enabled\) refreshExternalDisplay\(\);' -or
-    $lidRuntime -notmatch 'if \(value < 0 \|\| !enabled\) continue;') {
-    throw 'Guard OFF must skip external probe and Hall event policy work.'
+    $lidRuntime -notmatch 'synchronized \(LidProtectionRuntime\.class\)' -or
+    $lidRuntime -notmatch 'if \(!enabled\) continue;' -or
+    $lidRuntime -notmatch 'model\.invalidateObservation\(\)' -or
+    $lidRuntime -notmatch 'resumeWakeRepair\(\);') {
+    throw 'Guard OFF must skip probes, invalidate Hall state and restore deferred wake repair.'
+}
+$lidModel = Get-Content -LiteralPath (Join-Path $daemonPackage 'LidGuardModel.java') -Raw
+if ($lidModel -notmatch 'public synchronized void invalidateObservation\(\)' -or
+    $lidModel -notmatch 'lidEpoch\+\+;' -or
+    $lidModel -notmatch 'public synchronized boolean recordSleepIfCurrent\(') {
+    throw 'Lid model must invalidate stale observation and guard sleep completion.'
 }
 if ($watchBody -notmatch 'WatcherCadence\.beginDrmRead' -or
     $watchBody -notmatch 'Telemetry\.crtcActivePair\(\)' -or
