@@ -5,7 +5,7 @@ This ledger excerpts validated diagnostics observations from the original combin
 ## Verified on prior combined candidate
 
 - The owner installed a locally signed candidate whose DEX/manifest/resources were compared against the corresponding CI artifact. This candidate also contained experimental passive-energy features, now excluded from the diagnostics PR.
-- The **APP DIAGNOSTICS** preview opened and displayed current foreground telemetry.
+- The **App diagnostics** preview opened and displayed current foreground telemetry.
 - **Save report** invoked Android's document picker and produced a readable text report. The saved body was checked against the preview, and no forbidden raw device/boot identifiers, PID/UID/path or absolute timestamp fields were observed in that sample.
 - Picker cancellation returned to the dashboard when performed after the picker was ready.
 - A controlled **app-only force-stop** followed by manual relaunch produced an Android `USER_REQUESTED` reason. This does not prove behavior for arbitrary crashes, OOM/LMK terminations or the privileged root daemon.
