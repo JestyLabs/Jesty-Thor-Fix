@@ -22,8 +22,9 @@ public final class AutomaticBottomOnPolicy {
         DisplayDecisionModel.Action base = DisplayDecisionModel.reconcile(mode, top, bottom,
                 fixEnabled, actionsHeld, wakeRepairPending);
         if (base != DisplayDecisionModel.Action.ON) return Decision.NONE;
-        // Legacy model ignores wakeRepairPending on its BOTH 1/0 ON path.
-        // Never compound an outstanding repair with an automatic ON.
+        // Defensive exclusion only. Production coordinator normally
+        // cancels TOP repair when switching to BOTH, so a BOTH+pending
+        // combination is a model-only edge, NOT the observed wake issue.
         if (wakeRepairPending) return Decision.NONE;
         if (interactive == Interactive.ASLEEP) return Decision.SUPPRESS_ASLEEP;
         if (interactive != Interactive.AWAKE) return Decision.SUPPRESS_UNKNOWN;
