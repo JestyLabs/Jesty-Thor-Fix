@@ -10,6 +10,25 @@ $sources = @('AppDiagnosticReport.java', 'AppDiagnostics.java', 'AppTelemetryTra
 if (($sources -join "`n") -match 'SocketClient|PServer|Runtime\.getRuntime|ProcessBuilder|getDescription\(|getTraceInputStream\(|getProcessName\(|getPid\(') {
     throw 'App diagnostics must not run commands, query the daemon or export raw exit details.'
 }
+# Diagnostics are on-demand UI only: one gear action, existing foreground Q
+# consumer, no independent scheduler or passive-sleep Activity hooks.
+$layout = Get-Content -LiteralPath (Join-Path $repository 'src/com/thor/displaypowertest/DashboardLayout.java') -Raw
+$main = Get-Content -LiteralPath (Join-Path $repository 'src/com/thor/displaypowertest/MainActivity.java') -Raw
+$diagnostics = Get-Content -LiteralPath (Join-Path $repository 'src/com/thor/displaypowertest/AppDiagnostics.java') -Raw
+if ($layout -notmatch 'android\.R\.drawable\.ic_menu_manage' -or
+    $layout -notmatch 'setContentDescription\("App diagnostics"\)' -or
+    $layout -match 'topAction\("APP DIAGNOSTICS"\)') {
+    throw 'Expected an accessible cogwheel instead of a text diagnostics button.'
+}
+if ($main -notmatch 'onSampleRecorded\(Map<String, String> values\)' -or
+    $main -notmatch 'diagnostics\.sample\(values\)' -or
+    $main -match 'PassiveSleepMonitor|diagnostics\.onPause\(\)|diagnostics\.onResume\(\)') {
+    throw 'Diagnostics must reuse the existing foreground Q listener without sleep polling.'
+}
+if ($diagnostics -match 'ScheduledExecutorService|scheduleAtFixedRate|new Timer\(') {
+    throw 'App diagnostics must not add a timer or periodic telemetry request.'
+}
+
 & javac -source 8 -target 8 -d $output `
     (Join-Path $repository 'src/com/thor/displaypowertest/AppTelemetryTransitions.java') `
     (Join-Path $repository 'src/com/thor/displaypowertest/AppDiagnosticReport.java') `
