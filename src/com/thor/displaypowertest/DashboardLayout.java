@@ -30,6 +30,7 @@ final class DashboardLayout {
         void onSupport();
         void onGithub();
         void onGithubLongPress();
+        void onDiagnostics();
     }
 
     final FrameLayout root;
@@ -77,11 +78,27 @@ final class DashboardLayout {
         root.addView(scroll, new FrameLayout.LayoutParams(panelWidth,
                 ViewGroup.LayoutParams.MATCH_PARENT, Gravity.START));
 
-        LinearLayout openSourceBadge = buildOpenSourceBadge(views);
-        FrameLayout.LayoutParams badgeParams = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, views.dp(38), Gravity.BOTTOM | Gravity.END);
-        badgeParams.setMargins(0, 0, views.dp(18), views.dp(16));
-        root.addView(openSourceBadge, badgeParams);
+        // App diagnostics stays an on-demand action: a single accessible gear
+        // at the bottom-right replaces the large text button.
+        ImageView diagnostics = new ImageView(activity);
+        diagnostics.setImageResource(android.R.drawable.ic_menu_manage);
+        diagnostics.setColorFilter(AMBER);
+        diagnostics.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        diagnostics.setPadding(views.dp(12), views.dp(12), views.dp(12), views.dp(12));
+        diagnostics.setContentDescription("App diagnostics");
+        diagnostics.setClickable(true);
+        diagnostics.setFocusable(true);
+        GradientDrawable diagnosticsBubble = new GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{0xE0241338, 0xE0441B55});
+        diagnosticsBubble.setCornerRadius(views.dp(24));
+        diagnosticsBubble.setStroke(views.dp(1), 0xCCC45CFF);
+        diagnostics.setBackground(diagnosticsBubble);
+        diagnostics.setOnClickListener(v -> actions.onDiagnostics());
+        FrameLayout.LayoutParams diagnosticsParams = new FrameLayout.LayoutParams(
+                views.dp(48), views.dp(48), Gravity.BOTTOM | Gravity.END);
+        diagnosticsParams.setMargins(0, 0, views.dp(18), views.dp(16));
+        root.addView(diagnostics, diagnosticsParams);
 
         LinearLayout topActions = new LinearLayout(activity);
         topActions.setOrientation(LinearLayout.HORIZONTAL);
@@ -211,23 +228,6 @@ final class DashboardLayout {
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
         content.addView(cpuPanel);
-    }
-
-    private static LinearLayout buildOpenSourceBadge(DashboardViews views) {
-        LinearLayout badge = new LinearLayout(views.activity());
-        badge.setOrientation(LinearLayout.VERTICAL);
-        badge.setGravity(Gravity.CENTER);
-        badge.setPadding(views.dp(16), views.dp(4), views.dp(16), views.dp(4));
-        TextView title = views.text("JESTY APPS ARE FREE & OPEN SOURCE", 9f, AMBER, true);
-        title.setGravity(Gravity.CENTER);
-        title.setLetterSpacing(0.05f);
-        badge.addView(title);
-        GradientDrawable bubble = new GradientDrawable();
-        bubble.setColor(0xB5100B19);
-        bubble.setCornerRadius(views.dp(25));
-        bubble.setStroke(views.dp(1), 0x668B4AE2);
-        badge.setBackground(bubble);
-        return badge;
     }
 
     private static View buildHeader(DashboardViews views) {
