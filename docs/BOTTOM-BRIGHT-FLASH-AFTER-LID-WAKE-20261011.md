@@ -137,11 +137,14 @@ display-fix OFF, pending repair, changed state/epoch and wake revalidation.
 GitHub CI additionally runs the same model fixtures; CI result must be checked
 on the exact draft HEAD.
 
-**Additional finding from the model test:** the current
+**Additional model-only edge case:** the pure
 `DisplayDecisionModel.reconcile("0", "1", "0", true, false, true)`
-returns `ON` even if `wakeRepairPending=true`. That behavior is
-directly demonstrated by source/tests, not inferred from the capture.
-The prototype would suppress competing automatic ON while a repair is pending.
+returns `ON` even if `wakeRepairPending=true`. However, the production
+coordinator cancels TOP wake repair on a mode transition to BOTH, and
+`scheduleWakeRepair()` itself requires TOP mode. Therefore the synthetic
+combination BOTH + pending repair is **not established as reachable during
+normal runtime operation**. Do not classify it as the observed defect.
+The direct, observed risk is an ON during an Android lid-sleep transition.
 
 The proposed gate is **not a proven production fix**:
 
