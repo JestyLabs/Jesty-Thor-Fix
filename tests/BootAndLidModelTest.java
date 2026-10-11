@@ -187,6 +187,34 @@ public final class BootAndLidModelTest {
         guard.onSwitch(1, 7500L);
         check(guard.maySchedule(), "closing rearms guard");
 
+        // A queued sleep request must not commit bookkeeping after a Hall
+        // open/close transition. These checks exercise atomic decision and
+        // epoch validation without running any Android/vendor command.
+        LidGuardModel guarded = new LidGuardModel();
+        guarded.onSwitch(1, 100L);
+        LidGuardModel.SleepDecision allowed = guarded.evaluateSleep(
+                1000L, true, false, true);
+        check(allowed.allowed && !allowed.paused, "closed lid sleep decision");
+        guarded.onSwitch(0, 1001L);
+        check(!guarded.isSleepDecisionCurrent(allowed.lidEpoch),
+                "opening the lid invalidates an in-flight decision");
+        check(!guarded.recordSleepIfCurrent(allowed.lidEpoch, 1002L, true),
+                "an old decision cannot count a sleep after lid open");
+        check(guarded.blockedWakes() == 0, "rejected sleep leaves counters unchanged");
+        guarded.onSwitch(1, 1010L);
+        check(!guarded.recordSleepIfCurrent(allowed.lidEpoch, 1510L, true),
+                "closing again must not resurrect a stale sleep decision");
+        LidGuardModel.SleepDecision next = guarded.evaluateSleep(
+                1600L, true, false, true);
+        check(next.allowed && guarded.isSleepDecisionCurrent(next.lidEpoch),
+                "a new closed state permits a fresh decision");
+        check(guarded.recordSleepIfCurrent(next.lidEpoch, 1600L, true),
+                "fresh authorized success is recorded");
+        check(guarded.blockedWakes() == 1, "recording occurs exactly once");
+        LidGuardModel.SleepDecision throttled = guarded.evaluateSleep(
+                2000L, true, false, true);
+        check(!throttled.allowed, "sleep spacing remains enforced");
+
         byte[] event = new byte[24];
         event[16] = 5;
         event[18] = 0;
