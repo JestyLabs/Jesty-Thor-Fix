@@ -88,15 +88,19 @@ final class AppDiagnostics {
             catch (Exception ignored) {}
             final String text = report.export(System.currentTimeMillis(), SystemClock.elapsedRealtime(),
                     version, Build.VERSION.SDK_INT, state, exits);
+            // Format once on this on-demand worker. The exported report stays
+            // byte-for-byte identical for automated analysis and privacy checks.
+            final String preview = AppDiagnosticPreview.format(text);
             activity.runOnUiThread(() -> {
                 collecting = false;
                 if (closed || activity.isFinishing() || activity.isDestroyed()) return;
                 TextView body = new TextView(activity);
                 int padding = (int) (16 * activity.getResources().getDisplayMetrics().density);
                 body.setPadding(padding, padding, padding, padding);
-                body.setText("Recent Android exit reasons and app events.\n\n" + text);
+                body.setText(preview);
                 body.setTextIsSelectable(true);
-                body.setTextSize(12);
+                body.setTextSize(14);
+                body.setLineSpacing(padding / 4f, 1f);
                 ScrollView scroll = new ScrollView(activity);
                 scroll.addView(body);
                 new AlertDialog.Builder(activity).setTitle("App diagnostics").setView(scroll)
