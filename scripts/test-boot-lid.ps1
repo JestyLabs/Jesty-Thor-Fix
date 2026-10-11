@@ -277,6 +277,16 @@ foreach ($method in @('setEnabled', 'isEnabled', 'lid', 'state', 'blockedWakes',
 if ($watchBody -notmatch 'stableTopWake\s*&&\s*LidGuard\.isEnabled\(\)\s*&&\s*LidGuard\.onWakeEvent\(\)') {
     throw 'Guard OFF must skip wake policy in the display sample hot path.'
 }
+if ($lidRuntime -match 'new ProcessBuilder\("(?:getevent|dumpsys)"' -or
+    $lidRuntime -notmatch 'new ProcessBuilder\("/system/bin/getevent"' -or
+    $lidRuntime -notmatch 'new ProcessBuilder\("/system/bin/dumpsys"') {
+    throw 'Hall and display probes must use trusted absolute Android binary paths.'
+}
+if ($lidRuntime -notmatch 'model\.evaluateSleep\(' -or
+    $lidRuntime -notmatch 'model\.recordSleepIfCurrent\(' -or
+    $lidRuntime -notmatch '!model\.isSleepDecisionCurrent\(') {
+    throw 'Lid sleep must use atomic policy decision and epoch revalidation.'
+}
 if ($lidRuntime -notmatch 'if \(enabled\) refreshExternalDisplay\(\);' -or
     $lidRuntime -notmatch 'if \(value < 0 \|\| !enabled\) continue;') {
     throw 'Guard OFF must skip external probe and Hall event policy work.'
