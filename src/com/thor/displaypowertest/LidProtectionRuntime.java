@@ -35,19 +35,27 @@ final class LidProtectionRuntime {
     public static synchronized boolean setEnabled(boolean value) {
         if (!value) {
             enabled = false;
-            deferredRepair = false;
+            model.invalidateObservation();
+            externalDisplay = null;
+            lastWakeScheduledAt = 0L;
             state = "OFF";
+            // A previously deferred normal wake repair must not disappear when
+            // the optional Guard is turned off mid-transition.
+            resumeWakeRepair();
             return true;
         }
         File node = findHallNode();
         if (node == null || !node.canRead()) {
             enabled = false;
+            model.invalidateObservation();
             state = "HALL UNAVAILABLE";
+            resumeWakeRepair();
             return false;
         }
         enabled = true;
         int initialLid = readCurrentLid(node);
         if (initialLid >= 0) model.onSwitch(initialLid, SystemClock.elapsedRealtime());
+        else model.invalidateObservation(); // Never reuse a stale CLOSED lid snapshot.
         state = initialLid == 0 ? "OPEN" : initialLid == 1
                 ? "ACTIVE" : "WAITING FOR LID EVENT";
         refreshExternalDisplay();
@@ -96,7 +104,7 @@ final class LidProtectionRuntime {
                 || !Boolean.FALSE.equals(externalDisplay)) return false;
         if (!Boolean.TRUE.equals(interactive())) return false;
         long now = SystemClock.elapsedRealtime();
-        if (now - lastWakeScheduledAt < 500L) return true;
+        if (now - lastWakeScheduledAt < 500L) return deferredRepair;
         lastWakeScheduledAt = now;
         deferredRepair = true;
         DisplayActionCoordinator.cancelWakeRepair();
@@ -154,22 +162,33 @@ final class LidProtectionRuntime {
                     read += count;
                 }
                 int value = LidGuardModel.swLidValue(event, size == 24);
-                if (value < 0 || !enabled) continue;
-                model.onSwitch(value, SystemClock.elapsedRealtime());
-                state = enabled ? (value == 1 ? "ACTIVE" : "OPEN") : "OFF";
-                if (value == 1 && enabled && !BootSafety.isHeld()) {
-                    scheduler.schedule(() -> trySleep("sleep_after_close", false),
-                            1500L, TimeUnit.MILLISECONDS);
-                }
-                if (value == 0) {
-                    lastAction = "lid_open";
-                    resumeWakeRepair();
+                if (value < 0) continue;
+                // Serialize the enabled check and model write against OFF/ON.
+                // Without this monitor a Hall read could restore CLOSED
+                // immediately after OFF invalidated the model observation.
+                synchronized (LidProtectionRuntime.class) {
+                    if (!enabled) continue;
+                    model.onSwitch(value, SystemClock.elapsedRealtime());
+                    state = value == 1 ? "ACTIVE" : "OPEN";
+                    if (value == 1 && !BootSafety.isHeld()) {
+                        scheduler.schedule(() -> trySleep("sleep_after_close", false),
+                                1500L, TimeUnit.MILLISECONDS);
+                    }
+                    if (value == 0) {
+                        lastAction = "lid_open";
+                        resumeWakeRepair();
+                    }
                 }
             }
         } catch (Throwable error) {
-            enabled = false;
-            state = "HALL UNAVAILABLE";
-            watcherStarted = false;
+            synchronized (LidProtectionRuntime.class) {
+                enabled = false;
+                model.invalidateObservation();
+                externalDisplay = null;
+                state = "HALL UNAVAILABLE";
+                watcherStarted = false;
+                resumeWakeRepair();
+            }
             Log.e(TAG, "Hall watcher stopped", error);
         }
     }
@@ -228,10 +247,12 @@ final class LidProtectionRuntime {
         }
     }
 
-    private static void resumeWakeRepair() {
+    private static synchronized void resumeWakeRepair() {
         if (!deferredRepair) return;
         deferredRepair = false;
-        if (enabled && !BootSafety.isHeld() && DaemonState.isEnabled()
+        // The normal repair is also required when the Guard was turned OFF,
+        // failed to initialize or lost its Hall reader after deferring it.
+        if (!BootSafety.isHeld() && DaemonState.isEnabled()
                 && "1".equals(DaemonState.getMode())) {
             DisplayActionCoordinator.scheduleWakeRepair();
         }
