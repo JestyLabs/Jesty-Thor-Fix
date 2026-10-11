@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline, read-only classification of existing Thor logcat -v epoch text.
+"""Offline, read-only classification of existing Thor logcat epoch or monotonic text.
 
 Never starts ADB or prints raw log lines, device IDs, PIDs, absolute timestamps,
 process names, or user-supplied file paths. It cannot prove optical brightness
@@ -12,7 +12,7 @@ from pathlib import Path
 import re
 import sys
 
-EPOCH_LINE = re.compile(r"^\s*(\d{10}(?:\.\d+)?)\s+")
+TIMED_LOGCAT_LINE = re.compile(r"^\s*(\d{1,13}(?:\.\d+)?)\s+\d+\s+\d+\s+[A-Z]\s+")
 APP_TAG = re.compile(r"\b(?:ThorDisplayDaemon|ThorLidGuard)\s*:", re.IGNORECASE)
 VENDOR_BRIGHTNESS = re.compile(
     r"\b(?:backlight|brightness|panel1-backlight|onBrightnessFade|bypass_ram)\b",
@@ -48,22 +48,29 @@ def analyse_lines(lines, observed_at=None, window_seconds=6.0, max_events=80):
     counts = Counter()
     timed_lines = 0
     first_time = None
-    last_time = None
+    clock = None
     for line in lines:
-        match = EPOCH_LINE.match(line)
+        match = TIMED_LOGCAT_LINE.match(line)
         if match is None:
             continue
         timestamp = float(match.group(1))
+        line_clock = "epoch" if timestamp >= 1_000_000_000 else "monotonic"
+        if clock is not None and clock != line_clock:
+            raise ValueError("mixed logcat clock formats in one input")
+        clock = line_clock
         timed_lines += 1
         if first_time is None:
             first_time = timestamp
-        last_time = timestamp
         category = category_of(line)
         if category is None:
             continue
         counts[category] += 1
         if observed_at is None or abs(timestamp - observed_at) <= window_seconds:
             events.append((timestamp, category))
+    if observed_at is not None and clock is not None:
+        anchor_clock = "epoch" if observed_at >= 1_000_000_000 else "monotonic"
+        if clock != anchor_clock:
+            raise ValueError("observation anchor clock differs from logcat clock")
     reference = observed_at if observed_at is not None else first_time
     # Log order is preserved; a relative offset is NOT a true user-visible
     # flash time unless an independently timestamped observation was supplied.
@@ -77,6 +84,7 @@ def analyse_lines(lines, observed_at=None, window_seconds=6.0, max_events=80):
         "classification": "TEMPORAL_PROXIMITY_ONLY" if observed_at is not None and seen_near
                           else "INCONCLUSIVE",
         "observation_anchor_provided": observed_at is not None,
+        "log_clock": clock or "unknown",
         "timed_lines": timed_lines,
         "recognized_counts_all": dict(sorted(counts.items())),
         "window_event_count": len(events),
@@ -97,7 +105,8 @@ def human_report(result):
         "Classification: " + result["classification"],
         "Visual timestamp provided: " +
             ("yes" if result["observation_anchor_provided"] else "no"),
-        "Logcat epoch-format lines parsed: " + str(result["timed_lines"]),
+        "Logcat timebase: " + result["log_clock"],
+        "Logcat timestamped lines parsed: " + str(result["timed_lines"]),
         "Recognized event counts (entire input):",
     ]
     out.extend("  " + name + ": " + str(count)
@@ -116,9 +125,9 @@ def human_report(result):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", required=True, type=Path,
-                        help="existing local logcat -v epoch text; never uploaded")
+                        help="existing local logcat -v epoch or -v monotonic text; never uploaded")
     parser.add_argument("--observed-at", type=float,
-                        help="owner-observed visual flash Unix timestamp, if reliable")
+                        help="owner-observed flash timestamp in THE SAME CLOCK as logcat: Unix seconds for epoch or boot-relative seconds for monotonic")
     parser.add_argument("--window-seconds", type=float, default=6.0,
                         help="symmetric observation window; default 6 s")
     parser.add_argument("--json", action="store_true",
@@ -131,6 +140,9 @@ def main(argv=None):
             result = analyse_lines(f, args.observed_at, args.window_seconds)
     except OSError:
         print("Cannot read supplied local log file (path omitted).", file=sys.stderr)
+        return 2
+    except ValueError:
+        print("Invalid logcat clock or observation anchor (raw input omitted).", file=sys.stderr)
         return 2
     print(json.dumps(result, indent=2, sort_keys=True) if args.json
           else human_report(result))
