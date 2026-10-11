@@ -73,6 +73,10 @@ jobs:
         shell: pwsh
         run: ./scripts/test-boot-lid.ps1
 
+      - name: Display and CPU read-path regression models
+        shell: pwsh
+        run: ./scripts/test-display-cpu-read-paths.ps1
+
       - name: Dashboard models
         shell: pwsh
         run: ./scripts/test-dashboard.ps1
@@ -85,7 +89,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Energy comparison fixtures (no device access)
+      - name: Passive energy analysis fixtures (host-only)
         shell: pwsh
         run: python ./scripts/test-thor-energy.py
 

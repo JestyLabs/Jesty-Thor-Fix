@@ -115,7 +115,7 @@ public final class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         activityResumed = true;
-        diagnostics.onResume();
+        diagnostics.onResume(); // One trial endpoint only when explicitly armed.
         diagnostics.record("FOREGROUND");
         // State seen before a pause is not trusted for an install decision.
         updateReadiness.invalidate();
@@ -127,7 +127,7 @@ public final class MainActivity extends Activity {
     @Override protected void onPause() {
         activityResumed = false;
         stopTelemetry();
-        diagnostics.onPause();
+        diagnostics.onPause(); // One trial endpoint only when explicitly armed.
         diagnostics.record("BACKGROUND");
         updateReadiness.invalidate();
         if (updater != null) updater.onPause();

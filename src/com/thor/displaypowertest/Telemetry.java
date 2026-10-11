@@ -208,6 +208,28 @@ public final class Telemetry {
         return PropertyState.UNSET.equals(observed) ? "?" : observed;
     }
 
+    /**
+     * Read-only dashboard/Q path. The boot/restart CPU fix continues using
+     * systemLoadFixObservation() with its established subprocess error gates.
+     * Android's SystemProperties.get(String,String) is the same property
+     * service queried by getprop, but avoids forking a process per Q request.
+     * Fall back to the established implementation if hidden API reflection
+     * is unavailable, preserving the existing 0/1/? wire contract.
+     */
+    public static String systemLoadFixStateForSnapshot() {
+        try {
+            Class<?> properties = Class.forName("android.os.SystemProperties");
+            java.lang.reflect.Method get = properties.getDeclaredMethod(
+                    "get", String.class, String.class);
+            get.setAccessible(true);
+            Object raw = get.invoke(null, "vendor.display.disable_system_load_check",
+                    PropertyState.MISSING_MARKER);
+            return PropertyState.binary(raw == null ? null : String.valueOf(raw), 0);
+        } catch (Throwable ignored) {
+            return systemLoadFixState();
+        }
+    }
+
     private static long maxFrequency(int policy) {
         long value = frequency(policy, "scaling_max_freq");
         return value > 0 ? value : frequency(policy, "cpuinfo_max_freq");

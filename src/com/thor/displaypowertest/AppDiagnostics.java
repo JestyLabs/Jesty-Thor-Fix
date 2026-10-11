@@ -62,9 +62,9 @@ final class AppDiagnostics {
         }
     }
 
-    void onPause() { sleepMonitor.onPause(); }
-
-    void onResume() { sleepMonitor.onResume(); }
+    /** No battery read unless explicitly armed; only Activity boundary snapshots. */
+    void onPause() { if (!closed) sleepMonitor.onPause(); }
+    void onResume() { if (!closed) sleepMonitor.onResume(); }
 
     void show() {
         if (collecting || closed) return;
@@ -92,18 +92,24 @@ final class AppDiagnostics {
             String version = "unknown";
             try { version = activity.getPackageManager().getPackageInfo(activity.getPackageName(), 0).versionName; }
             catch (Exception ignored) {}
+            final PassiveSleepTrial.Result trial = sleepMonitor.result();
             final String text = report.export(System.currentTimeMillis(), SystemClock.elapsedRealtime(),
-                    version, Build.VERSION.SDK_INT, state, exits, sleepMonitor.result());
+                    version, Build.VERSION.SDK_INT, state, exits, trial);
+            // Format once on this on-demand worker. The exported report stays
+            // byte-for-byte identical for automated analysis and privacy checks.
+            final String preview = AppDiagnosticPreview.format(text)
+                    + (trial == null ? "" : "\nPASSIVE SLEEP TRIAL\n"
+                    + trial.describe() + "\nWhole-device interval, not panel energy.\n");
             activity.runOnUiThread(() -> {
                 collecting = false;
                 if (closed || activity.isFinishing() || activity.isDestroyed()) return;
                 TextView body = new TextView(activity);
                 int padding = (int) (16 * activity.getResources().getDisplayMetrics().density);
                 body.setPadding(padding, padding, padding, padding);
-                body.setText("Recent Android exit reasons and app events. A sleep trial estimates whole-device "
-                        + "energy over its full interval; it does not measure panel power.\n\n" + text);
+                body.setText(preview);
                 body.setTextIsSelectable(true);
-                body.setTextSize(12);
+                body.setTextSize(14);
+                body.setLineSpacing(padding / 4f, 1f);
                 ScrollView scroll = new ScrollView(activity);
                 scroll.addView(body);
                 new AlertDialog.Builder(activity).setTitle("App diagnostics").setView(scroll)

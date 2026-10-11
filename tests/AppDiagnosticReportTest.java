@@ -7,6 +7,7 @@ public final class AppDiagnosticReportTest {
     private static int assertions;
     public static void main(String[] args) {
         privacyAndUnknownValues();
+        releaseCandidateVersions();
         retentionAndRestart();
         exitReasonsAndClocks();
         typedTelemetryTransitions();
@@ -36,6 +37,21 @@ public final class AppDiagnosticReportTest {
                 "three fix choices remain distinct from effective hardware state");
         check(report.sample(2000, 30, null), "unavailable is a separate edge");
         check(report.export(2001, 31, "1.7.0", 34, "empty", null).contains("available=0"), "missing telemetry stays explicit");
+    }
+    private static void releaseCandidateVersions() {
+        AppDiagnosticReport report = new AppDiagnosticReport("");
+        for (String version : new String[] {"1.7.0", "1.7.1", "1.7.1-rc1", "1.7.1-rc2", "1.7.1-rc12"}) {
+            String text = report.export(1, 1, version, 33, "empty", null);
+            check(text.startsWith("JESTY_THOR_DIAGNOSTICS_V1\napp_version=" + version + ";"),
+                    "known stable and release-candidate identities retain the V1 schema");
+        }
+        for (String version : new String[] {"1.7.1-rc", "1.7.1-rc0", "1.7.1-rc01", "1.7.1-beta1",
+                "1.7.1-rc2;secret=PRIVATE_MARKER", "1.7.1-rc2\nPRIVATE_MARKER", " 1.7.1-rc2", "1.7.1-rc2 ",
+                new String(new char[80]).replace('\0', '1') + ".7.1"}) {
+            String text = report.export(1, 1, version, 33, "empty", null);
+            check(text.contains("app_version=unknown;"), "unrecognized or unbounded version rejected");
+            check(!text.contains("PRIVATE_MARKER"), "version cannot inject private data");
+        }
     }
     private static void retentionAndRestart() {
         AppDiagnosticReport report = new AppDiagnosticReport("");

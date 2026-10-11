@@ -74,7 +74,8 @@ public final class AppDiagnosticReport {
     public synchronized String export(long wallMs, long elapsedMs, String version, int sdk,
             String exitState, List<Exit> exits, PassiveSleepTrial.Result trial) {
         StringBuilder out = new StringBuilder("JESTY_THOR_DIAGNOSTICS_V1\n");
-        out.append("app_version=").append(version != null && version.matches("[0-9]+\\.[0-9]+\\.[0-9]+")
+        out.append("app_version=").append(version != null && version.length() <= 64
+                && version.matches("[0-9]+\\.[0-9]+\\.[0-9]+(?:-rc[1-9][0-9]*)?")
                 ? version : "unknown").append(";sdk=").append(sdk >= 1 && sdk <= 100 ? sdk : 0);
         out.append("\ntelemetry_scope=last_foreground_sample;sample_age_ms=")
                 .append(age(elapsedMs, sampleAt)).append(';').append(telemetry);
@@ -100,9 +101,9 @@ public final class AppDiagnosticReport {
                 else out.append(";detail=").append(parts[2]);
             }
         }
-        if (trial != null) out.append('\n').append(trial.reportLine());
         out.append("\nlimits=activity_events_are_not_process_deaths;exit_history_is_not_complete;"
                 + "crtc_flags_are_not_panel_power;foreground_samples_are_not_sleep_measurements\n");
+        if (trial != null) out.append('\n').append(trial.reportLine());
         if (out.length() > MAX_REPORT_CHARS) throw new IllegalStateException("report bound");
         return out.toString();
     }

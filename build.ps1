@@ -8,7 +8,7 @@ param(
     [string] $KeystorePath = $env:JESTY_KEYSTORE,
     [string] $PasswordFile,
     [string] $KeyAlias = 'thor-display-power-auto',
-    [string] $ArtifactBaseName = 'Jesty-Thor-Fix-1.7.0'
+    [string] $ArtifactBaseName = 'Jesty-Thor-Fix-1.7.1-rc2'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -70,12 +70,12 @@ $stubClasses = Join-Path $work 'stub-classes'
 $javaClasses = Join-Path $work 'java-classes'
 New-Item -ItemType Directory -Path $stubClasses, $javaClasses | Out-Null
 $stubSources = @(Get-ChildItem -LiteralPath (Join-Path $project 'stubs') -Filter '*.java' -Recurse | ForEach-Object FullName)
-& $javac -source 8 -target 8 -classpath $androidJar -d $stubClasses $stubSources
+& $javac -encoding UTF-8 -source 8 -target 8 -classpath $androidJar -d $stubClasses $stubSources
 if ($LASTEXITCODE -ne 0) { throw 'Stub compilation failed' }
 
 $sourceFiles = @(Get-ChildItem -LiteralPath (Join-Path $project 'src') -Filter '*.java' -Recurse | ForEach-Object FullName)
 $compilePath = "$androidJar;$stubClasses"
-& $javac -source 8 -target 8 -classpath $compilePath -d $javaClasses $sourceFiles
+& $javac -encoding UTF-8 -source 8 -target 8 -classpath $compilePath -d $javaClasses $sourceFiles
 if ($LASTEXITCODE -ne 0) { throw 'Java compilation failed' }
 
 $javaJar = Join-Path $work 'java.jar'
