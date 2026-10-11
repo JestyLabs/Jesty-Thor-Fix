@@ -5,6 +5,7 @@ on:
     paths:
       - 'scripts/analyze-bottom-wake-flash.py'
       - 'tests/test_bottom_wake_flash.py'
+      - 'research/wake/**'
       - 'docs/BOTTOM-BRIGHT-FLASH-AFTER-LID-WAKE-20261011.md'
       - '.github/workflows/bottom-wake-flash-research.yml'
   workflow_dispatch:
@@ -27,6 +28,23 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_bottom_wake_flash.py' -v
       - name: Parser compilation
         run: python -m py_compile scripts/analyze-bottom-wake-flash.py
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Host-only awake-gate model regressions
+        shell: bash
+        run: |
+          mkdir -p "${RUNNER_TEMP}/wake-model-tests"
+          javac -encoding UTF-8 -d "${RUNNER_TEMP}/wake-model-tests" \
+            src/com/thor/displaypowertest/DisplayDecisionModel.java \
+            research/wake/AutomaticBottomOnPolicy.java \
+            research/wake/AutomaticBottomOnPolicyTest.java
+          java -cp "${RUNNER_TEMP}/wake-model-tests" \
+            com.thor.displaypowertest.AutomaticBottomOnPolicyTest
+
+
 
 # NEVER upload logcat, captured panel state, user-device evidence or
 # test-input artifacts here. All fixtures are synthetic.
+# The Java prototype is NOT imported or called by the production APK.
