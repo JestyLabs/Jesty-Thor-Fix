@@ -80,7 +80,7 @@ final class LidProtectionRuntime {
 
     private static synchronized void refreshExternalDisplay() {
         long now = SystemClock.elapsedRealtime();
-        if (externalCheckPending || now - externalCheckedAt < 30000L) return;
+        if (!enabled || externalCheckPending || now - externalCheckedAt < 30000L) return;
         externalCheckPending = true;
         new Thread(() -> {
             Boolean result = externalDisplayConnected();
@@ -132,7 +132,7 @@ final class LidProtectionRuntime {
     private static int readCurrentLid(File node) {
         Process process = null;
         try {
-            process = new ProcessBuilder("getevent", "-S", node.getPath()).start();
+            process = new ProcessBuilder("/system/bin/getevent", "-S", node.getPath()).start();
             if (!ProcessWait.exited(process, 2000L) || process.exitValue() != 0) return -1;
             String value = new BufferedReader(new InputStreamReader(
                     process.getInputStream())).readLine();
@@ -232,7 +232,7 @@ final class LidProtectionRuntime {
     private static Boolean externalDisplayConnected() {
         Process process = null;
         try {
-            process = new ProcessBuilder("dumpsys", "display").start();
+            process = new ProcessBuilder("/system/bin/dumpsys", "display").start();
             final Process running = process;
             final java.util.concurrent.atomic.AtomicReference<Boolean> external =
                     new java.util.concurrent.atomic.AtomicReference<>();
