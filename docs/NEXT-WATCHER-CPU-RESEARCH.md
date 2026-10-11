@@ -46,11 +46,19 @@ The 1.7.0 baseline already uses an in-process Binder Settings provider, with ~50
 
 **Critical acceptance:** preserve correctness of True Bottom Screen Off, wake repair, CPU Fix safety, BootSafety, daemon identity, all Q telemetry. No forced frequency, DSI/DRM writes, kernel tweaks, firmware alteration or merge/release.
 
-## 4. PR #55 relevance (separate scope)
+## 4. Existing PR coordination after diagnostics merge
 
-[#55](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/55) is **not superseded** by #57/#58: it adds bounded app event/exit history, sanitized export, and passive sleep-energy trials. It currently remains draft and diverged from main; physical energy acceptance still has a rejected trial due to USB at a recorded endpoint. Do not fold it into the watcher optimization or claim energy savings from its estimates.
+PR #55 diagnostics was merged into `main`; passive sleep-energy experiments
+were separated into draft [#59](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/59).
+RC2 includes the diagnostics and (after successful review) candidate read-path
+changes from #58. Do **not** treat any RC2 result as proof of Lid ON energy
+savings.
 
-Review #55 independently after #57/#58 acceptance. Consider splitting diagnostics/export (functionality) and energy trials (experimental measurement), rebasing on the newest release, and completing acceptance gates with unplugged endpoints and reliable counter calibration before any merge. No need to close #55 merely because #57/#58 measure CPU.
+PR #57 remains a separate Lid Protection maintenance draft with Hall race
+and sleep/wake physical validation gates. If #57 is integrated later,
+reconcile its `DisplayActionCoordinator` changes against the already-merged
+#58; do not accidentally revert the paired DRM reads. Keep #37 120 Hz
+research independent.
 
 ## Deliverables for the Codex handoff
 
