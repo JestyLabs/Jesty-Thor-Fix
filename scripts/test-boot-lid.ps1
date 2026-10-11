@@ -298,6 +298,27 @@ if ($lidRuntime -notmatch 'if \(enabled\) refreshExternalDisplay\(\);' -or
     $lidRuntime -notmatch 'resumeWakeRepair\(\);') {
     throw 'Guard OFF must skip probes, invalidate Hall state and restore deferred wake repair.'
 }
+# External probe can take 2 seconds; NEVER authorize Guard sleep from
+# interactive/decision-time values captured before that blocking probe.
+# This narrows stale observations but does not eliminate a physical Hall race.
+$trySleepStart = $lidRuntime.IndexOf('private static void trySleep(')
+$trySleepEnd = $lidRuntime.IndexOf('private static synchronized void resumeWakeRepair(', $trySleepStart)
+if ($trySleepStart -lt 0 -or $trySleepEnd -le $trySleepStart) {
+    throw 'Could not isolate Lid trySleep for freshness contract.'
+}
+$trySleepBody = $lidRuntime.Substring($trySleepStart, $trySleepEnd - $trySleepStart)
+$externalProbeAt = $trySleepBody.IndexOf('Boolean external = externalDisplayConnected();')
+$interactiveAt = $trySleepBody.IndexOf('Boolean interactive = interactive();')
+$decisionClockAt = $trySleepBody.IndexOf('long now = SystemClock.elapsedRealtime();')
+if ($externalProbeAt -lt 0 -or $interactiveAt -le $externalProbeAt -or
+    $decisionClockAt -le $interactiveAt) {
+    throw 'Lid Guard interactivity/decision timestamp must follow slow external probe.'
+}
+if ($trySleepBody -notmatch 'requestGuardSleep\(decision\.lidEpoch\)' -or
+    $trySleepBody -notmatch 'epoch != activationEpoch') {
+    throw 'Late interactivity check must retain Hall/activation epoch guard.'
+}
+
 if ($lidRuntime -notmatch 'private static volatile long activationEpoch;' -or
     $lidRuntime -notmatch 'epoch != activationEpoch' -or
     $lidRuntime -notmatch 'trySleep\("sleep_after_close", false, epoch\)' -or
