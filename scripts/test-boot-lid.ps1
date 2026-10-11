@@ -263,6 +263,24 @@ if ($watchStart -lt 0 -or $watchEnd -le $watchStart) {
     throw 'Could not isolate watcher coordinator method.'
 }
 $watchBody = $coordinator.Substring($watchStart, $watchEnd - $watchStart)
+# Lid Protection is optional: OFF must not run guard checks from the hot
+# display path or initiate a display probe from Q telemetry. The public
+# LidGuard entry points remain stable for daemon and smali callers.
+$lidFacade = Get-Content -LiteralPath (Join-Path $daemonPackage 'LidGuard.java') -Raw
+$lidRuntime = Get-Content -LiteralPath (Join-Path $daemonPackage 'LidProtectionRuntime.java') -Raw
+foreach ($method in @('setEnabled', 'isEnabled', 'lid', 'state', 'blockedWakes',
+        'lastAction', 'externalDisplay', 'externalDisplayCached', 'onWakeEvent')) {
+    if ($lidFacade -notmatch [regex]::Escape($method + '(')) {
+        throw "Lid facade API is missing $method"
+    }
+}
+if ($watchBody -notmatch 'stableTopWake\s*&&\s*LidGuard\.isEnabled\(\)\s*&&\s*LidGuard\.onWakeEvent\(\)') {
+    throw 'Guard OFF must skip wake policy in the display sample hot path.'
+}
+if ($lidRuntime -notmatch 'if \(enabled\) refreshExternalDisplay\(\);' -or
+    $lidRuntime -notmatch 'if \(value < 0 \|\| !enabled\) continue;') {
+    throw 'Guard OFF must skip external probe and Hall event policy work.'
+}
 if ($watchBody -notmatch 'WatcherCadence\.beginDrmRead' -or
     $watchBody -notmatch 'Telemetry\.crtcActivePair\(\)' -or
     $watchBody -match 'Telemetry\.(?:top|bottom)CrtcActive\(\)') {
