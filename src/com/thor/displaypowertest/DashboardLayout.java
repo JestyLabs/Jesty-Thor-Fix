@@ -78,10 +78,25 @@ final class DashboardLayout {
         root.addView(scroll, new FrameLayout.LayoutParams(panelWidth,
                 ViewGroup.LayoutParams.MATCH_PARENT, Gravity.START));
 
-        TextView diagnostics = views.topAction("APP DIAGNOSTICS");
+        // App diagnostics stays an on-demand action: a single accessible gear
+        // at the bottom-right replaces the large text button.
+        ImageView diagnostics = new ImageView(activity);
+        diagnostics.setImageResource(android.R.drawable.ic_menu_manage);
+        diagnostics.setColorFilter(AMBER);
+        diagnostics.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        diagnostics.setPadding(views.dp(12), views.dp(12), views.dp(12), views.dp(12));
+        diagnostics.setContentDescription("App diagnostics");
+        diagnostics.setClickable(true);
+        diagnostics.setFocusable(true);
+        GradientDrawable diagnosticsBubble = new GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{0xE0241338, 0xE0441B55});
+        diagnosticsBubble.setCornerRadius(views.dp(24));
+        diagnosticsBubble.setStroke(views.dp(1), 0xCCC45CFF);
+        diagnostics.setBackground(diagnosticsBubble);
         diagnostics.setOnClickListener(v -> actions.onDiagnostics());
         FrameLayout.LayoutParams diagnosticsParams = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, views.dp(38), Gravity.BOTTOM | Gravity.END);
+                views.dp(48), views.dp(48), Gravity.BOTTOM | Gravity.END);
         diagnosticsParams.setMargins(0, 0, views.dp(18), views.dp(16));
         root.addView(diagnostics, diagnosticsParams);
 
