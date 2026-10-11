@@ -45,6 +45,17 @@ public final class LidGuardModel {
     }
 
 
+    /**
+     * OFF/failed bootstrap discards potentially stale Hall observations. Do
+     * not reset the sleep-attempt limiter or blocked-wake telemetry: toggling
+     * the feature must never circumvent the existing anti-loop budget.
+     * A later confirmed SW_LID event or getevent snapshot re-establishes state.
+     */
+    public synchronized void invalidateObservation() {
+        lid = Lid.UNKNOWN;
+        lidEpoch++;
+    }
+
     public synchronized void onSwitch(int value, long nowMs) {
         if (value != 0 && value != 1) return;
         Lid next = value == 1 ? Lid.CLOSED : Lid.OPEN;
