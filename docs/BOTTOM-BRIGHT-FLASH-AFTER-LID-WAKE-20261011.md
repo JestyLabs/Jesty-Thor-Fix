@@ -115,6 +115,13 @@ python -m unittest discover -s tests -p "test_bottom_wake_flash.py"
 
 The tool rejects mixed epoch/monotonic clocks: for `-v monotonic`, an `--observed-at` value must use boot-relative seconds, not Unix time. The tool's time alignment is only as good as the source clock and visual timestamp. If exact time is unknown, review chronological categories without suggesting alignment.
 
+**Offline parser provenance check (2026-10-11 review):** the analyzer now
+attributes `WATCH_BOTH ON` to Jesty only if **the actual logcat tag**
+is `ThorDisplayDaemon` or `ThorLidGuard`. A message emitted by another
+app that merely *quotes* `ThorDisplayDaemon: WATCH_BOTH ON` must not count
+as an app-issued power-on event. Synthetic regression coverage added.
+No real device logs or new wake captures were uploaded.
+
 ## Decision matrix before implementing a fix
 
 | Evidence | Interpretation | Next action |
