@@ -103,7 +103,8 @@ public final class PassiveSleepTrial {
                     + ((fixes & 1) != 0 ? "ON" : "OFF") + ", "
                     + ((fixes & 2) != 0 ? "ON" : "OFF") + ", "
                     + ((fixes & 4) != 0 ? "ON" : "OFF")
-                    + "\nNot a continuous trace or a physical panel power measurement.";
+                    + "\nCharging between the two endpoints CANNOT be excluded."
+                    + "\nDo not use this preliminary trial alone for A/B energy savings.";
         }
     }
 
