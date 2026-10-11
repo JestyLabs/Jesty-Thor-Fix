@@ -71,6 +71,29 @@ class WakeFlashOfflineTest(unittest.TestCase):
         self.assertEqual(data["timeline"][0]["offset_ms"], 0)
         self.assertIn("NOT visual time", human_report(data))
 
+    def test_actual_monotonic_logcat_clock_and_lid_sleep_proximity(self):
+        lines = [
+            "66833.556 23204 23221 D ThorDisplayDaemon: WAKE REPAIR SCHEDULED +700ms\n",
+            "66868.348 23204 23221 D ThorDisplayDaemon: WATCH_BOTH ON\n",
+            "66947.135 23204 23221 D ThorDisplayDaemon: WATCH_BOTH ON\n",
+        ]
+        first = analyse(lines, observed_at=66867.512, window_seconds=2)
+        second = analyse(lines, observed_at=66946.285, window_seconds=2)
+        self.assertEqual(first["log_clock"], "monotonic")
+        self.assertEqual(second["window_event_count"], 1)
+        self.assertEqual(first["timeline"][0]["offset_ms"], 836)
+        self.assertEqual(second["timeline"][0]["offset_ms"], 850)
+        with self.assertRaisesRegex(ValueError, "anchor clock differs"):
+            analyse(lines, observed_at=BASE)
+
+    def test_mixed_clock_rejected_not_silently_correlated(self):
+        lines = [
+            log(0, "ThorDisplayDaemon", "WATCH_BOTH ON"),
+            "66947.135 23204 23221 D ThorDisplayDaemon: WATCH_BOTH ON\n",
+        ]
+        with self.assertRaisesRegex(ValueError, "mixed logcat clock"):
+            analyse(lines)
+
     def test_bounded_output_and_window_validation(self):
         lines = [log(n / 10, "ThorDisplayDaemon", "WATCH_BOTH ON")
                  for n in range(110)]
