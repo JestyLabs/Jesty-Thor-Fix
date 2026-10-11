@@ -30,7 +30,8 @@ public final class DisplayActionCoordinator {
                 && !BootSafety.isHeld() && DaemonState.isEnabled()
                 && "1".equals(DisplayHardware.getProperty());
         // Avoid an inverted lock order with LidGuard's synchronized methods.
-        boolean deferredByLid = stableTopWake && LidGuard.onWakeEvent();
+        boolean deferredByLid = stableTopWake && LidGuard.isEnabled()
+                && LidGuard.onWakeEvent();
         synchronized (DisplayHardware.class) {
             boolean changed = !mode.equals(lastMode);
             if (changed) {
@@ -150,7 +151,8 @@ public final class DisplayActionCoordinator {
     /** LidGuard decides policy; this method serializes and rechecks the action. */
     public static boolean requestGuardSleep() {
         synchronized (DisplayHardware.class) {
-            if (BootSafety.isHeld() || !"closed".equals(LidGuard.lid())
+            if (BootSafety.isHeld() || !LidGuard.isEnabled()
+                    || !"closed".equals(LidGuard.lid())
                     || !"0".equals(LidGuard.externalDisplayCached())) return false;
             generations.invalidate();
             cancelRepairLocked();
