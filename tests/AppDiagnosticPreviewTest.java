@@ -28,10 +28,14 @@ public final class AppDiagnosticPreviewTest {
         report.record(1000L, "APP_CREATED");
         report.sample(2000L, 1000L, q);
         report.sample(3000L, 2000L, q);
-        String raw = report.export(9000L, 3000L, "1.7.1", 33, "available",
+        String raw = report.export(9000L, 3000L, "1.7.1-rc2", 33, "available",
                 Arrays.asList(new AppDiagnosticReport.Exit(4000L, 10, 0, 100),
                         new AppDiagnosticReport.Exit(5000L, 4, 1, 100)));
         String preview = AppDiagnosticPreview.format(raw);
+        check(preview.startsWith("JESTY THOR FIX  \u00b7  DIAGNOSTICS\n"), "Unicode separator preserved");
+        check(preview.contains("App v1.7.1-rc2  \u00b7  Android SDK 33"), "RC identity readable");
+        check(preview.contains("\u2022 ") && preview.contains("  \u2014  "), "Unicode event/exit punctuation preserved");
+        check(!preview.contains("\u00c2\u00b7") && !preview.contains("\u00e2\u20ac"), "mojibake rejected");
         check(preview.contains("CURRENTLY REPORTED STATE"), "state section");
         check(preview.contains("Mode: TOP only"), "human mode");
         check(preview.contains("Bottom CRTC: Inactive"), "human CRTC");
