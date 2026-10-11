@@ -294,6 +294,12 @@ if ($lidRuntime -notmatch 'if \(enabled\) refreshExternalDisplay\(\);' -or
     $lidRuntime -notmatch 'resumeWakeRepair\(\);') {
     throw 'Guard OFF must skip probes, invalidate Hall state and restore deferred wake repair.'
 }
+if ($lidRuntime -notmatch 'private static volatile long activationEpoch;' -or
+    $lidRuntime -notmatch 'epoch != activationEpoch' -or
+    $lidRuntime -notmatch 'trySleep\("sleep_after_close", false, epoch\)' -or
+    $lidRuntime -notmatch 'trySleep\("sleep_after_closed_wake", true, epoch\)') {
+    throw 'Queued Lid sleep must fail closed across OFF/ON activation transitions.'
+}
 $lidModel = Get-Content -LiteralPath (Join-Path $daemonPackage 'LidGuardModel.java') -Raw
 if ($lidModel -notmatch 'public synchronized void invalidateObservation\(\)' -or
     $lidModel -notmatch 'lidEpoch\+\+;' -or
