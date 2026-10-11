@@ -28,7 +28,14 @@ public final class PassiveSleepReportCompatibilityTest {
         String trialReport = report.export(10000, 1000, "1.7.1-rc2", 33, "empty",
                 Collections.emptyList(), trial);
         check(trialReport.startsWith("JESTY_THOR_DIAGNOSTICS_V1\n"), "schema preserved");
-        check(trialReport.contains("\npassive_sleep;state=PROVISIONAL;"), "opt-in trial line");
+        check(trialReport.contains("\npassive_sleep;boundary_source=ACTIVITY_PAUSE_RESUME;"),
+                "trial explicitly distinguishes Activity boundary from hardware sleep");
+        check(trialReport.contains(";suspend_source=SUSPEND_CLOCK_ESTIMATE;"),
+                "clock difference is labelled estimate, not verified suspend residency");
+        check(trialReport.contains(";power_interval_trace=NOT_SAMPLED;"),
+                "two battery endpoints do not prove continuously unplugged interval");
+        check(trialReport.contains(";minimum_duration_met=1;state=PROVISIONAL;"),
+                "full-length trial retains provisional semantics");
         check(trialReport.contains("limits=activity_events_are_not_process_deaths"),
                 "original limits preserved");
         check(AppDiagnosticPreview.format(trialReport).contains("JESTY THOR FIX"),
