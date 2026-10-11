@@ -19,6 +19,48 @@ Lid Protection remains an **opt-in**, supported feature. This change isolates it
 - A probe already in flight may complete after OFF, but its results are discarded using the activation epoch (including the synchronous probe on the sleep path). OFF invalidates pending/cache state, and only the current ON session may update external-display telemetry. Queued sleep tasks from an old activation return without issuing a command. An already-issued sleep command cannot be retroactively cancelled; physical lid-race acceptance remains mandatory. No new privileged commands or faster polling are introduced.
 - No claim of measured energy or CPU savings: the change avoids some hot-path calls, optional Hall policy processing and passive Q-triggered external probe spawns. Actual savings depend on query and event frequency.
 
+## New RC2 physical baseline — 2026-10-11 (NOT this draft)
+
+Source: owner's private corrected RC2 validation package; do not add its raw
+logs, screenshots, device/process identities, or direct file paths to GitHub.
+RC2 build commit `17bac625...`, firmware .377, Lid Guard **OFF**.
+The #57 refactor was **not installed**, so these data are comparator
+observations, not validation of #57.
+
+- **Corrected RC2:** two BOTH→TOP→BOTH sequences, TOP lid-driven wake 2/2,
+  BOTH lid-driven wake 2/2 by later per-cycle evidence; endpoint CRTC state
+  recovered and boot/composer/daemon were unchanged.
+- **Transient anomaly:** BOTTOM reportedly appeared unusually bright on the
+  second BOTH lid-open cycle and then recovered. Brightness and duration
+  were not instrumented. #62 records a candidate ON-during-sleep condition
+  in the independent Display Fix reconciliation, not a Lid Guard action.
+  A Guard-OFF state on the original RC2 does **not** establish that the
+  #57 disabled path prevents that behavior.
+- **Daemon CPU with Guard OFF (per-core %):** 3 × nominal 180 s samples
+  per condition. Median/range: BOTH app-closed 0.2992% (0.2937–0.3042),
+  TOP app-closed 0.3158% (0.3157–0.3428), BOTH app-open 2.1619%
+  (2.1513–2.1842), TOP app-open 2.3238% (2.3097–2.3668).
+  App-open/closed is a separate foreground variable, **not** Guard ON/OFF.
+  Same-day prior 64-second samples are not matched duration or repeat count:
+  no reduction percentage can be claimed.
+- **Lid ON and app-only force-stop:** private artifacts from a later phase
+  exist, but the last consolidated public-safe handoff did not establish
+  completed #57 acceptance. The Lid-ON actions also ran on the original
+  RC2 implementation; do not attribute behavior to this refactor.
+- **No physical power result:** USB/external-powered endpoints and CPU ticks
+  cannot show a battery-energy saving or panel-rail effect.
+
+After merging `main` into this draft branch, the coordinator's #58
+**single paired DRM snapshot** code is retained; the only additional
+coordination changes are the #57 conditional Lid guard deferral and
+Hall-epoch sleep authorization. CI needs to be green for the new exact head.
+
+**Acceptance gap:** verify the #57 APK separately, with approved exact-build
+signature and scoped Lid ON/OFF state/epoch tests; avoid asking the owner
+to repeat these RC2 baseline cycles just to reestablish already-proven
+stock-build behavior. Compare guard telemetry OFF to expected
+`external_display=unknown` rather than older RC2's live-probe semantics.
+
 ## Test and release gates
 
 1. Run the existing boot/lid/IPC, watcher, dashboard, and signing-policy host suites. The boot/lid script checks the compatibility facade and disabled-state source contracts.
