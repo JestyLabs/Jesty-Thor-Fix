@@ -168,3 +168,24 @@ The report contains no historical AYN mode for this interval. Requested switch m
 **Cross-PR provenance:** the simultaneous-looking SF/DRM values were read sequentially; current A→B→C association is not proof of a game request, vendor policy or optical cadence. `enable=1` with `active=0` does not prove fully unpowered rails. The earlier lower-active BOTH sleep sample and the later both-inactive closed sample remain separate observations with UNKNOWN cause.
 
 **Remote-bundle limits:** manifests verified 124 and 529 entries; the archive totals are 125 and 532 files. Sanitized process IDs cannot independently re-establish continuity of display-service processes. Signed APK, signing artifacts and owner photos remain private and absent. No app code, signing, production behaviour or firmware was changed by this clarification.
+
+## 2026-10-11 additional provenance and duration clarity (draft, host only)
+
+The current #59 draft appends allowlisted, non-sensitive interpretation tokens
+**only when a passive trial report is present**:
+
+- `boundary_source=ACTIVITY_PAUSE_RESUME`: neither boundary claims the
+  actual instant the device went to or emerged from physical sleep;
+- `suspend_source=SUSPEND_CLOCK_ESTIMATE`: elapsed-minus-uptime is a
+  clock-derived estimate, **not** kernel deep-suspend residency or panel power;
+- `power_interval_trace=NOT_SAMPLED`: even battery/battery endpoints
+  cannot prove that a USB connection never occurred between them;
+- `minimum_duration_met=1|0|unknown`: at least 300000 ms of valid observed
+  clock interval, a valid shorter interval, or insufficient/invalid clock
+  evidence, respectively. The threshold is not proof of deep sleep.
+
+Host compatibility tests preserve the full diagnostics V1 report unchanged
+when no trial is present. The old experiments did not capture these newly
+added tokens on the physical device; do not backfill them as observations.
+Any actual Android lifecycle/recreation and battery counter acceptance remains
+unverified on the latest #59 APK. This draft is not part of RC2.
