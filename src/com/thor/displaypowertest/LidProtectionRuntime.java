@@ -40,6 +40,8 @@ final class LidProtectionRuntime {
             activationEpoch++;
             model.invalidateObservation();
             externalDisplay = null;
+            externalCheckPending = false;
+            externalCheckedAt = 0L;
             lastWakeScheduledAt = 0L;
             state = "OFF";
             // A previously deferred normal wake repair must not disappear when
@@ -52,11 +54,17 @@ final class LidProtectionRuntime {
             enabled = false;
             activationEpoch++;
             model.invalidateObservation();
+            externalDisplay = null;
+            externalCheckPending = false;
+            externalCheckedAt = 0L;
             state = "HALL UNAVAILABLE";
             resumeWakeRepair();
             return false;
         }
         activationEpoch++;
+        externalDisplay = null;
+        externalCheckPending = false;
+        externalCheckedAt = 0L;
         enabled = true;
         int initialLid = readCurrentLid(node);
         if (initialLid >= 0) model.onSwitch(initialLid, SystemClock.elapsedRealtime());
@@ -99,11 +107,17 @@ final class LidProtectionRuntime {
         long now = SystemClock.elapsedRealtime();
         if (!enabled || externalCheckPending || now - externalCheckedAt < 30000L) return;
         externalCheckPending = true;
+        final long probeEpoch = activationEpoch;
         new Thread(() -> {
             Boolean result = externalDisplayConnected();
-            externalDisplay = result;
-            externalCheckedAt = SystemClock.elapsedRealtime();
-            externalCheckPending = false;
+            synchronized (LidProtectionRuntime.class) {
+                // An earlier ON-session probe may return after OFF or ON->OFF->ON.
+                // Only the current activation is allowed to update the cache.
+                if (!enabled || probeEpoch != activationEpoch) return;
+                externalDisplay = result;
+                externalCheckedAt = SystemClock.elapsedRealtime();
+                externalCheckPending = false;
+            }
         }, "thor-external-display-probe").start();
     }
 
@@ -197,6 +211,8 @@ final class LidProtectionRuntime {
                 activationEpoch++;
                 model.invalidateObservation();
                 externalDisplay = null;
+                externalCheckPending = false;
+                externalCheckedAt = 0L;
                 state = "HALL UNAVAILABLE";
                 watcherStarted = false;
                 resumeWakeRepair();
@@ -210,7 +226,11 @@ final class LidProtectionRuntime {
         long now = SystemClock.elapsedRealtime();
         Boolean interactive = interactive();
         Boolean external = externalDisplayConnected();
-        externalDisplay = external;
+        synchronized (LidProtectionRuntime.class) {
+            // A slow synchronous probe must also be discarded after OFF/ON.
+            if (!enabled || epoch != activationEpoch) return;
+            externalDisplay = external;
+        }
         // Never use a queued decision from an earlier ON session.
         if (!enabled || epoch != activationEpoch || BootSafety.isHeld()) return;
         // Evaluate allow/paused/epoch in one model monitor acquisition. The
