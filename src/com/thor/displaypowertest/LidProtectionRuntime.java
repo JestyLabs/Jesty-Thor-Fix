@@ -21,6 +21,8 @@ final class LidProtectionRuntime {
     private static final ScheduledExecutorService scheduler =
             Executors.newSingleThreadScheduledExecutor();
     private static volatile boolean enabled;
+    /** Invalidates queued Guard sleeps across OFF/ON transitions. */
+    private static volatile long activationEpoch;
     private static volatile boolean watcherStarted;
     private static volatile String state = "OFF";
     private static volatile String lastAction = "NONE";
@@ -35,6 +37,7 @@ final class LidProtectionRuntime {
     public static synchronized boolean setEnabled(boolean value) {
         if (!value) {
             enabled = false;
+            activationEpoch++;
             model.invalidateObservation();
             externalDisplay = null;
             lastWakeScheduledAt = 0L;
@@ -47,11 +50,13 @@ final class LidProtectionRuntime {
         File node = findHallNode();
         if (node == null || !node.canRead()) {
             enabled = false;
+            activationEpoch++;
             model.invalidateObservation();
             state = "HALL UNAVAILABLE";
             resumeWakeRepair();
             return false;
         }
+        activationEpoch++;
         enabled = true;
         int initialLid = readCurrentLid(node);
         if (initialLid >= 0) model.onSwitch(initialLid, SystemClock.elapsedRealtime());
@@ -64,7 +69,8 @@ final class LidProtectionRuntime {
             new Thread(() -> watch(node), "thor-hall-switch").start();
         }
         if (initialLid == 1 && !BootSafety.isHeld()) {
-            scheduler.schedule(() -> trySleep("sleep_after_close", false),
+            final long epoch = activationEpoch;
+            scheduler.schedule(() -> trySleep("sleep_after_close", false, epoch),
                     1500L, TimeUnit.MILLISECONDS);
         }
         return true;
@@ -108,7 +114,8 @@ final class LidProtectionRuntime {
         lastWakeScheduledAt = now;
         deferredRepair = true;
         DisplayActionCoordinator.cancelWakeRepair();
-        scheduler.schedule(() -> trySleep("sleep_after_closed_wake", true),
+        final long epoch = activationEpoch;
+        scheduler.schedule(() -> trySleep("sleep_after_closed_wake", true, epoch),
                 500L, TimeUnit.MILLISECONDS);
         return true;
     }
@@ -171,7 +178,8 @@ final class LidProtectionRuntime {
                     model.onSwitch(value, SystemClock.elapsedRealtime());
                     state = value == 1 ? "ACTIVE" : "OPEN";
                     if (value == 1 && !BootSafety.isHeld()) {
-                        scheduler.schedule(() -> trySleep("sleep_after_close", false),
+                        final long epoch = activationEpoch;
+                        scheduler.schedule(() -> trySleep("sleep_after_close", false, epoch),
                                 1500L, TimeUnit.MILLISECONDS);
                     }
                     if (value == 0) {
@@ -183,6 +191,7 @@ final class LidProtectionRuntime {
         } catch (Throwable error) {
             synchronized (LidProtectionRuntime.class) {
                 enabled = false;
+                activationEpoch++;
                 model.invalidateObservation();
                 externalDisplay = null;
                 state = "HALL UNAVAILABLE";
@@ -193,12 +202,14 @@ final class LidProtectionRuntime {
         }
     }
 
-    private static void trySleep(String reason, boolean blockedWake) {
-        if (!enabled || BootSafety.isHeld()) return;
+    private static void trySleep(String reason, boolean blockedWake, long epoch) {
+        if (!enabled || epoch != activationEpoch || BootSafety.isHeld()) return;
         long now = SystemClock.elapsedRealtime();
         Boolean interactive = interactive();
         Boolean external = externalDisplayConnected();
         externalDisplay = external;
+        // Never use a queued decision from an earlier ON session.
+        if (!enabled || epoch != activationEpoch || BootSafety.isHeld()) return;
         // Evaluate allow/paused/epoch in one model monitor acquisition. The
         // potentially slow hardware request runs OUTSIDE that monitor, so Hall
         // events can still update the model while the command is in flight.
@@ -220,7 +231,7 @@ final class LidProtectionRuntime {
             // checks the current lid/enable state under the hardware lock;
             // recordSleepIfCurrent() atomically validates the same epoch when
             // updating the model after the command returns.
-            if (!enabled) return;
+            if (!enabled || epoch != activationEpoch) return;
             if (!DisplayActionCoordinator.requestGuardSleep()) {
                 state = "SLEEP FAILED";
                 lastAction = "sleep_command_failed";
