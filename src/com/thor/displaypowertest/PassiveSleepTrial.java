@@ -62,7 +62,11 @@ public final class PassiveSleepTrial {
             this.pluggedStart = pluggedStart; this.pluggedEnd = pluggedEnd;
         }
         public String reportLine() {
-            return "passive_sleep;state=" + state + ";interval_ms=" + totalMs
+            return "passive_sleep;boundary_source=ACTIVITY_PAUSE_RESUME"
+                    + ";suspend_source=SUSPEND_CLOCK_ESTIMATE"
+                    + ";power_interval_trace=NOT_SAMPLED"
+                    + ";minimum_duration_met=" + minimumDurationMet()
+                    + ";state=" + state + ";interval_ms=" + totalMs
                     + ";awake_clock_ms=" + awakeMs + ";suspend_clock_delta_ms=" + suspendedMs
                     + ";suspend_percent=" + percent(suspendedMs, totalMs)
                     + ";energy_method=" + method + ";energy_wh=" + number(energyWh)
@@ -75,6 +79,14 @@ public final class PassiveSleepTrial {
                     + ";plugged_start_mask=" + known(pluggedStart)
                     + ";plugged_end_mask=" + known(pluggedEnd);
         }
+        /** This says only that the observed clock interval meets the threshold. */
+        private String minimumDurationMet() {
+            if ("MISSING_SAMPLE".equals(state) || "CLOCK_INVALID_OR_REBOOT".equals(state)
+                    || "REBOOT_DETECTED".equals(state) || totalMs <= 0)
+                return "unknown";
+            return totalMs >= MIN_MS ? "1" : "0";
+        }
+
         public String describe() {
             return "State: " + state + "\nDuration: " + totalMs / 1000 + " seconds"
                     + "\nEstimated suspension: " + suspendedMs / 1000 + " seconds ("
