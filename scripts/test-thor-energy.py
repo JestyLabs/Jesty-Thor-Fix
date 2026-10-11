@@ -12,6 +12,7 @@ def pair(label="1", **changes):
     row = dict(pair_id=label, arm="baseline", comparison="fix", scenario="awake_idle",
                build="fixture", display_fix="0", cpu_fix="0", lid_guard="0", mode="1",
                method="battery_energy", conditions="controlled", configuration_verified="yes",
+               battery_interval_evidence="independently_verified",
                suspend_verified="not_applicable", duration_s="3600", energy_wh="4",
                energy_resolution_wh="0.01", valid="yes", normal_wake_verified="yes", disturbance="none")
     candidate = dict(row, arm="candidate", display_fix="1", energy_wh="3")
@@ -45,6 +46,17 @@ class EnergyTests(unittest.TestCase):
         rows[0]["comparison"] = "overhead"
         self.assertEqual(energy.analyze(rows)["groups"][0]["changed_fixes"], [])
         self.assertFalse(energy.analyze(pair(build="different"))["groups"])
+
+    def test_two_endpoints_never_count_as_continuous_battery_evidence(self):
+        for continuity in ("endpoints_only", "unknown", "", "not_applicable"):
+            self.assertFalse(energy.analyze(
+                pair(battery_interval_evidence=continuity))["groups"], continuity)
+        self.assertFalse(energy.analyze(
+            pair(method="external_meter", battery_interval_evidence="independently_verified"))["groups"])
+        # Independent external-meter provenance is not a battery continuity claim.
+        self.assertTrue(energy.analyze(
+            pair(method="external_meter",
+                 battery_interval_evidence="not_applicable"))["groups"])
 
     def test_no_pooling_unmatched_baselines(self):
         a, b = pair("a"), pair("b")
