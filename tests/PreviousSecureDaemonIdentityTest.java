@@ -61,8 +61,29 @@ public final class PreviousSecureDaemonIdentityTest {
         check(PreviousSecureDaemonIdentity.safePid(
                 HEALTH.replace("1.5.3", "1.6.0-watcher-exp3"), BOTH) < 0,
                 "unrecognized experiment must not be killed");
+        String stable170 = HEALTH.replace("1.5.3", "1.7.0");
+        check(PreviousSecureDaemonIdentity.safePid(stable170, BOTH) == 11398,
+                "stable v1.7.0 may be replaced by the release candidate in BOTH");
+        check(PreviousSecureDaemonIdentity.safePid(stable170,
+                BOTH.replace("mode=0", "mode=1")) < 0,
+                "v1.7.0 handover remains BOTH-only");
+        check(PreviousSecureDaemonIdentity.safePid(stable170,
+                BOTH.replace("bottom_crtc=1", "bottom_crtc=0")) < 0,
+                "v1.7.0 handover requires the bottom CRTC active");
+        check(PreviousSecureDaemonIdentity.safePid(stable170,
+                BOTH.replace("top_crtc=1", "top_crtc=0")) < 0,
+                "v1.7.0 handover requires the top CRTC active");
         check(PreviousSecureDaemonIdentity.safePid(
-                HEALTH.replace("1.5.3", "1.7.0"), BOTH) < 0,
+                stable170.replace("watcher=RUNNING", "watcher=FAILED"), BOTH) < 0,
+                "v1.7.0 handover requires a healthy watcher");
+        check(PreviousSecureDaemonIdentity.safePid(
+                stable170.replace("protocol=2", "protocol=1"), BOTH) < 0,
+                "v1.7.0 handover requires the authenticated protocol");
+        check(PreviousSecureDaemonIdentity.safePid(
+                HEALTH.replace("1.5.3", "1.7.0-experimental"), BOTH) < 0,
+                "v1.7.0-like unknown identities must not be replaced");
+        check(PreviousSecureDaemonIdentity.safePid(
+                HEALTH.replace("1.5.3", "1.7.1-rc1"), BOTH) < 0,
                 "current production identity is not a previous-daemon allowance");
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.5.4"), BOTH) < 0,
                 "unknown version must not be killed");

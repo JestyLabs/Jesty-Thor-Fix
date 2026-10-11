@@ -1,0 +1,54 @@
+# v1.7.1-rc1 acceptance
+
+This candidate carries the updater cancel/commit gate and event-only bridge/helper
+diagnostics already integrated into main, with package/runtime identity
+`1.7.1-rc1` (version code 72). The exact v1.7.0 daemon is admitted through the
+existing authenticated, healthy-watcher, BOTH/active-CRTC handover gate.
+
+Lid Guard is maintained without new behavior. The display/CPU controls and watcher
+cadence are unchanged. App event history and energy trials remain in PR #55;
+mixed-refresh investigation remains in PR #37.
+
+## Gates before publication
+
+- Run boot/lid/IPC, dashboard/cancel-race, bridge classification, collector,
+  signing-policy and public-content host suites; build the complete APK.
+- Verify the release certificate, alignment, version, SHA-256 and APK content.
+- On the supervised Thor, verify identity/firmware, battery, boot-ready state,
+  existing daemon identity/health and both active CRTCs before replacement.
+- Install the exact signed candidate in place, preserve settings, open the app
+  and observe the existing bounded v1.7.0-to-candidate handover in BOTH. Confirm
+  a single healthy successor and retained matching CPU startup proof.
+- With owner confirmation, check ordinary BOTH/TOP transitions and one normal
+  sleep/wake cycle per mode. Keep refresh, performance profile and fixes fixed;
+  do not enable or fault-inject Lid Guard.
+- Compare awake BOTH and TOP daemon/app CPU observations with the exact v1.7.0
+  under matched conditions. Label short samples as screening; do not infer energy
+  savings or gameplay improvements.
+- The production in-app update/cancel path remains a separate physical gate;
+  ADB package replacement alone does not validate it. Android emulator results
+  support cancel/session behavior without proving vendor handover.
+
+Stop at unexpected compositor restarts, panel recovery failures, lost daemon
+identity/protocol, failed handover or unexpected CPU proof replay. Preserve raw
+captures privately. Publication requires explicit owner acceptance of the exact
+candidate and any remaining stated limits; stable v1.7.0 remains Latest.
+
+## Status
+
+The seven Windows host suites passed on 2026-10-11: boot/lid/IPC (including bridge
+classification and the new v1.7.0 migration rejection cases), dashboard/cancel
+gate, watcher runtime, watcher measurement, read-only collector fixtures,
+release policy and public content. The content check was rerun successfully from
+the repository after an initial invocation outside Git failed before scanning.
+
+The local candidate compiled and passed alignment, signature verification and
+certificate equality against v1.7.0. Its manifest reports `1.7.1-rc1` / code 72.
+It contains no PR #55 diagnostics or energy-trial implementation. Local candidate
+SHA-256: `3fc183d978723ecff4e7b6963af09a2ecaee72606d0b5a7e5dec3f181616e1bf`.
+
+No Thor validation or publication has occurred. PR CI and the exact protected
+main signing/publication flow remain subsequent gates. If that flow produces
+different signed bytes, validate that exact final artifact on the Thor before
+publication; a local-candidate pass does not transfer automatically.
+Raw evidence and signing data remain local.
