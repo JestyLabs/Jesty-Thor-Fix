@@ -215,6 +215,38 @@ public final class BootAndLidModelTest {
                 2000L, true, false, true);
         check(!throttled.allowed, "sleep spacing remains enforced");
 
+        // OFF must invalidate a previously observed CLOSED lid and any
+        // in-flight sleep decision. ON with an unknown getevent snapshot
+        // must never reuse old Hall state to authorize sleeping.
+        LidGuardModel stale = new LidGuardModel();
+        stale.onSwitch(1, 100L);
+        LidGuardModel.SleepDecision oldDecision = stale.evaluateSleep(
+                1000L, true, false, true);
+        check(oldDecision.allowed, "pre-OFF closed Hall observation is valid");
+        stale.recordSleep(1000L, true);
+        stale.invalidateObservation();
+        check(stale.lid() == LidGuardModel.Lid.UNKNOWN && !stale.maySchedule(),
+                "OFF makes Hall state UNKNOWN and disables wake deferral");
+        check(!stale.maySleep(3000L, true, false, true),
+                "UNKNOWN initial Hall reading must not authorize sleep");
+        check(!stale.recordSleepIfCurrent(oldDecision.lidEpoch, 3000L, true),
+                "OFF invalidation rejects an already-queued sleep");
+        check(stale.blockedWakes() == 1,
+                "OFF must not erase reported blocked-wake history");
+        stale.onSwitch(1, 3100L);
+        check(!stale.maySleep(3400L, true, false, true),
+                "new CLOSED observation requires fresh debounce");
+        check(stale.maySleep(3700L, true, false, true),
+                "new confirmed CLOSED observation may authorize sleep");
+        stale.recordSleep(3700L, false);
+        stale.invalidateObservation();
+        stale.onSwitch(1, 4000L);
+        stale.recordSleep(4700L, false);
+        stale.invalidateObservation();
+        stale.onSwitch(1, 5000L);
+        check(!stale.maySleep(6000L, true, false, true) && stale.paused(),
+                "OFF/ON toggles must not evade anti-loop sleep budget");
+
         byte[] event = new byte[24];
         event[16] = 5;
         event[18] = 0;
