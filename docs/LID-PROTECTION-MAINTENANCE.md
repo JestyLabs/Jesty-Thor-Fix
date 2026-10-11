@@ -16,7 +16,7 @@ Lid Protection remains an **opt-in**, supported feature. This change isolates it
 
 - Original Hall node selection, initial `getevent -S`, blocking event reader, external probe cache interval (~30 seconds), timers, debounce, retry limits, guarded sleep and wake-repair deferral remain in the isolated implementation.
 - An already-open Hall stream is **not forcibly closed** at ON→OFF. Its thread may remain blocked in a read, without periodic polling or Lid policy work. Closing vendor input descriptors from another thread cannot be assumed to cancel the read portably. A safe stop/restart lifecycle deserves a separate device-validated change.
-- A probe already in flight may complete after OFF, but it cannot start a new OFF-state probe. Queued sleep tasks from an old activation return without issuing a command. An already-issued sleep command cannot be retroactively cancelled; physical lid-race acceptance remains mandatory. No new privileged commands or faster polling are introduced.
+- A probe already in flight may complete after OFF, but its results are discarded using the activation epoch (including the synchronous probe on the sleep path). OFF invalidates pending/cache state, and only the current ON session may update external-display telemetry. Queued sleep tasks from an old activation return without issuing a command. An already-issued sleep command cannot be retroactively cancelled; physical lid-race acceptance remains mandatory. No new privileged commands or faster polling are introduced.
 - No claim of measured energy or CPU savings: the change avoids some hot-path calls, optional Hall policy processing and passive Q-triggered external probe spawns. Actual savings depend on query and event frequency.
 
 ## Test and release gates
@@ -25,6 +25,32 @@ Lid Protection remains an **opt-in**, supported feature. This change isolates it
 2. Build/test an unsigned candidate from a clean checkout (Java compilation, dex merge, class names, smali call sites); review diff and CI. The isolated Java test `tests/LidIsolationTest.java` can be executed on a host JVM with Android API and daemon boundary stubs, as in the private offline review; it is not a physical device test.
 3. With **separate owner approval**, validate OFF in BOTH/TOP, normal screen off/on and wake repair, CPU Fix, boot handoff, telemetry field set/order and ON with the lid open. Check ON→OFF→ON, Hall node fail-safe and recovery. Stop on any unexpected sleep, wake or display state.
 4. Do not modify or merge #37 mixed-refresh, #58 display/CPU read-path optimizations, or #59 passive energy research as part of this change. The #55 diagnostics are already integrated in `main` and must be retained.
+
+## Merge blocker — active safety gate
+
+The branch includes host characterization of stale Hall observations, OFF/ON
+activation generations, duplicate sleep-budget protection and bounded Q work.
+GitHub CI/CodeQL must pass on the **exact current head** after integration with
+the latest main. Passing CI does **not** prove that a real SW_LID event can be
+processed quickly enough between the authorization check and the one-shot
+`/system/bin/input keyevent 223` command.
+
+Do **not merge** until a separate owner-approved Thor acceptance demonstrates
+with exact-build APK and rollback ready:
+
+- Guard OFF during BOTH/TOP idle and sleep/wake, True Bottom Screen Off and CPU
+  Fix regression; no extra OFF-state Q-triggered `dumpsys` subprocesses.
+- Guard ON with lid open: no spontaneous sleep; normal wake repair.
+- ON→OFF→ON across a Hall CLOSED/OPEN transition; no old queued sleep command,
+  stale `external_display` result or lost deferred wake repair.
+- Unexpected Hall read failure/unavailable device and unknown external display:
+  fail safe; never assume CLOSED and never issue a speculative sleep.
+- Observe CPU and Q overhead in matched conditions; savings remain unmeasured.
+- STOP on unexpected sleep, binder/service instability, panel mode change,
+  compositor restart or mismatched hardware state.
+
+No ADB, installer, device automation, process kill or merge/release is
+authorized by this documentation.
 
 ## How to measure Lid ON overhead (NOT EXECUTED)
 
