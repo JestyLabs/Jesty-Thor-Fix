@@ -149,10 +149,12 @@ public final class DisplayActionCoordinator {
     }
 
     /** LidGuard decides policy; this method serializes and rechecks the action. */
-    public static boolean requestGuardSleep() {
+    public static boolean requestGuardSleep(long authorizedLidEpoch) {
         synchronized (DisplayHardware.class) {
+            // Recheck the *same* closed-lid observation that authorized this
+            // attempt, immediately before canceling repair / issuing input.
             if (BootSafety.isHeld() || !LidGuard.isEnabled()
-                    || !"closed".equals(LidGuard.lid())
+                    || !LidGuard.isSleepDecisionCurrent(authorizedLidEpoch)
                     || !"0".equals(LidGuard.externalDisplayCached())) return false;
             generations.invalidate();
             cancelRepairLocked();
