@@ -304,6 +304,13 @@ if ($lidRuntime -notmatch 'private static volatile long activationEpoch;' -or
     $lidRuntime -notmatch 'trySleep\("sleep_after_closed_wake", true, epoch\)') {
     throw 'Queued Lid sleep must fail closed across OFF/ON activation transitions.'
 }
+if ($lidRuntime -notmatch 'final long probeEpoch = activationEpoch;' -or
+    $lidRuntime -notmatch 'probeEpoch != activationEpoch' -or
+    $lidRuntime -notmatch 'if \(!enabled \|\| epoch != activationEpoch\) return;' -or
+    $lidRuntime -notmatch 'externalCheckPending = false;' -or
+    $lidRuntime -notmatch 'externalDisplay = null;') {
+    throw 'Stale asynchronous/synchronous external-display probes must not restore OFF session state.'
+}
 $lidModel = Get-Content -LiteralPath (Join-Path $daemonPackage 'LidGuardModel.java') -Raw
 if ($lidModel -notmatch 'public synchronized void invalidateObservation\(\)' -or
     $lidModel -notmatch 'lidEpoch\+\+;' -or
