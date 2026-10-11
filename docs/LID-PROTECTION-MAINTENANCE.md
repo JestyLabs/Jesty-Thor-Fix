@@ -61,6 +61,33 @@ to repeat these RC2 baseline cycles just to reestablish already-proven
 stock-build behavior. Compare guard telemetry OFF to expected
 `external_display=unknown` rather than older RC2's live-probe semantics.
 
+## 2026-10-11 narrower late-interactivity authorization
+
+Second code review found a **real stale-signal window** in `trySleep()`:
+`interactive()` was read *before* the synchronous external-display probe.
+That probe can block for up to 2 seconds, so a once-AWAKE observation could
+survive into an actual Android sleep transition.
+
+In this draft `externalDisplayConnected()` now runs **first**, then a fresh
+`interactive()` snapshot, then the `elapsedRealtime()` decision timestamp.
+The existing post-probe activation epoch, atomic Hall decision and
+`requestGuardSleep(lidEpoch)` command-boundary checks remain in place.
+`scripts/test-boot-lid.ps1` now enforces that source ordering.
+
+**Unresolved physical race:** an actual lid-open Hall transition can still
+occur *after* the final decision/epoch check and before Android accepts the
+`input keyevent 223` request. Java-level locks cannot make an external
+physical switch change and an OS command atomic. The change reduces stale
+interactivity, NOT the final event-to-command race. Do not hold the Hall
+handler's lock across a potentially 2-second shell wait, and do not add
+late `getevent -S` probes (another blocking stale-sample window).
+Only an Android/vendor atomic lid-aware sleep API, if verified, could provide
+stronger physical guarantees. Fail safely on unknown interactivity.
+
+No extra `dumpsys` or IPC is added; the single interactive check is
+**reordered**, not doubled. Separate owner-approved Lid Guard ON hardware
+acceptance is still mandatory.
+
 ## Test and release gates
 
 1. Run the existing boot/lid/IPC, watcher, dashboard, and signing-policy host suites. The boot/lid script checks the compatibility facade and disabled-state source contracts.
