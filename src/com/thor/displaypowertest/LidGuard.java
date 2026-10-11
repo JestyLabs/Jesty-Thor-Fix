@@ -19,5 +19,8 @@ public final class LidGuard {
     public static String lastAction() { return LidProtectionRuntime.lastAction(); }
     public static String externalDisplay() { return LidProtectionRuntime.externalDisplay(); }
     static String externalDisplayCached() { return LidProtectionRuntime.externalDisplayCached(); }
+    public static boolean isSleepDecisionCurrent(long epoch) {
+        return LidProtectionRuntime.isSleepDecisionCurrent(epoch);
+    }
     public static boolean onWakeEvent() { return LidProtectionRuntime.onWakeEvent(); }
 }
