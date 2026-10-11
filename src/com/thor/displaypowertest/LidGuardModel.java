@@ -12,11 +12,46 @@ public final class LidGuardModel {
     private long lastSleepAt = -10000L;
     private final Deque<Long> attempts = new ArrayDeque<>();
     private int blockedWakes;
+    private long lidEpoch;
+
+    /** One atomic decision: caller must not independently inspect paused(). */
+    public static final class SleepDecision {
+        public final boolean allowed;
+        public final boolean paused;
+        public final long lidEpoch;
+        private SleepDecision(boolean allowed, boolean paused, long lidEpoch) {
+            this.allowed = allowed;
+            this.paused = paused;
+            this.lidEpoch = lidEpoch;
+        }
+    }
+
+    public synchronized SleepDecision evaluateSleep(long nowMs, boolean interactive,
+            boolean externalConnected, boolean environmentKnown) {
+        boolean allowed = maySleep(nowMs, interactive, externalConnected, environmentKnown);
+        return new SleepDecision(allowed, paused, lidEpoch);
+    }
+
+    /** Do not record success against a newer Hall state than the authorization. */
+    public synchronized boolean recordSleepIfCurrent(long epoch, long nowMs,
+            boolean blockedWake) {
+        if (epoch != lidEpoch || lid != Lid.CLOSED || paused) return false;
+        recordSleep(nowMs, blockedWake);
+        return true;
+    }
+
+    public synchronized boolean isSleepDecisionCurrent(long epoch) {
+        return epoch == lidEpoch && lid == Lid.CLOSED && !paused;
+    }
+
 
     public synchronized void onSwitch(int value, long nowMs) {
         if (value != 0 && value != 1) return;
         Lid next = value == 1 ? Lid.CLOSED : Lid.OPEN;
-        if (next != lid) changedAt = nowMs;
+        if (next != lid) {
+            changedAt = nowMs;
+            lidEpoch++;
+        }
         lid = next;
         if (next == Lid.OPEN) {
             paused = false;
