@@ -69,7 +69,8 @@ public final class AppDiagnosticReport {
     public synchronized String export(long wallMs, long elapsedMs, String version, int sdk,
             String exitState, List<Exit> exits) {
         StringBuilder out = new StringBuilder("JESTY_THOR_DIAGNOSTICS_V1\n");
-        out.append("app_version=").append(version != null && version.matches("[0-9]+\\.[0-9]+\\.[0-9]+")
+        out.append("app_version=").append(version != null && version.length() <= 64
+                && version.matches("[0-9]+\\.[0-9]+\\.[0-9]+(?:-rc[1-9][0-9]*)?")
                 ? version : "unknown").append(";sdk=").append(sdk >= 1 && sdk <= 100 ? sdk : 0);
         out.append("\ntelemetry_scope=last_foreground_sample;sample_age_ms=")
                 .append(age(elapsedMs, sampleAt)).append(';').append(telemetry);

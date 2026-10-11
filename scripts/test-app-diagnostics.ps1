@@ -29,7 +29,15 @@ if ($diagnostics -match 'ScheduledExecutorService|scheduleAtFixedRate|new Timer\
     throw 'App diagnostics must not add a timer or periodic telemetry request.'
 }
 
-& javac -source 8 -target 8 -d $output `
+$build = Get-Content -LiteralPath (Join-Path $repository 'build.ps1') -Raw
+$compilers = [regex]::Matches($build, '(?m)^& \$javac\b[^\r\n]*')
+if ($compilers.Count -ne 2 -or @($compilers | Where-Object {
+        $_.Value -notmatch '-encoding\s+UTF-8\b'
+    }).Count -ne 0) {
+    throw 'Every production javac invocation must use explicit UTF-8 source encoding.'
+}
+
+& javac -encoding UTF-8 -source 8 -target 8 -d $output `
     (Join-Path $repository 'src/com/thor/displaypowertest/AppTelemetryTransitions.java') `
     (Join-Path $repository 'src/com/thor/displaypowertest/AppDiagnosticReport.java') `
     (Join-Path $repository 'src/com/thor/displaypowertest/AppDiagnosticPreview.java') `
