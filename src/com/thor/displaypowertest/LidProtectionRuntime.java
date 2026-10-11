@@ -196,7 +196,12 @@ final class LidProtectionRuntime {
             // A lid-open event or a disabled Guard invalidates the decision.
             // requestGuardSleep() independently checks the current lid and
             // enabled state under the shared display-hardware lock.
-            if (!enabled || !model.isSleepDecisionCurrent(decision.lidEpoch)) return;
+            // Do not split an epoch pre-check from a later model mutation:
+            // that would be a genuine TOCTOU window. requestGuardSleep()
+            // checks the current lid/enable state under the hardware lock;
+            // recordSleepIfCurrent() atomically validates the same epoch when
+            // updating the model after the command returns.
+            if (!enabled) return;
             if (!DisplayActionCoordinator.requestGuardSleep()) {
                 state = "SLEEP FAILED";
                 lastAction = "sleep_command_failed";
