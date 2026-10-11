@@ -80,6 +80,9 @@ final class LidProtectionRuntime {
     public static String lid() { return model.lid().name().toLowerCase(); }
     public static String state() { return state.replace(' ', '_'); }
     public static int blockedWakes() { return model.blockedWakes(); }
+    public static boolean isSleepDecisionCurrent(long epoch) {
+        return model.isSleepDecisionCurrent(epoch);
+    }
     public static String lastAction() { return lastAction; }
     public static String externalDisplay() {
         // Telemetry keeps the same key and cached value, but an OFF guard must
@@ -232,7 +235,7 @@ final class LidProtectionRuntime {
             // recordSleepIfCurrent() atomically validates the same epoch when
             // updating the model after the command returns.
             if (!enabled || epoch != activationEpoch) return;
-            if (!DisplayActionCoordinator.requestGuardSleep()) {
+            if (!DisplayActionCoordinator.requestGuardSleep(decision.lidEpoch)) {
                 state = "SLEEP FAILED";
                 lastAction = "sleep_command_failed";
                 return;
