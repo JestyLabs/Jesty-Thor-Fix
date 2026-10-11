@@ -113,6 +113,26 @@ Read-only investigation should compare 60/60, 120/60 and the AYN 120 Hz dual-scr
 
 Do not tune vsync offsets blindly. First prove whether the mismatch is in Android scheduling, Qualcomm HWC/SDM, DRM/DSI timing, or the panel configuration.
 
+## P2: app diagnostics and separate energy research
+
+- **Structured event history:** bounded private Activity/telemetry event log,
+  using only existing foreground Q data; on-demand sanitized export.
+  The candidate displays a readable log through a bottom-right cogwheel;
+  the original machine-readable export remains unchanged. Merge and RC
+  publication are distinct gates; see [RC checklist](APP-DIAGNOSTICS-RC-VALIDATION.md).
+- **Crashes / process kills:** app-only Android exit history; Activity destruction
+  does not prove process death. Device validation remains partial.
+- **Passive sleep-energy trials:** a *separate, stacked research PR* based on
+  the diagnostics work. No sampling hooks, energy evaluator, battery collector,
+  sleep trial UI or energy comparison tool are added in this diagnostics PR.
+- **Watcher/CPU optimizations:** owned by PRs #57/#58 and a separate profiling
+  follow-up; do not conflate short daemon CPU observations with battery energy.
+
+See [app diagnostics design](APP-DIAGNOSTICS.md) and
+[diagnostics validation](APP-DIAGNOSTICS-VALIDATION-20261009.md).
+The diagnostics-only candidate adds no daemon commands, background polling
+or display policy changes.
+
 ## Next: Retroid Pocket Duo compatibility
 
 Goal: make the codebase ready to support more than one dual-screen handheld without weakening Thor safety.

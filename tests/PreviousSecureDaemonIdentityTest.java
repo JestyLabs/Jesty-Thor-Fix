@@ -82,9 +82,27 @@ public final class PreviousSecureDaemonIdentityTest {
         check(PreviousSecureDaemonIdentity.safePid(
                 HEALTH.replace("1.5.3", "1.7.0-experimental"), BOTH) < 0,
                 "v1.7.0-like unknown identities must not be replaced");
+        String priorRc1 = HEALTH.replace("1.5.3", "1.7.1-rc1");
+        check(PreviousSecureDaemonIdentity.safePid(priorRc1, BOTH) == 11398,
+                "the released rc1 daemon may be replaced by rc2 only in BOTH");
+        check(PreviousSecureDaemonIdentity.safePid(priorRc1,
+                BOTH.replace("mode=0", "mode=1")) < 0,
+                "rc1 handover remains BOTH-only");
+        check(PreviousSecureDaemonIdentity.safePid(priorRc1,
+                BOTH.replace("bottom_crtc=1", "bottom_crtc=0")) < 0,
+                "rc1 handover requires the lower CRTC active");
+        check(PreviousSecureDaemonIdentity.safePid(priorRc1,
+                BOTH.replace("top_crtc=1", "top_crtc=0")) < 0,
+                "rc1 handover requires the upper CRTC active");
+        check(PreviousSecureDaemonIdentity.safePid(priorRc1.replace(
+                "watcher=RUNNING", "watcher=FAILED"), BOTH) < 0,
+                "rc1 handover requires a healthy watcher");
         check(PreviousSecureDaemonIdentity.safePid(
-                HEALTH.replace("1.5.3", "1.7.1-rc1"), BOTH) < 0,
-                "current production identity is not a previous-daemon allowance");
+                HEALTH.replace("1.5.3", "1.7.1-rc1-experimental"), BOTH) < 0,
+                "similar but unrecognized rc1 identities remain rejected");
+        check(PreviousSecureDaemonIdentity.safePid(
+                HEALTH.replace("1.5.3", "1.7.1-rc2"), BOTH) < 0,
+                "current rc2 identity is not a previous-daemon allowance");
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.5.4"), BOTH) < 0,
                 "unknown version must not be killed");
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("pid=11398", "pid=1;bad=x"), BOTH) < 0,

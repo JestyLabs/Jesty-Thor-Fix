@@ -41,6 +41,26 @@
 
 Open the dashboard to see the lower screen's real hardware state, CPU speeds, estimated system power and Wake Guard status.
 
+<details>
+<summary><strong>Diagnostics (next release candidate — not in stable v1.7.0)</strong></summary>
+
+The candidate dashboard adds a small **⚙ cogwheel** at the bottom-right.
+Tap it to see a readable, newest-first log of app events, last known
+display/CPU settings, and Android-reported app exit reasons. **Save report**
+exports the original sanitized technical record for troubleshooting.
+
+Diagnostics reuse the existing once-per-second foreground telemetry responses:
+there is **no additional daemon poll or background service**. Formatting and
+exit-history queries run only when opened; a small amount of app CPU and bounded
+preferences I/O is incurred while the dashboard is visible. No change to the
+True Bottom Screen Off or CPU Fix logic is introduced by this candidate.
+Hardware CPU/battery equivalence is not yet measured.
+
+See [Diagnostics guide](docs/APP-DIAGNOSTICS.md) and
+[RC acceptance checklist](docs/APP-DIAGNOSTICS-RC-VALIDATION.md).
+
+</details>
+
 <p align="center">
   <img src="docs/images/dashboard-both-v1.5.15-review.png" alt="Jesty Thor Fix app dashboard showing live screen and CPU information" width="760">
 </p>
@@ -158,6 +178,8 @@ Jesty Thor Fix is free and open source. No features are locked behind donations.
 ### Documentation
 
 [Architecture](docs/ARCHITECTURE.md) · 
+[Diagnostics](docs/APP-DIAGNOSTICS.md) ·
+[Diagnostics RC validation](docs/APP-DIAGNOSTICS-RC-VALIDATION.md) · 
 [Compatibility](docs/COMPATIBILITY.md) · 
 [Benchmarks](docs/BENCHMARKS.md) · 
 [Release notes](docs/RELEASE-NOTES-1.7.0.md) ·

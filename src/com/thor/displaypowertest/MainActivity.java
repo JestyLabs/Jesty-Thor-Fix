@@ -31,9 +31,11 @@ public final class MainActivity extends Activity {
     private volatile boolean activityResumed;
     private long replacementRequestedAt = -1L;
     private AppUpdater updater;
+    private AppDiagnostics diagnostics;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
+        diagnostics = new AppDiagnostics(this, state == null ? null : state.getString("diagnostic_export"));
         SharedPreferences preferences = getSharedPreferences("state", MODE_PRIVATE);
         configureWindow();
         DashboardViews views = new DashboardViews(this);
@@ -48,6 +50,7 @@ public final class MainActivity extends Activity {
             @Override public void onGithubLongPress() {
                 if (updater != null) updater.showSettings();
             }
+            @Override public void onDiagnostics() { diagnostics.show(); }
         });
         media = new BackgroundMediaController(views, layout.backgroundImage, layout.videoTexture);
         renderer = new DashboardRenderer(layout, new DashboardRenderer.Host() {
@@ -62,6 +65,7 @@ public final class MainActivity extends Activity {
         telemetry = new TelemetryPoller(this, new TelemetryPoller.Listener() {
             @Override public void onSampleRecorded(Map<String, String> values) {
                 updateReadiness.record(values);
+                diagnostics.sample(values);
             }
             @Override public void onSample(Map<String, String> values) {
                 renderer.render(values, settings);
@@ -111,6 +115,7 @@ public final class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         activityResumed = true;
+        diagnostics.record("FOREGROUND");
         // State seen before a pause is not trusted for an install decision.
         updateReadiness.invalidate();
         startTelemetry();
@@ -121,6 +126,7 @@ public final class MainActivity extends Activity {
     @Override protected void onPause() {
         activityResumed = false;
         stopTelemetry();
+        diagnostics.record("BACKGROUND");
         updateReadiness.invalidate();
         if (updater != null) updater.onPause();
         media.onPause();
@@ -129,10 +135,22 @@ public final class MainActivity extends Activity {
 
     @Override protected void onDestroy() {
         stopTelemetry();
+        diagnostics.record("ACTIVITY_DESTROYED");
+        diagnostics.close();
         if (updater != null) updater.shutdown();
         settings.shutdown();
         media.release();
         super.onDestroy();
+    }
+
+    @Override protected void onSaveInstanceState(Bundle state) {
+        super.onSaveInstanceState(state);
+        state.putString("diagnostic_export", diagnostics.pendingExport());
+    }
+
+    @Override protected void onActivityResult(int request, int result, Intent data) {
+        super.onActivityResult(request, result, data);
+        if (request == AppDiagnostics.SAVE_REQUEST) diagnostics.onResult(result, data);
     }
 
     private void startTelemetry() {
