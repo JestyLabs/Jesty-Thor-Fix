@@ -64,6 +64,32 @@ public final class AutomaticBottomOnPolicyTest {
                 "new awake plan after sleep can recover lower panel");
         expect(!commit(Decision.SUPPRESS_ASLEEP, Interactive.AWAKE, true,
                 "0", "1", "0"), "old sleeping plan cannot be revived without resampling");
+        // Exhaustively verify that the proposed gate affects ONLY candidates
+        // for automatic BOTH ON, never other DisplayDecisionModel actions.
+        String[] modes = {"0", "1", "2", "?"};
+        String[] states = {"0", "1", "?"};
+        Interactive[] powerStates = Interactive.values();
+        for (String mode : modes) for (String top : states)
+                for (String bottom : states) for (boolean fix : new boolean[]{false, true})
+                for (boolean held : new boolean[]{false, true})
+                for (boolean pending : new boolean[]{false, true})
+                for (Interactive power : powerStates) {
+            DisplayDecisionModel.Action base = DisplayDecisionModel.reconcile(
+                    mode, top, bottom, fix, held, pending);
+            Decision plannedResult = AutomaticBottomOnPolicy.plan(mode, top, bottom,
+                    fix, held, pending, power);
+            if (base != DisplayDecisionModel.Action.ON || pending) {
+                expect(plannedResult == Decision.NONE,
+                        "non-ON or pending repair must not generate ON candidate");
+            } else if (power == Interactive.AWAKE) {
+                expect(plannedResult == Decision.ALLOW_CANDIDATE_ON,
+                        "an existing ON candidate remains allowed when confirmed awake");
+            } else {
+                expect(plannedResult == (power == Interactive.ASLEEP
+                        ? Decision.SUPPRESS_ASLEEP : Decision.SUPPRESS_UNKNOWN),
+                        "sleep/unknown must suppress only possible ON");
+            }
+        }
         System.out.println("AutomaticBottomOnPolicyTest PASSED: " + passed + " assertions");
     }
 }
