@@ -284,8 +284,8 @@ if ($lidRuntime -match 'new ProcessBuilder\("(?:getevent|dumpsys)"' -or
 }
 if ($lidRuntime -notmatch 'model\.evaluateSleep\(' -or
     $lidRuntime -notmatch 'model\.recordSleepIfCurrent\(' -or
-    $lidRuntime -notmatch '!model\.isSleepDecisionCurrent\(') {
-    throw 'Lid sleep must use atomic policy decision and epoch revalidation.'
+    $lidRuntime -match 'model\.isSleepDecisionCurrent\(') {
+    throw 'Lid sleep must use atomic policy decision and completion, not a split epoch check.'
 }
 if ($lidRuntime -notmatch 'if \(enabled\) refreshExternalDisplay\(\);' -or
     $lidRuntime -notmatch 'if \(value < 0 \|\| !enabled\) continue;') {
