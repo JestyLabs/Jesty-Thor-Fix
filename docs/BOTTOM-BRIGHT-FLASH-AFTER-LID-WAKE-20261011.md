@@ -130,8 +130,9 @@ The tool rejects mixed epoch/monotonic clocks: for `-v monotonic`, an `--observe
 `research/wake/AutomaticBottomOnPolicy.java` and
 `AutomaticBottomOnPolicyTest.java` are **pure-Java, not linked into the APK**.
 The prototype consumes the **current production** `DisplayDecisionModel`
-rather than inventing a replacement baseline. Local Java 17 execution passed
-**21 assertions**, exercising asleep/awake/unknown, BOTH recovery, TOP fix,
+rather than inventing a replacement baseline. Local Java 17 execution passed **885 assertions** (21 directed
+regressions plus 864 combinations of mode, CRTC, awake, Fix, hold and
+repair-pending states), exercising asleep/awake/unknown, BOTH recovery, TOP fix,
 display-fix OFF, pending repair, changed state/epoch and wake revalidation.
 GitHub CI additionally runs the same model fixtures; CI result must be checked
 on the exact draft HEAD.
