@@ -125,6 +125,50 @@ The tool rejects mixed epoch/monotonic clocks: for `-v monotonic`, an `--observe
 | Log missing, visual time uncertain, or no CRTC samples during flash | INCONCLUSIVE | Preserve hypothesis; do not change wake policy |
 | A repeat without explicit authorization | Not permitted | Stop; request a separate supervised plan |
 
+## Offline wake-gate policy prototype (2026-10-11)
+
+`research/wake/AutomaticBottomOnPolicy.java` and
+`AutomaticBottomOnPolicyTest.java` are **pure-Java, not linked into the APK**.
+The prototype consumes the **current production** `DisplayDecisionModel`
+rather than inventing a replacement baseline. Local Java 17 execution passed
+**21 assertions**, exercising asleep/awake/unknown, BOTH recovery, TOP fix,
+display-fix OFF, pending repair, changed state/epoch and wake revalidation.
+GitHub CI additionally runs the same model fixtures; CI result must be checked
+on the exact draft HEAD.
+
+**Additional finding from the model test:** the current
+`DisplayDecisionModel.reconcile("0", "1", "0", true, false, true)`
+returns `ON` even if `wakeRepairPending=true`. That behavior is
+directly demonstrated by source/tests, not inferred from the capture.
+The prototype would suppress competing automatic ON while a repair is pending.
+
+The proposed gate is **not a proven production fix**:
+
+1. Automatic `WATCH_BOTH ON` should only be considered when power state
+   is freshly **confirmed interactive** (and both panel/mode evidence is
+   valid); asleep/unknown cases suppress the candidate. Unrelated
+   manual/boot reconciles and TOP OFF/wake-repair paths must not be changed.
+2. A second freshness/interactive/epoch check near `SurfaceControl` is
+   needed; a software observation **cannot close** the tiny final race
+   before the physical command, because Android may start sleeping again.
+3. Firmware `.377` support for the root daemon's effective
+   `IPowerManager.isInteractive()` reflection path is **not established**
+   during the lid sleep transition. Android's value at +850 ms was NOT
+   captured, and it may not be the right signal for panel readiness.
+4. Returning UNKNOWN indefinitely would starve a legitimate BOTH BOTTOM
+   recovery after wake. Before considering a runtime integration, prove the
+   probe reliably returns awake after normal wake, that watcher events
+   resample state, and that the known-good recovery path remains available.
+5. Deferred repair and event ordering with #57's independent lid refactor
+   need integration review, but #57 code was not present in this observed RC2.
+
+**No production Java class, daemon, Android manifest, APK, display action,
+watcher frequency or wake logic has been modified by this PR.**
+Host model success is **not** validation that suppressing ON is safe on
+the actual Thor. Keep a runtime-fix proposal in a separate PR after
+reviewing existing trace completeness and obtaining owner permission for
+a measured guarded physical test.
+
 ## No-production-change guardrails
 
 This draft should change **only** documentation, read-only local analysis scripts and synthetic tests. No new watcher polling, permanent runtime tracing, added daemon threads, display-power calls, CPU frequency/refresh writes, property changes, sleep/lid automation or modified firmware. In particular, do **not** add a blanket debounce that could delay True Bottom Screen Off / recovery.
