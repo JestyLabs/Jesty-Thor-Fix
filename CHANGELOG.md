@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.7.1-rc1 (candidate; physical validation pending)
+
+- Serialize updater cancellation with Android's installer handoff. A Cancel
+  accepted before commit prevents handoff; after commit, the UI reports that
+  Android owns the installation.
+- Record bounded, sanitized privileged bridge failure classifications and CPU
+  helper handoff decision inputs on existing events, without extra probes or
+  polling.
+- Allow the exact v1.7.0 daemon to migrate through the existing authenticated,
+  healthy-watcher, BOTH/active-CRTC handover gate.
+- Retain lifecycle, installer, signing-policy and privacy regression coverage.
+  Display/CPU control, watcher cadence and Lid Guard behavior remain unchanged.
+- App event history, passive energy trials and mixed-refresh tooling remain in
+  their research tracks. No performance, energy or tearing improvement is claimed.
+- Do not publish this candidate until the exact signed APK passes the supervised
+  Thor daemon handover and normal-operation checks.
+
 ## 1.7.0 (stable release; scoped Thor validation)
 
 - Reduce idle watcher work with a 500 ms Settings safety poll, existing display
