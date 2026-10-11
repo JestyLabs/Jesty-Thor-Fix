@@ -47,6 +47,40 @@ boot ID, session ID, absolute wall time, filesystem path or account data is
 included. Private history timestamps become relative ages; clock rollback
 produces unknown age. Invalid values remain unknown.
 
+## 2026-10-11 safety review — endpoint-only battery gaps
+
+**This cannot be solved with two Activity callbacks.** Neither Android
+`BatteryManager` endpoint, nor a monotonic declining energy counter, proves
+that USB power was continuously absent between the samples. Adding a
+background listener or polling would change device sleep behavior and
+undermine the passive experiment, so this research PR deliberately does
+**not** introduce a wake receiver, always-on service or polling loop.
+
+What is now enforced:
+
+- The app's optional human-readable report explicitly warns that charging
+  **between endpoints is unobserved** and that its provisional estimate
+  cannot independently prove fix-related battery savings. No extra
+  hardware sampling, timer, daemon or privacy exposure.
+- The separate offline `analyze-thor-energy.py` A/B comparator rejects
+  `battery_energy` rows unless new mandatory worksheet column
+  `battery_interval_evidence=independently_verified` is present. The
+  ordinary app-export `power_interval_trace=NOT_SAMPLED` can **never**
+  be elevated to that value by automation. Synthetic test covers
+  `endpoints_only`, `unknown`, blank and `not_applicable`.
+- External meters use `battery_interval_evidence=not_applicable` only
+  when the method really is `external_meter` or `charger_input`.
+  Their instrumentation and calibration must be verified separately.
+- **Limitation:** the CSV token is an owner-entered attestation, not a
+  cryptographically verified instrument record. Actual uninterrupted
+  off-USB observation still needs a separate protocol and independent
+  evidence. Never infer it from the START/END snapshots alone.
+
+Any existing older local worksheets lacking the new column now fail
+validation rather than silently producing energy savings. Migrate those
+worksheets with truthful source provenance before comparison, not with
+an automatic default to independently verified.
+
 ## Passive sleep trial (opt-in candidate; partial device validation)
 
 **Where:** APP DIAGNOSTICS → **Sleep trial** → **Start trial**.
