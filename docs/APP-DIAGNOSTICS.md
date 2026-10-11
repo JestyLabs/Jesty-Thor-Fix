@@ -4,7 +4,7 @@ Scope: **PR #55 (diagnostics-only candidate)**. Passive battery/sleep-energy mea
 
 ## Product behavior
 
-- **APP DIAGNOSTICS** previews a sanitized report and allows **Save report** through Android's system document picker. No automatic upload, clipboard export, background stream or device change.
+- The **gear icon** (bottom-right, accessible label **App diagnostics**) opens a preview a sanitized report and allows **Save report** through Android's system document picker. No automatic upload, clipboard export, background stream or device change.
 - The app retains at most 64 allowlisted Activity/foreground-telemetry events in its private preferences. The one journal includes typed mode, CRTC and daemon-status observations from the *existing* authenticated Q responses. Consecutive stable samples are required for observed mode/CRTC transitions. Identical samples are not appended. Observations do not prove actual panel power, refresh or cause.
 - On demand, Android 11+/API 30+ `ApplicationExitInfo` is queried for at most eight *app-package* exit reasons. It does not cover the privileged root daemon. `USER_REQUESTED`, empty, unsupported and unavailable outcomes are explicitly distinguished.
 - The report schema remains `JESTY_THOR_DIAGNOSTICS_V1` (bounded to 24,000 characters); all timestamps are converted to ages and raw process names, serials, paths, stack traces, PIDs/UIDs, boot IDs and system logs are excluded.
