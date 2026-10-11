@@ -117,6 +117,9 @@ Do not tune vsync offsets blindly. First prove whether the mismatch is in Androi
 
 - **Structured event history:** bounded private Activity/telemetry event log,
   using only existing foreground Q data; on-demand sanitized export.
+  The candidate displays a readable log through a bottom-right cogwheel;
+  the original machine-readable export remains unchanged. Merge and RC
+  publication are distinct gates; see [RC checklist](APP-DIAGNOSTICS-RC-VALIDATION.md).
 - **Crashes / process kills:** app-only Android exit history; Activity destruction
   does not prove process death. Device validation remains partial.
 - **Passive sleep-energy trials:** a *separate, stacked research PR* based on
