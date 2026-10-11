@@ -1,0 +1,1 @@
+pair_id,arm,comparison,scenario,build,display_fix,cpu_fix,lid_guard,mode,method,conditions,configuration_verified,suspend_verified,duration_s,energy_wh,energy_resolution_wh,valid,normal_wake_verified,disturbance,battery_start_pct,battery_end_pct,temperature_start_c,temperature_end_c,charging_state,usb_state,network_state,workload,suspend_evidence,wake_count,limitations
