@@ -54,6 +54,14 @@ in the captured filtered source; no synchronized optical/driver brightness
 measurement exists. No root-daemon restart, new app crash or lost CRTC
 steady-state recovery was evidenced by the endpoint checks.
 
+**Version attribution:** independently compared public `v1.7.0` with
+the current `main`. `DisplayDecisionModel.java` and
+`DisplayHardware.java` are byte-identical; the entire
+`DisplayActionCoordinator.onWatcherSample()` routine, including the
+automatic `WATCH_BOTH ON` decision, is also identical. Thus the #58 PR
+did **not** add this automatic ON code path, although changed read timing
+and firmware interactions have not been experimentally excluded.
+
 **Specific safety-gap candidate:** `DisplayDecisionModel.reconcile("0",
 "1", "0", true, false, false)` can select ON while Android is in a lid
 sleep transition because that pure model and the coordinator's `WATCH_BOTH`
@@ -91,7 +99,7 @@ Use only already-authorized device evidence or a **new separately approved read-
 
 ## Offline tooling and privacy
 
-`scripts/analyze-bottom-wake-flash.py` accepts a **local** `adb logcat -v epoch` text file and produces only recognized event categories and relative-time offsets. It never runs ADB, opens sysfs, changes Android properties, or exports original log text. The input can contain private details, so keep it outside GitHub, Actions artifacts and PR comments. Do **not** automatically upload an anonymized-looking raw log: sanitization must be reviewed.
+`scripts/analyze-bottom-wake-flash.py` accepts a **local** `adb logcat -v epoch` or `-v monotonic` text file and produces only recognized event categories and relative-time offsets. It never runs ADB, opens sysfs, changes Android properties, or exports original log text. The input can contain private details, so keep it outside GitHub, Actions artifacts and PR comments. Do **not** automatically upload an anonymized-looking raw log: sanitization must be reviewed.
 
 Example from previously collected evidence (do not interpret as permission to start capture):
 
@@ -99,10 +107,13 @@ Example from previously collected evidence (do not interpret as permission to st
 python scripts/analyze-bottom-wake-flash.py --input "C:\Temp\thor-private\existing-logcat-epoch.txt"
 # Optional only if the observer supplied an accurate logcat-clock timestamp:
 python scripts/analyze-bottom-wake-flash.py --input "C:\Temp\thor-private\existing-logcat-epoch.txt" --observed-at 1791740000.5 --window-seconds 6
+# For the actual retained RC2 evidence, use the boot-relative clock, without
+# claiming an independently measured visual flash timestamp:
+python scripts/analyze-bottom-wake-flash.py --input "C:\\Temp\\thor-private\\existing-monotonic-logcat.txt" --json
 python -m unittest discover -s tests -p "test_bottom_wake_flash.py"
 ```
 
-The tool's time alignment is only as good as the source clock and visual timestamp. If exact time is unknown, review chronological categories without suggesting alignment.
+The tool rejects mixed epoch/monotonic clocks: for `-v monotonic`, an `--observed-at` value must use boot-relative seconds, not Unix time. The tool's time alignment is only as good as the source clock and visual timestamp. If exact time is unknown, review chronological categories without suggesting alignment.
 
 ## Decision matrix before implementing a fix
 
