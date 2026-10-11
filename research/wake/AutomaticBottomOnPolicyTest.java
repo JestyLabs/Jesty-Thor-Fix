@@ -40,8 +40,8 @@ public final class AutomaticBottomOnPolicyTest {
                 false, Interactive.AWAKE) == Decision.NONE, "Fix disabled blocks ON");
         expect(AutomaticBottomOnPolicy.plan("0", "1", "0", true, true,
                 false, Interactive.AWAKE) == Decision.NONE, "actions held blocks ON");
-        // Surprising current-production behavior: wakeRepairPending is
-        // ignored in the BOTH ON clause. This prototype would close that gap.
+        // Synthetic model edge: production coordinator normally cancels
+        // pending TOP repair before processing a BOTH mode. Not an observed bug.
         expect(DisplayDecisionModel.reconcile("0", "1", "0", true, false, true)
                 == DisplayDecisionModel.Action.ON, "baseline ON while repair pending");
         expect(AutomaticBottomOnPolicy.plan("0", "1", "0", true, false,
