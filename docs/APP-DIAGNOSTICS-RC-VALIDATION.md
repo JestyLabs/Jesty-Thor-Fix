@@ -21,7 +21,8 @@ publishing a GitHub release or changing any clock, display, CPU or vendor state.
   watcher is created. True Bottom Screen Off, CPU Fix and vendor daemon control
   are unchanged by this PR.
 - Energy / sleep experiments are **excluded** (research PR #59); Lid maintenance
-  and Display/CPU optimization (#57/#58) are **excluded**.
+  (#57) is **excluded**; Display/CPU read-path optimization (#58) is
+  included as candidate-only code subject to full test/telemetry parity.
 
 **Performance:** No extra daemon polling does **not** imply zero app CPU/disk I/O.
 No physical CPU, energy, or gaming-frametime parity has yet been established for
@@ -54,7 +55,8 @@ the exact final candidate.
 - [ ] Record the candidate's SHA-256, source commit and signing certificate
       before any installation. No automatic release upload.
 - [ ] Prepare accurately scoped prerelease notes: UI/cogwheel, readable event
-      preview, privacy, unchanged machine export, no new daemon polling and
+      preview, privacy, unchanged machine export, paired DRM read improvements,
+      property-read fallback, no new daemon polling and
       remaining physical/energy unknowns.
 
 ## Gate C — separate owner-authorized Thor test
@@ -76,14 +78,17 @@ expected system impacts and stop conditions. Owner approval must be specific.
 5. Cogwheel tap/display/accessibility; readable newest-first events, known
    vs unknown hardware values, stale sample caveats; app-only exit reasons
    and no daemon-process claims.
-6. Preview, Save report, picker cancel, unavailable picker, Activity recreation
+6. Compare Q keys/types and `system_load_fix` (0/1/?), paired CRTC
+   confirmations and unchanged CPU Fix boot/wake policy against the prior build.
+   Evaluate Q request latency and distinguish daemon CPU from UI processing.
+7. Preview, Save report, picker cancel, unavailable picker, Activity recreation
    while picker is open. Compare the saved V1 raw technical record with the
    expected privacy field allowlist; **it intentionally differs from the
    human-readable preview**.
-7. With the dashboard closed, verify no extra diagnostic service or Q
+8. With the dashboard closed, verify no extra diagnostic service or Q
    activity. With dashboard open, record existing Q cadence and any
    material responsiveness, memory/CPU or write-rate changes.
-8. Stop at the first unexpected display, restart, lock, sleep, command,
+9. Stop at the first unexpected display, restart, lock, sleep, command,
    permission, privacy or daemon identity issue. No blind retries.
 
 ## Gate D — prerelease and stable release
@@ -109,5 +114,5 @@ the diagnostics-only split, cogwheel and human-readable formatter. It is
 
 For build/signing policy see [maintainer build/release](BUILD-AND-RELEASE.md)
 and [GitHub Actions](GITHUB-ACTIONS.md). Do not conflate this candidate
-with research PR #59 (energy), PR #57 (Lid), PR #58 (read paths), or PR #37
+with research PR #59 (energy), PR #57 (Lid), or PR #37
 (mixed refresh).
