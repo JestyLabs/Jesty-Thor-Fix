@@ -39,9 +39,13 @@ jobs:
           javac -encoding UTF-8 -d "${RUNNER_TEMP}/wake-model-tests" \
             src/com/thor/displaypowertest/DisplayDecisionModel.java \
             research/wake/AutomaticBottomOnPolicy.java \
-            research/wake/AutomaticBottomOnPolicyTest.java
+            research/wake/AutomaticBottomOnPolicyTest.java \
+            research/wake/AutomaticBottomWakeRecoveryModel.java \
+            research/wake/AutomaticBottomWakeRecoveryModelTest.java
           java -cp "${RUNNER_TEMP}/wake-model-tests" \
             com.thor.displaypowertest.AutomaticBottomOnPolicyTest
+          java -cp "${RUNNER_TEMP}/wake-model-tests" \
+            com.thor.displaypowertest.AutomaticBottomWakeRecoveryModelTest
 
 
 
