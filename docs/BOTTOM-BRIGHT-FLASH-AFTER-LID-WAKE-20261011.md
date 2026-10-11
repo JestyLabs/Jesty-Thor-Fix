@@ -180,6 +180,36 @@ the actual Thor. Keep a runtime-fix proposal in a separate PR after
 reviewing existing trace completeness and obtaining owner permission for
 a measured guarded physical test.
 
+## Modeled deferred-ON recovery — research only (2026-10-11)
+
+New host-only `research/wake/AutomaticBottomWakeRecoveryModel` and its test
+exercise a **fail-closed but recoverable** candidate protocol:
+
+1. On BOTH TOP1/BOTTOM0 while power is ASLEEP or UNKNOWN, hold the
+   automatic ON candidate, without replaying a stale queued hardware command.
+2. Require two **fresh, consecutive** confirmed-AWAKE watcher observations
+   before reconsidering a deferred ON. This is a proposed mitigation against
+   quick suspend/resume flicker, **not a measured optimum**. Re-check the
+   display mode, CRTC flags, generation and interactive status immediately
+   at the command boundary.
+3. If interactivity remains UNKNOWN for ten independent watcher observations,
+   surface `NEEDS_MANUAL_REVIEW` in the *model*: **never** make an ON by
+   timeout or an assumed awake fallback. A later valid awake pair still
+   permits a fresh candidate, and non-BOTH/already-on/Fix-off clears deferral.
+4. Model tests cover asleep→unknown→awake, repeated unknown, awake↔sleep,
+   changing generation, TOP mode and OFF Fix. Existing production code
+   remains untouched.
+
+**Conditional liveness, not a proof on Thor:** successful automatic recovery
+requires that the privileged daemon can actually obtain reliable
+`isInteractive()` observations and that the existing watcher continues to
+produce samples after wake. On .377 **neither assumption was captured at the
+850 ms ON instant**; a false AWAKE could still authorize ON and permanent
+UNKNOWN could prevent automatic recovery. The manual user reconcile path
+also requires separate UX/accessibility checks. This research model cannot
+prove physical flash elimination or recovery timing; stop short of production
+integration until trace-backed signal validity and physical acceptance.
+
 ## No-production-change guardrails
 
 This draft should change **only** documentation, read-only local analysis scripts and synthetic tests. No new watcher polling, permanent runtime tracing, added daemon threads, display-power calls, CPU frequency/refresh writes, property changes, sleep/lid automation or modified firmware. In particular, do **not** add a blanket debounce that could delay True Bottom Screen Off / recovery.
