@@ -101,8 +101,11 @@ public final class DisplayActionCoordinator {
             String mode = readCurrentMode();
             if (!BootSafety.knownMode(mode) || !mode.equals(DaemonState.getMode()))
                 return "ok=0;error=DISPLAY_MODE_UNKNOWN";
-            String top = Telemetry.topCrtcActive();
-            String bottom = Telemetry.bottomCrtcActive();
+            // A single DRM snapshot avoids two debugfs reads and contradictory
+            // TOP/BOTTOM observations during a mode transition.
+            String[] crtc = Telemetry.crtcActivePair();
+            String top = crtc[0];
+            String bottom = crtc[1];
             if (!DisplayDecisionModel.readyForReconcile(mode, top, bottom))
                 return "ok=0;error=DISPLAY_TRANSITION";
             boolean targetOn = !requested || !"1".equals(mode);
@@ -121,8 +124,9 @@ public final class DisplayActionCoordinator {
         synchronized (DisplayHardware.class) {
             if (!BootSafety.knownMode(expectedMode)
                     || !expectedMode.equals(readCurrentMode())) return false;
+            String[] crtc = Telemetry.crtcActivePair();
             if (!DisplayDecisionModel.readyForReconcile(expectedMode,
-                    Telemetry.topCrtcActive(), Telemetry.bottomCrtcActive())) return false;
+                    crtc[0], crtc[1])) return false;
             if (!applyConfirmed(targetOn, "BOOT_RECONCILE", expectedMode)) return false;
             generations.invalidate();
             cancelRepairLocked();
@@ -198,8 +202,9 @@ public final class DisplayActionCoordinator {
             return false;
         }
         String expected = on ? "1" : "0";
-        String top = Telemetry.topCrtcActive();
-        String before = Telemetry.bottomCrtcActive();
+        String[] beforePair = Telemetry.crtcActivePair();
+        String top = beforePair[0];
+        String before = beforePair[1];
         if (!DisplayDecisionModel.readyForReconcile(expectedMode, top, before)
                 || (on && "0".equals(top) && "0".equals(before))) {
             status = "DISPLAY_ASLEEP_OR_TRANSITION";
@@ -222,11 +227,11 @@ public final class DisplayActionCoordinator {
                 return false;
             }
         }
-        String finalBottom = Telemetry.bottomCrtcActive();
+        String[] finalPair = Telemetry.crtcActivePair();
+        String finalBottom = finalPair[1];
         boolean confirmed = expectedMode.equals(readCurrentMode())
                 && expected.equals(finalBottom)
-                && DisplayDecisionModel.topCompatible(expectedMode,
-                        Telemetry.topCrtcActive());
+                && DisplayDecisionModel.topCompatible(expectedMode, finalPair[0]);
         if (!confirmed) DisplayHardware.alignPropertyWithCrtc(finalBottom);
         status = confirmed ? "CONFIRMED" : "UNCONFIRMED";
         return confirmed;

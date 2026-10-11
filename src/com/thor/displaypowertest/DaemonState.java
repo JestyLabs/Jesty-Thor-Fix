@@ -99,7 +99,7 @@ public final class DaemonState {
                 + ";system_proxy_w=" + decimal(power.systemProxyWatts)
                 + ";power_source=" + clean(power.source)
                 + ";battery_w=" + decimal(power.batteryWatts)
-                + ";system_load_fix=" + Telemetry.systemLoadFixState()
+                + ";system_load_fix=" + Telemetry.systemLoadFixStateForSnapshot()
                 + ";wake_id=" + wakeId
                 + ";wake_at=" + wakeAt
                 + ";display_on_at=" + displayOnAt
