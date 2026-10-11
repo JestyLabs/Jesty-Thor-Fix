@@ -244,7 +244,7 @@ public final class BootAndLidModelTest {
         stale.recordSleep(4700L, false);
         stale.invalidateObservation();
         stale.onSwitch(1, 5000L);
-        check(!stale.maySleep(6000L, true, false, true) && stale.paused(),
+        check(!stale.maySleep(6600L, true, false, true) && stale.paused(),
                 "OFF/ON toggles must not evade anti-loop sleep budget");
 
         byte[] event = new byte[24];
