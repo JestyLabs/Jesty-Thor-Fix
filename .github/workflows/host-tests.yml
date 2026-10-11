@@ -73,6 +73,10 @@ jobs:
         shell: pwsh
         run: ./scripts/test-boot-lid.ps1
 
+      - name: Display and CPU read-path regression models
+        shell: pwsh
+        run: ./scripts/test-display-cpu-read-paths.ps1
+
       - name: Dashboard models
         shell: pwsh
         run: ./scripts/test-dashboard.ps1
