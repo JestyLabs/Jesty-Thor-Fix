@@ -1,6 +1,6 @@
 # Display and CPU Fix read-path optimization — independent draft
 
-This is a follow-up **after** the merged PR #41 watcher optimization. It is intentionally separate from #57 (Lid Protection maintenance), #37 (mixed refresh), and #55 (energy/diagnostics).
+This is a follow-up **after** the merged PR #41 watcher optimization. It is intentionally separate from #57 (Lid Protection maintenance), #37 (mixed refresh), and the already-merged #55 (diagnostics). Passive energy remains #59.
 
 ## Verified architectural baseline
 
@@ -15,7 +15,7 @@ This is a follow-up **after** the merged PR #41 watcher optimization. It is inte
 
 During the less-frequent user/boot reconciliation and transition verification, read TOP and BOTTOM CRCTs from one `Telemetry.crtcActivePair()` snapshot rather than opening `/sys/kernel/debug/dri/0/state` separately for each CRTC.
 
-This reuses the tested existing parser. It reduces two snapshots to one at the preflight and at final verification, and yields a single top/bottom observation per boundary instead of two potentially interleaved moments.
+This reuses the tested existing parser. It reduces two snapshots to one at the preflight and at final verification, and yields one bounded top/bottom observation per boundary instead of two distinct debugfs opens. A sequential text read is **not an atomic physical hardware measurement**.
 
 The wake-repair delayed-read loop, generation invalidation, lock structure, mode confirmation, `DisplayHardware.apply()`, and final hardware validation remain unchanged. A missing or malformed CRTC still produces `?` and the decision model fails closed.
 
@@ -39,7 +39,7 @@ The Q snapshot still includes the exact same `system_load_fix` field, along with
 - `DisplayDecisionModelTest`, `DisplayGenerationModelTest`, `WatcherCadenceModelTest` (232 assertions), `PropertyStateTest` PASS.
 - `TelemetrySnapshotTest` six host SystemProperties fixture cases PASS: `0`, `1`, empty, missing, invalid and whitespace.
 - `DisplayOptimizationSafetyTest` six host scenarios PASS: TOP/BOTTOM normal/reversed/malformed/missing, and fail-closed reconciliation.
-- Run `powershell -NoProfile -File scripts/test-display-cpu-read-paths.ps1` on Windows (requires Java/JDK). Full APK build and Android behavior require separate CI/owner validation.
+- The main CI now calls `scripts/test-display-cpu-read-paths.ps1` after the boot/lid suite (JDK required). Full APK build and Android behavior require exact-head CI and separate owner-approved device validation.
 
 ## Requested next physical measurements — DO NOT EXECUTE YET
 
@@ -50,4 +50,4 @@ After owner authorization, compare the same final signed published baseline to a
 3. Normal user toggle and wake repair after sleep: preserve CRTC confirmation, deadlines, errors, compositor identity and latencies before/after.
 4. Repeat matched windows, record host/firmware/APK hashes, quantization, absent telemetry and stop conditions. Use no writes or tracing beyond the reviewed allowlist without authorization.
 
-Do not merge/release until APK build, security CI, boot/display/wake and normal CPU Fix regression gates pass, and results are reviewed independently.
+Release-candidate inclusion is permitted after the APK build, security CI, host parity tests and emulator pass on the exact head. **No stable promotion or on-device success claim** until owner-supervised BOTH/TOP, CPU Fix, Q parity and wake-repair regression tests pass on the signed candidate. PR #57 remains a separate safety-gated draft.
