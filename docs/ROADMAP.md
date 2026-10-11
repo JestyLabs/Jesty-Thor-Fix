@@ -113,22 +113,21 @@ Read-only investigation should compare 60/60, 120/60 and the AYN 120 Hz dual-scr
 
 Do not tune vsync offsets blindly. First prove whether the mismatch is in Android scheduling, Qualcomm HWC/SDM, DRM/DSI timing, or the panel configuration.
 
-## P2: app diagnostics and separate energy research
+## P2: app observability and sleep energy investigation
 
-- **Structured event history:** bounded private Activity/telemetry event log,
-  using only existing foreground Q data; on-demand sanitized export.
-- **Crashes / process kills:** app-only Android exit history; Activity destruction
-  does not prove process death. Device validation remains partial.
-- **Passive sleep-energy trials:** a *separate, stacked research PR* based on
-  the diagnostics work. No sampling hooks, energy evaluator, battery collector,
-  sleep trial UI or energy comparison tool are added in this diagnostics PR.
-- **Watcher/CPU optimizations:** owned by PRs #57/#58 and a separate profiling
-  follow-up; do not conflate short daemon CPU observations with battery energy.
+- **Structured event history:** candidate implementation; reuse existing
+  foreground telemetry, bounded private retention and on-demand sanitized export.
+- **Crashes / process kills:** candidate implementation; query Android's retained
+  app exit reasons, distinguish Activity lifecycle from process death and preserve
+  unknown/unavailable results. Device validation is pending.
+- **Controlled energy measurements:** planned; establish real sleep consumption,
+  deep-suspend evidence and diagnostics overhead before claiming a gain or
+  changing display behaviour. Both screens visually off and a lower CRTC marked
+  active do not establish panel power or a failure of the TOP-only fix.
 
-See [app diagnostics design](APP-DIAGNOSTICS.md) and
-[diagnostics validation](APP-DIAGNOSTICS-VALIDATION-20261009.md).
-The diagnostics-only candidate adds no daemon commands, background polling
-or display policy changes.
+See [scope, sleep observations and measurement protocol](APP-OBSERVABILITY-AND-ENERGY.md)
+and [trial worksheet](ENERGY-TRIAL-WORKSHEET.csv). No new display commands,
+daemon changes or sleep polling are introduced by this observability candidate.
 
 ## Next: Retroid Pocket Duo compatibility
 
