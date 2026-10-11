@@ -112,6 +112,14 @@ public final class PassiveSleepTrial {
         if ((a.energyNwh > 0 && b.energyNwh > a.energyNwh)
                 || (a.chargeUah >= 0 && b.chargeUah > a.chargeUah))
             return invalid("COUNTER_INCREASE", bootVerified, duration, awake, suspended, a, b);
+        // A short window (including the RC2 ~180 s CPU windows) is
+        // insufficient for this trial and must never expose plausible watts.
+        if (duration < MIN_MS)
+            return invalid("SHORT_TRIAL", bootVerified, duration, awake, suspended, a, b);
+        // Unknown BOOT_COUNT means we cannot establish that both samples
+        // belong to the same boot; retain clocks only, not estimated energy.
+        if (!bootVerified)
+            return invalid("BOOT_NOT_VERIFIED", false, duration, awake, suspended, a, b);
         String method = "UNAVAILABLE";
         double wh = -1;
         if (a.energyNwh > 0 && b.energyNwh > 0 && a.energyNwh > b.energyNwh) {
@@ -122,9 +130,7 @@ public final class PassiveSleepTrial {
             wh = (a.chargeUah - b.chargeUah) * ((a.voltageMv + b.voltageMv) / 2d) / 1e9d;
             method = "CHARGE_VOLTAGE_ESTIMATE";
         }
-        String state = duration < MIN_MS ? "SHORT_TRIAL"
-                : wh < 0 ? "ENERGY_UNAVAILABLE_OR_UNRESOLVED"
-                : !bootVerified ? "BOOT_NOT_VERIFIED" : "PROVISIONAL";
+        String state = wh < 0 ? "ENERGY_UNAVAILABLE_OR_UNRESOLVED" : "PROVISIONAL";
         return new Result(state, method, duration, awake, suspended, wh, bootVerified, a.fixes,
                 a.voltageMv, b.voltageMv, a.temperatureDeciC, b.temperatureDeciC, a.plugged, b.plugged);
     }
