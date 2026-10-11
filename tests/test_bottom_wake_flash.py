@@ -83,6 +83,13 @@ class WakeFlashOfflineTest(unittest.TestCase):
         self.assertEqual(second["window_event_count"], 1)
         self.assertEqual(first["timeline"][0]["offset_ms"], 836)
         self.assertEqual(second["timeline"][0]["offset_ms"], 850)
+        # A prior ON during closing must never be presented as an ON at opening.
+        # Wake time below is a synthetic fixture anchored to existing RC2
+        # derived PowerManager timestamps, not a measured brightness timestamp.
+        at_open = analyse(lines, observed_at=66988.957, window_seconds=6)
+        self.assertEqual(at_open["classification"], "INCONCLUSIVE")
+        self.assertEqual(at_open["window_event_count"], 0)
+        self.assertEqual(at_open["recognized_counts_all"]["jesty_watch_both_on"], 2)
         with self.assertRaisesRegex(ValueError, "anchor clock differs"):
             analyse(lines, observed_at=BASE)
 
