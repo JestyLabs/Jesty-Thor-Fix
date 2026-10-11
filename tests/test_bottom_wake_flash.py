@@ -46,6 +46,10 @@ class WakeFlashOfflineTest(unittest.TestCase):
 
     def test_app_action_requires_provenance(self):
         self.assertIsNone(classify(log(0, "OtherApp", "WATCH_BOTH ON")))
+        self.assertIsNone(classify(log(0, "OtherApp",
+                    "quoting ThorDisplayDaemon: WATCH_BOTH ON")))
+        self.assertEqual(classify(log(0, "ThorDisplayDaemon", "WATCH_BOTH ON")),
+                         "jesty_watch_both_on")
         self.assertEqual(classify(log(0, "ThorDisplayDaemon", "WATCH_BOTH:ON")),
                          "jesty_watch_both_on")
         self.assertEqual(classify(log(0, "ThorDisplayDaemon", "WAKE_REPAIR_RESULT result=OFF_OK")),
