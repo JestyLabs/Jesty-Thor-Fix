@@ -9,7 +9,7 @@ from pathlib import Path
 
 FIELDS = ("pair_id arm comparison scenario build display_fix cpu_fix lid_guard mode method "
           "conditions configuration_verified suspend_verified duration_s energy_wh "
-          "energy_resolution_wh valid normal_wake_verified disturbance").split()
+          "energy_resolution_wh valid normal_wake_verified disturbance battery_interval_evidence").split()
 FIXES = ("display_fix", "cpu_fix", "lid_guard")
 ENUMS = {
     "arm": {"baseline", "candidate"},
@@ -36,6 +36,14 @@ def validate(row):
         raise ValueError("unverified_trial")
     if row.get("normal_wake_verified") != "yes" or row.get("disturbance") != "none":
         raise ValueError("disturbed_trial")
+    # Activity pause/resume endpoints cannot establish whether USB was
+    # connected in between. Never promote an app-only two-endpoint estimate
+    # to an A/B saving, regardless of reported battery/0 endpoints.
+    continuity = row.get("battery_interval_evidence")
+    if row["method"] == "battery_energy" and continuity != "independently_verified":
+        raise ValueError("battery_power_continuity_unverified")
+    if row["method"] != "battery_energy" and continuity != "not_applicable":
+        raise ValueError("invalid_nonbattery_continuity_provenance")
     if row["scenario"] in {"normal_sleep", "closed_lid_wake"} and row.get("suspend_verified") != "yes":
         raise ValueError("suspend_unverified")
     if any(not row.get(key, "").strip() for key in ("pair_id", "build", "conditions")):
@@ -74,7 +82,8 @@ def analyze(rows):
             rejected["duplicate_arm"] += 1
             continue
         baseline, candidate = arms["baseline"], arms["candidate"]
-        match_keys = ("comparison", "scenario", "method", "mode", "conditions")
+        match_keys = ("comparison", "scenario", "method", "mode", "conditions",
+                      "battery_interval_evidence")
         if any(baseline[key] != candidate[key] for key in match_keys):
             rejected["unmatched_conditions"] += 1
             continue
@@ -117,6 +126,9 @@ def analyze(rows):
     return {"schema": "THOR_ENERGY_AB_V1", "groups": summaries, "rejected": dict(rejected),
             "limits": ["No hardware collection or fix toggling is performed.",
                        "Matching metadata and configuration verification are owner attestations.",
+                       "Battery method requires independently verified whole-interval unplugged provenance.",
+                       "Two app Activity endpoints cannot prove absence of intermediate USB charging.",
+                       "An owner-entered provenance flag alone is not independent instrument proof.",
                        "Positive saving means candidate drew less; negative saving means more.",
                        "Repeated comparisons are not a statistical significance claim.",
                        "Quantization checks do not include full instrument uncertainty.",
