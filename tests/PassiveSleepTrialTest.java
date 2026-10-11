@@ -58,6 +58,25 @@ public final class PassiveSleepTrialTest {
         state(PassiveSleepTrial.evaluate(a,s(101000,50050,1700000000L,900000,3900,0,12,1)),"SHORT_TRIAL");
         state(PassiveSleepTrial.evaluate(a,s(3700000,9000000,1700000000L,900000,3900,0,12,1)),"CLOCK_INVALID_OR_REBOOT");
         state(PassiveSleepTrial.evaluate(a,s(3700000,110000,1700000000,900000,3900,0,-1,1)),"BOOT_NOT_VERIFIED");
+        // Regression from corrected RC2 evidence: the 180-second CPU windows
+        // were USB-powered, not a valid five-minute battery energy trial.
+        PassiveSleepTrial.Result shortWindow = PassiveSleepTrial.evaluate(
+                a, s(280000, 110000, 1700000000, 900000, 3900, 0, 12, 1));
+        state(shortWindow, "SHORT_TRIAL");
+        test(shortWindow.energyWh < 0 && shortWindow.meanW < 0
+                && shortWindow.reportLine().contains("energy_wh=unknown;mean_device_w=unknown"),
+                "short battery windows cannot publish watts");
+        PassiveSleepTrial.Result usbWindow = PassiveSleepTrial.evaluate(
+                s(100000, 50000, 2000000000, 1000000, 3900, 1, 12, 1),
+                s(3700000, 110000, 1700000000, 900000, 3900, 1, 12, 1));
+        state(usbWindow, "EXTERNAL_POWER_OR_UNKNOWN");
+        test(usbWindow.energyWh < 0 && usbWindow.meanW < 0,
+                "USB-powered endpoints never publish energy or mean watts");
+        PassiveSleepTrial.Result unknownBoot = PassiveSleepTrial.evaluate(
+                a, s(3700000, 110000, 1700000000, 900000, 3900, 0, -1, 1));
+        state(unknownBoot, "BOOT_NOT_VERIFIED");
+        test(unknownBoot.energyWh < 0 && unknownBoot.meanW < 0,
+                "unverified boot endpoints never publish energy or mean watts");
         System.out.println("PassiveSleepTrialTest passed: "+count+" assertions");
     }
 }
