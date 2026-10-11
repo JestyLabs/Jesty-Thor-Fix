@@ -49,14 +49,18 @@ class EnergyTests(unittest.TestCase):
 
     def test_two_endpoints_never_count_as_continuous_battery_evidence(self):
         for continuity in ("endpoints_only", "unknown", "", "not_applicable"):
-            self.assertFalse(energy.analyze(
-                pair(battery_interval_evidence=continuity))["groups"], continuity)
+            rows = pair()
+            for row in rows:
+                row["battery_interval_evidence"] = continuity
+            self.assertFalse(energy.analyze(rows)["groups"], continuity)
         self.assertFalse(energy.analyze(
             pair(method="external_meter", battery_interval_evidence="independently_verified"))["groups"])
         # Independent external-meter provenance is not a battery continuity claim.
-        self.assertTrue(energy.analyze(
-            pair(method="external_meter",
-                 battery_interval_evidence="not_applicable"))["groups"])
+        external_rows = pair()
+        for row in external_rows:
+            row["method"] = "external_meter"
+            row["battery_interval_evidence"] = "not_applicable"
+        self.assertTrue(energy.analyze(external_rows)["groups"])
 
     def test_no_pooling_unmatched_baselines(self):
         a, b = pair("a"), pair("b")
