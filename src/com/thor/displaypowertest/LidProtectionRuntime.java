@@ -180,20 +180,35 @@ final class LidProtectionRuntime {
         Boolean interactive = interactive();
         Boolean external = externalDisplayConnected();
         externalDisplay = external;
-        if (!model.maySleep(now, Boolean.TRUE.equals(interactive),
-                Boolean.TRUE.equals(external), interactive != null && external != null)) {
-            if (model.paused()) state = "PAUSED WAKE LOOP";
+        // Evaluate allow/paused/epoch in one model monitor acquisition. The
+        // potentially slow hardware request runs OUTSIDE that monitor, so Hall
+        // events can still update the model while the command is in flight.
+        LidGuardModel.SleepDecision decision = model.evaluateSleep(
+                now, Boolean.TRUE.equals(interactive),
+                Boolean.TRUE.equals(external), interactive != null && external != null);
+        if (!decision.allowed) {
+            if (decision.paused) state = "PAUSED WAKE LOOP";
             resumeWakeRepair();
             return;
         }
         boolean slept = false;
         try {
+            // A lid-open event or a disabled Guard invalidates the decision.
+            // requestGuardSleep() independently checks the current lid and
+            // enabled state under the shared display-hardware lock.
+            if (!enabled || !model.isSleepDecisionCurrent(decision.lidEpoch)) return;
             if (!DisplayActionCoordinator.requestGuardSleep()) {
                 state = "SLEEP FAILED";
                 lastAction = "sleep_command_failed";
                 return;
             }
-            model.recordSleep(now, blockedWake);
+            if (!model.recordSleepIfCurrent(decision.lidEpoch, now, blockedWake)) {
+                // A concurrent Hall transition occurred during the command.
+                // Never record an attempt against the newly opened lid.
+                state = "LID CHANGED";
+                lastAction = "lid_changed_during_sleep";
+                return;
+            }
             deferredRepair = false;
             slept = true;
             state = "ACTIVE";
