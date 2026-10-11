@@ -77,6 +77,29 @@ public final class PassiveSleepTrialTest {
         state(unknownBoot, "BOOT_NOT_VERIFIED");
         test(unknownBoot.energyWh < 0 && unknownBoot.meanW < 0,
                 "unverified boot endpoints never publish energy or mean watts");
+        // Stronger source attribution: boundary sampling alone cannot prove
+        // continuous battery power or kernel deep suspend residency.
+        test(r.reportLine().contains("boundary_source=ACTIVITY_PAUSE_RESUME")
+                && r.reportLine().contains("power_interval_trace=NOT_SAMPLED")
+                && r.reportLine().contains("suspend_source=SUSPEND_CLOCK_ESTIMATE"),
+                "source labels prevent inflated interpretation of two endpoints");
+        PassiveSleepTrial.Result belowBoundary = PassiveSleepTrial.evaluate(
+                a, s(399999L, 90000L, 1700000000L, 900000L, 3900, 0, 12, 1));
+        state(belowBoundary, "SHORT_TRIAL");
+        test(belowBoundary.reportLine().contains("minimum_duration_met=0"),
+                "299999 ms is too short");
+        PassiveSleepTrial.Result atBoundary = PassiveSleepTrial.evaluate(
+                a, s(400000L, 90000L, 1700000000L, 900000L, 3900, 0, 12, 1));
+        state(atBoundary, "PROVISIONAL");
+        test(atBoundary.reportLine().contains("minimum_duration_met=1"),
+                "300000 ms passes duration gate only");
+        test(PassiveSleepTrial.evaluate(null, b).reportLine()
+                        .contains("minimum_duration_met=unknown"),
+                "missing endpoints cannot qualify duration");
+        test(PassiveSleepTrial.evaluate(a, s(100001, 10000000,
+                        1700000000L, 900000, 3900, 0, 12, 1)).reportLine()
+                        .contains("minimum_duration_met=unknown"),
+                "invalid clocks cannot qualify duration");
         System.out.println("PassiveSleepTrialTest passed: "+count+" assertions");
     }
 }
