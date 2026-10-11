@@ -77,6 +77,12 @@ jobs:
         shell: pwsh
         run: ./scripts/test-dashboard.ps1
 
+      - name: Refresh investigation contract
+        shell: pwsh
+        run: |
+          python --version
+          ./scripts/test-refresh-investigation.ps1
+
       - name: Validate release workflow policy
         shell: pwsh
         run: ./scripts/test-release-policy.ps1

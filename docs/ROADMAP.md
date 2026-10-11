@@ -100,7 +100,7 @@ Test plan:
 3. compare focused display / input routing before and after;
 4. only advertise a fix if the A/B result is repeatable.
 
-## Next: 120 Hz screen tearing / mixed refresh
+## Active: 120 Hz screen tearing / mixed refresh (#37)
 
 The upper Thor panel supports 120 Hz while the lower panel is physically 60 Hz. AYN exposes a 120 Hz system mode for the dual-screen setup, so the first question is **where the lower display is made to look or behave like 120 Hz**.
 
@@ -112,6 +112,16 @@ Read-only investigation should compare 60/60, 120/60 and the AYN 120 Hz dual-scr
 - present fences and GPU composition.
 
 Do not tune vsync offsets blindly. First prove whether the mismatch is in Android scheduling, Qualcomm HWC/SDM, DRM/DSI timing, or the panel configuration.
+
+The exact .377 SurfaceFlinger logs a foreign display-mode identity but continues
+to HWC with an inverted lower config ID. That explains the `invalid mode` error;
+it does not prove lower optical 120 Hz or the cause of tearing. Further policy
+writes remain paused after two observed black blinks. Continue with local
+binary/trace analysis and read-only captures before designing another experiment.
+
+See [exact binary analysis](THOR-120HZ-EXACT-BINARY-OFFLINE-20261008.md),
+[event order and mode identity](THOR-120HZ-EVENT-ORDER-AND-MODE-PROVENANCE.md)
+and [PR #37 handoff](THOR-120HZ-PR37-OFFLINE-HANDOFF-20261008.md).
 
 ## Next: Retroid Pocket Duo compatibility
 
