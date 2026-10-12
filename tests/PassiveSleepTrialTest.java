@@ -24,6 +24,10 @@ public final class PassiveSleepTrialTest {
         test(r.method.equals("ENERGY_COUNTER"),"direct method");
         test(Math.abs(r.energyWh-.3)<1e-9 && Math.abs(r.meanW-.3)<1e-9,"nWh to Wh to W");
         test(r.reportLine().contains("suspend_clock_delta_ms=3540000"),"sanitized report");
+        test(r.reportLine().contains("fixes_requested_mask=1;fixes_effective_state=NOT_SAMPLED"),
+                "requested switches never imply verified effective state");
+        test(r.describe().contains("Effective fixes were not independently sampled"),
+                "human explanation includes effective-state limitation");
         test(r.reportLine().contains("voltage_start_mv=3900")
                 && r.reportLine().contains("temperature_start_deci_c=300"),
                 "bounded endpoint conditions");

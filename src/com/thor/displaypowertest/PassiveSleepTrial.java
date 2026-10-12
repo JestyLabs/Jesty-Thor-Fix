@@ -72,6 +72,7 @@ public final class PassiveSleepTrial {
                     + ";energy_method=" + method + ";energy_wh=" + number(energyWh)
                     + ";mean_device_w=" + number(meanW)
                     + ";boot_verified=" + (bootVerified ? 1 : 0) + ";fixes_requested_mask=" + fixes
+                    + ";fixes_effective_state=NOT_SAMPLED"
                     + ";voltage_start_mv=" + known(voltageStartMv)
                     + ";voltage_end_mv=" + known(voltageEndMv)
                     + ";temperature_start_deci_c=" + known(temperatureStartDeciC)
@@ -103,6 +104,7 @@ public final class PassiveSleepTrial {
                     + ((fixes & 1) != 0 ? "ON" : "OFF") + ", "
                     + ((fixes & 2) != 0 ? "ON" : "OFF") + ", "
                     + ((fixes & 4) != 0 ? "ON" : "OFF")
+                    + "\nEffective fixes were not independently sampled at both boundaries."
                     + "\nCharging between the two endpoints CANNOT be excluded."
                     + "\nDo not use this preliminary trial alone for A/B energy savings.";
         }

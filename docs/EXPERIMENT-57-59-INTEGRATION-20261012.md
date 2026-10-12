@@ -48,3 +48,10 @@ A physical Guard ON result is not equivalent to **active wake prevention** unles
 Stop on unexpected sleep/wake loops, delayed screen repair, black/bottom display loss, persistent daemon/boot change, data loss, incompatible Q/export, or a baseline regression. Preserve private captures offline; publish sanitized conclusions only. No synthetic Hall/Power key injection or disruptive 120Hz/display/firmware changes are authorized here.
 
 **Review outcomes:** (1) keep #57/#59 individual drafts and this combined proposal draft; (2) inspect exact-head GitHub CI results; (3) patch only documented failures in source PRs or a reviewed combined integration; (4) request a new and separate decision before signing/installing; (5) merge per PR only with exact-build physical acceptance.
+## Follow-up review — 12 October 2026 (combined draft only)
+
+- Added fail-closed trial boundary persistence handling and pure-Java fixtures: a false/throwing `SharedPreferences.commit()` invalidates the trial *in the running process*, even if Android's memory cache was changed. Explicit successfully saved re-arm/cancel recovers. **Process-death recovery and filesystem durability after a power failure remain unverified.**
+- Trial record now includes `fixes_effective_state=NOT_SAMPLED`: switch preferences are requested state, never measured effective daemon/DRM state. No-trial diagnostics V1 stays byte-identical.
+- Added host tests and a source guard; new CI + emulator + CodeQL on this exact combined HEAD must pass before handing off to Codex.
+- Did NOT modify #57 hardware sleep control or pretend the Hall→input keyevent interval is atomic. A separate owner-supervised hardware gate remains.
+- These are research draft source changes, not an authorization for RC3 signing, installation or publication.
