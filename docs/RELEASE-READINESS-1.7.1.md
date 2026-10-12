@@ -26,7 +26,8 @@
 - [ ] Review any remaining product/release blocker against the completed physical scope; do not automatically infer that unobserved Guard interception is validated.
 - [x] **UI-only PR [#73](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/73) merged**: exact two descriptions, vector gear, and Diagnostics/Support/GitHub placement. The diagnostics assertion was updated, builds and emulator checks passed. No production daemon, CPU/display or Lid Guard logic changed. **No rerun of the completed physical CPU/suspend baselines is required for UI-only copy/layout.**
 - [ ] Review a screenshot or perform a quick visual smoke of the exact final signed release APK to confirm the intended button placement and strings.
-- [ ] Finalize [release notes](RELEASE-NOTES-1.7.1.md) and update [release integrity](RELEASE-INTEGRITY.md) with actual artifact hashes and source/CI provenance. Do not publish private full logs or vendor extracts.
+- [x] Rewrite [release notes](RELEASE-NOTES-1.7.1.md) for end users: plain-English feature summary, update/safety guidance and optional-Guard limitation. Verified against `UpdateVersion.summarize`: **488 characters** displayed in the app, **no truncation**, full release body free of release-operator checklists.
+- [ ] Record the exact final signed artifact SHA-256, signing certificate, source SHA and CI run in [release integrity](RELEASE-INTEGRITY.md). Do not publish private full logs, identifiers, keystores or vendor extracts.
 
 ## Exact-artifact promotion sequence
 
