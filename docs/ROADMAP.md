@@ -11,18 +11,19 @@ See [physical validation evidence](VALIDATION-EVIDENCE.md) for completed test re
 - **Watcher efficiency (v1.7.0):** approximately **89% lower daemon CPU** in controlled hardware A/B compared with the preceding implementation, with safe display recovery preserved.
 - **v1.7.0 signed candidate:** verified in-place handoff, physical mode transitions, wake repairs and supervised reboot.
 - **RC2 physical baseline (2026-10-12):** six repeatable CPU idle windows and successful sustained-suspend experiments in BOTH and TOP. [Dataset and calculations](evidence/RC2-PHYSICAL-BASELINE-2026-10-12.md).
-- **Code76 functional smoke and daemon CPU (2026-10-12):** installation, CPU Fix confirmation recovery, BOTH/TOP and short sleep/wake **PASS**. Six CPU windows **PASS** with lower BOTH daemon CPU than RC2 and unchanged low TOP cost. [Physical measurements](evidence/CODE76-PHYSICAL-VALIDATION-2026-10-12.md).
+- **Code76 physical primary checks (2026-10-12):** installation, CPU Fix confirmation recovery, BOTH/TOP display, short sleep/wake, six CPU windows **and both long suspend trials PASS** with Guard OFF. Optional Guard ON normal-cycle regression subsequently **PASS** in BOTH/TOP; active closed-lid wake interception **NOT OBSERVED**. [Physical measurements](evidence/CODE76-PHYSICAL-VALIDATION-2026-10-12.md).
 
 These tests support the named outcomes. They do not need to be rerun solely because their original work item was previously phrased as an investigation.
 
-## Priority 1 — finish code76 physical acceptance
+## Priority 1 — finish code76 release acceptance
 
 - **Completed:** code76 signed in-place installation, authenticated daemon handoff, restored CPU Fix confirmation, BOTH/TOP and short sleep/wake smoke.
 - **Completed:** matched ~182 s daemon CPU windows (three in BOTH, three in TOP); both mode budgets **PASS**. The RC2 control is preserved and does **not** need repeating.
-- **In progress at V6 snapshot:** normal long quiet-suspend BOTH experiment. Collect the final bounded Android clock endpoint after the owner finishes the unplugged interval. TOP long quiet-suspend follows.
-- **After suspend:** check the optional Lid Guard ON path separately, keeping the ordinary Guard OFF behavior intact.
+- **Completed:** unplugged long quiet-suspend BOTH and TOP trials, with final bounded Android clock endpoints and normal wake; both mode budgets **PASS**.
+- **Completed:** isolated Lid Guard ON normal close/Power/open smoke in BOTH and TOP, with normal recovery, no confirmed active wake block, and final Guard OFF restoration.
+- **Remaining scope decision:** active closed-lid wake interception was not observed (blocked counter 0); decide whether dedicated reproduction is needed for release claims. Do **not** convert it into a PASS by assumption.
 - **Prepared recovery:** signed code77 [PR #69](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/69), not installed. Code75 [PR #64](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/64) is historical and is not a normal downgrade after code76.
-- **Documentation:** append only confirmed results to the [physical evidence index](VALIDATION-EVIDENCE.md), keeping raw private captures and proprietary vendor data out of Git.
+- **Next release steps:** include the scoped [UI-only PR #73](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/73), establish exact release-eligible signed APK identity, review release scope and obtain owner approval. Keep [private captures out of Git](PUBLIC-EVIDENCE-POLICY.md).
 
 ## Priority 2 — performance and battery evidence
 

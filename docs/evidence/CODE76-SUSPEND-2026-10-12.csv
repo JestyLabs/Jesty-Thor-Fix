@@ -1,0 +1,3 @@
+mode,version_code,elapsed_ms,suspend_lower_ms,suspend_upper_ms,suspend_share_lower_pct,suspend_share_upper_pct,rc2_suspend_lower_ms,rc2_suspend_upper_ms,rc2_share_lower_pct,rc2_share_upper_pct,acceptance
+BOTH,76,892506,812828,813138,91.072553013649,91.107286673703,743229,743601,87.893996785703,87.937989373188,PASS
+TOP,76,829494,776449,776860,93.605137589904,93.654685868734,750554,751027,93.444653744303,93.503542673308,PASS
