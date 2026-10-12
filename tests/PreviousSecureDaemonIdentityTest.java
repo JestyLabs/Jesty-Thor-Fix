@@ -100,9 +100,55 @@ public final class PreviousSecureDaemonIdentityTest {
         check(PreviousSecureDaemonIdentity.safePid(
                 HEALTH.replace("1.5.3", "1.7.1-rc1-experimental"), BOTH) < 0,
                 "similar but unrecognized rc1 identities remain rejected");
+
+        String gate_2 = HEALTH.replace("1.5.3", "1.7.1-rc2");
+        check(PreviousSecureDaemonIdentity.safePid(gate_2, BOTH) == 11398,
+                "exact prior 1.7.1-rc2 handoff allowed");
+        for (String unsafe : new String[] {
+                BOTH.replace("mode=0", "mode=1"),
+                BOTH.replace("mode=0", "mode=2"),
+                BOTH.replace("top_crtc=1", "top_crtc=0"),
+                BOTH.replace("bottom_crtc=1", "bottom_crtc=0") }) {
+            check(PreviousSecureDaemonIdentity.safePid(gate_2, unsafe) < 0,
+                    "prior 1.7.1-rc2 requires BOTH and active CRTCs");
+        }
+        for (String unsafeHealth : new String[] {
+                gate_2.replace("ok=1", "ok=0"),
+                gate_2.replace("protocol=2", "protocol=1"),
+                gate_2.replace("watcher=RUNNING", "watcher=FAILED"),
+                gate_2.replace("pid=11398", "pid=1"),
+                gate_2.replace("pid=11398", "pid=invalid"),
+                gate_2.replace("1.7.1-rc2", "1.7.1-rc2-unknown") }) {
+            check(PreviousSecureDaemonIdentity.safePid(unsafeHealth, BOTH) < 0,
+                    "prior 1.7.1-rc2 retains identity/health/PID gates");
+        }
+
+        String gate_3 = HEALTH.replace("1.5.3", "1.7.1-rc3");
+        check(PreviousSecureDaemonIdentity.safePid(gate_3, BOTH) == 11398,
+                "exact prior 1.7.1-rc3 handoff allowed");
+        for (String unsafe : new String[] {
+                BOTH.replace("mode=0", "mode=1"),
+                BOTH.replace("mode=0", "mode=2"),
+                BOTH.replace("top_crtc=1", "top_crtc=0"),
+                BOTH.replace("bottom_crtc=1", "bottom_crtc=0") }) {
+            check(PreviousSecureDaemonIdentity.safePid(gate_3, unsafe) < 0,
+                    "prior 1.7.1-rc3 requires BOTH and active CRTCs");
+        }
+        for (String unsafeHealth : new String[] {
+                gate_3.replace("ok=1", "ok=0"),
+                gate_3.replace("protocol=2", "protocol=1"),
+                gate_3.replace("watcher=RUNNING", "watcher=FAILED"),
+                gate_3.replace("pid=11398", "pid=1"),
+                gate_3.replace("pid=11398", "pid=invalid"),
+                gate_3.replace("1.7.1-rc3", "1.7.1-rc3-unknown") }) {
+            check(PreviousSecureDaemonIdentity.safePid(unsafeHealth, BOTH) < 0,
+                    "prior 1.7.1-rc3 retains identity/health/PID gates");
+        }
+
         check(PreviousSecureDaemonIdentity.safePid(
-                HEALTH.replace("1.5.3", "1.7.1-rc2"), BOTH) < 0,
-                "current rc2 identity is not a previous-daemon allowance");
+                HEALTH.replace("1.5.3", "1.7.1-rc4"), BOTH) < 0,
+                "current identity is not a previous-daemon allowance");
+
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.5.4"), BOTH) < 0,
                 "unknown version must not be killed");
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("pid=11398", "pid=1;bad=x"), BOTH) < 0,
