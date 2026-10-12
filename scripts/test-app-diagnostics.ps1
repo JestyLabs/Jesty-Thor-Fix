@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 $repository = Split-Path -Parent $PSScriptRoot
 $output = Join-Path ([IO.Path]::GetTempPath()) ('thor-diagnostics-tests-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $output | Out-Null
-$sources = @('AppDiagnosticReport.java', 'AppDiagnostics.java', 'AppTelemetryTransitions.java', 'AppDiagnosticPreview.java', 'PassiveSleepMonitor.java', 'PassiveSleepTrial.java', 'PassiveSleepPersistence.java') | ForEach-Object {
+$sources = @('AppDiagnosticReport.java', 'AppDiagnostics.java', 'AppTelemetryTransitions.java', 'AppDiagnosticPreview.java', 'PassiveSleepMonitor.java', 'PassiveSleepTrial.java', 'PassiveSleepPersistence.java', 'PassiveSleepSession.java') | ForEach-Object {
     Get-Content -LiteralPath (Join-Path $repository "src/com/thor/displaypowertest/$_") -Raw
 }
 if (($sources -join "`n") -match 'SocketClient|PServer|Runtime\.getRuntime|ProcessBuilder|getDescription\(|getTraceInputStream\(|getProcessName\(|getPid\(') {
@@ -46,11 +46,13 @@ if ($compilers.Count -ne 2 -or @($compilers | Where-Object {
     (Join-Path $repository 'src/com/thor/displaypowertest/AppDiagnosticPreview.java') `
     (Join-Path $repository 'src/com/thor/displaypowertest/PassiveSleepTrial.java') `
     (Join-Path $repository 'src/com/thor/displaypowertest/PassiveSleepPersistence.java') `
+    (Join-Path $repository 'src/com/thor/displaypowertest/PassiveSleepSession.java') `
         (Join-Path $repository 'tests/AppDiagnosticReportTest.java') `
     (Join-Path $repository 'tests/AppDiagnosticPreviewTest.java') `
     (Join-Path $repository 'tests/PassiveSleepTrialTest.java') `
     (Join-Path $repository 'tests/PassiveSleepReportCompatibilityTest.java') `
-    (Join-Path $repository 'tests/PassiveSleepPersistenceTest.java')
+    (Join-Path $repository 'tests/PassiveSleepPersistenceTest.java') `
+    (Join-Path $repository 'tests/PassiveSleepSessionRecreationTest.java')
 if ($LASTEXITCODE -ne 0) { throw 'Diagnostics tests did not compile.' }
 & java -cp $output AppDiagnosticReportTest
 if ($LASTEXITCODE -ne 0) { throw 'Diagnostics tests failed.' }
@@ -62,12 +64,20 @@ if ($LASTEXITCODE -ne 0) { throw 'Passive sleep model tests failed.' }
 & java -cp $output PassiveSleepReportCompatibilityTest
 if ($LASTEXITCODE -ne 0) { throw 'Passive sleep V1 export compatibility tests failed.' }
 
-# A failed endpoint commit cannot silently become a credible trial report.
+# Guard the production monitor's delegation to this tested process-shared model.
 $monitor = Get-Content -LiteralPath (Join-Path $repository 'src/com/thor/displaypowertest/PassiveSleepMonitor.java') -Raw
-if ($monitor -notmatch 'persistence\.tryCommit\(' -or
-    $monitor -notmatch 'if \(persistence\.isFailed\(\)\) return null;' -or
-    $monitor -notmatch 'Trial invalid:') {
-    throw 'Passive trial persistence failure must invalidate result and be visible to the owner.'
+$session = Get-Content -LiteralPath (Join-Path $repository 'src/com/thor/displaypowertest/PassiveSleepSession.java') -Raw
+$persistence = Get-Content -LiteralPath (Join-Path $repository 'src/com/thor/displaypowertest/PassiveSleepPersistence.java') -Raw
+if ($monitor -notmatch 'new PassiveSleepSession\(' -or
+    $monitor -notmatch 'session\.onPause\(this::capture\)' -or
+    $monitor -notmatch 'session\.onResume\(this::capture\)' -or
+    $monitor -notmatch 'session\.result\(\)' -or
+    $persistence -notmatch 'private static volatile boolean failed;' -or
+    $session -notmatch 'if \(persistence\.isFailed\(\)\) return null;' -or
+    $session -notmatch 'Trial invalid:') {
+    throw 'Monitor recreation must share sticky failed-commit invalidation.'
 }
 & java -cp $output com.thor.displaypowertest.PassiveSleepPersistenceTest
-if ($LASTEXITCODE -ne 0) { throw 'Passive trial persistence failure fixtures failed.' }
+if ($LASTEXITCODE -ne 0) { throw 'Passive trial persistence model failed.' }
+& java -cp $output com.thor.displaypowertest.PassiveSleepSessionRecreationTest
+if ($LASTEXITCODE -ne 0) { throw 'Passive monitor recreation/cache regression failed.' }

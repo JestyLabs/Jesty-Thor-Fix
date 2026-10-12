@@ -55,3 +55,9 @@ Stop on unexpected sleep/wake loops, delayed screen repair, black/bottom display
 - Added host tests and a source guard; new CI + emulator + CodeQL on this exact combined HEAD must pass before handing off to Codex.
 - Did NOT modify #57 hardware sleep control or pretend the Hall→input keyevent interval is atomic. A separate owner-supervised hardware gate remains.
 - These are research draft source changes, not an authorization for RC3 signing, installation or publication.
+
+## Codex feedback — Activity recreation invalidation (2026-10-12)
+
+Codex reproduced that a failed `SharedPreferences.commit()` can update the Android process's memory cache while the previous per-monitor `failed` flag is lost after Activity recreation. The fix shares the sticky invalidation flag across monitor instances **in one process**; it clears only following an explicitly saved re-arm or cancel. The Android-facing monitor now delegates its boundary lifecycle, result and description to a pure-Java `PassiveSleepSession`. A new host integration regression uses a fake cache that mutates even when `commit()` returns false, rebuilds the session/persistence objects, and checks that both start and finish failures cannot create an exported `passive_sleep` record. It also exercises failed cancel and subsequent successful retry.
+
+This is **not** a test of disk durability, full process death, or actual Android SharedPreferences threading. Those gates remain with Codex and RC3 verification. RC2→RC3 daemon transition allowlisting, distinct version identity and safe recovery build are Codex-owned and require independent review. No installation, signing, merge or hardware session authorized here.

@@ -15,59 +15,43 @@ final class PassiveSleepMonitor {
     private static final String ACTIVE = "passive_sleep_active";
     private static final String START = "passive_sleep_start";
     private static final String END = "passive_sleep_end";
+
     private final Activity activity;
-    private final SharedPreferences preferences;
-    private final PassiveSleepPersistence persistence = new PassiveSleepPersistence();
+    private final PassiveSleepSession session;
     PassiveSleepMonitor(Activity activity) {
         this.activity = activity;
-        preferences = activity.getSharedPreferences("diagnostics", Context.MODE_PRIVATE);
+        final SharedPreferences preferences =
+                activity.getSharedPreferences("diagnostics", Context.MODE_PRIVATE);
+        session = new PassiveSleepSession(new PassiveSleepSession.Store() {
+            public boolean arm() {
+                return preferences.edit().putBoolean(ARMED, true).putBoolean(ACTIVE, false)
+                        .remove(START).remove(END).commit();
+            }
+            public boolean cancel() {
+                return preferences.edit().putBoolean(ARMED, false).putBoolean(ACTIVE, false)
+                        .remove(START).commit();
+            }
+            public boolean start(String sample) {
+                return preferences.edit().putString(START, sample).putBoolean(ACTIVE, true)
+                        .putBoolean(ARMED, false).commit();
+            }
+            public boolean finish(String sample) {
+                return preferences.edit().putString(END, sample).putBoolean(ACTIVE, false)
+                        .commit();
+            }
+            public boolean armed() { return preferences.getBoolean(ARMED, false); }
+            public boolean active() { return preferences.getBoolean(ACTIVE, false); }
+            public String startSample() { return preferences.getString(START, null); }
+            public String endSample() { return preferences.getString(END, null); }
+        }, new PassiveSleepPersistence());
     }
-    boolean arm() {
-        return persistence.tryCommit(() -> preferences.edit().putBoolean(ARMED, true)
-                .putBoolean(ACTIVE, false).remove(START).remove(END).commit(), true);
-    }
-    boolean cancel() {
-        return persistence.tryCommit(() -> preferences.edit().putBoolean(ARMED, false)
-                .putBoolean(ACTIVE, false).remove(START).commit(), true);
-    }
-    boolean running() { return preferences.getBoolean(ARMED, false)
-            || preferences.getBoolean(ACTIVE, false); }
-    void onPause() {
-        if (persistence.isFailed() || !preferences.getBoolean(ARMED, false)
-                || preferences.getBoolean(ACTIVE, false)) return;
-        PassiveSleepTrial.Sample first = capture();
-        // Durable before the process can be killed while the Activity is paused.
-        persistence.tryCommit(() -> preferences.edit().putString(START, first.encode())
-                .putBoolean(ACTIVE, true).putBoolean(ARMED, false).commit(), false);
-    }
-    void onResume() {
-        if (persistence.isFailed() || !preferences.getBoolean(ACTIVE, false)) return;
-        PassiveSleepTrial.Sample last = capture();
-        // Atomic completion prevents recording another endpoint on a later resume.
-        persistence.tryCommit(() -> preferences.edit().putString(END, last.encode())
-                .putBoolean(ACTIVE, false).commit(), false);
-    }
-    PassiveSleepTrial.Result result() {
-        // Failed commits may still mutate the SharedPreferences in-memory cache.
-        // Do not export a plausible result until an explicit saved retry.
-        if (persistence.isFailed()) return null;
-        PassiveSleepTrial.Sample start = PassiveSleepTrial.Sample.decode(
-                preferences.getString(START, null));
-        PassiveSleepTrial.Sample end = PassiveSleepTrial.Sample.decode(
-                preferences.getString(END, null));
-        return start != null && end != null ? PassiveSleepTrial.evaluate(start, end) : null;
-    }
-    String description() {
-        if (persistence.isFailed())
-            return "Trial invalid: a boundary or control change could not be saved. "
-                    + "Cancel or re-arm the trial before relying on any result.";
-        if (preferences.getBoolean(ARMED, false)) return "Armed: leave the dashboard to start.";
-        if (preferences.getBoolean(ACTIVE, false)) return "Running until the dashboard resumes.";
-        PassiveSleepTrial.Result r = result();
-        return r != null ? r.describe()
-                : "No completed trial. Arm the trial, leave the app, let the Thor sleep unplugged, "
-                + "then return. No periodic background sampling occurs.";
-    }
+    boolean arm() { return session.arm(); }
+    boolean cancel() { return session.cancel(); }
+    boolean running() { return session.running(); }
+    void onPause() { session.onPause(this::capture); }
+    void onResume() { session.onResume(this::capture); }
+    PassiveSleepTrial.Result result() { return session.result(); }
+    String description() { return session.description(); }
     private PassiveSleepTrial.Sample capture() {
         long energy = -1, charge = -1;
         try {
