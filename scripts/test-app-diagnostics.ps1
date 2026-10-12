@@ -15,10 +15,16 @@ if (($sources -join "`n") -match 'SocketClient|PServer|Runtime\.getRuntime|Proce
 $layout = Get-Content -LiteralPath (Join-Path $repository 'src/com/thor/displaypowertest/DashboardLayout.java') -Raw
 $main = Get-Content -LiteralPath (Join-Path $repository 'src/com/thor/displaypowertest/MainActivity.java') -Raw
 $diagnostics = Get-Content -LiteralPath (Join-Path $repository 'src/com/thor/displaypowertest/AppDiagnostics.java') -Raw
-if ($layout -notmatch 'android\.R\.drawable\.ic_menu_manage' -or
+$gearAsset = Join-Path $repository 'apk/res/drawable/jesty_diagnostics_gear.xml'
+$gearVector = if (Test-Path -LiteralPath $gearAsset) {
+    Get-Content -LiteralPath $gearAsset -Raw
+} else { '' }
+if ($layout -notmatch 'setImageResource\(views\.resource\("drawable", "jesty_diagnostics_gear"\)\)' -or
+    $gearVector -notmatch '<vector\b' -or
+    $gearVector -notmatch 'android:pathData=' -or
     $layout -notmatch 'setContentDescription\("App diagnostics"\)' -or
     $layout -match 'topAction\("APP DIAGNOSTICS"\)') {
-    throw 'Expected an accessible cogwheel instead of a text diagnostics button.'
+    throw 'Expected the accessible vector settings cogwheel instead of a text diagnostics button.'
 }
 if ($main -notmatch 'onSampleRecorded\(Map<String, String> values\)' -or
     $main -notmatch 'diagnostics\.sample\(values\)' -or
