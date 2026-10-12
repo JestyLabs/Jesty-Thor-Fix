@@ -1,9 +1,9 @@
-# Candidate code 76 — physical CPU and smoke validation (V6)
+# Candidate code 76 — physical CPU, smoke and sustained-suspend validation
 
 **Device:** AYN Thor · Android 13 · firmware .377  
 **Test date:** 2026-10-12  
 **Build tested:** Jesty Thor Fix **1.7.1 / versionCode 76**, test candidate [PR #68](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/68), source commit `92f92ef117de1eb556e946bbe2e2628cce3f437d`  
-**Snapshot:** **V6** — physical smoke **PASS**; CPU efficiency **PASS**; long quiet-suspend **IN PROGRESS**. This is **not** a stable release.
+**Evidence:** V6 CPU/smoke plus subsequent owner-private BOTH and TOP quiet-suspend delta packets (2026-10-12). **Physical smoke PASS · CPU PASS · sustained suspend BOTH/TOP PASS.** Optional Lid Guard ON validation and stable-release approval remain pending. This is **not** a stable release.
 
 ## Physical installation and functional acceptance — PASS
 
@@ -32,20 +32,31 @@ In BOTH, the observed daemon CPU median fell from approximately **0.2894% to 0.0
 
 **Input formula:** `CPU one-core % = 100 × process CPU ticks / (100 × elapsed seconds)`. Every source duration and CPU tick delta is included in the [sanitized CSV](CODE76-CPU-IDLE-2026-10-12.csv), with no device or process identifiers.
 
-## Quiet-suspend tests — in progress at V6 snapshot
+## Sustained Android suspend — PASS in BOTH and TOP
 
-The **BOTH** quiet-sleep experiment had a valid initial clock endpoint, and the owner had disconnected USB and closed the lid for the defined observation window. Its final clock endpoint was **not present** in V6. The separate **TOP** long quiet-sleep trial had **not yet started**.
+The owner subsequently supplied private delta evidence closing **BOTH** and **TOP** trials. Each trial used the established unplugged quiet-sleep protocol with Lid Guard OFF. Owner-confirmed normal wake/recovery and identity-continuity checks accompany the bounded Android clock comparison. The TOP start/end clock offsets were independently recomputed from the supplied paired Power → Alarm → Power endpoints. The consolidated delta report confirms the previously completed BOTH trial.
 
-The completed RC2 reference remains **743.229–743.601 s in BOTH** and **750.554–751.027 s in TOP**. Candidate76 suspend results will be published only after the corresponding final endpoints have been captured and checked.
+The calculation bounds time in Android suspend by subtracting clock offsets: `elapsedRealtime - uptimeMillis` across two endpoints. It is **a clock-derived suspend duration, not a battery-energy or kernel-residency measurement**.
+
+| Mode | Whole window, code76 | RC2 suspend | Code76 suspend | RC2 suspend share | Code76 suspend share | Result |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| **BOTH** | 892.506 s | 743.229–743.601 s | **812.828–813.138 s** | 87.894–87.938% | **91.073–91.107%** | **PASS** |
+| **TOP** | 829.494 s | 750.554–751.027 s | **776.449–776.860 s** | 93.445–93.504% | **93.605–93.655%** | **PASS** |
+
+The predeclared allowable decline in suspend share was **5 percentage points**. Neither configuration regressed: BOTH's bounded difference is **+3.135 to +3.213 percentage points**, TOP's **+0.102 to +0.210 percentage points** relative to RC2. Because each total observation window includes awake preparation, owner wake and USB/ADB reconnection, **do not interpret the higher percentages as isolated power-efficiency or battery-life gains**.
+
+**Finding — PASS:** the signed code76 candidate completed prolonged normal suspend in **both modes** while the validated display/CPU fixes and daemon were present. This closes the matched Guard OFF CPU-and-suspend primary acceptance for the tested scope.
+
+[Recalculate the public clock-bound comparisons](CODE76-SUSPEND-2026-10-12.csv).
 
 ## Provenance and publication
 
-The owner's private V6 archive contained **1,232 content members**, all independently checked against size and SHA-256 manifest entries (**1,232/1,232 PASS**). Daemon CPU values were independently recalculated from the six source tick deltas and elapsed durations; medians match the source summary. Exact signed candidate and forward-only recovery77 underwent source, payload and signature verification prior to physical authorization. Code77 remains **prepared, not installed**.
+The owner's original private V6 archive contained **1,232 verified content members** (**1,232/1,232 PASS**). The later TOP sleep delta contains **114 manifest entries**, all verified for SHA-256 and byte length (**114/114 PASS**); it records the completed TOP endpoints and consolidates the earlier completed BOTH result. Daemon CPU values were independently recalculated from six source tick deltas and elapsed durations; TOP suspend bounds were also recalculated from the raw parsed private clock endpoints. Exact signed candidate and forward-only recovery77 underwent source, payload and signature verification prior to physical authorization. Code77 remains **prepared, not installed**.
 
-Only the numerical CPU measurements, public app version, test method and observed functional outcomes are published here. Signed APKs, full logs, process/boot/device identifiers, private source captures, screenshots and proprietary firmware inspection material remain in the owner's private evidence archive.
+Only sanitized numerical CPU and clock measurements, public app version, test method and observed functional outcomes are published here. Signed APKs, full logs, process/boot/device identifiers, private source captures, screenshots and proprietary firmware inspection material remain in the owner's private evidence archive.
 
-A successful short sleep/wake smoke and a sustained **unplugged** quiet-suspend trial are separate tests; the former already **passed**, while the latter is explicitly **pending completion** in this snapshot.
+A successful short sleep/wake smoke and sustained **unplugged** quiet-suspend are separate tests; **both have now passed** in the supported physical test scope.
 
-**Next evidence update:** publish independently checked code76 BOTH/TOP quiet-suspend results when supplied, then complete the optional Lid Guard ON regression under the established test plan. No RC2 rerun is needed.
+**Next acceptance gate:** complete the optional **Lid Guard ON** regression and the exact-artifact release checks. The completed RC2 CPU/suspend controls do not need repeating.
 
 Back to [validation evidence index](../VALIDATION-EVIDENCE.md).
