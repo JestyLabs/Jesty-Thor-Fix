@@ -5,6 +5,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.os.BatteryManager;
 import android.os.SystemClock;
 import android.provider.Settings;
@@ -15,6 +17,7 @@ final class PassiveSleepMonitor {
     private static final String ACTIVE = "passive_sleep_active";
     private static final String START = "passive_sleep_start";
     private static final String END = "passive_sleep_end";
+    private static final String INSTALL_EPOCH = "passive_sleep_install_epoch";
 
     private final Activity activity;
     private final PassiveSleepSession session;
@@ -24,12 +27,15 @@ final class PassiveSleepMonitor {
                 activity.getSharedPreferences("diagnostics", Context.MODE_PRIVATE);
         session = new PassiveSleepSession(new PassiveSleepSession.Store() {
             public boolean arm() {
+                String epoch = currentInstallEpoch();
+                if (epoch == null) return false; // fail closed on unknown package identity
                 return preferences.edit().putBoolean(ARMED, true).putBoolean(ACTIVE, false)
-                        .remove(START).remove(END).commit();
+                        .putString(INSTALL_EPOCH, epoch).remove(START).remove(END).commit();
             }
             public boolean cancel() {
+                // Recovery must remove BOTH endpoints and the old fence atomically.
                 return preferences.edit().putBoolean(ARMED, false).putBoolean(ACTIVE, false)
-                        .remove(START).commit();
+                        .remove(START).remove(END).remove(INSTALL_EPOCH).commit();
             }
             public boolean start(String sample) {
                 return preferences.edit().putString(START, sample).putBoolean(ACTIVE, true)
@@ -43,6 +49,14 @@ final class PassiveSleepMonitor {
             public boolean active() { return preferences.getBoolean(ACTIVE, false); }
             public String startSample() { return preferences.getString(START, null); }
             public String endSample() { return preferences.getString(END, null); }
+            public boolean hasTrialData() {
+                return armed() || active() || preferences.contains(START)
+                        || preferences.contains(END) || preferences.contains(INSTALL_EPOCH);
+            }
+            public boolean installEpochMatches() {
+                return PassiveSleepInstallEpoch.matches(
+                        preferences.getString(INSTALL_EPOCH, null), currentInstallEpoch());
+            }
         }, new PassiveSleepPersistence());
     }
     boolean arm() { return session.arm(); }
@@ -52,6 +66,19 @@ final class PassiveSleepMonitor {
     void onResume() { session.onResume(this::capture); }
     PassiveSleepTrial.Result result() { return session.result(); }
     String description() { return session.description(); }
+
+    /** Package install timestamp changes on normal updates, including recovery. */
+    private String currentInstallEpoch() {
+        try {
+            PackageInfo info = activity.getPackageManager().getPackageInfo(
+                    activity.getPackageName(), 0);
+            return PassiveSleepInstallEpoch.token(info.versionName, info.versionCode,
+                    info.lastUpdateTime);
+        } catch (PackageManager.NameNotFoundException | RuntimeException unavailable) {
+            return null;
+        }
+    }
+
     private PassiveSleepTrial.Sample capture() {
         long energy = -1, charge = -1;
         try {

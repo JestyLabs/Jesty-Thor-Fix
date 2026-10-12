@@ -11,16 +11,19 @@ public final class PassiveSleepSessionRecreationTest {
     private static final class FakePrefs implements PassiveSleepSession.Store {
         boolean armed, active, failNext;
         String start, end;
+        String epoch, currentEpoch = "I1|74|1800000000000|1.7.1-rc3";
         private boolean commit() {
             boolean success = !failNext;
             failNext = false;
             return success;
         }
         public boolean arm() {
-            armed = true; active = false; start = null; end = null; return commit();
+            armed = true; active = false; start = null; end = null;
+            epoch = currentEpoch; return commit();
         }
         public boolean cancel() {
-            armed = false; active = false; start = null; return commit();
+            armed = false; active = false; start = null; end = null;
+            epoch = null; return commit();
         }
         public boolean start(String s) {
             start = s; active = true; armed = false; return commit();
@@ -32,6 +35,10 @@ public final class PassiveSleepSessionRecreationTest {
         public boolean active() { return active; }
         public String startSample() { return start; }
         public String endSample() { return end; }
+        public boolean hasTrialData() {
+            return armed || active || start != null || end != null || epoch != null;
+        }
+        public boolean installEpochMatches() { return epoch != null && epoch.equals(currentEpoch); }
     }
     private static PassiveSleepSession newMonitor(FakePrefs sameCache) {
         return new PassiveSleepSession(sameCache, new PassiveSleepPersistence());
