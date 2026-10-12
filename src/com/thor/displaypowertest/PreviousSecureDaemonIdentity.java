@@ -23,7 +23,8 @@ public final class PreviousSecureDaemonIdentity {
                         || version.equals("1.6.0-watcher-exp1")
                         || version.equals("1.6.0-watcher-exp2")
                         || version.equals("1.7.0")
-                        || version.equals("1.7.1-rc1"))
+                        || version.equals("1.7.1-rc1")
+                        || version.equals("1.7.1-rc2"))
                 || !field(health, "watcher").equals("RUNNING")) return -1;
         if (!field(snapshot, "mode").equals("0")
                 || !field(snapshot, "top_crtc").equals("1")
