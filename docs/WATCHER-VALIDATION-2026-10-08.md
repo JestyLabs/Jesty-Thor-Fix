@@ -1,5 +1,7 @@
 # Watcher validation — 2026-10-08
 
+**Final outcome: PASS.** The experimental watcher delivered measured CPU/scheduling savings in physical A/B; the exact signed v1.7.0 successor also passed scoped physical acceptance and was published. The original test observations and experimental limitations remain below for auditability.
+
 Research PR: [#41](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/41).
 Starting head: `4939a7e70332a66336a2ccf7e7bbb2292eae39ca`.
 Reference stable source/release: `v1.6.0`, commit `e4542adb9fe47cccb5bc8ee5b3cffdeeec702513`.
@@ -283,10 +285,7 @@ proof acceptance independently of watcher scheduling.
 At completion of the A/B phase the device ran signed `1.6.0-watcher-exp2`
 (package 1.6.0/70). The subsequent authorized v1.7.0 installation and its final
 checks are recorded in [the candidate checklist](VALIDATION-1.7.0-PENDING.md).
-Published v1.6.0 remains the recommendation for normal
-use. Rollback means installing the verified published asset with owner approval;
-the published daemon does not recognize exp2 for in-place prior-daemon handover,
-so a supervised normal reboot may be required. Do not kill services, edit proof
+**Historical note:** v1.6.0 was the recommended published version at the time of the experimental A/B. The tested signed v1.7.0 successor was subsequently accepted and published; normal users should use the latest approved stable. Earlier rollback considerations for the experiment remain part of this test's provenance. Do not kill services, edit proof
 markers, clear app data or reboot automatically. This run changed no display/CPU
 setting; later, at the owner's explicit request, screen_off_timeout changed from
 60000 to 660000 ms for the long awake test. It remains 11 minutes unless the owner
