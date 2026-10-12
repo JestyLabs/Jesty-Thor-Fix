@@ -1,0 +1,206 @@
+{
+  "kind": "historical-git-reference-snapshot",
+  "repo": "JestyLabs/Jesty-Thor-Fix",
+  "date": "2026-10-13",
+  "baseline_main_sha": "f929ff910bfa8e5179a2c6a63948a18fc3d6b252",
+  "archive_ref": "archive/branch-prune-snapshot-2026-10-13",
+  "keep_branches": [
+    "main",
+    "work/thor-120hz-refresh-investigation",
+    "work/engineering-hardening-post-rc3-20261012"
+  ],
+  "count": 38,
+  "branches": [
+    {
+      "name": "docs/device-compatibility-matrix",
+      "head_sha": "0f94eab3c542ad16e3b41074ca8aec9d56e8d9b6",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "docs/project-roadmap",
+      "head_sha": "9d46b509b219464d7297dfc09239d5120957385c",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "docs/provenance-record",
+      "head_sha": "660d46014635c161386a6988c04bdb3fd2202b6f",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "docs/readme-evidence-story",
+      "head_sha": "76948c391c01591cde377eba11ef398da8bb03d6",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "experiment/lid-passive-57-59-20261012",
+      "head_sha": "1c94f80655b9e600498a95bf4aac9b6bab0b72a4",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "feature/local-event-history-readonly-20261008",
+      "head_sha": "6d6e8d8cd97785b1b429afd75f6a366a23abc58a",
+      "category": "unmerged-feature-draft"
+    },
+    {
+      "name": "recovery/rc2-forward-1.7.1-rc4-20261012",
+      "head_sha": "848e350f1c52f763097fbec634da5813d2783bb9",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "recovery/1.7.1-code77-after76",
+      "head_sha": "59b55d29c08598adc62a3d8eee14afca5a3bc1a7",
+      "category": "unmerged-recovery"
+    },
+    {
+      "name": "refactor/lid-maintenance-off-path-20261011",
+      "head_sha": "136ee907872021160a72bb91f260ab8bef4e7468",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "research/bottom-wake-bright-flash-20261011",
+      "head_sha": "a3e1ef9179130ca92245654f7afbea6f1f735e14",
+      "category": "nonrepro-flash-research"
+    },
+    {
+      "name": "research/passive-sleep-energy-from-pr55-20261011",
+      "head_sha": "cd8820966815a60c885d42febc37ec57e048c2ad",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "research/passive-sleep-energy-stacked-20261011",
+      "head_sha": "7cb3268deb4e9477f3d0c7c84f3ebc266c9ac531",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "research/thor-double-boot-phase3a",
+      "head_sha": "6fd03007781a1cf52e202fb55b4f6e2947296edb",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "research/thor-recovery-splash-instrumentation",
+      "head_sha": "87dd4b82aabcdf3f3fdf1a628666f2eccaa3ec34",
+      "category": "unmerged-splash-research"
+    },
+    {
+      "name": "research/thor-recovery-splash-integration",
+      "head_sha": "fff9951bc6731fe18acdccd1de6e8a569c297008",
+      "category": "unmerged-splash-research"
+    },
+    {
+      "name": "research/thor-recovery-splash-surface-prototype",
+      "head_sha": "0d41ab7aeb5f3945eaf5b5bafe581195dd9509d3",
+      "category": "unmerged-splash-research"
+    },
+    {
+      "name": "research/thor-watcher-drm-polling",
+      "head_sha": "b0d2c8141c16bc492aef43880b9b8dac5c06bd7e",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "research/watcher-drm-cost-measurement",
+      "head_sha": "80f8cc65743120c8db100fb40c5f21a1806274e0",
+      "category": "historic-profile"
+    },
+    {
+      "name": "test/thor-cpu-restart-fault-injection",
+      "head_sha": "c8d703dbec654c0924ad12274b7e1e4a6a34f22a",
+      "category": "historic-fault-model"
+    },
+    {
+      "name": "work/cpu-diagnostic-evidence-model",
+      "head_sha": "829962198832e9fbf783f86ab28ed641afd55a26",
+      "category": "future-evidence-model"
+    },
+    {
+      "name": "work/thor-bootanim-suppression-current",
+      "head_sha": "677fef8e5c0a0bf04e78ce39d7448d57ba9287be",
+      "category": "unmerged-splash-research"
+    },
+    {
+      "name": "work/thor-early-cpu-gate-model",
+      "head_sha": "6450b90d21a4a22c1627a3b8d9bd1a2144934c90",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "work/thor-early-cpu-restart",
+      "head_sha": "00170199384f44fac2b1197641c6bd51e2ef7c82",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "work/thor-early-cpu-restart-phase2",
+      "head_sha": "9565c4d3dada0a61bd064878a8feaa7ac528b1b9",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "work/thor-early-cpu-restart-runtime",
+      "head_sha": "0329990b0ff5a8ddfbed8b2965ecc8350e4dd724",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "work/thor-precomposer-cpu-proof",
+      "head_sha": "213568acc2f741b742989b12349a0ad77667576d",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "work/thor-pservice-early-cpu-restart-model",
+      "head_sha": "54ad57e57913ca43626d7d4d115fe607f94e9ae9",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "work/thor-pservice-early-cpu-restart-prototype",
+      "head_sha": "e0da08ab66626cd13fdaa7a50305f5dd8b7a363c",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "work/thor-recovery-native-bootanim-prototype",
+      "head_sha": "95af878dc6d839ebdb3c59c9365f32b8e858e5b8",
+      "category": "unmerged-splash-research"
+    },
+    {
+      "name": "work/thor-recovery-splash-current-prototype",
+      "head_sha": "3338b66b8a9966a0d9a6c226543e17fe19e694e1",
+      "category": "unmerged-splash-research"
+    },
+    {
+      "name": "work/thor-recovery-splash-curtain-prototype",
+      "head_sha": "a850fb62250046d5ba91ba2207dbca838ed85964",
+      "category": "unmerged-splash-research"
+    },
+    {
+      "name": "work/thor-recovery-splash-model-current",
+      "head_sha": "3fcee8af5869a74b0e67a4605bf8d7ce0e5e3498",
+      "category": "unmerged-splash-research"
+    },
+    {
+      "name": "work/thor-recovery-splash-top-exclusive-prototype",
+      "head_sha": "03ae6027ab0c6aef8980559d6cba372e20ae2b48",
+      "category": "unmerged-splash-research"
+    },
+    {
+      "name": "work/thor-recovery-top-only-probe",
+      "head_sha": "183bf2cc6b204bd3ed383b837b6d28e75fbb000f",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "work/thor-security-automation",
+      "head_sha": "cfd07778dce0653e37b2182cc4c4cea2c73fa6a7",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "work/thor-sign-apk-inspection-fix",
+      "head_sha": "3abd16f6c4ea69fe59610a082edf0121c5fd7d92",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "work/thor-sign-pr-artifact-fix",
+      "head_sha": "f4f6d6f3308db6f678b3f7d258acd84cf4f39735",
+      "category": "obsolete-or-integrated-snapshot"
+    },
+    {
+      "name": "work/thor-signed-test-candidates",
+      "head_sha": "ed77276bc130f99c99b1fbe3e7d9221dd9ae6570",
+      "category": "obsolete-or-integrated-snapshot"
+    }
+  ],
+  "note": "This manifest does not assert that branch contents were merged into main. Historical commits are preserved via an archive merge-parent chain. Stable release source and hardware acceptance are separate."
+}
