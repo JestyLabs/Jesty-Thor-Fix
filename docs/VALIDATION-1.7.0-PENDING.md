@@ -1,4 +1,6 @@
-# v1.7.0 production candidate validation
+# v1.7.0 signed release — physical acceptance
+
+**Released / PASS.** The retained historical filename includes `PENDING`, but the exact signed v1.7.0 candidate passed the recorded physical gates and was approved for stable publication. See the [evidence index](VALIDATION-EVIDENCE.md).
 
 Status: **GO: scoped exact-APK validation passed. Owner authorized PR #41 merge and stable/Latest publication of this unchanged APK.**
 
