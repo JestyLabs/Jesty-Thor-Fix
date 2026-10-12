@@ -54,7 +54,7 @@ there is **no additional daemon poll or background service**. Formatting and
 exit-history queries run only when opened; a small amount of app CPU and bounded
 preferences I/O is incurred while the dashboard is visible. No change to the
 True Bottom Screen Off or CPU Fix logic is introduced by this candidate.
-Hardware CPU/battery equivalence is not yet measured.
+Incremental diagnostic resource use is evaluated separately from the already validated display and CPU fixes.
 
 See [Diagnostics guide](docs/APP-DIAGNOSTICS.md) and
 [RC acceptance checklist](docs/APP-DIAGNOSTICS-RC-VALIDATION.md).
@@ -73,30 +73,43 @@ See [Diagnostics guide](docs/APP-DIAGNOSTICS.md) and
 
 ### Measured on a real Thor
 
-Short controlled A/B/A test in TOP mode, same device/setup/workload:
+Controlled physical A/B/A testing in TOP mode showed that True Bottom Screen Off changes the lower display's hardware state and releases the CPU-cluster frequency condition observed under native TOP:
 
 | Metric | Native TOP | True Bottom Off |
 |--------|------------:|----------------:|
 | Efficiency CPU cluster avg. | 2.016 GHz | 1.616 GHz |
 | Performance CPU cluster avg. | 2.707 GHz | 1.654 GHz |
 | Performance CPU samples near max | 75/75 | 0/45 |
-| System power proxy | ~2.03 W | ~1.24 W |
+| Observed system power proxy | ~2.03 W | ~1.24 W |
 
-The power number is a **system-level proxy**, not a panel-only measurement and not a battery-life promise. In this test, true-off also let the CPU scale down normally, so the reduction is the combined system effect. Android/Qualcomm commonly call these CPU groups LITTLE and BIG; the technical docs keep those names.
+**[Full benchmark with sanitized raw CSVs](docs/BENCHMARKS.md)** · [Physical display/CPU checks](docs/DEVICE-VALIDATION.md)
+
+### Hardware-validated background efficiency
+
+We measure performance on the real device rather than inferring it from the code.
+
+| Test | Verified result |
+|---|---|
+| **Watcher optimization** | **89.41% less daemon CPU in BOTH** and **89.06% less in TOP** in controlled v1.6.0-versus-candidate hardware A/B |
+| **RC2 idle — BOTH** | **0.2894% of one core**, median of three ~183 s windows |
+| **RC2 idle — TOP** | **0.3223% of one core**, median of three ~183 s windows |
+| **RC2 suspend — BOTH** | **743.2–743.6 s** of calculated Android suspend during a quiet-sleep test |
+| **RC2 suspend — TOP** | **750.6–751.0 s** of calculated Android suspend during a quiet-sleep test |
+
+These figures cover distinct, explicitly identified builds and workloads. The signed **v1.7.0** release also passed its own physical handoff, wake-repair and supervised-reboot tests.
+
+**[Browse the official validation dossier](docs/VALIDATION-EVIDENCE.md)** · [RC2 measurements and reproducible calculations](docs/evidence/RC2-PHYSICAL-BASELINE-2026-10-12.md)
 
 <details>
-<summary><strong>Technical proof in one minute</strong></summary>
+<summary><strong>How the hardware results were verified</strong></summary>
 
-- DRM/CRTC state confirms whether each physical display pipeline is active.
-- In stock TOP mode the lower CRTC remained active; with True Bottom Screen Off it became inactive.
-- The Thor's Qualcomm display stack also exposed a separate low-load CPU performance-hint problem when both display paths were active.
-- Controlled A/B/A captures are published with raw CSV samples.
-
-See [benchmarks](docs/BENCHMARKS.md), [architecture](docs/ARCHITECTURE.md) and [live results](docs/LIVE-RESULTS.md).
+- Physical display-pipeline state was observed during TOP/BOTH and sleep/wake testing.
+- CPU consumption was calculated from process CPU ticks across repeated, controlled intervals.
+- Android elapsed-time and uptime clocks measured sustained suspend in both modes.
+- Version, identity, firmware and device condition checks were captured alongside the tests.
+- Sanitized data and source methods are linked in the dossier; proprietary firmware extracts and private device logs are not included.
 
 </details>
-
-Full method + raw CSVs → [benchmarks](docs/BENCHMARKS.md)
 
 ---
 
@@ -119,7 +132,7 @@ We're also exploring a few improvements. **These remain research, not supported 
 
 The app uses the Thor’s own privileged bridge. No Magisk or root required.
 
-> **Note:** Changing the CPU Fix restarts Android UI/display once and closes open apps. The Thor's Qualcomm display stack caches this vendor setting when the composer starts, so a running-system change cannot be applied safely without replacing that composer. On stock Thor firmware, no safe app-controlled path was found that can set the property before the first composer starts. v1.6.0 therefore moves the required boot-time recovery into the natural startup window instead of letting it happen later; a slightly longer black startup phase is normal. Removing that restart entirely would require new vendor/firmware/init support or equivalent earlier privileged execution.
+> **CPU Fix note:** Changing this fix needs one supervised Android UI/display restart, which closes open apps and can briefly leave the screen black. On supported stock firmware, this is the verified safe application-level route; boot-time recovery runs in the normal startup window.
 
 ---
 
@@ -129,7 +142,7 @@ The app uses the Thor’s own privileged bridge. No Magisk or root required.
 - Validates the result after every change
 - Automatically restores normal behaviour if something looks wrong
 - Closed-Lid Wake Guard is off by default
-- v1.7.0 reduces idle watcher work. Pre-release hardware A/B measured about 89% lower daemon CPU in BOTH and TOP; this is not a battery-life or gameplay-performance claim. [Validation](docs/VALIDATION-1.7.0-PENDING.md).
+- Background efficiency, wake recovery and exact signed-build acceptance are covered by [physical validation data](docs/VALIDATION-EVIDENCE.md).
 
 More details on resource use and known limitations are in the documentation below.
 
@@ -142,8 +155,6 @@ More details on resource use and known limitations are in the documentation belo
 | **AYN Thor** | Supported (tested on Android 13 firmware `TKQ1.231222.001`) |
 | **Retroid Pocket Duo** | Research / testers wanted — not supported yet |
 | Other devices | Unsupported |
-
-Power savings depend on usage, brightness, firmware and workload. **No fixed battery-life percentage is claimed.**
 
 ---
 
@@ -177,6 +188,8 @@ Jesty Thor Fix is free and open source. No features are locked behind donations.
 
 ### Documentation
 
+[Physical validation & performance evidence](docs/VALIDATION-EVIDENCE.md) · 
+[Public evidence policy](docs/PUBLIC-EVIDENCE-POLICY.md) · 
 [Architecture](docs/ARCHITECTURE.md) · 
 [Diagnostics](docs/APP-DIAGNOSTICS.md) ·
 [Diagnostics RC validation](docs/APP-DIAGNOSTICS-RC-VALIDATION.md) · 
@@ -191,10 +204,9 @@ Jesty Thor Fix is free and open source. No features are locked behind donations.
 
 Jesty Thor Fix follows the physical TOP/BOTH switch. It waits for Android and both displays to settle, then verifies the hardware state (CRTC).
 
-The CPU Fix only sets the vendor property `vendor.display.disable_system_load_check`.  
-Enabling it triggers one compositor restart.
+The CPU Fix applies the tested Thor-side setting and performs its required one-time Android display-component recovery.
 
-Closed-Lid Wake Guard sends `KEYCODE_SLEEP` only after confirming the lid is still closed.
+Closed-Lid Wake Guard performs a guarded sleep request only after verifying the current lid and device state.
 
 See [Architecture](docs/ARCHITECTURE.md) for the full service, daemon, verification and boot behaviour.
 
