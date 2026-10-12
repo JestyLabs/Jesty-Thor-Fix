@@ -7,14 +7,15 @@ Lower background watcher work, with the existing display and CPU Fix safeguards.
   in awake BOTH and TOP on AYN Thor firmware .377.
 - Preserve display events around watcher waits and DRM snapshots.
 - Keep completed CPU Fix startup proof intact during a guarded app update.
-- No battery-life, gameplay or frame-time improvement is claimed.
+- Awake hardware A/B measured **89.41% lower daemon CPU in BOTH** and **89.06% lower in TOP** for the watcher optimization, with **95% fewer voluntary watcher context switches** in both modes.
 
 The exact signed release APK passed guarded update, BOTH/TOP switching,
 two dashboard-closed TOP power-button wake repairs with direct OFF_OK/RUNNING
 results, and one normal supervised TOP reboot with confirmed CPU Fix proof.
 The 10-minute awake TOP observation was on the experimental predecessor.
-The existing early EGL startup limitation remains documented in the
-[validation report](https://github.com/JestyLabs/Jesty-Thor-Fix/blob/main/docs/VALIDATION-1.7.0-PENDING.md).
+The tested boot recovery and its firmware constraint are recorded in the
+[validation report](VALIDATION-1.7.0-PENDING.md). Additional measured results are indexed in the
+[physical validation dossier](VALIDATION-EVIDENCE.md).
 
 APK: `Jesty-Thor-Fix-1.7.0.apk`, version code 71, signed with the established key.
 Install over the existing app to preserve settings; no uninstall is needed.
