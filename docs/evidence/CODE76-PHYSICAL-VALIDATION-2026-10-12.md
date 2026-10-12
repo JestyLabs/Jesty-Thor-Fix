@@ -3,7 +3,7 @@
 **Device:** AYN Thor · Android 13 · firmware .377  
 **Test date:** 2026-10-12  
 **Build tested:** Jesty Thor Fix **1.7.1 / versionCode 76**, test candidate [PR #68](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/68), source commit `92f92ef117de1eb556e946bbe2e2628cce3f437d`  
-**Evidence:** V6 CPU/smoke plus subsequent owner-private BOTH and TOP quiet-suspend delta packets (2026-10-12). **Physical smoke PASS · CPU PASS · sustained suspend BOTH/TOP PASS.** Optional Lid Guard ON validation and stable-release approval remain pending. This is **not** a stable release.
+**Evidence:** V6 CPU/smoke and subsequent owner-private BOTH/TOP suspend and Guard ON delta packets (2026-10-12). **Physical smoke PASS · CPU PASS · sustained suspend BOTH/TOP PASS · basic Guard ON recovery smoke PASS.** Active blocked-wake interception was **not observed**; stable-release approval remains separate. This is **not** a stable release.
 
 ## Physical installation and functional acceptance — PASS
 
@@ -49,14 +49,24 @@ The predeclared allowable decline in suspend share was **5 percentage points**. 
 
 [Recalculate the public clock-bound comparisons](CODE76-SUSPEND-2026-10-12.csv).
 
+## Optional Lid Guard ON — normal-cycle smoke PASS; active interception UNKNOWN
+
+The completed **DELTA-03** tested opt-in Lid Guard **ON** separately after the Guard OFF baselines. In BOTH and TOP the owner closed the lid, waited ~10 seconds, made a brief physical Power-button attempt while the lid was closed, waited ~10 seconds, then opened it. In both cases the owner confirmed **normal display recovery**, CPU Fix remained active, and the intended display control remained intact. UI observation confirmed Guard ON during the cases and later confirmed Guard OFF after restoration.
+
+**Important coverage boundary:** `blocked_wakes` was **0 before and after both cases**, and **no `sleep_after_closed_wake` action was observed**. Therefore this is a **PASS for normal ON-state sleep/wake recovery and Guard OFF restoration**, **not** proof that the Guard intercepted an actual unintended closed-lid wake. Active blocking and the Hall-to-sleep timing race remain **NOT OBSERVED / UNKNOWN**, not PASS or FAIL.
+
+The final owner-private capture confirms BOTH mode, 120 Hz manually selected, Screen Fix ON, CPU Fix ON/confirmed, Guard OFF, trial disarmed, Home screen and USB connected. Both internal CRTCs were active, with unchanged daemon/boot/compositor identities through the measured run. Recovery77 was signed/prepared but never installed.
+
+The owner reported **no brief maximum-brightness flash** during this physical session; this is a qualitative observation only, not attribution of a prior display issue's root cause.
+
 ## Provenance and publication
 
-The owner's original private V6 archive contained **1,232 verified content members** (**1,232/1,232 PASS**). The later TOP sleep delta contains **114 manifest entries**, all verified for SHA-256 and byte length (**114/114 PASS**); it records the completed TOP endpoints and consolidates the earlier completed BOTH result. Daemon CPU values were independently recalculated from six source tick deltas and elapsed durations; TOP suspend bounds were also recalculated from the raw parsed private clock endpoints. Exact signed candidate and forward-only recovery77 underwent source, payload and signature verification prior to physical authorization. Code77 remains **prepared, not installed**.
+The owner's original private V6 archive contained **1,232 verified content members** (**1,232/1,232 PASS**). The later TOP sleep delta contains **114 verified manifest entries** (**114/114 PASS**); it records the completed TOP endpoints and consolidates the earlier completed BOTH result. The DELTA-03 Guard/final-state packet adds **188 content files, all verified** for SHA-256 and byte length (**188/188 PASS**). Daemon CPU values were independently recalculated from six source tick deltas and elapsed durations; TOP suspend bounds were also recalculated from the raw parsed private clock endpoints. Exact signed candidate and forward-only recovery77 underwent source, payload and signature verification prior to physical authorization. Code77 remains **prepared, not installed**.
 
 Only sanitized numerical CPU and clock measurements, public app version, test method and observed functional outcomes are published here. Signed APKs, full logs, process/boot/device identifiers, private source captures, screenshots and proprietary firmware inspection material remain in the owner's private evidence archive.
 
 A successful short sleep/wake smoke and sustained **unplugged** quiet-suspend are separate tests; **both have now passed** in the supported physical test scope.
 
-**Next acceptance gate:** complete the optional **Lid Guard ON** regression and the exact-artifact release checks. The completed RC2 CPU/suspend controls do not need repeating.
+**Next release gate:** the basic optional **Lid Guard ON** smoke is now complete for the tested normal-cycle scope. Assess the explicitly unobserved *active* blocked-wake coverage against the proposed release scope; verify the final exact signed-release artifact and obtain owner publication authorization. The completed RC2 and code76 CPU/suspend controls do not need repeating.
 
 Back to [validation evidence index](../VALIDATION-EVIDENCE.md).
