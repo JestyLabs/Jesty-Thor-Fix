@@ -95,10 +95,12 @@ We measure performance on the real device rather than inferring it from the code
 | **RC2 idle — TOP** | **0.3223% of one core**, median of three ~183 s windows |
 | **RC2 suspend — BOTH** | **743.2–743.6 s** of calculated Android suspend during a quiet-sleep test |
 | **RC2 suspend — TOP** | **750.6–751.0 s** of calculated Android suspend during a quiet-sleep test |
+| **Code76 CPU idle — BOTH** | **0.0879% of one core**, median across three physical windows (**69.6% below RC2**) |
+| **Code76 CPU idle — TOP** | **0.3172% of one core**, median across three physical windows (within the established low-overhead range) |
 
-These figures cover distinct, explicitly identified builds and workloads. The signed **v1.7.0** release also passed its own physical handoff, wake-repair and supervised-reboot tests.
+These figures cover separately identified builds. The signed **v1.7.0** release passed its own physical acceptance; the test-only **code76** candidate also passed in-place handoff, CPU Fix confirmation, BOTH/TOP checks and short sleep/wake. Its long-suspend testing continues.
 
-**[Browse the official validation dossier](docs/VALIDATION-EVIDENCE.md)** · [RC2 measurements and reproducible calculations](docs/evidence/RC2-PHYSICAL-BASELINE-2026-10-12.md)
+**[Browse the official validation dossier](docs/VALIDATION-EVIDENCE.md)** · [RC2 complete baseline](docs/evidence/RC2-PHYSICAL-BASELINE-2026-10-12.md) · [Code76 physical measurements](docs/evidence/CODE76-PHYSICAL-VALIDATION-2026-10-12.md)
 
 <details>
 <summary><strong>How the hardware results were verified</strong></summary>

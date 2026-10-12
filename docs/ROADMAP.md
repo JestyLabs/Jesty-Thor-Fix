@@ -1,6 +1,6 @@
 # Current roadmap
 
-Updated 2026-10-12. Stable release: **v1.7.0**. The current device-test baseline is **v1.7.1-rc2**; the combined **RC3 [PR #63](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/63)** remains a candidate, not a public stable release.
+Updated 2026-10-12. Stable release: **v1.7.0**. The completed control baseline is **RC2 / code73**. The corrected integrated **code76 [PR #68](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/68)** is undergoing supervised physical acceptance; the original code74 [PR #63](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/63) remains a separate historical candidate.
 
 See [physical validation evidence](VALIDATION-EVIDENCE.md) for completed test results. Historical investigations remain in their original, dated reports rather than being repeated here as future work.
 
@@ -11,17 +11,18 @@ See [physical validation evidence](VALIDATION-EVIDENCE.md) for completed test re
 - **Watcher efficiency (v1.7.0):** approximately **89% lower daemon CPU** in controlled hardware A/B compared with the preceding implementation, with safe display recovery preserved.
 - **v1.7.0 signed candidate:** verified in-place handoff, physical mode transitions, wake repairs and supervised reboot.
 - **RC2 physical baseline (2026-10-12):** six repeatable CPU idle windows and successful sustained-suspend experiments in BOTH and TOP. [Dataset and calculations](evidence/RC2-PHYSICAL-BASELINE-2026-10-12.md).
+- **Code76 functional smoke and daemon CPU (2026-10-12):** installation, CPU Fix confirmation recovery, BOTH/TOP and short sleep/wake **PASS**. Six CPU windows **PASS** with lower BOTH daemon CPU than RC2 and unchanged low TOP cost. [Physical measurements](evidence/CODE76-PHYSICAL-VALIDATION-2026-10-12.md).
 
 These tests support the named outcomes. They do not need to be rerun solely because their original work item was previously phrased as an investigation.
 
-## Priority 1 — complete RC3 device acceptance
+## Priority 1 — finish code76 physical acceptance
 
-- Preserve the signed RC2 comparator before any candidate replacement.
-- Validate exact RC3 signing, identity, safe in-place handoff, CPU Fix and True Bottom Screen Off, normal BOTH/TOP and wake repair.
-- Repeat RC2-matched CPU/suspend experiments on RC3, with **Lid Guard OFF** and no unrelated configuration changes.
-- Test the optional **Lid Guard ON** path separately, with safe behavior and a small overhead budget. It remains OFF by default.
-- Keep the temporary recovery [PR #64](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/64) distinct from the final release.
-- Update the [public evidence index](VALIDATION-EVIDENCE.md) only after the RC3 run is physically complete.
+- **Completed:** code76 signed in-place installation, authenticated daemon handoff, restored CPU Fix confirmation, BOTH/TOP and short sleep/wake smoke.
+- **Completed:** matched ~182 s daemon CPU windows (three in BOTH, three in TOP); both mode budgets **PASS**. The RC2 control is preserved and does **not** need repeating.
+- **In progress at V6 snapshot:** normal long quiet-suspend BOTH experiment. Collect the final bounded Android clock endpoint after the owner finishes the unplugged interval. TOP long quiet-suspend follows.
+- **After suspend:** check the optional Lid Guard ON path separately, keeping the ordinary Guard OFF behavior intact.
+- **Prepared recovery:** signed code77 [PR #69](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/69), not installed. Code75 [PR #64](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/64) is historical and is not a normal downgrade after code76.
+- **Documentation:** append only confirmed results to the [physical evidence index](VALIDATION-EVIDENCE.md), keeping raw private captures and proprietary vendor data out of Git.
 
 ## Priority 2 — performance and battery evidence
 
