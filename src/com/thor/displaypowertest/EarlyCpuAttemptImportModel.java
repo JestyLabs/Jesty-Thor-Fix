@@ -8,10 +8,36 @@ public final class EarlyCpuAttemptImportModel {
         REPLACE_STALE_DURABLE,
         KEEP_MATCHING,
         KEEP_PROGRESS,
+        KEEP_LATER_APPLIED,
         FAIL_SAFE
     }
 
     private EarlyCpuAttemptImportModel() {}
+
+    /** A later completed transition uses its own current proof, not the early record's proof. */
+    public static Action decide(CpuBootAttemptModel.Attempt early, boolean earlyCorrupt,
+            CpuBootAttemptModel.Attempt durable, boolean durableCorrupt,
+            String currentBootId, boolean desiredEnabled, String property,
+            String composerPid, long nowMs) {
+        Action strict = decide(early, earlyCorrupt, durable, durableCorrupt,
+                currentBootId, desiredEnabled);
+        if (strict != Action.FAIL_SAFE) return strict;
+        if (earlyCorrupt || durableCorrupt || early == null || durable == null
+                || !CpuBootAttemptModel.validBootId(currentBootId)
+                || !currentBootId.equalsIgnoreCase(early.bootId)
+                || !currentBootId.equalsIgnoreCase(durable.bootId)
+                || !"1".equals(early.desired) || !allowedEarlyPhase(early.phase)
+                || durable.phase != CpuBootAttemptModel.Phase.APPLIED
+                || !durable.desired.equals(desiredEnabled ? "1" : "0")
+                || durable.phaseAtMs <= early.phaseAtMs || durable.phaseAtMs > nowMs
+                || sameAttempt(early, durable)) {
+            return Action.FAIL_SAFE;
+        }
+        return CpuBootAttemptModel.decide(durable, currentBootId,
+                desiredEnabled ? "1" : "0", property, composerPid, nowMs)
+                == CpuBootAttemptModel.Action.PROCEED
+                ? Action.KEEP_LATER_APPLIED : Action.FAIL_SAFE;
+    }
 
     public static Action decide(CpuBootAttemptModel.Attempt early, boolean earlyCorrupt,
             CpuBootAttemptModel.Attempt durable, boolean durableCorrupt,
@@ -33,10 +59,7 @@ public final class EarlyCpuAttemptImportModel {
             // Preserve the completed record; never replay the earlier phase.
             if (early.phase == CpuBootAttemptModel.Phase.RESTART_REQUESTED
                     && durable.phase == CpuBootAttemptModel.Phase.APPLIED
-                    && early.bootId.equalsIgnoreCase(durable.bootId)
-                    && early.desired.equals(durable.desired)
-                    && early.previous.equals(durable.previous)
-                    && early.baselineComposerPid.equals(durable.baselineComposerPid)
+                    && sameAttempt(early, durable)
                     && durable.phaseAtMs >= early.phaseAtMs) {
                 return Action.KEEP_PROGRESS;
             }
@@ -50,5 +73,13 @@ public final class EarlyCpuAttemptImportModel {
         return phase == CpuBootAttemptModel.Phase.PREPARED
                 || phase == CpuBootAttemptModel.Phase.PROPERTY_VERIFIED
                 || phase == CpuBootAttemptModel.Phase.RESTART_REQUESTED;
+    }
+
+    private static boolean sameAttempt(CpuBootAttemptModel.Attempt early,
+            CpuBootAttemptModel.Attempt durable) {
+        return early.bootId.equalsIgnoreCase(durable.bootId)
+                && early.desired.equals(durable.desired)
+                && early.previous.equals(durable.previous)
+                && early.baselineComposerPid.equals(durable.baselineComposerPid);
     }
 }
