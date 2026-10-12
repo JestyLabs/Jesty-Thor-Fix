@@ -6,6 +6,23 @@ public final class PreviousSecureDaemonIdentityTest {
     private static final String BOTH = "ok=1;mode=0;top_crtc=1;bottom_crtc=1";
 
     public static void main(String[] args) {
+        for (String version : new String[]{"1.7.1-rc2", "1.7.1-rc3", "1.7.1-rc4", "1.7.1"}) {
+            String health = HEALTH.replace("1.5.3", version);
+            check(PreviousSecureDaemonIdentity.safePid(health, BOTH) == 11398,
+                    "forward recovery accepts authenticated prior daemon " + version);
+            check(PreviousSecureDaemonIdentity.safePid(health, BOTH.replace("mode=0", "mode=1")) < 0,
+                    "forward recovery still requires BOTH " + version);
+            check(PreviousSecureDaemonIdentity.safePid(health, BOTH.replace("bottom_crtc=1", "bottom_crtc=0")) < 0,
+                    "forward recovery still requires bottom active " + version);
+            check(PreviousSecureDaemonIdentity.safePid(health.replace("watcher=RUNNING", "watcher=FAILED"), BOTH) < 0,
+                    "forward recovery still requires healthy watcher " + version);
+            check(PreviousSecureDaemonIdentity.safePid(health.replace("protocol=2", "protocol=1"), BOTH) < 0,
+                    "forward recovery still requires current protocol " + version);
+            check(PreviousSecureDaemonIdentity.safePid(health.replace("pid=11398", "pid=1"), BOTH) < 0,
+                    "forward recovery still rejects invalid target PID " + version);
+            check(PreviousSecureDaemonIdentity.safePid(health.replace(version, version + "-unknown"), BOTH) < 0,
+                    "forward recovery only accepts exact prior identity " + version);
+        }
         check(PreviousSecureDaemonIdentity.safePid(HEALTH, BOTH) == 11398,
                 "authenticated prior version in BOTH can be replaced");
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.5.5"), BOTH) == 11398,
@@ -146,7 +163,7 @@ public final class PreviousSecureDaemonIdentityTest {
         }
 
         check(PreviousSecureDaemonIdentity.safePid(
-                HEALTH.replace("1.5.3", "1.7.1-rc4"), BOTH) < 0,
+                HEALTH.replace("1.5.3", "1.7.1-rc6"), BOTH) < 0,
                 "current identity is not a previous-daemon allowance");
 
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.5.4"), BOTH) < 0,
