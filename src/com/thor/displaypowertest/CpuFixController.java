@@ -72,7 +72,10 @@ public final class CpuFixController {
                     durableAttempt,
                     durable.state == CpuBootAttemptStore.State.CORRUPT,
                     SecureChannel.currentBootId(),
-                    desired);
+                    desired,
+                    Telemetry.systemLoadFixObservation(),
+                    probe.composerPid(),
+                    SystemClock.elapsedRealtime());
 
             try {
                 switch (action) {
@@ -88,6 +91,11 @@ public final class CpuFixController {
                         trace.mark("EARLY_CPU_ATTEMPT_PROGRESS_KEPT",
                                 "phase=" + durable.attempt.phase.name());
                         return "ok=1;early_attempt=progress_kept";
+
+                    case KEEP_LATER_APPLIED:
+                        trace.mark("EARLY_CPU_ATTEMPT_SUPERSEDED",
+                                "phase=" + durable.attempt.phase.name());
+                        return "ok=1;early_attempt=later_applied_kept";
 
                     case REPLACE_STALE_DURABLE:
                         CpuBootAttemptStore.deleteTrusted();
