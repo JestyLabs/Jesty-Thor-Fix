@@ -1,7 +1,7 @@
 # Experimental integration proposal — Lid #57 + Passive Sleep #59
 
 **Status: research/draft — CI-only. NOT APPROVED for signing, installation, merge or release.**
-**Baseline:** `17bac625fa915d8f8be724e6d0af2bdc16d44dd8` (`main`, versionName `1.7.1-rc2`, versionCode 73).  
+**Baseline:** `17bac625fa915d8f8be724e6d0af2bdc16d44dd8` (`main`, versionName `1.7.1-rc2`, versionCode 73).
 **Inputs:** [#57](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/57) `136ee907872021160a72bb91f260ab8bef4e7468`; [#59](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/59) `7cb3268deb4e9477f3d0c7c84f3ebc266c9ac531`.
 
 ## Purpose and boundaries
