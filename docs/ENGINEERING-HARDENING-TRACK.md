@@ -4,9 +4,9 @@
 
 ## Scope and integration boundary
 
-- Base for this workstream: `main` at `281e8c9f1d0982bc766843d1be083cb93e19cb7d` (2026-10-12).
-- The RC3 Lid/passive-trial candidate (PR #63), its recovery preparation (PR #64), and mixed-refresh research (PR #37) remain separate. **Their device testing takes precedence.**
-- While RC3 hardware validation is in progress, this branch is **documentation-only**. No daemon, boot, CPU Fix, Lid Guard, display, IPC, updater, workflow, signing or install changes are authorized as part of this track.
+- Original workstream base: `main` at `281e8c9f1d0982bc766843d1be083cb93e19cb7d` (2026-10-12). The v1.7.1 code76 source, UI-only follow-up and physical evidence are now integrated into `main` (snapshot `f929ff910bfa8e5179a2c6a63948a18fc3d6b252`). **Re-baseline against the then-current main before any future code edits.**
+- RC3 draft #63 and old recovery #64 were closed unmerged; their accepted functionality was integrated via code76 #68. Code77 contingency #69 was archived unmerged. Mixed-refresh #37 remains an independent research PR. **The v1.7.1 signed-release gate and exact APK identity take precedence.**
+- While v1.7.1 signing/publication verification is in progress, this branch stays **documentation-only**. No daemon, boot, CPU Fix, Lid Guard, display, IPC, updater, workflow, signing or install changes are authorized by this track.
 - Before any implementation step, inspect the accepted RC3 baseline, identify overlaps with ongoing PRs, and update this branch from the approved target. Re-evaluate each work item against code that actually shipped, rather than refactoring an outdated snapshot.
 - Implement and review **one small, independently testable step at a time**. Each step needs a focused diff, named tests, a brief risk assessment and explicit evidence level. Keep the PR in draft until the agreed acceptance gates are complete.
 - No automatic merge, release, signing, device installation, privileged fault injection or physical testing. Those actions need separate authorization.
@@ -68,7 +68,7 @@
 
 **Code-path hypothesis, not measured attribution:** in TOP, the display coordinator additionally checks wake/panel state and retains verified wake-repair safety. The watcher uses a 500 ms idle settings check and approximately 1 s DRM safety cadence; observed CPU is primarily watcher work. The contribution of any particular helper or vendor property read has not been isolated.
 
-- [ ] After both candidate76 quiet-suspend trials and functional acceptance finish, reconcile existing owner-private trace/counter snapshots with the exact code76 source and the accepted RC2 reference.
+- [ ] With code76 physical CPU, BOTH/TOP quiet-suspend and basic Lid Guard ON recovery smoke now completed, reconcile existing owner-private trace/counter snapshots with the exact integrated code76 source and RC2 reference. The optional Guard's *active* blocked-wake path was not observed and must not be marked validated by inference.
 - [ ] Inspect existing sample counts, DRM-read deltas, event/burst activity, property reads, thread CPU ticks and relevant TOP/BOTH control paths. Compare actual stable windows, not only source-level invocation estimates.
 - [ ] Distinguish hardware-mode-specific safety work from avoidable redundant execution. Establish a baseline with no unnecessary Thor interaction; profile offline first.
 - [ ] If a real, significant avoidable cost is isolated, propose **a separate narrow change** with host characterization, regression tests and unchanged physical display states and wake-repair correctness.
@@ -93,3 +93,38 @@ Use this small template in a PR comment or commit description for each completed
 ## Public evidence and safety
 
 Follow [public evidence policy](PUBLIC-EVIDENCE-POLICY.md), [research workflow](RESEARCH-WORKFLOW.md) and [publication security](../SECURITY-PUBLICATION.md). Keep third-party proprietary material, firmware extracts, sensitive telemetry, identifiers and signing data out of the repository. Avoid speculative claims about untested behavior. This document is a forward work plan, not an acceptance report.
+
+## 7. Historical-branch audit: candidates not automatically merged
+
+**Audit date:** 2026-10-13. GitHub reported **41** branches, of which only #37 and #67 had open PRs. No archived research or recovery was merged into the stable app during this audit. The full pinned snapshot is in [branch archive manifest](https://github.com/JestyLabs/Jesty-Thor-Fix/blob/archive/branch-prune-snapshot-2026-10-13/branch-audit/manifest.json). Git history preserves old tip commits even when the live branch names are retired.
+
+### A. One-off lower-screen bright-flash investigation — preserve as optional follow-up
+
+- Source: closed research [#62](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/62), branch tip `a3e1ef9179130ca92245654f7afbea6f1f735e14`.
+- A bright flash was **seen once**; the owner confirms **no recurrence** across later device tests or normal use. The offline log review observed an automatic BOTH panel-ON path during lid sleep; it does **not** establish that this action caused the visual event.
+- If the problem returns, first compare the historical timeline and current `DisplayDecisionModel`/coordinator OFF/ON gates, isolate a plausible wake-interactive predicate with host-only model tests, then request a separate owner-controlled hardware A/B if justified. No speculative ON suppression in v1.7.1 and no claim that a root cause is resolved.
+
+### B. Local event-history prototype — optional product decision
+
+- Source: closed unmerged [#53](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/53), branch tip `6d6e8d8cd97785b1b429afd75f6a366a23abc58a`.
+- Proposed a 64-item sanitized change-only journal, app-local persistence, copy and clear functions. **Current App Diagnostics already offers bounded history and export.** Compare exact coverage, retention and UX before deciding whether any of the older design materially improves support. No automatic new action button, additional polling, or duplicate data store.
+
+### C. Experimental characterization tools — potential narrow tests
+
+- `research/watcher-drm-cost-measurement`: historical `WatcherCostMetrics` and polling notes, tip `80f8cc65743120c8db100fb40c5f21a1806274e0`; consider only for offline TOP CPU attribution (item 6), keeping production watcher safety unchanged.
+- `work/cpu-diagnostic-evidence-model`: standalone, time-based CPU pinning evidence estimator and host tests, tip `829962198832e9fbf783f86ab28ed641afd55a26`; compare current CPU status logic and tests before proposing a narrow characterization-only change.
+- `test/thor-cpu-restart-fault-injection`: historical deliberate-crash test fixture, tip `c8d703dbec654c0924ad12274b7e1e4a6a34f22a`; read-only historical evidence, **never enable or execute on a physical device by default**.
+
+### D. Old recovery/splash prototypes — archive, not release
+
+- Numerous bootanimation/SurfaceControl/recovery-splash branches contained alternative pre-composer visual paths and unvalidated process/driver interactions. They are not equivalent to current shipping behavior and must **not** be bulk-merged.
+- Old recovery code75 and emergency code77 carry version/install-order risks. The code77 research was not installed or certified as a public release.
+- Prior signing and policy branches were independently integrated or superseded; do not copy historical workflow YAML over the hardened release policy.
+
+**Gate for all candidates:** compare the exact archival commit against today's code, assess relevance and privacy, create a **new, small scoped PR** only for a demonstrable improvement, run focused tests, and require separate approval for any privileged runtime or device-side changes. A historical branch containing files absent from `main` is not automatically a missing release feature.
+
+## 8. Branch-hygiene follow-through
+
+- A temporary [archive branch](https://github.com/JestyLabs/Jesty-Thor-Fix/tree/archive/branch-prune-snapshot-2026-10-13) pins **all 38** non-main/non-#37/non-#67 branch tips via explicit Git merge parents. Independent readback verified **38/38** tips with original exact SHAs. Its tree holds only an inventory and the main snapshot; **it is not a runtime merge**.
+- After creating and verifying an immutable **archival tag** at the archive commit, and once v1.7.1 release signing/publication is settled, delete only the manifest-listed stale branches whose remote tip SHA still matches its pinned SHA and which are not sources of any newly opened PR.
+- The expected final active GitHub branch set is **`main` + #37 + #67**. Tags retain historical recovery/prototype code without cluttering active branches. Stop, do not force, on any changed ref.
