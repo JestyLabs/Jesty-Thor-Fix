@@ -19,6 +19,8 @@ public final class DaemonIpcServerHostTest {
     public static void main(String[] args) throws Exception {
         basicCommandsAndRecovery();
         queueSaturation();
+        preDispatchFailuresAndRecovery();
+        queuedUntrustedFlood();
         System.out.println("DaemonIpcServerHostTest passed (" + assertions + " assertions)");
     }
 
@@ -135,6 +137,92 @@ public final class DaemonIpcServerHostTest {
         }
         check(serverExit.get() instanceof java.io.IOException,
                 "queue pressure does not terminate the accept loop");
+    }
+
+
+    /** Injected pre-dispatch failures must fail closed and preserve listener availability. */
+    private static void preDispatchFailuresAndRecovery() throws Exception {
+        LocalServerSocket listener = new LocalServerSocket();
+        DaemonCommandHandler handler = new DaemonCommandHandler();
+        DaemonIpcServer ipc = new DaemonIpcServer(listener, handler);
+        AtomicReference<Throwable> serverExit = new AtomicReference<>();
+        Thread server = startServer(ipc, serverExit);
+        try {
+            LocalSocket credentialsFailure = new LocalSocket(true, 'R');
+            credentialsFailure.failTrust = true;
+            listener.offer(credentialsFailure);
+            awaitClosed(credentialsFailure, "credential lookup failure closed client");
+            check(credentialsFailure.reads.get() == 0
+                    && credentialsFailure.response().isEmpty()
+                    && handler.calls.get() == 0,
+                    "credential exception cannot read, dispatch, or return success");
+            LocalSocket timeoutFailure = new LocalSocket(true, 'R');
+            timeoutFailure.failTimeout = true;
+            listener.offer(timeoutFailure);
+            awaitClosed(timeoutFailure, "timeout setup failure closed client");
+            check(timeoutFailure.reads.get() == 0
+                    && timeoutFailure.response().isEmpty()
+                    && handler.calls.get() == 0,
+                    "timeout exception cannot read or dispatch command");
+            LocalSocket recovery = new LocalSocket(true, 'I');
+            listener.offer(recovery);
+            awaitClosed(recovery, "post-error authenticated client handled");
+            check("ok=1;echo=I\n".equals(recovery.response()) && handler.calls.get() == 1,
+                    "authenticated client recovers after pre-dispatch errors");
+        } finally {
+            stop(listener, server, ipc);
+        }
+        check(serverExit.get() instanceof java.io.IOException,
+                "pre-dispatch exceptions do not terminate accept loop");
+    }
+
+    /** Test-only untrusted queue saturation; native credentials are not simulated. */
+    private static void queuedUntrustedFlood() throws Exception {
+        LocalServerSocket listener = new LocalServerSocket();
+        DaemonCommandHandler handler = new DaemonCommandHandler();
+        DaemonIpcServer ipc = new DaemonIpcServer(listener, handler);
+        AtomicReference<Throwable> serverExit = new AtomicReference<>();
+        Thread server = startServer(ipc, serverExit);
+        try {
+            LocalSocket first = new LocalSocket(true, 'B');
+            LocalSocket second = new LocalSocket(true, 'B');
+            listener.offer(first);
+            listener.offer(second);
+            check(handler.blockedStarted.await(2000L, TimeUnit.MILLISECONDS),
+                    "two workers occupied before untrusted queue flood");
+            LocalSocket[] queued = new LocalSocket[4];
+            for (int i = 0; i < queued.length; i++) {
+                queued[i] = new LocalSocket(false, 'R');
+                listener.offer(queued[i]);
+            }
+            awaitAccepted(listener, 6);
+            LocalSocket rejected = new LocalSocket(true, 'R');
+            listener.offer(rejected);
+            awaitAccepted(listener, 7);
+            awaitClosed(rejected, "seventh connection refused");
+            check(handler.calls.get() == 2 && rejected.reads.get() == 0,
+                    "queued/rejected commands not dispatched before workers release");
+            handler.unblock.countDown();
+            awaitClosed(first, "first worker released after queued flood");
+            awaitClosed(second, "second worker released after queued flood");
+            for (int i = 0; i < queued.length; i++) {
+                awaitClosed(queued[i], "queued untrusted client " + i);
+                check(queued[i].reads.get() == 0 && queued[i].response().isEmpty(),
+                        "queued untrusted client rejected before reading");
+            }
+            check(handler.calls.get() == 2,
+                    "four untrusted queued clients never dispatch");
+            LocalSocket recovery = new LocalSocket(true, 'Q');
+            listener.offer(recovery);
+            awaitClosed(recovery, "normal client served after untrusted flood");
+            check("ok=1;echo=Q\n".equals(recovery.response()) && handler.calls.get() == 3,
+                    "normal client still succeeds after untrusted saturation");
+        } finally {
+            handler.unblock.countDown();
+            stop(listener, server, ipc);
+        }
+        check(serverExit.get() instanceof java.io.IOException,
+                "untrusted flood does not terminate accept loop");
     }
 
     private static Thread startServer(DaemonIpcServer ipc, AtomicReference<Throwable> exit) {

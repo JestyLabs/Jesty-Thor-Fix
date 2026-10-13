@@ -14,7 +14,7 @@ public class LocalSocket implements AutoCloseable {
     public final AtomicInteger reads = new AtomicInteger();
     public final AtomicInteger closed = new AtomicInteger();
     public volatile int timeoutMs = -1;
-    public volatile boolean failInput, failOutput, failClose;
+    public volatile boolean failInput, failOutput, failClose, failTrust, failTimeout;
     private final InputStream input;
     private final ByteArrayOutputStream outputBytes = new ByteArrayOutputStream();
 
@@ -31,7 +31,10 @@ public class LocalSocket implements AutoCloseable {
             }
         };
     }
-    public void setSoTimeout(int ms) { timeoutMs = ms; }
+    public void setSoTimeout(int ms) {
+        if (failTimeout) throw new IllegalStateException("synthetic timeout configuration failure");
+        timeoutMs = ms;
+    }
     public InputStream getInputStream() { return input; }
     public OutputStream getOutputStream() throws IOException {
         if (failOutput) throw new IOException("synthetic write error");
