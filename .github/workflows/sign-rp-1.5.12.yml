@@ -1,0 +1,180 @@
+name: Sign RP v1.5.12 candidate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: thor-release-keystore-${{ github.repository }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_SHA: '111f930f7c4b03dab38c193c3c4f9cf603701541'
+  EXPECTED_SIGNER_SHA256: '727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC'
+  APK_NAME: 'Jesty-RP-Charging-Separation-1.5.12.apk'
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main' && github.actor == 'SirJesty' && github.triggering_actor == 'SirJesty'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact reviewed RP source
+        uses: actions/checkout@v7
+        with:
+          repository: JestyLabs/Jesty-RP-Charging-Separation
+          ref: 111f930f7c4b03dab38c193c3c4f9cf603701541
+          persist-credentials: false
+
+      - name: Verify pinned commit
+        shell: pwsh
+        run: |
+          $actual = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $actual -cne $env:SOURCE_SHA) {
+              throw 'Refusing to build unreviewed RP source'
+          }
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Run RP host tests and build unsigned APK
+        shell: pwsh
+        run: |
+          ./scripts/test-all.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'RP JDK tests failed' }
+          ./scripts/test-public-content.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'RP public-content scan failed' }
+          ./build.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'RP unsigned build failed' }
+
+      - name: Upload exact unsigned candidate and release notes
+        uses: actions/upload-artifact@v7
+        with:
+          name: rp-1.5.12-unsigned-reviewed
+          path: |
+            dist/Jesty-RP-Charging-Separation-1.5.12-unsigned.apk
+            docs/RELEASE-NOTES-1.5.12.md
+          if-no-files-found: error
+          retention-days: 7
+
+  sign:
+    name: Sign exact RP candidate
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 15
+    environment: thor-signing
+    permissions:
+      contents: read
+    steps:
+      - name: Enforce protected signing environment
+        shell: pwsh
+        env:
+          SIGNING_ENV_READY: ${{ vars.THOR_SIGNING_ENV_READY }}
+          ORIGINAL_ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        run: |
+          if ($env:SIGNING_ENV_READY -cne 'true') {
+              throw 'Protected thor-signing environment is not activated'
+          }
+          if ($env:ORIGINAL_ACTOR -cne 'SirJesty' -or
+              $env:TRIGGERING_ACTOR -cne 'SirJesty') {
+              throw 'Only SirJesty can approve an RP signing candidate'
+          }
+
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          packages: platform-tools
+
+      - name: Install Android signing tools
+        shell: pwsh
+        run: sdkmanager "build-tools;35.0.0"
+
+      - name: Download exact unsigned candidate from this run
+        uses: actions/download-artifact@v8
+        with:
+          name: rp-1.5.12-unsigned-reviewed
+          path: input
+
+      - name: Validate expected app identity and unsigned artifact
+        shell: pwsh
+        run: |
+          $apks = @(Get-ChildItem -LiteralPath input -Recurse -File -Filter '*.apk')
+          if ($apks.Count -ne 1 -or
+              $apks[0].Name -cne 'Jesty-RP-Charging-Separation-1.5.12-unsigned.apk') {
+              throw 'Expected exactly one reviewed unsigned RP APK'
+          }
+          $aapt = Join-Path $env:ANDROID_SDK_ROOT 'build-tools\35.0.0\aapt.exe'
+          $badging = @(& $aapt dump badging $apks[0].FullName 2>&1)
+          $status = $LASTEXITCODE
+          $line = @($badging | Where-Object { $_ -match '^package:\s' } | Select-Object -First 1)
+          if ($status -ne 0 -or $line.Count -ne 1) { throw 'Could not inspect unsigned APK' }
+          $identity = [regex]::Match([string]$line[0],
+              "^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'")
+          if (-not $identity.Success -or
+              $identity.Groups[1].Value -cne 'com.jesty.rpchargingseparation' -or
+              $identity.Groups[2].Value -cne '33' -or
+              $identity.Groups[3].Value -cne '1.5.12') {
+              throw 'Unsigned candidate package/version does not match reviewed RP release'
+          }
+          $alignment = Join-Path $env:ANDROID_SDK_ROOT 'build-tools\35.0.0\zipalign.exe'
+          & $alignment -c -p 4 $apks[0].FullName
+          if ($LASTEXITCODE -ne 0) { throw 'Unsigned APK alignment is invalid' }
+          "UNSIGNED_APK=$($apks[0].FullName)" >> $env:GITHUB_ENV
+
+      - name: Sign with existing protected release key
+        shell: pwsh
+        env:
+          KEYSTORE_B64: ${{ secrets.THOR_KEYSTORE_B64 }}
+          SIGNING_PASSWORD: ${{ secrets.THOR_KEYSTORE_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:KEYSTORE_B64) -or
+              [string]::IsNullOrWhiteSpace($env:SIGNING_PASSWORD)) {
+              throw 'Missing existing protected Jesty signing secrets'
+          }
+          New-Item -ItemType Directory -Path output -Force | Out-Null
+          $keystore = Join-Path $env:RUNNER_TEMP 'rp-v1.5.12-release.jks'
+          $outputApk = Join-Path (Resolve-Path output) $env:APK_NAME
+          try {
+              [IO.File]::WriteAllBytes($keystore,
+                  [Convert]::FromBase64String($env:KEYSTORE_B64))
+              $apksigner = Join-Path $env:ANDROID_SDK_ROOT 'build-tools\35.0.0\apksigner.bat'
+              & $apksigner sign --ks $keystore --ks-key-alias 'thor-display-power-auto' `
+                  --ks-pass 'env:SIGNING_PASSWORD' --key-pass 'env:SIGNING_PASSWORD' `
+                  --out $outputApk $env:UNSIGNED_APK
+              if ($LASTEXITCODE -ne 0) { throw 'Signing with existing Jesty key failed' }
+              "SIGNED_APK=$outputApk" >> $env:GITHUB_ENV
+          } finally {
+              if (Test-Path -LiteralPath $keystore) {
+                  Remove-Item -LiteralPath $keystore -Force
+              }
+          }
+
+      - name: Verify signer and produce RP release assets
+        shell: pwsh
+        run: |
+          $apksigner = Join-Path $env:ANDROID_SDK_ROOT 'build-tools\35.0.0\apksigner.bat'
+          $output = (& $apksigner verify --verbose --print-certs $env:SIGNED_APK 2>&1 | Out-String)
+          if ($LASTEXITCODE -ne 0) { throw 'Signed APK signature verification failed' }
+          $match = [regex]::Match($output, 'Signer #1 certificate SHA-256 digest:\s*([0-9a-fA-F]{64})')
+          if (-not $match.Success -or
+              $match.Groups[1].Value.ToUpperInvariant() -cne $env:EXPECTED_SIGNER_SHA256) {
+              throw 'RP signer differs from already-installed releases; refusing candidate'
+          }
+          $sha256 = (Get-FileHash -LiteralPath $env:SIGNED_APK -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$sha256  $($env:APK_NAME)" | Set-Content -Encoding ascii 'output/Jesty-RP-Charging-Separation-1.5.12.apk.sha256'
+          $notes = @(Get-ChildItem -LiteralPath input -Recurse -File -Filter 'RELEASE-NOTES-1.5.12.md')
+          if ($notes.Count -ne 1) { throw 'Missing reviewed short release notes' }
+          Copy-Item $notes[0].FullName 'output/RELEASE-NOTES-1.5.12.md'
+          "Verified Jesty RP v1.5.12, versionCode 33, signer $($env:EXPECTED_SIGNER_SHA256), APK SHA-256 $sha256"
+
+      - name: Upload signed candidate for RP publication
+        uses: actions/upload-artifact@v7
+        with:
+          name: rp-v1.5.12-signed-ready-for-publication
+          path: output/*
+          if-no-files-found: error
+          retention-days: 14
