@@ -471,6 +471,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Handoff recovery model tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'PServer bridge diagnostic tests failed.' }
 & java -cp $output DaemonArgsTest
 if ($LASTEXITCODE -ne 0) { throw 'Daemon argument tests failed.' }
+& (Join-Path $PSScriptRoot 'test-ipc-server-host.ps1')
+
 } finally {
     # Per-invocation output cannot collide with another test run.
     if (Test-Path -LiteralPath $output) {
