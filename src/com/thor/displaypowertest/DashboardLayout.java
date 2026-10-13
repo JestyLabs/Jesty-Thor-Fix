@@ -106,13 +106,13 @@ final class DashboardLayout {
         updateAction.setTextColor(Color.rgb(36, 19, 56));
         GradientDrawable highlight = new GradientDrawable();
         highlight.setColor(AMBER);
-        highlight.setCornerRadius(views.dp(21));
+        highlight.setCornerRadius(views.dp(24));
         updateAction.setBackground(highlight);
         updateAction.setVisibility(View.GONE);
         updateAction.setContentDescription("View available software update");
         updateAction.setOnClickListener(v -> actions.onUpdate());
         LinearLayout.LayoutParams updateParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, views.dp(38));
+                ViewGroup.LayoutParams.WRAP_CONTENT, views.dp(48));
         updateParams.setMargins(0, 0, views.dp(8), 0);
         topActions.addView(updateAction, updateParams);
 
@@ -125,7 +125,7 @@ final class DashboardLayout {
         root.addView(topActions, actionParams);
 
         // Move the original Support and GitHub buttons to Diagnostics' former corner.
-        // Preserve labels, click/long-click handlers, shapes and dimensions.
+        // Preserve labels and click/long-click handlers, with 48dp touch targets.
         LinearLayout bottomActions = new LinearLayout(activity);
         bottomActions.setOrientation(LinearLayout.HORIZONTAL);
         bottomActions.setGravity(Gravity.CENTER_VERTICAL);
@@ -143,12 +143,12 @@ final class DashboardLayout {
             return true;
         });
         LinearLayout.LayoutParams githubParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, views.dp(38));
+                ViewGroup.LayoutParams.WRAP_CONTENT, views.dp(48));
         githubParams.setMargins(views.dp(8), 0, 0, 0);
         bottomActions.addView(github, githubParams);
 
         FrameLayout.LayoutParams bottomParams = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, views.dp(42), Gravity.BOTTOM | Gravity.END);
+                ViewGroup.LayoutParams.WRAP_CONTENT, views.dp(48), Gravity.BOTTOM | Gravity.END);
         bottomParams.setMargins(0, 0, views.dp(18), views.dp(16));
         root.addView(bottomActions, bottomParams);
 

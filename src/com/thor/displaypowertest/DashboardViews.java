@@ -98,7 +98,7 @@ final class DashboardViews {
         // separate TextView. Expose that heading as the accessible control name
         // while preserving Android's native checked/unchecked state announcement.
         toggle.setContentDescription(title);
-        row.addView(toggle, new LinearLayout.LayoutParams(dp(58), dp(40)));
+        row.addView(toggle, new LinearLayout.LayoutParams(dp(58), dp(48)));
         return new ToggleRow(row, help);
     }
 
@@ -125,11 +125,11 @@ final class DashboardViews {
         GradientDrawable bubble = new GradientDrawable(
                 GradientDrawable.Orientation.LEFT_RIGHT,
                 new int[]{0xE0241338, 0xE0441B55});
-        bubble.setCornerRadius(dp(21));
+        bubble.setCornerRadius(dp(24));
         bubble.setStroke(dp(1), 0xCCC45CFF);
         action.setBackground(bubble);
         action.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, dp(38)));
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(48)));
         return action;
     }
 
