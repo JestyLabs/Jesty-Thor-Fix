@@ -37,6 +37,21 @@ public final class UpdateSessionOwnershipTest {
         check(owner.finishSession(19), "valid terminal callback after worker completion is recognized");
         check(!owner.finishSession(19), "post-terminal duplicate stays harmless");
         check(!new UpdateSessionOwnership().finishSession(19), "process restart must not claim unknown session");
+
+        // A replacement attempt may supersede a committed session that still
+        // waits for Android confirmation. The native session is abandoned by
+        // AppUpdater; this policy must reject all of its late callbacks.
+        long waiting = owner.beginTransfer();
+        check(owner.registerSession(waiting, 41), "session with pending confirmation registered");
+        owner.finishTransfer(waiting);
+        check(owner.currentSessionId() == 41, "pending native session is remembered");
+        long replacement = owner.beginTransfer();
+        check(replacement > waiting && !owner.ownsSession(41),
+                "replacement attempt atomically invalidates stale session ownership");
+        check(!owner.finishSession(41), "stale aborted confirmation cannot clean replacement");
+        check(owner.registerSession(replacement, 42), "replacement Android session is bound");
+        check(owner.finishSession(42), "replacement terminal callback is still valid");
+        owner.finishTransfer(replacement);
         System.out.println("UpdateSessionOwnershipTest passed (" + checks + " checks)");
     }
     private static void check(boolean condition, String message) {
