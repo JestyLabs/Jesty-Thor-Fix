@@ -2,6 +2,7 @@ package com.thor.displaypowertest;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /** Host characterization: retention, one-shot delivery and paired session identity. */
 public final class UpdateConfirmationStoreTest {
@@ -18,9 +19,19 @@ public final class UpdateConfirmationStoreTest {
                 "resume receives the original session/confirmation pair");
         check(store.take() == null && store.pendingSessionId() == -1,
                 "delivery is consumed exactly once and releases its session");
+        check(store.claimLaunch(12) && !store.claimLaunch(12), "only first launch is admitted");
+        check(!store.defer(first, 12) && store.take() == null,
+                "a launched session cannot be deferred again after pause");
+        check(store.discardSession(12) && store.claimLaunch(12),
+                "explicit terminal reset releases launch bookkeeping");
+        store.discardAll();
+        check(store.claimLaunch(12), "replacement resets the prior launch marker");
+        store.discardAll();
+        check(store.defer(first, 12) && !store.defer(new Object(), 12),
+                "duplicate deferred callback preserves the first confirmation");
+        check(store.take().confirmation == first, "first deferred platform Intent remains paired");
 
-        // Characterize current implementation, not endorse it as a future security policy:
-        // when paused, the last pending callback replaces the previous one.
+        // The caller validates ownership; a different owned session replaces the slot.
         Object newer = new Object();
         store.defer(first, 12);
         store.defer(newer, 17);
@@ -41,6 +52,34 @@ public final class UpdateConfirmationStoreTest {
         store.defer(first, 12);
         store.discardAll();
         check(store.take() == null, "starting newer attempt discards old prompt");
+        check(!store.claimLaunch(-1) && !store.defer(first, -1), "invalid session is never admitted");
+
+        UpdateConfirmationStore<Object> launchRace = new UpdateConfirmationStore<>();
+        launchRace.defer(first, 83);
+        CountDownLatch contendersReady = new CountDownLatch(24);
+        CountDownLatch contendersGo = new CountDownLatch(1);
+        AtomicInteger admitted = new AtomicInteger();
+        AtomicReference<Throwable> launchFailure = new AtomicReference<>();
+        Thread[] contenders = new Thread[24];
+        for (int i = 0; i < contenders.length; i++) {
+            contenders[i] = new Thread(() -> {
+                contendersReady.countDown();
+                try {
+                    contendersGo.await();
+                    if (launchRace.claimLaunch(83)) admitted.incrementAndGet();
+                } catch (Throwable error) { launchFailure.compareAndSet(null, error); }
+            });
+            contenders[i].start();
+        }
+        contendersReady.await(); contendersGo.countDown();
+        for (Thread contender : contenders) contender.join();
+        if (launchFailure.get() != null) throw new AssertionError(launchFailure.get());
+        check(admitted.get() == 1 && launchRace.take() == null,
+                "competing launch claims admit one caller and consume the deferred slot");
+        check(launchRace.discardSession(83) && launchRace.claimLaunch(89),
+                "new native session remains eligible after terminal cleanup");
+        check(!launchRace.discardSession(83) && !launchRace.claimLaunch(89),
+                "old terminal cleanup cannot release the newer launch marker");
 
         // Two threads may race across lifecycle/callback boundaries; a pair may
         // never be torn, even if the current one-slot policy discards another event.

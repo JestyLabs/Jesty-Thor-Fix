@@ -213,13 +213,15 @@ final class AppUpdater {
             showConfirmation(visible, confirmation, sessionId);
             return;
         }
-        pendingConfirmations.defer(confirmation, sessionId);
-        Toast.makeText(context, "Open Jesty Thor Fix to finish the update",
-                Toast.LENGTH_LONG).show();
+        if (pendingConfirmations.defer(confirmation, sessionId)) {
+            Toast.makeText(context, "Open Jesty Thor Fix to finish the update",
+                    Toast.LENGTH_LONG).show();
+        }
     }
 
     private static void showConfirmation(Activity visible, Intent confirmation, int sessionId) {
         if (!installSessions.ownsSession(sessionId)) return;
+        if (!pendingConfirmations.claimLaunch(sessionId)) return;
         try {
             visible.startActivity(confirmation);
         } catch (Throwable error) {
