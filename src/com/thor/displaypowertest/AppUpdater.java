@@ -61,8 +61,8 @@ final class AppUpdater {
 
     // Shared with UpdateInstallReceiver (same process, main thread).
     private static WeakReference<Activity> resumedActivity = new WeakReference<>(null);
-    private static Intent pendingConfirmation;
-    private static int pendingSessionId = -1;
+    private static final UpdateConfirmationStore<Intent> pendingConfirmations =
+            new UpdateConfirmationStore<>();
 
     static final String REPOSITORY = "JestyLabs/Jesty-Thor-Fix";
     private static final String API = "https://api.github.com/repos/" + REPOSITORY;
@@ -151,12 +151,9 @@ final class AppUpdater {
     void onResume() {
         resumed = true;
         resumedActivity = new WeakReference<>(activity);
-        Intent confirmation = pendingConfirmation;
-        if (confirmation != null) {
-            int sessionId = pendingSessionId;
-            pendingConfirmation = null;
-            pendingSessionId = -1;
-            showConfirmation(activity, confirmation, sessionId);
+        UpdateConfirmationStore.Pending<Intent> pending = pendingConfirmations.take();
+        if (pending != null) {
+            showConfirmation(activity, pending.confirmation, pending.sessionId);
             return;
         }
         Release release = awaitingInstallPermission;
@@ -200,8 +197,7 @@ final class AppUpdater {
             showConfirmation(visible, confirmation, sessionId);
             return;
         }
-        pendingConfirmation = confirmation;
-        pendingSessionId = sessionId;
+        pendingConfirmations.defer(confirmation, sessionId);
         Toast.makeText(context, "Open Jesty Thor Fix to finish the update",
                 Toast.LENGTH_LONG).show();
     }
@@ -232,7 +228,7 @@ final class AppUpdater {
         try {
             PackageInstaller installer = context.getPackageManager().getPackageInstaller();
             for (PackageInstaller.SessionInfo session : installer.getMySessions()) {
-                if (session.getSessionId() != pendingSessionId) {
+                if (session.getSessionId() != pendingConfirmations.pendingSessionId()) {
                     abandonSession(context, session.getSessionId());
                 }
             }
