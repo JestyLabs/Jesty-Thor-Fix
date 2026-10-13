@@ -428,6 +428,7 @@ final class AppUpdater {
             busy.set(false);
             return;
         }
+        final int supersededSession = installSessions.currentSessionId();
         final long attempt = installSessions.beginTransfer();
         if (attempt < 0L) {
             commitGate.finish();
@@ -435,9 +436,11 @@ final class AppUpdater {
             toast("An update is already being prepared");
             return;
         }
-        // A new attempt supersedes a previous Android confirmation. Its session
-        // is no longer permitted to act on the next attempt's download cache.
+        // A new attempt supersedes a previous Android confirmation. Abandon the
+        // superseded native session as well: an older Android consent screen must
+        // not remain installable while the next update is being prepared.
         pendingConfirmations.discardAll();
+        if (supersededSession >= 0) abandonSession(activity, supersededSession);
         cancelled.set(false);
         host.setInstallReserved(true);
 
