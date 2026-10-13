@@ -407,6 +407,7 @@ $sources = @(
     (Join-Path $repository 'tests\LegacyDaemonIdentityTest.java'),
     (Join-Path $repository 'tests\PreviousSecureDaemonIdentityTest.java'),
     (Join-Path $repository 'tests\PropertyStateTest.java'),
+    (Join-Path $repository 'tests\ProcessWaitTest.java'),
     (Join-Path $repository 'tests\HallNodeModelTest.java'),
     (Join-Path $repository 'tests\BridgeFailureDiagnosticTest.java'),
     (Join-Path $repository 'tests\HandoffRecoveryModelTest.java'),
@@ -445,6 +446,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Daemon launch model tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Daemon launch script tests failed.' }
 & java -cp $output PropertyStateTest
 if ($LASTEXITCODE -ne 0) { throw 'Property-state tests failed.' }
+& java -cp $output ProcessWaitTest
+if ($LASTEXITCODE -ne 0) { throw 'Bounded child-process wait tests failed.' }
 & java -cp $output DisplayDecisionModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Display decision tests failed.' }
 & java -cp $output DisplayGenerationModelTest
