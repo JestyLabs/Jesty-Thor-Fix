@@ -6,10 +6,16 @@
 
 - Original workstream base: `main` at `281e8c9f1d0982bc766843d1be083cb93e19cb7d` (2026-10-12). The v1.7.1 code76 source, UI-only follow-up and physical evidence were integrated into `main` (published release commit `f929ff910bfa8e5179a2c6a63948a18fc3d6b252`); stable v1.7.1 was published on 2026-10-12. **The branch was reconciled with accepted `main` at `8f0e7ca815c72b2d66b2dc1762c235e247ab32bb` on 2026-10-13, using an ancestry-preserving merge (`60066a3152b8d10f1556a695a32d5be21f11ab2d`). Recheck for later `main` changes before future code/workflow edits.**
 - RC3 draft #63 and old recovery #64 were closed unmerged; their accepted functionality was integrated via code76 #68. Code77 contingency #69 was archived unmerged. Mixed-refresh #37 remains an independent research PR. **Do not revisit or modify the published v1.7.1 APK through this maintenance track.**
-- Following explicit authorization for more offline work on 2026-10-13, this draft now includes new **host-only updater/IPC tests**, a **test-only SystemClock fixture**, and one small **production client-side IPC response-check correction** in `SocketClient`, delegated to `DaemonResponsePolicy`. Boot/display/CPU/Lid Guard, daemon command handling, updater installation, CI policies, signing, releases and physical device are untouched. The IPC runtime change must not ship without final CI and affected-path acceptance.
+- Following the owner's offline-only authorization, this draft now contains **multiple scoped runtime changes** (updater session ownership/receiver, strict IPC ACK, listener rejected-close recovery, conservative external-display parser and UI access-labeling). Boot trace formatting is extracted without boot decisions changing; CPU controller, compositor restart, display-power commands, signing, release APK and physical Thor remain untouched. The final PR head, independent updater coupling, IPC and UI gates are still required before any release.
 - Before any implementation step, inspect the accepted RC3 baseline, identify overlaps with ongoing PRs, and update this branch from the approved target. Re-evaluate each work item against code that actually shipped, rather than refactoring an outdated snapshot.
 - Implement and review **one small, independently testable step at a time**. Each step needs a focused diff, named tests, a brief risk assessment and explicit evidence level. Keep the PR in draft until the agreed acceptance gates are complete.
 - No automatic merge, release, signing, device installation, privileged fault injection or physical testing. Those actions need separate authorization.
+
+## Offline execution ledger — 2026-10-13
+
+**Implemented/characterized:** narrow updater confirmation and session ownership; BootCoordinator trace-only formatter; strict IPC ACK and listener close-failure fix; fail-closed external-display parser; host stress/CPU/boot matrices; switch labels/keyboard semantics; contributor quick start; documented release, SDK, energy, accessibility and final physical matrix.
+
+**Remaining independent gates:** Codex real AppUpdater+receiver coupled reproductions and Android PackageInstaller lifecycle; exact final SHA JDK17 CI/CodeQL/emulator; live GitHub admin required-check review; native peer credential/SELinux/timeout and independent security review; Android TalkBack/visual/font-scale verification; optionally measurable battery/gameplay effects. **Thor physical tests, merge, signing and publication come LAST and require owner approval.**
 
 ## Workstream checklist
 
@@ -38,16 +44,16 @@
 
 ### 3. Device acceptance matrix
 
-- [ ] Reconcile RC3 device-test results and already completed coverage first; avoid repeating captures without a specific unanswered question.
-- [ ] Prepare scoped cases for BOTTOM-only, docking/external displays, closed-lid states and supported-firmware transitions.
-- [ ] Define setup, preconditions, observed hardware state, safe stop conditions and rollback/recovery path for each case.
+- [x] Reconcile existing RC2/code76 physical observations in [the published validation evidence](VALIDATION-EVIDENCE.md); positive closed-lid Guard interception remains NOT OBSERVED. **No device was touched for PR #67.**
+- [x] Prepare [one consolidated future physical acceptance matrix](ENGINEERING-HARDENING-PHYSICAL-EXIT-MATRIX-2026-10-13.md) with separately gated BOTTOM-only, dock/external, closed lid and firmware variants. **All PR #67 cases remain NOT RUN.**
+- [x] Document entry requirements, safe stops, exact APK provenance, scoped measurements and final state restoration in the consolidated physical matrix. It is a plan, not approval to run.
 - [ ] Obtain explicit device-owner approval before each new physical write/installation/restart test; maintain private raw evidence and public sanitized summaries.
 
 **Gate:** version-pinned, physically observed acceptance for each scenario claimed. Unsupported firmware/revisions remain unclaimed unless directly exercised.
 
 ### 4. Privileged IPC and lifecycle robustness
 
-- [ ] Review Unix-socket peer identity, permissions, stale endpoint ownership and bounded concurrency/timeout paths.
+- [x] Perform [static socket/identity/queue/lifecycle review](ENGINEERING-HARDENING-IPC-REVIEW-2026-10-13.md) and real DaemonIpcServer host-fake stress tests. **Native kernel peer credentials, SELinux, timeout and independent security review remain pending.**
 - [x] Add strict client response-ACK boundary: `SocketClient.request` uses `DaemonResponsePolicy` rather than trusting any `ok=1` prefix; reject `ok=10`/`ok=1x`. Pure host tests wired into Windows CI. **Await actual CI and physical daemon-command regression before any release.**
 - [ ] Complete privileged IPC adversarial acceptance beyond host simulation. **Implemented in PR #67:** `IpcPeerPolicyTest` exhaustively covers 512 POSIX permission combinations and UID extremes; `DaemonIpcServerHostTest` compiles the real listener against disposable Android socket, UID and command fakes and tests unauthorized-before-read, EOF, unknown commands, I/O and handler errors, 2 running + 4 queued + 1 rejected clients, and continuation after a rejected client's `close()` throws. The latter was reproduced failing before [the narrow listener fix](https://github.com/JestyLabs/Jesty-Thor-Fix/commit/80be3009dcb030e1e866920bffbf8a0e2a7de521) and passing after in local JDK 21 tests. **Pending:** final PR Java 17 CI, real kernel UID/SELinux/socket inode enforcement, Android timeout behavior, and independent security review; these are not established by fakes.
 - [x] Exercise queue saturation and read/write/handler/close faults with host-only socket fakes; **no vendor service was stopped or manipulated**. No trusted native socket/peer-credential claim made.
@@ -57,7 +63,7 @@
 
 ### 5. Contributor and build reproducibility
 
-- [ ] Inventory documented tool versions, checksums, operating-system requirements, build inputs and repeatability of the existing Windows/Apktool pipeline.
+- [x] Inventory Windows, JDK 17, Android API 34 / Build Tools 35.0.0, SHA-pinned Apktool 3.0.3 and unsigned build inputs in [quick start](CONTRIBUTOR-QUICKSTART.md); Codex previously reported clean unsigned build/JDK17 suite PASS through head 0b268e1. The **final head** still requires its own CI.
 - [x] Add [credential-free contributor quick start](CONTRIBUTOR-QUICKSTART.md) and link from `CONTRIBUTING.md`: JDK 17, Android SDK API 34, Build Tools 35.0.0, SHA-pinned Apktool 3.0.3, all public test suites and unsigned `build.ps1`. **Fresh independent Windows checkout validation assigned to offline Codex; do not mark the clean-environment acceptance gate passed yet.**
 - [ ] Consider containerized/toolchain bootstrap or Gradle feasibility only if measurable benefits outweigh migration and binary-compatibility risk; do not force a build-system rewrite.
 - [ ] Verify that public source builds remain distinct from exact signed, hardware-accepted release artifacts.
@@ -74,9 +80,9 @@
 
 **Code-path hypothesis, not measured attribution:** in TOP, the display coordinator additionally checks wake/panel state and retains verified wake-repair safety. The watcher uses a 500 ms idle settings check and approximately 1 s DRM safety cadence; observed CPU is primarily watcher work. The contribution of any particular helper or vendor property read has not been isolated.
 
-- [ ] With code76 physical CPU, BOTH/TOP quiet-suspend and basic Lid Guard ON recovery smoke now completed, reconcile existing owner-private trace/counter snapshots with the exact integrated code76 source and RC2 reference. The optional Guard's *active* blocked-wake path was not observed and must not be marked validated by inference.
-- [ ] Inspect existing sample counts, DRM-read deltas, event/burst activity, property reads, thread CPU ticks and relevant TOP/BOTH control paths. Compare actual stable windows, not only source-level invocation estimates.
-- [ ] Distinguish hardware-mode-specific safety work from avoidable redundant execution. Establish a baseline with no unnecessary Thor interaction; profile offline first.
+- [x] Reconcile RC2/code76 measured BOTH/TOP and quiet-suspend evidence plus Guard ON normal recovery; explicit Guard active blocked-wake path remains NOT OBSERVED.
+- [x] Review existing physical thread-tick CSV and daemon windows; TOP Thread-1 sampled CPU predominates but Java method attribution is not available. Current measured results meet the declared low-overhead budget.
+- [x] Distinguish proven daemon CPU from **hypothesized** TOP safety work; absent Java stack or workload attribution there is no demonstrated avoidable work, so **no watcher code change is justified**. See [optional measurement protocol](ENGINEERING-HARDENING-MEASUREMENT-PROTOCOL-2026-10-13.md).
 - [ ] If a real, significant avoidable cost is isolated, propose **a separate narrow change** with host characterization, regression tests and unchanged physical display states and wake-repair correctness.
 - [ ] Any change to sampling interval, DRM safety read, compositor/display interaction or wake repair needs **separate approval and physical A/B validation** before acceptance. Do not weaken the 500 ms/1 s safety fallbacks solely to achieve parity with BOTH.
 - [ ] Report the outcome as either *observed necessary safety overhead — no code change* or *demonstrated avoidable work — reviewed optimization with unchanged correctness*.
@@ -148,7 +154,7 @@ This section records **only additional actionable gaps** not adequately tracked 
 - [x] Record release asset metadata SHA-256/size, manifest package/version, source SHA and successful CI/sign/publish run; [release integrity](RELEASE-INTEGRITY.md#171-stable-publication--verifiable-public-metadata-2026-10-12) distinguishes public workflow provenance, **independent offline rehash of the owner's archived published APK**, and separately reported offline signer/package checks. No new on-device install or fresh independent network re-download is claimed.
 - [x] Add v1.7.1 stable release provenance to `docs/RELEASE-INTEGRITY.md`, explicitly separating the physically tested code76 candidate from the final UI-only-different stable APK.
 - [x] Update the current-state `docs/VALIDATION-EVIDENCE.md` summary, annotate `docs/RELEASE-READINESS-1.7.1.md` as historical and clarify `docs/COMPATIBILITY.md` Guard limits. **Active Guard interception remains NOT OBSERVED**; historical unknown cases remain unchanged.
-- [ ] Add a release-document consistency check if it can reliably detect stale current-version/status references without trying to mechanically rewrite historical documents.
+- [x] Add [current release/manifest provenance contract](../scripts/test-current-release-contract.ps1) to CI: version/tag/code76 source SHA, target SDK 25 baseline, non-exported installer receiver, active Guard and historical readiness caveats. This deliberately ignores unrelated historical versions. **CI on final head still required.**
 
 **Gate:** verified release metadata, no changed APK, no fabricated physical claim, and no loss of historical audit trail. This is a documentation-only release housekeeping task and can be delivered separately; it must not become an excuse to alter the stable app.
 
@@ -167,7 +173,7 @@ This section records **only additional actionable gaps** not adequately tracked 
 
 **Observed gap:** updater settings are reached through a long-press on the GitHub action, an interaction without an obvious visible affordance. The hand-built, landscape-only Android dashboard lacks documented systematic TalkBack, font scaling and alternate input validation.
 
-- [ ] Audit every settings/diagnostics/update entry point for obvious affordances; specifically consider a visible and clearly named updates/settings access path instead of relying solely on the GitHub long-press. Preserve user consent and all updater safety gates.
+- [x] Complete [offline accessibility entry-point review](ENGINEERING-HARDENING-UI-A11Y-2026-10-13.md); static labels added to empty-text switches, actions made keyboard focusable, GitHub long-press documented to TalkBack, decorative background excluded. **Separately proposed visible Update Settings action remains a UI product/visual review decision.**
 - [ ] Run a targeted manual accessibility checklist: TalkBack content descriptions/focus order, actionable hit areas, contrast, larger fonts/text clipping, keyboard/controller navigation and landscape behavior. Record what was actually tested.
 - [ ] Treat UI changes as independent opt-in product work: no privileged daemon, install gate, watcher or display-power changes; retain screenshot or on-device visual verification for any altered UI.
 
@@ -177,9 +183,9 @@ This section records **only additional actionable gaps** not adequately tracked 
 
 **Observed gap:** `targetSdkVersion=25` is intentional but carries future compatibility cost. Hardware display/CRTC/Hall constants and the vendor `PServerBinder` are specific to tested Thor firmware. A generic Android build or another dual-screen device cannot establish support.
 
-- [ ] Maintain a **non-executing feasibility audit** of target SDK migration: boot/background service behavior, hidden API/bridge access, install-source permissions, PackageInstaller callbacks, exported components and tests needed before any target change. Do **not** raise the target in this track without explicit physical approval.
-- [ ] Clearly separate validated Thor firmware/device revisions from untested dock, external display, BOTTOM-only or other hardware variants, cross-referencing item 3 rather than re-running that matrix.
-- [ ] Reduce single-maintainer dependency with precise clean-checkout/test/build instructions, public troubleshooting, artifact/test provenance and contributor-friendly failure messages; link to item 5 instead of a build-system rewrite.
+- [x] Publish [non-executing target SDK 25 migration feasibility matrix](ENGINEERING-HARDENING-SDK-FEASIBILITY-2026-10-13.md) covering boot services, Binder reflection, install consent and exported components. **No target, minSDK, manifest or signing-policy change.**
+- [x] Separate documented Android 13 Thor tested firmware from unverified dock, external display, BOTTOM-only and other devices in [compatibility](COMPATIBILITY.md) and the [future physical matrix](ENGINEERING-HARDENING-PHYSICAL-EXIT-MATRIX-2026-10-13.md); no expanded support claim.
+- [x] Provide documented pinned toolchain, sanitized troubleshooting instructions, unsigned build and test suite in [contributor quick start](CONTRIBUTOR-QUICKSTART.md), plus release provenance contract; **no Gradle migration**. Independent final-head clean checkout remains optional confirmation.
 
 **Gate:** an accurate support boundary and executable contributor setup; no new compatibility claim without the exact firmware/device evidence.
 
@@ -187,9 +193,9 @@ This section records **only additional actionable gaps** not adequately tracked 
 
 **Observed gap:** measured daemon CPU and Android suspend are valuable but do not quantify total battery-runtime improvement or gameplay impact. Power proxies, short snapshots and CPU-tick percentages must not be presented as controlled battery-life or frame-time results.
 
-- [ ] Define an **optional, separate** energy study with repeatable workload, brightness, wireless/USB state, environment, instrumentation and matched A/B(A) configurations; use calibrated electrical measurements when possible. Preserve the distinction between proxy readings, suspend duration and measured energy.
-- [ ] Define an optional gameplay performance sanity matrix (frame times, input/frame pacing and background daemon behavior) if a real user-facing regression is suspected; do not add a continuous runtime diagnostic solely for this study.
-- [ ] Record test-tier/branch coverage explicitly (host state models, Android emulator, physical Thor, and **not tested**); investigate quantitative coverage only if it improves assurance on the boot/updater/IPC paths, rather than pursuing a cosmetic percentage.
+- [x] Define [optional energy A/B/A protocol](ENGINEERING-HARDENING-MEASUREMENT-PROTOCOL-2026-10-13.md) with calibrated meter/Wh distinction, fixed workload and temperature/USB controls. **Protocol only; NOT RUN.**
+- [x] Define optional game performance sanity matrix (fixed workload, median/p95/p99 frame time, throttling, A/B/A) in [measurement protocol](ENGINEERING-HARDENING-MEASUREMENT-PROTOCOL-2026-10-13.md); **NOT RUN**, no new telemetry polling.
+- [x] Record host-model, production-with-fakes, Android emulator, pinned physical, and **NOT RUN** tiers in [measurement protocol](ENGINEERING-HARDENING-MEASUREMENT-PROTOCOL-2026-10-13.md). Do not invent coverage percentages.
 - [ ] Prefer independent review of privileged behavior and real failure cases over additional documentation or feature count (cross-reference items 2 and 4).
 
 **Gate:** meaningful, repeatable measurements with transparent limitations. Optional performance/energy investigations are **not** retroactive release blockers for v1.7.1.
