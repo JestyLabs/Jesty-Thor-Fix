@@ -26,8 +26,23 @@
 </p>
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/d1f1d875-792b-4b84-8d52-41b307d11ae4" alt="Jesty Thor Fix on the Thor: true lower-screen power-off compared with stock TOP mode" width="900">
+  <img src="assets/photos/thor-v171-hero.jpg" alt="Jesty Thor Fix v1.7.1 on a physical AYN Thor, with True Bottom Screen Off and CPU Fix enabled" width="880">
 </p>
+
+<p align="center"><sub>Jesty Thor Fix v1.7.1 running on a real AYN Thor — both fixes enabled, lower screen truly powered off.</sub></p>
+
+<table>
+  <tr>
+    <th align="center">TRUE OFF + CPU FIX ON</th>
+    <th align="center">AYN NATIVE TOP · FIXES OFF</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/screenshots/thor-v171-true-off.jpg" alt="v1.7.1 app screenshot: TRUE OFF, CPU Fix active, normal CPU clocks, battery-draw readout around 0.95 W" width="520"></td>
+    <td align="center"><img src="assets/screenshots/thor-v171-native-top.jpg" alt="v1.7.1 app screenshot: stock AYN black-screen mode, CPU clocks pinned high, battery-draw readout around 1.72 W" width="520"></td>
+  </tr>
+</table>
+
+<p align="center"><sub>Current app screenshots on the same Thor. The displayed readings are instantaneous, not battery-life results.</sub></p>
 
 ---
 
@@ -38,21 +53,18 @@
 | **True Bottom Screen Off** | When you use just the top screen, **actually powers down the lower display**, not just the image on it. Restores the correct state after sleep and wake. |
 | **AYN Dashboard CPU Fix** | Stops the Dashboard from keeping CPU speeds unnecessarily high while the Thor is idle. No manual CPU tuning needed. |
 | **Closed-Lid Wake Guard** | Optional protection for unexpected wakes with the lid shut. **You choose whether to enable it**; it starts switched off. Normal sleep/wake recovery was hardware-tested, but an actual blocked wake has not been captured. |
-| **App Diagnostics (v1.7.1)** | Tap the **gear at the top** to see recent events, save a troubleshooting report and try the optional Sleep Trial. |
 
 You can close the app after setting it up; the fixes keep working.
-
-<p align="center">
-  <img src="docs/images/dashboard-both-v1.5.15-review.png" alt="Jesty Thor Fix dashboard on a real AYN Thor; older app screenshot" width="760">
-</p>
-
-<p align="center"><sub>Dashboard on a real AYN Thor (earlier version shown; v1.7.1 moves Diagnostics to the top).</sub></p>
 
 ---
 
 ### Measured on a real Thor
 
-**Switching off the bottom screen makes a measurable difference** — not just a black picture. In a controlled test on a physical AYN Thor, the lower display really powered down, and the high-performance CPU cluster stopped staying near its maximum frequency.
+**The fix does more than display a black image.** On physical AYN Thor hardware, the lower display pipeline was verified as powered off in TOP mode, while the CPU fix addressed unusually high idle clock speeds.
+
+#### Controlled A/B/A benchmark
+
+The September 2026 test used repeated, logged 1-second samples under matched conditions. The results below are **system-power proxy** measurements, not a direct battery-life test.
 
 <p align="center">
   <img src="assets/charts/thor-top-mode-power.svg" alt="Controlled TOP-mode comparison: native mode showed about 2.03 W of estimated system-power proxy; True Bottom Screen Off showed about 1.24 W, roughly 39 percent lower in this test." width="880">
@@ -66,13 +78,26 @@ You can close the app after setting it up; the fixes keep working.
 
 **From stuck-near-maximum to normal clock behaviour:** all **75/75** native TOP samples were near the performance cluster's maximum speed, compared with **0/45** after the screen was really powered off.
 
-**[See the full A/B/A benchmark and raw measurements](docs/BENCHMARKS.md)** · [How display power-off was validated](docs/DEVICE-VALIDATION.md)
+#### New: v1.7.1 real-device photo readings
+
+These are the exact **app-reported battery-draw values visible in nine photos** of v1.7.1, with TOP mode selected:
+
+| Configuration in photographs | On-screen readings | Observed range |
+| --- | --- | ---: |
+| **True Bottom Screen Off + CPU Fix ON** | 0.95, 0.98, 0.97, 0.97 W | **0.95–0.98 W** |
+| **AYN native TOP, both fixes OFF** | 1.91, 1.43, 1.91, 2.27, 1.77 W | **1.43–2.27 W** |
+
+<p align="center">
+  <img src="assets/charts/thor-v171-photo-readings.svg" alt="Nine photographed v1.7.1 app battery-draw readouts: four with both fixes on from 0.95 to 0.98 W and five with fixes off from 1.43 to 2.27 W. These were not a matched benchmark." width="880">
+</p>
+
+These are **individual on-screen moments with different feature settings**. They are *not* a new controlled benchmark, should not be merged with the earlier system-power proxy data, and **do not establish a percentage saving or longer battery runtime**. The photographed CPU clocks likewise show configuration-dependent snapshots, not CPU-time averages.
+
+**[Full A/B/A benchmark and raw measurements](docs/BENCHMARKS.md)** · [How display power-off was validated](docs/DEVICE-VALIDATION.md)
 
 ### Lightweight in the background
 
 The app's own CPU usage stays tiny, too. In separate physical idle tests, daemon CPU use with **both screens active** fell from about **0.29% to 0.09% of one CPU core** — around **70% less than the earlier RC2 candidate**. In TOP mode it remained around **0.32% of a core**.
-
-No extra CPU polling is introduced when Diagnostics is closed. The updated candidate also passed sustained Android sleep tests in both display modes; those tests measure time asleep, **not battery lifetime**.
 
 [View the full hardware validation dossier](docs/VALIDATION-EVIDENCE.md) · [CPU and sleep measurements](docs/evidence/CODE76-PHYSICAL-VALIDATION-2026-10-12.md)
 
