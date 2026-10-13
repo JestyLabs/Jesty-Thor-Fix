@@ -33,11 +33,13 @@ $confirmationModel = Join-Path $repository 'src\com\thor\displaypowertest\Update
 $confirmationTest = Join-Path $repository 'tests\com\thor\displaypowertest\UpdateConfirmationStoreTest.java'
 $sessionModel = Join-Path $repository 'src\com\thor\displaypowertest\UpdateSessionOwnership.java'
 $sessionTest = Join-Path $repository 'tests\com\thor\displaypowertest\UpdateSessionOwnershipTest.java'
+$replacementModel = Join-Path $repository 'src\com\thor\displaypowertest\ReplacementSessionPolicy.java'
+$replacementTest = Join-Path $repository 'tests\com\thor\displaypowertest\ReplacementSessionPolicyTest.java'
 $readiness = Join-Path $repository 'src\com\thor\displaypowertest\UpdateReadiness.java'
 $readinessTest = Join-Path $repository 'tests\com\thor\displaypowertest\UpdateReadinessTest.java'
 $clockFixture = Join-Path $repository 'tests\fixtures\android\os\SystemClock.java'
 
-& javac -source 8 -target 8 -d $output $model $test $warningModel $warningTest $updateModel $updateTest $commitGateModel $commitGateTest $readiness $readinessTest $clockFixture $confirmationModel $confirmationTest $sessionModel $sessionTest
+& javac -source 8 -target 8 -d $output $model $test $warningModel $warningTest $updateModel $updateTest $commitGateModel $commitGateTest $readiness $readinessTest $clockFixture $confirmationModel $confirmationTest $sessionModel $sessionTest $replacementModel $replacementTest
 if ($LASTEXITCODE -ne 0) { throw 'Dashboard test compilation failed.' }
 
 & java -cp $output DashboardStateModelTest
@@ -56,6 +58,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Updater readiness lifecycle tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Updater confirmation lifecycle characterization failed.' }
 & java -cp $output com.thor.displaypowertest.UpdateSessionOwnershipTest
 if ($LASTEXITCODE -ne 0) { throw 'Updater session ownership tests failed.' }
+& java -cp $output com.thor.displaypowertest.ReplacementSessionPolicyTest
+if ($LASTEXITCODE -ne 0) { throw 'Android session replacement policy failed.' }
 
 # Static UI contract: when switches have no visible text, their screen-reader
 # labels must come from their adjacent feature heading; do not couple a TalkBack
