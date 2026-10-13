@@ -362,6 +362,7 @@ New-Item -ItemType Directory -Path $output | Out-Null
 try {
 
 $sources = @(
+    (Join-Path $repository 'src\com\thor\displaypowertest\BootTraceFieldPolicy.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\BootGateModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\DaemonLaunchModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\DaemonLaunchScript.java'),
@@ -401,6 +402,7 @@ $sources = @(
     (Join-Path $repository 'tests\PreviousSecureDaemonIdentityTest.java'),
     (Join-Path $repository 'tests\PropertyStateTest.java'),
     (Join-Path $repository 'tests\ProcessWaitTest.java'),
+    (Join-Path $repository 'tests\com\thor\displaypowertest\BootTraceFieldPolicyTest.java'),
     (Join-Path $repository 'tests\HallNodeModelTest.java'),
     (Join-Path $repository 'tests\BridgeFailureDiagnosticTest.java'),
     (Join-Path $repository 'tests\HandoffRecoveryModelTest.java'),
@@ -441,6 +443,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Daemon launch script tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Property-state tests failed.' }
 & java -cp $output ProcessWaitTest
 if ($LASTEXITCODE -ne 0) { throw 'Bounded child-process wait tests failed.' }
+& java -cp $output com.thor.displaypowertest.BootTraceFieldPolicyTest
+if ($LASTEXITCODE -ne 0) { throw 'Boot trace sanitizer characterization failed.' }
 & java -cp $output DisplayDecisionModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Display decision tests failed.' }
 & java -cp $output DisplayGenerationModelTest
