@@ -25,7 +25,7 @@
 
 ### 2. Android integration coverage
 
-- [ ] Inventory existing host, Android emulator, `PackageInstaller.Session` and update-gate tests; extend rather than duplicate them.
+- [x] Inventory existing host, Android emulator, `PackageInstaller.Session` and update-gate tests; compare gaps in [offline audit](ENGINEERING-HARDENING-OFFLINE-AUDIT-2026-10-13.md). Keep integration implementation as a separate task.
 - [ ] Exercise real platform installation-session callbacks for cancellation before commit, installation denial, stale callbacks and session cleanup in an isolated emulator.
 - [ ] Model reconnect and version handover races with deterministic seams, while keeping production socket credentials and daemon identity checks intact.
 - [ ] Test concurrent lifecycle events and failure recovery in host/emulator environments, explicitly distinguishing simulated behavior from hardware outcomes.
@@ -45,7 +45,7 @@
 ### 4. Privileged IPC and lifecycle robustness
 
 - [ ] Review Unix-socket peer identity, permissions, stale endpoint ownership and bounded concurrency/timeout paths.
-- [ ] Add adversarial *host-only* tests for malformed/unknown one-byte commands, connection floods, interrupted reads, resource exhaustion and authenticated daemon identity/race conditions.
+- [ ] Add adversarial *host-only* tests for malformed/unknown one-byte commands, connection floods, interrupted reads, resource exhaustion and authenticated daemon identity/race conditions. **Partial test-only progress:** `IpcPeerPolicyTest` now exhaustively checks all 512 POSIX permission combinations and UID ownership extremes; locally compiled/executed on OpenJDK 21. The actual daemon/socket lifecycle and CI JDK 17 still require separate validation.
 - [ ] Exercise failures through fakes/mocks, not by stopping or altering vendor services on a live device.
 - [ ] Arrange separate independent security review if available; record its exact scope rather than assuming a static scan is an audit.
 

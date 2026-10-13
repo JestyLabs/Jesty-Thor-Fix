@@ -60,7 +60,8 @@ The current source manifest targets SDK **25** while running on the project's te
 - [x] Identify emulator-versus-main-push gating and which review settings could not be inspected.
 - [x] Inventory the existing host/emulator test tiers and highest-value missing integration cases.
 - [x] Record SDK/firmware support and UX/accessibility/energy follow-ups.
-- [ ] Implement and run new pure host tests against current source in focused follow-up commits.
+- [x] Expand the existing `IpcPeerPolicyTest` host-only test with UID boundary/adversarial cases and an exhaustive `0000`–`0777` socket-permission matrix. Isolated `javac` + `java` execution **PASS on OpenJDK 21** (2026-10-13). Production `IpcPeerPolicy` unchanged; GitHub JDK 17 CI and physical socket credentials **not covered** by this local run.
+- [ ] Extend other pure host tests for daemon read timeouts/partial frames, resource ceilings, installer callbacks and handoff recovery; run supported JDK 17 CI and keep evidence tier explicit.
 - [ ] Verify production updater flow inside a real Android emulator after adding deterministic seams/harnesses.
 - [ ] Confirm effective branch/security-environment policies using an authorized administrator.
 - [ ] Execute hardware-only Guard/dock/BOTTOM/external display tests with explicit owner approval.
