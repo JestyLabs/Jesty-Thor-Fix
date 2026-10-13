@@ -78,6 +78,11 @@ if ($viewsSource -notmatch 'toggle\.setContentDescription\(title\)' -or
 # The emulator checks PackageInstaller; this host harness covers the actual
 # UpdateInstallReceiver callbacks, with disposable Android test-only placeholders.
 & (Join-Path $PSScriptRoot 'test-updater-receiver-host.ps1')
+
+# The production AppUpdater and receiver are compiled together with Android 34
+# and exercised through disposable host UI/PackageInstaller adapters. This is
+# separate from the Android emulator's actual PackageInstaller session harness.
+& (Join-Path $PSScriptRoot 'test-updater-coupling.ps1')
 } finally {
     if (Test-Path -LiteralPath $output) {
         Remove-Item -LiteralPath $output -Recurse -Force
