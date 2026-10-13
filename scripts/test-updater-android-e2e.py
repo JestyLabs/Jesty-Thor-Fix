@@ -49,6 +49,7 @@ def build(out, sdk, java):
     src = [ROOT / f'src/com/thor/displaypowertest/{s}.java' for s in SOURCES]
     src.append(ROOT / 'tests/android/updater-e2e/UpdaterTestActivity.java')
     src.append(ROOT / 'tests/android/updater-e2e/UpdaterTestControlReceiver.java')
+    src.append(ROOT / 'tests/android/updater-e2e/LocalTransport.java')
     execute([java / ('bin/javac' + exe), '-encoding', 'UTF-8', '-source', '8', '-target', '8',
              '-classpath', jar, '-d', classes, *src], env=env)
     execute([tools / ('d8' + bat), '--min-api', '23', '--lib', jar, '--output', dex,
@@ -70,6 +71,7 @@ def build(out, sdk, java):
             package="{PACKAGE}" android:versionCode="{code}" android:versionName="{version}">
           <uses-sdk android:minSdkVersion="{minimum}" android:targetSdkVersion="25"/>
           <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+          <uses-permission android:name="android.permission.INTERNET"/>
           <application android:label="Updater E2E Fixture" android:debuggable="true" android:allowBackup="false"
                        {'android:testOnly="true"' if name == 'test-only' else ''}
                        android:theme="@android:style/Theme.Material.Light">
@@ -150,7 +152,7 @@ class Suite:
         numbers = list(map(int, re.findall(r'\d+', bounds)))
         self.call('shell', 'input', 'tap', str((numbers[0]+numbers[2])//2), str((numbers[1]+numbers[3])//2))
 
-    def fresh(self, fixture='candidate', scenario='normal'):
+    def fresh(self, fixture='candidate', scenario='normal', transport=None):
         # Reinstall base on this dedicated AVD only; no existing production app.
         # A previous failed test can leave the system installer UI above a removed
         # package. Clear that test UI before reinstalling with a different UID.
@@ -158,7 +160,12 @@ class Suite:
         try: self.call('uninstall', PACKAGE)
         except RuntimeError: pass
         self.call('install', self.args.build / 'base.apk')
-        self.command('init')
+        if transport is not None:
+            self.call('shell', 'mkdir', '-p', self.files)
+            self.call('push', transport.certificate, self.files + 'transport-ca.pem')
+            self.command('init', proxy_port=transport.port)
+        else:
+            self.command('init')
         self.call('shell', 'appops', 'set', PACKAGE, 'REQUEST_INSTALL_PACKAGES', 'allow')
         self.call('push', self.args.build / (fixture + '.apk'), self.files + 'candidate.apk')
         self.call('logcat', '-c')
@@ -171,11 +178,11 @@ class Suite:
                   any(n.get('package') == 'com.android.packageinstaller' and n.get('text', '').lower() in ('cancel', 'update')
                       for n in self.ui().iter('node')))
 
-    def settled(self):
+    def settled(self, timeout=30):
         def check():
             state = self.state()
             return state if not state['transfer'] and not state['reserved'] and state['session'] == -1 and state['nativeSessions'] == 0 else False
-        return self.wait(check)
+        return self.wait(check, timeout=timeout)
 
     def case(self, name, action):
         if self.args.case and name not in self.args.case:

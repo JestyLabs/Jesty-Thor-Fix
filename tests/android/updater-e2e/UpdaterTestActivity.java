@@ -46,7 +46,11 @@ public final class UpdaterTestActivity extends Activity implements AppUpdater.Ho
         super.onCreate(state);
         fixtures = getExternalFilesDir(null);
         if (!transportInstalled) {
-            URL.setURLStreamHandlerFactory(protocol -> "https".equals(protocol)
+            int proxyPort = getIntent().getIntExtra("proxy_port", 0);
+            if (proxyPort > 0) {
+                try { LocalTransport.configure(new File(fixtures, "transport-ca.pem"), proxyPort); }
+                catch (Exception failure) { throw new IllegalStateException("Cannot initialize fixture TLS", failure); }
+            } else URL.setURLStreamHandlerFactory(protocol -> "https".equals(protocol)
                     ? new URLStreamHandler() {
                         @Override protected URLConnection openConnection(URL url) {
                             return new FixtureConnection(url);
@@ -151,6 +155,7 @@ public final class UpdaterTestActivity extends Activity implements AppUpdater.Ho
                 .put("lastConfirmationSession", lastConfirmationSession).put("replays", replays)
                 .put("pending", pendingSession())
                 .put("sentinel", new File(getCacheDir(), "updates/sentinel").exists())
+                .put("downloadExists", new File(getCacheDir(), "updates/update.apk").exists())
                 .put("version", getPackageManager().getPackageInfo(getPackageName(), 0).versionName);
         File temporary = new File(fixtures, "state.tmp");
         try (FileOutputStream out = new FileOutputStream(temporary)) {
