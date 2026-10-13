@@ -75,6 +75,8 @@ if ($viewsSource -notmatch 'toggle\.setContentDescription\(title\)' -or
     throw 'Dashboard accessibility baseline regressed (static contract only; TalkBack not yet run).'
 }
 
+& (Join-Path $PSScriptRoot 'test-build-source-boundary.ps1')
+
 # The emulator checks PackageInstaller; this host harness covers the actual
 # UpdateInstallReceiver callbacks, with disposable Android test-only placeholders.
 & (Join-Path $PSScriptRoot 'test-updater-receiver-host.ps1')
