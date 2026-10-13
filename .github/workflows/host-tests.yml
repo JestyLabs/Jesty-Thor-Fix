@@ -35,7 +35,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         with:
           packages: platform-tools
 
@@ -85,7 +85,7 @@ jobs:
         shell: pwsh
         run: ./scripts/test-app-diagnostics.ps1
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -103,7 +103,7 @@ jobs:
           ./build.ps1 -ArtifactBaseName "Jesty-Thor-Fix-${{ steps.app.outputs.version }}"
 
       - name: Upload unsigned APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: unsigned-build-v${{ steps.app.outputs.version }}-${{ github.sha }}
           path: dist/Jesty-Thor-Fix-${{ steps.app.outputs.version }}-unsigned.apk
@@ -142,7 +142,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         with:
           packages: platform-tools
 
@@ -151,7 +151,7 @@ jobs:
         run: sdkmanager "build-tools;35.0.0"
 
       - name: Download exact same-run unsigned CI artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: unsigned-build-v${{ needs.build.outputs.version }}-${{ github.sha }}
           path: unsigned
@@ -247,7 +247,7 @@ jobs:
           "$hash  $($apk.Name)" | Set-Content -LiteralPath 'dist/candidate-sha256.txt' -Encoding ascii
 
       - name: Upload signed main candidate
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: signed-candidate-v${{ needs.build.outputs.version }}-${{ github.sha }}
           path: |
@@ -276,7 +276,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         with:
           packages: platform-tools
 
@@ -284,7 +284,7 @@ jobs:
         run: sdkmanager "build-tools;35.0.0" "platforms;android-34"
 
       - name: Download exact unsigned APK from this CI run
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: unsigned-build-v${{ needs.build.outputs.version }}-${{ github.sha }}
           path: emulator-input

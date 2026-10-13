@@ -34,7 +34,7 @@ if ($build -match 'THOR_KEYSTORE_B64|THOR_KEYSTORE_PASSWORD|secrets\.|environmen
 if ($sign -notmatch 'needs: build' -or
     $sign -notmatch 'environment: thor-signing' -or
     $sign -notmatch 'THOR_SIGNING_ENV_READY' -or
-    $sign -notmatch 'actions/download-artifact@v4' -or
+    $sign -notmatch 'actions/download-artifact@v8' -or
     $sign -notmatch 'signed-candidate-v') {
     throw 'Main candidate signing must depend on build and the protected signing environment.'
 }
