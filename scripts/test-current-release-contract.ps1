@@ -33,8 +33,8 @@ if (-not $readme.Contains($releaseTag) -or
 }
 # Only constrain the current release section; historical 1.7.0 and earlier
 # measurements deliberately stay untouched.
-$integrityHeading = [regex]::Match($integrity, '(?m)^## ' + [regex]::Escape($version)
-    + ' stable publication\b[^\r\n]*')
+$integrityHeaderPattern = '(?m)^## ' + [regex]::Escape($version) + ' stable publication\b[^\r\n]*'
+$integrityHeading = [regex]::Match($integrity, $integrityHeaderPattern)
 if (-not $integrityHeading.Success) {
     throw "Release integrity lacks a current stable-publication section for v$version."
 }
