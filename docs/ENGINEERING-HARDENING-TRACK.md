@@ -4,7 +4,7 @@
 
 ## Scope and integration boundary
 
-- Original workstream base: `main` at `281e8c9f1d0982bc766843d1be083cb93e19cb7d` (2026-10-12). The v1.7.1 code76 source, UI-only follow-up and physical evidence were integrated into `main` (published release commit `f929ff910bfa8e5179a2c6a63948a18fc3d6b252`); stable v1.7.1 was published on 2026-10-12. **This draft branch is behind `main`; reconcile against the then-current accepted `main` before any runtime or workflow edits.**
+- Original workstream base: `main` at `281e8c9f1d0982bc766843d1be083cb93e19cb7d` (2026-10-12). The v1.7.1 code76 source, UI-only follow-up and physical evidence were integrated into `main` (published release commit `f929ff910bfa8e5179a2c6a63948a18fc3d6b252`); stable v1.7.1 was published on 2026-10-12. **The branch was reconciled with accepted `main` at `8f0e7ca815c72b2d66b2dc1762c235e247ab32bb` on 2026-10-13, using an ancestry-preserving merge (`60066a3152b8d10f1556a695a32d5be21f11ab2d`). Recheck for later `main` changes before future code/workflow edits.**
 - RC3 draft #63 and old recovery #64 were closed unmerged; their accepted functionality was integrated via code76 #68. Code77 contingency #69 was archived unmerged. Mixed-refresh #37 remains an independent research PR. **Do not revisit or modify the published v1.7.1 APK through this maintenance track.**
 - With v1.7.1 now published, this PR remains **documentation/planning-only until separately approved, re-baselined steps are selected**. No daemon, boot, CPU Fix, Lid Guard, display, IPC, updater, workflow, signing or install changes are authorized by this update.
 - Before any implementation step, inspect the accepted RC3 baseline, identify overlaps with ongoing PRs, and update this branch from the approved target. Re-evaluate each work item against code that actually shipped, rather than refactoring an outdated snapshot.
@@ -131,15 +131,17 @@ Follow [public evidence policy](PUBLIC-EVIDENCE-POLICY.md), [research workflow](
 
 ## 9. Follow-ups from independent code/release audit (2026-10-13)
 
+**Static offline inventory and verified release references:** [2026-10-13 offline audit](ENGINEERING-HARDENING-OFFLINE-AUDIT-2026-10-13.md). The release provenance, published-status index, Guard compatibility claim and CI inventory were updated in this PR. Physical and GitHub-admin checks remain separate.
+
 This section records **only additional actionable gaps** not adequately tracked by items 1–6; it does not re-score the project or widen the already published v1.7.1 release. Existing work already covers architecture/controller boundaries (1), updater + lifecycle integration (2), device matrix and active Guard validation (3), adversarial IPC review (4), reproducible contributor builds (5), and TOP-only daemon CPU attribution (6). The isolated bright-flash question remains in [issue #65](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/65) / refresh research [#37](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/37); do not duplicate or imply a proven root cause.
 
 ### 9A. P1 — reconcile shipped-release documentation and provenance
 
 **Observed gap:** the stable [v1.7.1 GitHub release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.1) was published on 2026-10-12, but some retained readiness/evidence material still describes code76 final approval/publication as pending, and `docs/RELEASE-INTEGRITY.md` has no v1.7.1 stable record corresponding to the v1.7.0 record. Historical pre-release plans must remain traceable, not be silently rewritten as though every proposed gate was physically exercised.
 
-- [ ] Verify the exact published asset's SHA-256, certificate, package/versionCode, source commit and successful source CI/publish run; derive values from the actual release artifact and recorded provenance, **never invent hashes or assume an RC test APK is byte-identical**.
-- [ ] Add a concise v1.7.1 stable promotion entry to `docs/RELEASE-INTEGRITY.md`, explicitly distinguishing physically accepted code76 candidate evidence from any subsequent UI-only artifact differences.
-- [ ] Update the *current-state* summary in `docs/VALIDATION-EVIDENCE.md` and annotate completed release-readiness material with final publication status. Retain old pending/unknown observations as historical evidence; notably **active Closed-Lid Wake Guard blocked-wake interception was not observed** and must not become a PASS by implication.
+- [x] Record release asset metadata SHA-256/size, manifest package/version, source SHA and successful CI/sign/publish run; [release integrity](RELEASE-INTEGRITY.md#171-stable-publication--verifiable-public-metadata-2026-10-12) labels GitHub-metadata and workflow-verified facts separately. **Independent local APK rehash/certificate verification remains not performed**; do not mark that additional check as complete.
+- [x] Add v1.7.1 stable release provenance to `docs/RELEASE-INTEGRITY.md`, explicitly separating the physically tested code76 candidate from the final UI-only-different stable APK.
+- [x] Update the current-state `docs/VALIDATION-EVIDENCE.md` summary, annotate `docs/RELEASE-READINESS-1.7.1.md` as historical and clarify `docs/COMPATIBILITY.md` Guard limits. **Active Guard interception remains NOT OBSERVED**; historical unknown cases remain unchanged.
 - [ ] Add a release-document consistency check if it can reliably detect stale current-version/status references without trying to mechanically rewrite historical documents.
 
 **Gate:** verified release metadata, no changed APK, no fabricated physical claim, and no loss of historical audit trail. This is a documentation-only release housekeeping task and can be delivered separately; it must not become an excuse to alter the stable app.
