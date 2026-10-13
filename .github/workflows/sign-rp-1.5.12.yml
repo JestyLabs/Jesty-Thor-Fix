@@ -2,6 +2,11 @@ name: Sign RP v1.5.12 candidate
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/sign-rp-1.5.12.yml
 
 permissions:
   contents: read
