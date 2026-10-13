@@ -81,6 +81,10 @@ jobs:
         shell: pwsh
         run: ./scripts/test-dashboard.ps1
 
+      - name: Controlled updater lifecycle (host Android adapters)
+        shell: pwsh
+        run: ./scripts/test-updater-lifecycle-host.ps1
+
       - name: App diagnostics privacy and retention
         shell: pwsh
         run: ./scripts/test-app-diagnostics.ps1
