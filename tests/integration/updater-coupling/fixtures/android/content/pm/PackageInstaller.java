@@ -11,11 +11,13 @@ public class PackageInstaller {
     public final java.util.Map<Integer,Session> sessions=new java.util.HashMap<>();
     public int nextId=9;
     public boolean failFsync,failCommit,failAbandon,failOpen;
+    public boolean failList, retainAfterAbandon;
     public int commits;
     public void abandonSession(int id) {
         abandoned.add(id);
         if(failAbandon)throw new IllegalStateException("host abandon failure");
-        sessions.remove(id);
+        // A void API return is not proof that Android no longer lists this ID.
+        if(!retainAfterAbandon) sessions.remove(id);
     }
     public int createSession(SessionParams params) {
         int id=nextId++;sessions.put(id,new Session());return id;
@@ -25,6 +27,7 @@ public class PackageInstaller {
         return sessions.get(id);
     }
     public List<SessionInfo> getMySessions() {
+        if(failList)throw new IllegalStateException("host session enumeration denied");
         List<SessionInfo> values=new ArrayList<>();
         for(Integer id:sessions.keySet())values.add(new SessionInfo(id));
         return values;

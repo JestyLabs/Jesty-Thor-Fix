@@ -259,6 +259,30 @@ public final class UpdaterOwnershipRegression {
         }
         try(Scenario s=new Scenario()) {
             s.bound(9);
+            File cache=artifact(s.activity,"inventory-failure.apk");
+            s.installer.failList=true;
+            check(!s.attemptDownloadPrefix(),
+                    "native inventory failure must block replacement");
+            check(cache.exists()&&owner().ownsSession(9)&&!owner().transferInProgress(),
+                    "inventory failure preserves owner and cache");
+            s.installer.failList=false;
+            check(s.attemptDownloadPrefix(),
+                    "inventory retry can proceed after native list works");
+        }
+        try(Scenario s=new Scenario()) {
+            s.bound(9);
+            File cache=artifact(s.activity,"still-listed.apk");
+            s.installer.retainAfterAbandon=true;
+            check(!s.attemptDownloadPrefix(),
+                    "void abandon return with a still-listed session must fail closed");
+            check(cache.exists()&&owner().ownsSession(9)&&!owner().transferInProgress(),
+                    "still-listed session preserves old ownership and transfer gate");
+            s.installer.retainAfterAbandon=false;
+            check(s.attemptDownloadPrefix(),
+                    "retry succeeds only after native list confirms no session");
+        }
+        try(Scenario s=new Scenario()) {
+            s.bound(9);
             resetVolatile();
             long token=s.begin();
             File cache=artifact(s.activity,"post-loss.apk");
