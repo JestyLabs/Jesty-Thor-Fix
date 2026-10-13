@@ -377,6 +377,7 @@ $sources = @(
     (Join-Path $repository 'src\com\thor\displaypowertest\DisplayDecisionModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\DisplayGenerationModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\IpcPeerPolicy.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\DaemonResponsePolicy.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\LegacyDaemonIdentity.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\PreviousSecureDaemonIdentity.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\PropertyState.java'),
@@ -402,6 +403,7 @@ $sources = @(
     (Join-Path $repository 'tests\DisplayDecisionModelTest.java'),
     (Join-Path $repository 'tests\DisplayGenerationModelTest.java'),
     (Join-Path $repository 'tests\IpcPeerPolicyTest.java'),
+    (Join-Path $repository 'tests\DaemonResponsePolicyTest.java'),
     (Join-Path $repository 'tests\LegacyDaemonIdentityTest.java'),
     (Join-Path $repository 'tests\PreviousSecureDaemonIdentityTest.java'),
     (Join-Path $repository 'tests\PropertyStateTest.java'),
@@ -449,6 +451,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Display decision tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Display generation tests failed.' }
 & java -cp $output IpcPeerPolicyTest
 if ($LASTEXITCODE -ne 0) { throw 'IPC peer policy tests failed.' }
+& java -cp $output DaemonResponsePolicyTest
+if ($LASTEXITCODE -ne 0) { throw 'IPC reply parsing tests failed.' }
 & java -cp $output LegacyDaemonIdentityTest
 if ($LASTEXITCODE -ne 0) { throw 'Legacy daemon identity tests failed.' }
 & java -cp $output PreviousSecureDaemonIdentityTest
