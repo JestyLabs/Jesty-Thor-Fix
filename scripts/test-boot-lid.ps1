@@ -263,6 +263,81 @@ if ($watchStart -lt 0 -or $watchEnd -le $watchStart) {
     throw 'Could not isolate watcher coordinator method.'
 }
 $watchBody = $coordinator.Substring($watchStart, $watchEnd - $watchStart)
+# Lid Protection is optional: OFF must not run guard checks from the hot
+# display path or initiate a display probe from Q telemetry. The public
+# LidGuard entry points remain stable for daemon and smali callers.
+$lidFacade = Get-Content -LiteralPath (Join-Path $daemonPackage 'LidGuard.java') -Raw
+$lidRuntime = Get-Content -LiteralPath (Join-Path $daemonPackage 'LidProtectionRuntime.java') -Raw
+foreach ($method in @('setEnabled', 'isEnabled', 'lid', 'state', 'blockedWakes',
+        'lastAction', 'externalDisplay', 'externalDisplayCached', 'onWakeEvent',
+        'isSleepDecisionCurrent')) {
+    if ($lidFacade -notmatch [regex]::Escape($method + '(')) {
+        throw "Lid facade API is missing $method"
+    }
+}
+if ($watchBody -notmatch 'stableTopWake\s*&&\s*LidGuard\.isEnabled\(\)\s*&&\s*LidGuard\.onWakeEvent\(\)') {
+    throw 'Guard OFF must skip wake policy in the display sample hot path.'
+}
+if ($lidRuntime -match 'new ProcessBuilder\("(?:getevent|dumpsys)"' -or
+    $lidRuntime -notmatch 'new ProcessBuilder\("/system/bin/getevent"' -or
+    $lidRuntime -notmatch 'new ProcessBuilder\("/system/bin/dumpsys"') {
+    throw 'Hall and display probes must use trusted absolute Android binary paths.'
+}
+if ($lidRuntime -notmatch 'model\.evaluateSleep\(' -or
+    $lidRuntime -notmatch 'model\.recordSleepIfCurrent\(' -or
+    $lidRuntime -notmatch 'model\.isSleepDecisionCurrent\(epoch\)' -or
+    $lidRuntime -notmatch 'requestGuardSleep\(decision\.lidEpoch\)' -or
+    $coordinator -notmatch 'requestGuardSleep\(long authorizedLidEpoch\)' -or
+    $coordinator -notmatch 'LidGuard\.isSleepDecisionCurrent\(authorizedLidEpoch\)') {
+    throw 'Lid sleep requires atomic decision and epoch verification at command boundary.'
+}
+if ($lidRuntime -notmatch 'if \(enabled\) refreshExternalDisplay\(\);' -or
+    $lidRuntime -notmatch 'synchronized \(LidProtectionRuntime\.class\)' -or
+    $lidRuntime -notmatch 'if \(!enabled\) continue;' -or
+    $lidRuntime -notmatch 'model\.invalidateObservation\(\)' -or
+    $lidRuntime -notmatch 'resumeWakeRepair\(\);') {
+    throw 'Guard OFF must skip probes, invalidate Hall state and restore deferred wake repair.'
+}
+# External probe can take 2 seconds; NEVER authorize Guard sleep from
+# interactive/decision-time values captured before that blocking probe.
+# This narrows stale observations but does not eliminate a physical Hall race.
+$trySleepStart = $lidRuntime.IndexOf('private static void trySleep(')
+$trySleepEnd = $lidRuntime.IndexOf('private static synchronized void resumeWakeRepair(', $trySleepStart)
+if ($trySleepStart -lt 0 -or $trySleepEnd -le $trySleepStart) {
+    throw 'Could not isolate Lid trySleep for freshness contract.'
+}
+$trySleepBody = $lidRuntime.Substring($trySleepStart, $trySleepEnd - $trySleepStart)
+$externalProbeAt = $trySleepBody.IndexOf('Boolean external = externalDisplayConnected();')
+$interactiveAt = $trySleepBody.IndexOf('Boolean interactive = interactive();')
+$decisionClockAt = $trySleepBody.IndexOf('long now = SystemClock.elapsedRealtime();')
+if ($externalProbeAt -lt 0 -or $interactiveAt -le $externalProbeAt -or
+    $decisionClockAt -le $interactiveAt) {
+    throw 'Lid Guard interactivity/decision timestamp must follow slow external probe.'
+}
+if ($trySleepBody -notmatch 'requestGuardSleep\(decision\.lidEpoch\)' -or
+    $trySleepBody -notmatch 'epoch != activationEpoch') {
+    throw 'Late interactivity check must retain Hall/activation epoch guard.'
+}
+
+if ($lidRuntime -notmatch 'private static volatile long activationEpoch;' -or
+    $lidRuntime -notmatch 'epoch != activationEpoch' -or
+    $lidRuntime -notmatch 'trySleep\("sleep_after_close", false, epoch\)' -or
+    $lidRuntime -notmatch 'trySleep\("sleep_after_closed_wake", true, epoch\)') {
+    throw 'Queued Lid sleep must fail closed across OFF/ON activation transitions.'
+}
+if ($lidRuntime -notmatch 'final long probeEpoch = activationEpoch;' -or
+    $lidRuntime -notmatch 'probeEpoch != activationEpoch' -or
+    $lidRuntime -notmatch 'if \(!enabled \|\| epoch != activationEpoch\) return;' -or
+    $lidRuntime -notmatch 'externalCheckPending = false;' -or
+    $lidRuntime -notmatch 'externalDisplay = null;') {
+    throw 'Stale asynchronous/synchronous external-display probes must not restore OFF session state.'
+}
+$lidModel = Get-Content -LiteralPath (Join-Path $daemonPackage 'LidGuardModel.java') -Raw
+if ($lidModel -notmatch 'public synchronized void invalidateObservation\(\)' -or
+    $lidModel -notmatch 'lidEpoch\+\+;' -or
+    $lidModel -notmatch 'public synchronized boolean recordSleepIfCurrent\(') {
+    throw 'Lid model must invalidate stale observation and guard sleep completion.'
+}
 if ($watchBody -notmatch 'WatcherCadence\.beginDrmRead' -or
     $watchBody -notmatch 'Telemetry\.crtcActivePair\(\)' -or
     $watchBody -match 'Telemetry\.(?:top|bottom)CrtcActive\(\)') {

@@ -300,8 +300,8 @@ final class DashboardSettingsController {
     private void updateDashboardFixHelp(boolean enabled) {
         if (dashboardFixHelp == null) return;
         dashboardFixHelp.setText(enabled
-                ? "Applies during startup; a slightly longer black boot phase is normal"
-                : "Restarts Android UI/display once to apply");
+                ? "Applies at startup. Manual activation restarts the Android UI, which may look like a reboot."
+                : "Applies at startup. Manual activation restarts the Android UI, which may look like a reboot.");
         dashboardFixHelp.setTextColor(enabled ? AMBER : MUTED);
     }
 
