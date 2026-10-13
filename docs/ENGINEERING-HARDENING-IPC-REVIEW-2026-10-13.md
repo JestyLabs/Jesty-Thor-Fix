@@ -17,3 +17,22 @@ Source: PR #67, 2026-10-13. Source analysis plus production listener with host-o
 Priorities: continue offline Android LocalSocket/rejection/timeout integration if available without root, preserve 2+4 bounds and 1.5s timeout, request independent privileged review, combine all necessary device-path checks into the final owner session. Never test IPC by forcibly stopping vendor services, changing SELinux, or replaying arbitrary commands on the Thor.
 
 Outcome: one reproducible listener-availability bug addressed; source-level trust boundaries documented. Do NOT mark independent security review, native identity or physical handoff as PASS.
+
+### SecureChannel real-class host preflight (test fixtures only)
+
+`scripts/test-secure-channel-host.ps1` compiles the production `SecureChannel`
+and `IpcPeerPolicy` against disposable Android/Os doubles. It characterizes
+root-only daemon peer acceptance, app-UID authorization and negative/error
+branches before `listen()` opens an instance lock. The fixture deliberately
+makes `Os.open()` fail before obtaining a real descriptor; it never binds,
+unlinks, signs, installs or touches a device. The no-follow and close-on-exec
+flags requested by production source are asserted.
+
+**Evidence boundary:** no native filesystem lock was acquired; no real
+`LocalSocket`, kernel peer credentials, SELinux label, overloaded connect,
+stale pathname deletion or post-bind inode verification was exercised.
+Stale-socket cleanup still treats any `IOException` from its reachability
+probe as evidence of disconnection; notably, permission errors and
+connection-refused errors are not distinguished. Preserve this as an open
+fail-closed design review before changing the recovery path, because Android
+vendor implementations and reboot recovery require explicit acceptance.
