@@ -1,5 +1,7 @@
 package com.thor.displaypowertest;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -14,6 +16,42 @@ public final class ExternalDisplayModel {
 
     private ExternalDisplayModel() {}
 
+    /**
+     * Parse top-level comma-delimited key/value fields only. Android dumpsys
+     * may embed commas in Rect(...) values or quoted IDs. Broken nesting is
+     * UNKNOWN, never proof that no additional display is present.
+     */
+    private static List<String> splitFields(String viewport) {
+        List<String> fields = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        char[] closing = new char[viewport.length()];
+        int nesting = 0;
+        char quote = 0;
+        for (int i = 0; i < viewport.length(); i++) {
+            char ch = viewport.charAt(i);
+            if (quote != 0) {
+                current.append(ch);
+                if (ch == quote) quote = 0;
+                continue;
+            }
+            if (ch == 39 || ch == 34) {
+                quote = ch;
+            } else if (ch == '(' || ch == '[') {
+                closing[nesting++] = ch == '(' ? ')' : ']';
+            } else if (ch == ')' || ch == ']') {
+                if (nesting == 0 || closing[--nesting] != ch) return null;
+            } else if (ch == ',' && nesting == 0) {
+                fields.add(current.toString());
+                current.setLength(0);
+                continue;
+            }
+            current.append(ch);
+        }
+        if (quote != 0 || nesting != 0) return null;
+        fields.add(current.toString());
+        return fields;
+    }
+
     public static Boolean hasExtraExternalViewport(String viewportsLine) {
         if (viewportsLine == null || !viewportsLine.contains("mViewports=")) return null;
         Matcher viewports = VIEWPORT.matcher(viewportsLine);
@@ -27,7 +65,11 @@ public final class ExternalDisplayModel {
             String valid = null;
             String active = null;
             Integer displayId = null;
-            for (String part : viewports.group(1).split(",", -1)) {
+            // Android's other viewport metadata can contain commas inside
+            // Rect(...) or quoted unique IDs. Only split top-level fields.
+            List<String> fields = splitFields(viewports.group(1));
+            if (fields == null) return null;
+            for (String part : fields) {
                 int equals = part.indexOf('=');
                 if (equals <= 0 || equals == part.length() - 1) return null;
                 String key = part.substring(0, equals).trim();
