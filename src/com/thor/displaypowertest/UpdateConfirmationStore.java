@@ -31,6 +31,18 @@ final class UpdateConfirmationStore<T> {
         return result;
     }
 
+    /** Discard only the matching terminal session; preserve any newer pending one. */
+    synchronized boolean discardSession(int sessionId) {
+        if (pending == null || pending.sessionId != sessionId) return false;
+        pending = null;
+        return true;
+    }
+
+    /** A deliberately newer update makes every older deferred prompt obsolete. */
+    synchronized void discardAll() {
+        pending = null;
+    }
+
     /** The still-deferred install session is excluded from stale-session cleanup. */
     synchronized int pendingSessionId() {
         return pending == null ? -1 : pending.sessionId;

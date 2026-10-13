@@ -32,6 +32,16 @@ public final class UpdateConfirmationStoreTest {
         check(store.take() == null && store.pendingSessionId() == -1,
                 "missing confirmation cannot be shown");
 
+        store.defer(first, 12);
+        store.defer(newer, 17);
+        check(!store.discardSession(12) && store.pendingSessionId() == 17,
+                "old terminal callback must preserve newer pending session");
+        check(store.discardSession(17) && store.take() == null,
+                "matching terminal callback cancels deferred confirmation");
+        store.defer(first, 12);
+        store.discardAll();
+        check(store.take() == null, "starting newer attempt discards old prompt");
+
         // Two threads may race across lifecycle/callback boundaries; a pair may
         // never be torn, even if the current one-slot policy discards another event.
         for (int n = 0; n < 80; n++) {

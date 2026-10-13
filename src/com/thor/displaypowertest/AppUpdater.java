@@ -63,6 +63,8 @@ final class AppUpdater {
     private static WeakReference<Activity> resumedActivity = new WeakReference<>(null);
     private static final UpdateConfirmationStore<Intent> pendingConfirmations =
             new UpdateConfirmationStore<>();
+    /** In-process generation and Android session binding; never authorize unknown callbacks. */
+    private static final UpdateSessionOwnership installSessions = new UpdateSessionOwnership();
 
     static final String REPOSITORY = "JestyLabs/Jesty-Thor-Fix";
     private static final String API = "https://api.github.com/repos/" + REPOSITORY;
@@ -135,7 +137,7 @@ final class AppUpdater {
     /** Shows a cached update immediately; network checks happen from onResume. */
     void start() {
         if (!supported()) return;
-        if (!busy.get()) {
+        if (!busy.get() && !installSessions.transferInProgress()) {
             clearDownloads(activity);
             abandonStaleSessions(activity);
         }
@@ -152,7 +154,7 @@ final class AppUpdater {
         resumed = true;
         resumedActivity = new WeakReference<>(activity);
         UpdateConfirmationStore.Pending<Intent> pending = pendingConfirmations.take();
-        if (pending != null) {
+        if (pending != null && installSessions.ownsSession(pending.sessionId)) {
             showConfirmation(activity, pending.confirmation, pending.sessionId);
             return;
         }
@@ -192,6 +194,7 @@ final class AppUpdater {
      * for the next onResume.
      */
     static void deliverConfirmation(Context context, Intent confirmation, int sessionId) {
+        if (!installSessions.ownsSession(sessionId)) return;
         Activity visible = resumedActivity.get();
         if (visible != null && !visible.isFinishing() && !visible.isDestroyed()) {
             showConfirmation(visible, confirmation, sessionId);
@@ -203,15 +206,31 @@ final class AppUpdater {
     }
 
     private static void showConfirmation(Activity visible, Intent confirmation, int sessionId) {
+        if (!installSessions.ownsSession(sessionId)) return;
         try {
             visible.startActivity(confirmation);
         } catch (Throwable error) {
             Log.w(TAG, "could not show the install confirmation", error);
-            abandonSession(visible, sessionId);
-            clearDownloads(visible);
-            Toast.makeText(visible, "Update failed: could not show Android's confirmation",
-                    Toast.LENGTH_LONG).show();
+            finishInstallSession(visible, sessionId, false,
+                    "Update failed: could not show Android's confirmation");
         }
+    }
+
+    static boolean isActiveInstallSession(int sessionId) {
+        return installSessions.ownsSession(sessionId);
+    }
+
+    /**
+     * Only the current Android session may invalidate a deferred confirmation
+     * or clean shared downloads. Duplicate/old callbacks are inert.
+     */
+    static void finishInstallSession(Context context, int sessionId, boolean success,
+            String message) {
+        if (!installSessions.finishSession(sessionId)) return;
+        pendingConfirmations.discardSession(sessionId);
+        if (!success) abandonSession(context, sessionId);
+        clearDownloads(context);
+        if (!success) Toast.makeText(context, message, Toast.LENGTH_LONG).show();
     }
 
     static void abandonSession(Context context, int sessionId) {
@@ -228,7 +247,7 @@ final class AppUpdater {
         try {
             PackageInstaller installer = context.getPackageManager().getPackageInstaller();
             for (PackageInstaller.SessionInfo session : installer.getMySessions()) {
-                if (session.getSessionId() != pendingConfirmations.pendingSessionId()) {
+                if (session.getSessionId() != installSessions.currentSessionId()) {
                     abandonSession(context, session.getSessionId());
                 }
             }
@@ -409,6 +428,16 @@ final class AppUpdater {
             busy.set(false);
             return;
         }
+        final long attempt = installSessions.beginTransfer();
+        if (attempt < 0L) {
+            commitGate.finish();
+            busy.set(false);
+            toast("An update is already being prepared");
+            return;
+        }
+        // A new attempt supersedes a previous Android confirmation. Its session
+        // is no longer permitted to act on the next attempt's download cache.
+        pendingConfirmations.discardAll();
         cancelled.set(false);
         host.setInstallReserved(true);
 
@@ -452,18 +481,19 @@ final class AppUpdater {
                 File apk = downloadVerified(release, percent -> onUi(() -> bar.setProgress(percent)));
                 onUi(() -> label.setText("Checking the update..."));
                 verifyArchive(apk, release);
-                install(apk);
+                install(apk, attempt);
                 // The committed session holds its own copy of the APK.
-                clearDownloads(activity);
+                if (installSessions.ownsTransfer(attempt)) clearDownloads(activity);
                 onUi(() -> toast("Confirm the update in Android's installer"));
             } catch (Throwable error) {
                 Log.w(TAG, "update failed", error);
-                clearDownloads(activity);
+                if (installSessions.ownsTransfer(attempt)) clearDownloads(activity);
                 String message = cancelled.get() ? "Update cancelled"
                         : "Update failed: " + reason(error);
                 onUi(() -> toast(message));
             } finally {
                 commitGate.finish();
+                installSessions.finishTransfer(attempt);
                 busy.set(false);
                 onUi(() -> {
                     dismiss(progress);
@@ -581,7 +611,7 @@ final class AppUpdater {
         return result;
     }
 
-    private void install(File apk) throws Exception {
+    private void install(File apk, long attempt) throws Exception {
         PackageInstaller installer = activity.getPackageManager().getPackageInstaller();
         PackageInstaller.SessionParams params = new PackageInstaller.SessionParams(
                 PackageInstaller.SessionParams.MODE_FULL_INSTALL);
@@ -591,6 +621,10 @@ final class AppUpdater {
             params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_REQUIRED);
         }
         int sessionId = installer.createSession(params);
+        if (!installSessions.registerSession(attempt, sessionId)) {
+            abandonSession(activity, sessionId);
+            throw new IOException("install session no longer belongs to this attempt");
+        }
         try (PackageInstaller.Session session = installer.openSession(sessionId)) {
             try (InputStream input = new FileInputStream(apk);
                  OutputStream output = session.openWrite("base.apk", 0, apk.length())) {
@@ -621,6 +655,8 @@ final class AppUpdater {
             }
             session.commit(pending.getIntentSender());
         } catch (Exception error) {
+            installSessions.revokeSession(attempt, sessionId);
+            pendingConfirmations.discardSession(sessionId);
             abandonSession(activity, sessionId);
             throw error;
         }
