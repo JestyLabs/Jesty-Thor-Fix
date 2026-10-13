@@ -97,6 +97,10 @@ jobs:
         shell: pwsh
         run: python ./scripts/test-thor-energy.py
 
+      - name: Strict TLS fixture shutdown and framing
+        shell: pwsh
+        run: python ./scripts/test-transport-tls-shutdown.py --output "$env:RUNNER_TEMP/tls-shutdown-results"
+
       - name: Validate release workflow policy
         shell: pwsh
         run: ./scripts/test-release-policy.ps1

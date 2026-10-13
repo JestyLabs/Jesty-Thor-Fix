@@ -64,7 +64,15 @@ class TransportServer:
                         connection = tls.wrap_socket(connection, server_side=True)
                         request = fixture.read_headers(connection)
                         fixture.event(mode, 'https', request.split(b'\r\n', 1)[0].decode('ascii'))
-                        fixture.respond(connection, request, mode)
+                        if fixture.respond(connection, request, mode):
+                            # Completed HTTP responses need an orderly TLS EOF.
+                            # Bound the wait for the peer's shutdown acknowledgement.
+                            connection.settimeout(2)
+                            try:
+                                connection.unwrap()
+                                fixture.event(mode, 'tls_shutdown', 'complete')
+                            except (OSError, ssl.SSLError) as failure:
+                                fixture.event(mode, 'tls_shutdown', type(failure).__name__)
                     else:
                         fixture.event(mode, 'plaintext', first)
                         connection.sendall(b'HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n')
@@ -101,6 +109,7 @@ class TransportServer:
             connection.sendall(('HTTP/1.1 ' + status + '\r\nConnection: close\r\n' + extra + '\r\n').encode('ascii'))
         if mode == 'header_timeout':
             self.stop.wait(40)
+            return False
         elif mode in ('redirect_https', 'redirect_bad_hostname') and request_path != '/candidate.apk':
             host = 'assets.invalid' if mode == 'redirect_https' else 'mismatch.invalid'
             headers('302 Found', 'Content-Length: 0\r\nLocation: https://' + host + '/candidate.apk\r\n')
@@ -112,6 +121,7 @@ class TransportServer:
             headers('503 Unavailable', 'Content-Length: 0\r\n')
         elif mode == 'header_size':
             headers(extra='Content-Length: ' + str(len(data) + 10) + '\r\n')
+            return False
         elif mode in ('oversize', 'chunked_short', 'chunked_ok'):
             headers(extra='Transfer-Encoding: chunked\r\n')
             body = data + b'X' if mode == 'oversize' else (data[:1024] if mode == 'chunked_short' else data)
@@ -119,13 +129,16 @@ class TransportServer:
         elif mode == 'truncated':
             headers(extra='Content-Length: ' + str(len(data)) + '\r\n')
             connection.sendall(data[:1024])
+            return False
         elif mode == 'body_timeout':
             headers(extra='Content-Length: ' + str(len(data)) + '\r\n')
             connection.sendall(data[:1024])
             self.stop.wait(40)
+            return False
         else:
             headers(extra='Content-Length: ' + str(len(data)) + '\r\n')
             connection.sendall(data)
+        return True
 
     def close(self):
         self.stop.set()

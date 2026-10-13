@@ -119,6 +119,18 @@ and certificate rejection, valid chunked/redirect flows and same-process recover
 public CI artifacts. The fixture-only INTERNET permission and routing helper do
 not change the product manifest or transport. See [current validation boundary](../../../docs/UPDATER-TRANSPORT-VALIDATION-2026-10-13.md).
 
+Completed fixture responses now send TLS `close_notify`, with a bounded wait for
+the peer acknowledgement. Deliberate partial responses/timeouts retain their
+abrupt failure behavior. The independent strict host regression is:
+
+```sh
+python scripts/test-transport-tls-shutdown.py --output "$RUNNER_TEMP/tls-shutdown-results"
+```
+
+This validates protocol shutdown/framing, not Android or production endpoints.
+See [fixture investigation](../../../docs/UPDATER-TLS-FIXTURE-SHUTDOWN-2026-10-13.md)
+for the retained Windows failures, A/B/A comparison and validation limits.
+
 ## Native release metadata and cache
 
 The additional metadata runner exercises Android's real JSON and preferences,

@@ -36,6 +36,12 @@ its pinned step. This refactor changes product class structure; HTTPS, installer
 preferences and lifecycle ownership stay in `AppUpdater`, and release policy
 stays in `UpdateVersion`. Final-head host/native/TLS CI remains required.
 
+**Fixture shutdown follow-up:** [TLS investigation](UPDATER-TLS-FIXTURE-SHUTDOWN-2026-10-13.md)
+records a host-reproduced missing orderly TLS EOF, Android A/B/A recovery trials
+and a fixture-only close-notification fix with bounded peer acknowledgement.
+Deliberate truncation/timeouts are preserved. Product runtime/TLS policy and
+the historical failed executions remain unchanged; exact-head CI is required.
+
 **Implemented/characterized:** narrow updater confirmation and session ownership; BootCoordinator trace-only formatter; strict IPC ACK and listener close-failure fix; fail-closed external-display parser; host stress/CPU/boot matrices; switch labels/keyboard semantics; contributor quick start; documented release, SDK, energy, accessibility and final physical matrix.
 
 **Remaining independent gates:** exact-final-head JDK17 CI, updater host/native regressions and separate security review; live GitHub admin required-check review; native peer credential/SELinux/timeout and independent security review; Android TalkBack/visual/font-scale verification; live updater transport/discovery and full dashboard/daemon handover; optionally measurable battery/gameplay effects. The tested API 33 updater lifecycle includes actual process death; it is not physical-device acceptance. **Thor physical tests, merge, signing and publication come LAST and require owner approval.**

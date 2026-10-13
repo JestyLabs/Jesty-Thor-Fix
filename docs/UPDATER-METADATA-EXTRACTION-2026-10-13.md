@@ -65,6 +65,11 @@ Its cause is not established and no product TLS policy or automatic test retry
 was changed to bypass it. Focused reproduction, a fresh complete matrix and
 independent CI results must be distinguished from that failed run.
 
+The subsequent [fixture shutdown investigation](UPDATER-TLS-FIXTURE-SHUTDOWN-2026-10-13.md)
+independently reproduces ragged EOF in completed fixture responses and compares
+orderly TLS shutdown using controlled Android A/B/A trials. Its scoped fixture
+fix does not alter the metadata extraction or erase the original failed evidence.
+
 ## Integration and remaining limits
 
 The PR Android CI job runs the metadata suite between native lifecycle and native

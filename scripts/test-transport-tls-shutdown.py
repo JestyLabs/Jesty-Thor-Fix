@@ -7,6 +7,7 @@ from pathlib import Path
 import socket
 import ssl
 import sys
+import time
 
 sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,6 +36,26 @@ def exchange(server, mode):
                 return headers, bytes(body), 'abrupt'
             client.unwrap().close()
             return headers, bytes(body), 'notified'
+
+def unacknowledged_shutdown(server):
+    server.mode = 'normal'
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.load_verify_locations(server.certificate)
+    previous = len(server.events)
+    with socket.create_connection(('127.0.0.1', server.port), timeout=5) as raw:
+        raw.sendall(b'CONNECT github.com:443 HTTP/1.1\r\nHost: github.com:443\r\n\r\n')
+        assert fixture.TransportServer.read_headers(raw).startswith(b'HTTP/1.1 200')
+        with context.wrap_socket(raw, server_hostname='github.com', suppress_ragged_eofs=False) as client:
+            client.sendall(b'GET /candidate.apk HTTP/1.1\r\nHost: github.com\r\nConnection: close\r\n\r\n')
+            fixture.TransportServer.read_headers(client)
+            while client.recv(65536): pass
+            # Deliberately keep the socket open without sending our close_notify.
+            deadline = time.monotonic() + 8
+            while time.monotonic() < deadline:
+                with server.lock:
+                    if any(e['kind'] == 'tls_shutdown' and e['detail'] == 'TimeoutError' for e in server.events[previous:]): return
+                time.sleep(.02)
+            raise AssertionError('Server waited indefinitely for peer shutdown acknowledgement')
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -69,12 +90,19 @@ def main():
             except Exception as error:
                 results.append(dict(case='tls-shutdown-' + mode, result='FAIL', error=type(error).__name__ + ': ' + str(error)))
                 print('FAIL: tls-shutdown-' + mode + ': ' + type(error).__name__, flush=True)
+        try:
+            unacknowledged_shutdown(server)
+            results.append(dict(case='tls-shutdown-peer-no-ack-bounded', result='PASS'))
+            print('PASS: tls-shutdown-peer-no-ack-bounded', flush=True)
+        except Exception as error:
+            results.append(dict(case='tls-shutdown-peer-no-ack-bounded', result='FAIL', error=type(error).__name__ + ': ' + str(error)))
+            print('FAIL: tls-shutdown-peer-no-ack-bounded: ' + type(error).__name__, flush=True)
     finally:
         server.close()
         (output / 'results.json').write_text(json.dumps(results, indent=2), encoding='utf-8')
         (output / 'events.json').write_text(json.dumps(server.events, indent=2), encoding='utf-8')
     if any(result['result'] != 'PASS' for result in results): return 1
-    print('TLS shutdown/framing: 5/5 PASS', flush=True)
+    print('TLS shutdown/framing: 6/6 PASS', flush=True)
     return 0
 
 if __name__ == '__main__': sys.exit(main())
