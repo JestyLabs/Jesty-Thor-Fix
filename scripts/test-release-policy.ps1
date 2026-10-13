@@ -7,6 +7,12 @@ $ci = Get-Content -LiteralPath (Join-Path $root '.github/workflows/host-tests.ym
 $testSigner = Get-Content -LiteralPath (Join-Path $root '.github/workflows/sign-test-candidate.yml') -Raw
 $publisher = Get-Content -LiteralPath (Join-Path $root '.github/workflows/release.yml') -Raw
 
+# Normalize only in-memory workflow text for identical contract assertions
+# on Windows CRLF and repository LF. No workflow file is rewritten.
+$ci = $ci -replace "`r`n", "`n"
+$testSigner = $testSigner -replace "`r`n", "`n"
+$publisher = $publisher -replace "`r`n", "`n"
+
 foreach ($workflow in @($ci, $testSigner, $publisher)) {
     if ($workflow -notmatch "(?m)^    if: .*github\.actor == 'SirJesty'.*github\.triggering_actor == 'SirJesty'" -or
         $workflow -notmatch 'ORIGINAL_ACTOR: \$\{\{ github.actor \}\}' -or
