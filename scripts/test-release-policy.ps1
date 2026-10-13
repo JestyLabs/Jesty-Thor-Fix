@@ -80,37 +80,7 @@ $pullRequestConfig = if ($nextEvent.Success) {
 if ($pullRequestConfig -match '(?m)^    (?:paths|paths-ignore|branches|branches-ignore):') {
     throw 'PR required-check workflow must not have path/branch filters.'
 }
-# Match the real YAML key, never a copied expression in a comment. Handle
-# either LF (repository) or CRLF (Windows clean-checkout) line endings.
-$expectedEmulatorIf = '(?m)^    if:[ \t]*github\.event_name == ''pull_request'' \|\| github\.event_name == ''workflow_dispatch''[ \t]*\r?
-    $emulator -notmatch '(?m)^    needs: build[ \t]*$' -or
-    $emulator -notmatch '(?m)^    name: Android emulator lifecycle and installer sessions \(no vendor bridge\)[ \t]*$') {
-    throw 'The expected Android emulator check must be created for every PR after the build.'
-}
-if ($emulator -match '(?m)^    environment:' -or
-    $emulator -match 'secrets\.' -or
-    $emulator -match 'THOR_KEYSTORE_B64|THOR_KEYSTORE_PASSWORD|thor-signing|thor-publication') {
-    throw 'PR emulator must not access protected signing/publication credentials.'
-}
-if ($emulator -notmatch 'Build isolated installer harness with disposable test key' -or
-    $emulator -notmatch 'test-android-installer-session\.sh' -or
-    $emulator -notmatch 'test-android-emulator-smoke\.sh') {
-    throw 'PR emulator must keep its disposable-key installer and lifecycle checks.'
-}
-# Negative mutation control: a workflow_dispatch-only job with the expected
-# condition buried in a YAML comment must fail the same contract validator.
-# This operates on in-memory text and never writes the real workflow.
-$mutatedEmulator = $emulator -replace $expectedEmulatorIf, ("    if: github.event_name == 'workflow_dispatch'" + [Environment]::NewLine + "    # if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'")
-if ($mutatedEmulator -ceq $emulator -or $mutatedEmulator -match $expectedEmulatorIf) {
-    throw 'Emulator condition parser accepted a comment or failed its negative mutation control.'
-}
-
-# The focused updater-gate workflow is path-filtered and must NOT become a
-# globally required GitHub status check; use the stable emulator job instead.
-
-Write-Host 'Release workflow and PR emulator CI contracts passed (live required GitHub settings still need admin verification).'
-
-if ($emulator -notmatch $expectedEmulatorIf -or
+if ($emulator -notmatch "(?m)^    if: github\.event_name == 'pull_request' \|\| github\.event_name == 'workflow_dispatch'[ \t]*\r?$" -or
     $emulator -notmatch '(?m)^    needs: build[ \t]*$' -or
     $emulator -notmatch '(?m)^    name: Android emulator lifecycle and installer sessions \(no vendor bridge\)[ \t]*$') {
     throw 'The expected Android emulator check must be created for every PR after the build.'
