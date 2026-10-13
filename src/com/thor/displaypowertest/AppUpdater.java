@@ -428,19 +428,48 @@ final class AppUpdater {
             busy.set(false);
             return;
         }
-        final int supersededSession = installSessions.currentSessionId();
-        final long attempt = installSessions.beginTransfer();
+        // Session ownership is process-local but Android's native sessions may
+        // survive a process restart. Before starting a new attempt, reconcile
+        // ALL our native sessions and confirm Android no longer reports them.
+        // Keep this check and the new generation atomic relative to callbacks
+        // and any other Activity's attempt. Failure preserves the old prompt,
+        // shared downloads, install reservation and current session identity.
+        final long attempt;
+        synchronized (installSessions) {
+            if (installSessions.transferInProgress()) {
+                attempt = -1L;
+            } else {
+                final boolean nativeReady = ReplacementSessionPolicy.canBeginTransfer(
+                        new ReplacementSessionPolicy.NativeSessions() {
+                            private final PackageInstaller installer =
+                                    activity.getPackageManager().getPackageInstaller();
+                            @Override public int[] ids() {
+                                List<PackageInstaller.SessionInfo> sessions = installer.getMySessions();
+                                if (sessions == null) return null;
+                                int[] ids = new int[sessions.size()];
+                                for (int i = 0; i < ids.length; i++) {
+                                    ids[i] = sessions.get(i).getSessionId();
+                                }
+                                return ids;
+                            }
+                            @Override public void abandon(int id) {
+                                installer.abandonSession(id);
+                            }
+                        });
+                attempt = nativeReady ? installSessions.beginTransfer() : -2L;
+            }
+        }
         if (attempt < 0L) {
             commitGate.finish();
             busy.set(false);
-            toast("An update is already being prepared");
+            toast(attempt == -2L
+                    ? "Update not started: Android could not release the previous install session"
+                    : "An update is already being prepared");
             return;
         }
-        // A new attempt supersedes a previous Android confirmation. Abandon the
-        // superseded native session as well: an older Android consent screen must
-        // not remain installable while the next update is being prepared.
+        // Invalidate old callbacks only AFTER native ownership is resolved.
+        // Never discard a usable old prompt on an unconfirmed abandonment.
         pendingConfirmations.discardAll();
-        if (supersededSession >= 0) abandonSession(activity, supersededSession);
         cancelled.set(false);
         host.setInstallReserved(true);
 
