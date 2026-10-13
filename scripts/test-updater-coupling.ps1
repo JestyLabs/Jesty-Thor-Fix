@@ -25,7 +25,7 @@ try {
     $production = Join-Path $work 'production'
     $fakes = Join-Path $work 'fakes'
     New-Item -ItemType Directory -Path $production, $fakes | Out-Null
-    $names = @('AppUpdater','UpdateInstallReceiver','UpdateVersion','UpdateCommitGate',
+    $names = @('AppUpdater','UpdateReleaseCatalog','UpdateInstallReceiver','UpdateVersion','UpdateCommitGate',
         'UpdateConfirmationStore','UpdateSessionOwnership','ReplacementSessionPolicy',
         'UpdateTaskDispatch')
     $classes = @($names | ForEach-Object { Join-Path $root "src/com/thor/displaypowertest/$_.java" })

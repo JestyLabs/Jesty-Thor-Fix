@@ -128,7 +128,7 @@ public final class UpdaterLifecycleHostTest {
             check(owner().ownsSession(id), "real install registration");
         }
         Throwable download() throws Exception {
-            Class<?> type = Class.forName("com.thor.displaypowertest.AppUpdater$Release");
+            Class<?> type = Class.forName("com.thor.displaypowertest.UpdateReleaseCatalog$Release");
             Constructor<?> ctor = type.getDeclaredConstructors()[0]; ctor.setAccessible(true);
             Object release = ctor.newInstance("v1.7.2", false, "host", "host.apk", "https://fixture.invalid/host.apk", 3L, "00");
             Method method = AppUpdater.class.getDeclaredMethod("download", type); method.setAccessible(true);

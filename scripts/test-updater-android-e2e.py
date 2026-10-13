@@ -18,7 +18,7 @@ import zipfile
 
 PACKAGE = 'org.jestylabs.thorfix.updatere2e'
 ACTIVITY = PACKAGE + '/com.thor.displaypowertest.UpdaterTestActivity'
-SOURCES = ['AppUpdater', 'UpdateInstallReceiver', 'UpdateVersion', 'UpdateCommitGate',
+SOURCES = ['AppUpdater', 'UpdateReleaseCatalog', 'UpdateInstallReceiver', 'UpdateVersion', 'UpdateCommitGate',
            'UpdateConfirmationStore', 'UpdateSessionOwnership', 'ReplacementSessionPolicy', 'UpdateTaskDispatch']
 ROOT = Path(__file__).resolve().parents[1]
 

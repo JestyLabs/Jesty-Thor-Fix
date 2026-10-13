@@ -28,6 +28,14 @@ adds actual native Android HTTPS against a non-forwarding loopback fixture:
 hostname/certificate rejection and same-process recovery. Public CDN/DNS and
 production trust chains remain separate; the product transport and DEX are unchanged.
 
+**Subsequent metadata extraction:** [catalog validation](UPDATER-METADATA-EXTRACTION-2026-10-13.md)
+characterizes 36 native Android JSON/cache cases (100 assertions) before and after
+moving release records/selection, cache codec and bounded response reading into
+`UpdateReleaseCatalog`. The earlier transport-only DEX identity claim applies to
+its pinned step. This refactor changes product class structure; HTTPS, installer,
+preferences and lifecycle ownership stay in `AppUpdater`, and release policy
+stays in `UpdateVersion`. Final-head host/native/TLS CI remains required.
+
 **Implemented/characterized:** narrow updater confirmation and session ownership; BootCoordinator trace-only formatter; strict IPC ACK and listener close-failure fix; fail-closed external-display parser; host stress/CPU/boot matrices; switch labels/keyboard semantics; contributor quick start; documented release, SDK, energy, accessibility and final physical matrix.
 
 **Remaining independent gates:** exact-final-head JDK17 CI, updater host/native regressions and separate security review; live GitHub admin required-check review; native peer credential/SELinux/timeout and independent security review; Android TalkBack/visual/font-scale verification; live updater transport/discovery and full dashboard/daemon handover; optionally measurable battery/gameplay effects. The tested API 33 updater lifecycle includes actual process death; it is not physical-device acceptance. **Thor physical tests, merge, signing and publication come LAST and require owner approval.**

@@ -118,3 +118,21 @@ and certificate rejection, valid chunked/redirect flows and same-process recover
 `--case NAME` selects a focused case. Raw TLS/events/logs and private keys are not
 public CI artifacts. The fixture-only INTERNET permission and routing helper do
 not change the product manifest or transport. See [current validation boundary](../../../docs/UPDATER-TRANSPORT-VALIDATION-2026-10-13.md).
+
+## Native release metadata and cache
+
+The additional metadata runner exercises Android's real JSON and preferences,
+with controlled HTTP response adapters and the actual updater check worker.
+It requires the extracted catalog in final CI; `--implementation baseline` is
+reserved for the pinned pre-extraction characterization commit.
+
+```sh
+python scripts/test-updater-android-metadata.py \
+  --sdk "$ANDROID_HOME" --build "$RUNNER_TEMP/updater-e2e-build" \
+  --serial emulator-5554 --avd pr67-ci-api33 \
+  --output "$RUNNER_TEMP/updater-metadata-results" --implementation catalog
+```
+
+The 36 cases preserve release/cache policy, response size and failure cleanup.
+They do not prove live release discovery or TLS: those are distinct tiers.
+See [metadata extraction](../../../docs/UPDATER-METADATA-EXTRACTION-2026-10-13.md).

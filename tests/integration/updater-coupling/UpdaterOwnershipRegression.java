@@ -110,7 +110,7 @@ public final class UpdaterOwnershipRegression {
         }
         boolean attemptDownloadPrefix() throws Exception {
             Method method=AppUpdater.class.getDeclaredMethod("download",
-                    Class.forName("com.thor.displaypowertest.AppUpdater$Release"));
+                    Class.forName("com.thor.displaypowertest.UpdateReleaseCatalog$Release"));
             method.setAccessible(true);
             try {
                 method.invoke(updater,new Object[]{null});
