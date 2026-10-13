@@ -93,3 +93,28 @@ sanitized case results.
 Current confirmation policy: [deduplication validation](../../../docs/UPDATER-CONFIRMATION-DEDUP-2026-10-13.md).
 The earlier [Android updater validation](../../../docs/UPDATER-ANDROID-VALIDATION-2026-10-13.md)
 records the original 14-case baseline, including its former repeated-launch behavior.
+
+## Real local HTTPS transport
+
+The additional transport runner uses the same disposable APK, compiled production
+updater classes and native PackageInstaller. Its test-only routing adapter returns
+actual native HTTPS connections with explicit proxy/trust, preserving hostname
+verification. A terminating loopback TLS fixture generates its own short-lived
+certificate/private key using OpenSSL. It never forwards requests or installs a
+system certificate. OpenSSL must be on PATH; Windows also supports its bundled
+executable under the standard Git installation. Build/results stay outside Git.
+
+```sh
+python scripts/test-updater-android-transport.py \
+  --sdk "$ANDROID_HOME" --build "$RUNNER_TEMP/updater-e2e-build" \
+  --serial emulator-5554 --avd pr67-ci-api33 \
+  --output "$RUNNER_TEMP/updater-transport-results"
+```
+
+Use a fresh output directory for each execution. The read-timeout cases use the
+actual production 30-second timeout. The 13-case matrix includes partial bodies,
+framing/size failures, headers/body timeouts, HTTPS/HTTP redirects, loops, hostname
+and certificate rejection, valid chunked/redirect flows and same-process recovery.
+`--case NAME` selects a focused case. Raw TLS/events/logs and private keys are not
+public CI artifacts. The fixture-only INTERNET permission and routing helper do
+not change the product manifest or transport. See [current validation boundary](../../../docs/UPDATER-TRANSPORT-VALIDATION-2026-10-13.md).

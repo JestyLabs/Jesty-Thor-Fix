@@ -341,3 +341,4 @@ jobs:
             bash scripts/test-android-emulator-smoke.sh emulator-input/emulator-test.apk "${{ needs.build.outputs.version }}"
             bash scripts/test-android-installer-session.sh emulator-input/emulator-test.apk emulator-input/installer-ci-harness.apk
             python3 scripts/test-updater-android-e2e.py --sdk "$ANDROID_HOME" --build "$RUNNER_TEMP/updater-e2e-build" --serial emulator-5554 --avd pr67-ci-api33 --output "$RUNNER_TEMP/updater-e2e-results"
+            python3 scripts/test-updater-android-transport.py --sdk "$ANDROID_HOME" --build "$RUNNER_TEMP/updater-e2e-build" --serial emulator-5554 --avd pr67-ci-api33 --output "$RUNNER_TEMP/updater-transport-results"

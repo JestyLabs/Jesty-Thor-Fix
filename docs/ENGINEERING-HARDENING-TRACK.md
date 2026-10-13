@@ -22,6 +22,12 @@ host-only statements below describe their pinned commits, not current coverage.
 Controlled download transport, cached metadata and a test Host do not establish
 live HTTP/TLS, full dashboard readiness or physical daemon handover.
 
+**Local HTTPS extension:** [transport validation](UPDATER-TRANSPORT-VALIDATION-2026-10-13.md)
+adds actual native Android HTTPS against a non-forwarding loopback fixture:
+13 cases cover framing/size failures, real headers/body read timeouts, redirects,
+hostname/certificate rejection and same-process recovery. Public CDN/DNS and
+production trust chains remain separate; the product transport and DEX are unchanged.
+
 **Implemented/characterized:** narrow updater confirmation and session ownership; BootCoordinator trace-only formatter; strict IPC ACK and listener close-failure fix; fail-closed external-display parser; host stress/CPU/boot matrices; switch labels/keyboard semantics; contributor quick start; documented release, SDK, energy, accessibility and final physical matrix.
 
 **Remaining independent gates:** exact-final-head JDK17 CI, updater host/native regressions and separate security review; live GitHub admin required-check review; native peer credential/SELinux/timeout and independent security review; Android TalkBack/visual/font-scale verification; live updater transport/discovery and full dashboard/daemon handover; optionally measurable battery/gameplay effects. The tested API 33 updater lifecycle includes actual process death; it is not physical-device acceptance. **Thor physical tests, merge, signing and publication come LAST and require owner approval.**
