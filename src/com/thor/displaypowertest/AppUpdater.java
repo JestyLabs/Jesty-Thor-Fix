@@ -121,6 +121,8 @@ final class AppUpdater {
     private Release available;
     private Release awaitingInstallPermission;
     private AlertDialog progressDialog;
+    /** UI-thread owner of the currently visible install reservation. */
+    private long uiReservationAttempt = -1L;
     private boolean resumed;
 
     AppUpdater(Activity activity, Host host) {
@@ -472,6 +474,7 @@ final class AppUpdater {
         try {
             pendingConfirmations.discardAll();
             cancelled.set(false);
+            uiReservationAttempt = attempt;
             host.setInstallReserved(true);
 
             int padding = Math.round(24 * activity.getResources().getDisplayMetrics().density);
@@ -524,7 +527,7 @@ final class AppUpdater {
                     onUi(() -> {
                         dismiss(progress);
                         if (progressDialog == progress) progressDialog = null;
-                        host.setInstallReserved(false);
+                        releaseInstallReservation(attempt);
                     });
                 }
             });
@@ -541,15 +544,22 @@ final class AppUpdater {
         busy.set(false);
         if (prepared != null) dismiss(prepared);
         if (progressDialog == prepared) progressDialog = null;
-        try {
-            host.setInstallReserved(false);
-        } catch (Throwable releaseError) {
-            Log.w(TAG, "could not release update UI reservation", releaseError);
-        }
+        releaseInstallReservation(attempt);
         try {
             toast("Update not started: " + reason(error));
         } catch (Throwable notificationError) {
             Log.w(TAG, "could not report update preparation failure", notificationError);
+        }
+    }
+
+    /** UI thread: an obsolete completion cannot release the next attempt's reservation. */
+    private void releaseInstallReservation(long attempt) {
+        if (uiReservationAttempt != attempt) return;
+        uiReservationAttempt = -1L;
+        try {
+            host.setInstallReserved(false);
+        } catch (Throwable releaseError) {
+            Log.w(TAG, "could not release update UI reservation", releaseError);
         }
     }
 
