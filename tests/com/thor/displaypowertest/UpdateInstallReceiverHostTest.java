@@ -19,7 +19,8 @@ public final class UpdateInstallReceiverHostTest {
 
         reset();
         AppUpdater.trackSession(7);
-        Intent confirmation = new Intent().setAction("android.intent.action.CONFIRM");
+        Intent confirmation = new Intent().setAction("android.intent.action.CONFIRM")
+                .addFlags(0x02000000); // Preserve a platform-provided forwarding flag.
         RECEIVER.onReceive(CONTEXT, callback(PackageInstaller.STATUS_PENDING_USER_ACTION, 7)
                 .putExtra(Intent.EXTRA_INTENT, confirmation));
         check(AppUpdater.confirmations == 1 && AppUpdater.lastConfirmation == confirmation,
@@ -27,8 +28,8 @@ public final class UpdateInstallReceiverHostTest {
         check(AppUpdater.lastSessionId == 7 && AppUpdater.abandonCalls == 0
                 && AppUpdater.clearCalls == 0 && Toast.shown == 0,
                 "pending session is not cleaned");
-        check((confirmation.getFlags() & Intent.FLAG_ACTIVITY_NEW_TASK) != 0,
-                "confirmation includes NEW_TASK flag");
+        check(confirmation.getFlags() == 0x02000000,
+                "confirmation preserves platform flags for the resumed Activity");
 
         reset();
         AppUpdater.trackSession(9);

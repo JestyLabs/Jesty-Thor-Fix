@@ -27,7 +27,9 @@ public final class UpdateInstallReceiver extends BroadcastReceiver {
                     fail(context, sessionId, "Update failed: Android did not ask for confirmation");
                     break;
                 }
-                confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                // AppUpdater launches only from a resumed Activity. Forcing a
+                // new task can recover an old installer window after process
+                // death instead of presenting this session's confirmation.
                 AppUpdater.deliverConfirmation(context, confirm, sessionId);
                 break;
             }
