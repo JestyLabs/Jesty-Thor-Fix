@@ -1,18 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="920" height="360" viewBox="0 0 920 360" role="img" aria-labelledby="title desc">
-  <title id="title">AYN Thor v1.7.1 photographed battery draw readouts</title>
-  <desc id="desc">Four photos with true bottom screen off and CPU fix on show 0.95, 0.98, 0.97 and 0.97 W. Five with both fixes off in native TOP show 1.91, 1.43, 1.91, 2.27 and 1.77 W. These are independent on-screen moments, not a controlled matched benchmark or battery-life measurement.</desc>
-  <rect x="1" y="1" width="918" height="358" rx="22" fill="#111421" stroke="#30354D" stroke-width="2"/>
-  <text x="40" y="51" fill="#F7F7FB" font-family="Arial,sans-serif" font-size="24" font-weight="700">v1.7.1: REAL-DEVICE DISPLAY READOUTS</text>
-  <text x="40" y="79" fill="#ABB2CD" font-family="Arial,sans-serif" font-size="17">App-reported battery draw in 9 photographs (not a matched A/B test)</text>
-  <text x="40" y="127" fill="#A78BFA" font-family="Arial,sans-serif" font-size="20" font-weight="700">TRUE OFF + CPU FIX ON</text>
-  <text x="40" y="150" fill="#E8E6F0" font-family="Arial,sans-serif" font-size="15">4 snapshots · 0.95–0.98 W</text>
-  <text x="40" y="225" fill="#F5C95D" font-family="Arial,sans-serif" font-size="20" font-weight="700">AYN NATIVE TOP · FIXES OFF</text>
-  <text x="40" y="248" fill="#E8E6F0" font-family="Arial,sans-serif" font-size="15">5 snapshots · 1.43–2.27 W</text>
-  <g stroke="#41445A" stroke-width="1"><line x1="380" y1="107" x2="380" y2="285"/><line x1="510" y1="107" x2="510" y2="285"/><line x1="640" y1="107" x2="640" y2="285"/><line x1="770" y1="107" x2="770" y2="285"/></g>
-  <g fill="#ABB2CD" font-family="Arial,sans-serif" font-size="14" text-anchor="middle"><text x="380" y="304">1.0 W</text><text x="510" y="304">1.5 W</text><text x="640" y="304">2.0 W</text><text x="770" y="304">2.5 W</text></g>
-  <line x1="367" y1="177" x2="375" y2="177" stroke="#A78BFA" stroke-width="11" stroke-linecap="round"/>
-  <g fill="#A78BFA" stroke="#111421" stroke-width="2"><circle cx="367" cy="177" r="8"/><circle cx="372" cy="156" r="8"/><circle cx="372" cy="198" r="8"/><circle cx="375" cy="177" r="8"/></g>
-  <line x1="492" y1="264" x2="710" y2="264" stroke="#F5C95D" stroke-width="8" opacity=".5" stroke-linecap="round"/>
-  <g fill="#F5C95D" stroke="#111421" stroke-width="2"><circle cx="492" cy="264" r="9"/><circle cx="581" cy="264" r="9"/><circle cx="617" cy="252" r="9"/><circle cx="617" cy="276" r="9"/><circle cx="710" cy="264" r="9"/></g>
-  <text x="40" y="337" fill="#ABB2CD" font-family="Arial,sans-serif" font-size="14">Different fix configurations; no direct runtime or percentage gain is inferred.</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="424" viewBox="0 0 920 424" role="img" aria-labelledby="title desc">
+  <title id="title">AYN Thor v1.7.1: photographed battery-draw values, with and without the two fixes</title>
+  <desc id="desc">Straightforward bar comparison using average on-screen values. Native TOP with fixes off: 1.86 W mean across five photos, range 1.43 to 2.27 W. True Bottom Screen Off and CPU Fix enabled: 0.97 W mean across four photos, range 0.95 to 0.98 W. These are photographs of app readouts, not a controlled battery-life study.</desc>
+  <rect x="1" y="1" width="918" height="422" rx="22" fill="#111421" stroke="#30354D" stroke-width="2"/>
+  <g font-family="Arial,Helvetica,sans-serif">
+    <text x="42" y="56" fill="#F7F7FB" font-size="26" font-weight="700">BATTERY DRAW: WHAT THE APP SHOWED</text>
+    <text x="42" y="86" fill="#AFB6CF" font-size="17">Average on-screen readings from 9 photos in TOP mode</text>
+    <text x="42" y="139" fill="#F5C95D" font-size="20" font-weight="700">AYN NATIVE TOP · FIXES OFF</text>
+    <text x="42" y="165" fill="#AFB6CF" font-size="16">5 photos  ·  readings from 1.43 to 2.27 W</text>
+    <rect x="42" y="181" width="660" height="36" rx="12" fill="#2A2D41"/>
+    <rect x="42" y="181" width="490.5" height="36" rx="12" fill="#F5C95D"/>
+    <text x="736" y="211" fill="#F5C95D" font-size="29" font-weight="700">1.86 W</text>
+    <text x="42" y="270" fill="#AC8DFC" font-size="20" font-weight="700">TRUE OFF + CPU FIX ON</text>
+    <text x="42" y="296" fill="#AFB6CF" font-size="16">4 photos  ·  readings from 0.95 to 0.98 W</text>
+    <rect x="42" y="312" width="660" height="36" rx="12" fill="#2A2D41"/>
+    <rect x="42" y="312" width="255.4" height="36" rx="12" fill="#AC8DFC"/>
+    <text x="736" y="342" fill="#AC8DFC" font-size="29" font-weight="700">0.97 W</text>
+    <path d="M42 380H878" stroke="#30354D" stroke-width="1"/>
+    <text x="42" y="405" fill="#AFB6CF" font-size="15">Both fixes differ between groups · photo averages, not a battery-life test</text>
+  </g>
 </svg>
