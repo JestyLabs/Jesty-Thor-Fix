@@ -415,6 +415,7 @@ $sources = @(
     (Join-Path $repository 'tests\EarlyCpuBootHookScriptTest.java'),
     (Join-Path $repository 'tests\EarlyCpuAttemptImportModelTest.java'),
     (Join-Path $repository 'tests\EarlyCpuGateModelTest.java'),
+    (Join-Path $repository 'tests\EarlyCpuGateAdversarialTest.java'),
     (Join-Path $repository 'tests\WatcherCadenceModelTest.java')
 )
 & javac -source 8 -target 8 -d $output $sources
@@ -437,6 +438,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Early CPU boot-hook script tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Early CPU attempt import model tests failed.' }
 & java -cp $output EarlyCpuGateModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Early CPU gate model tests failed.' }
+& java -cp $output EarlyCpuGateAdversarialTest
+if ($LASTEXITCODE -ne 0) { throw 'Early CPU gate adversarial test failed.' }
 & java -cp $output WatcherCadenceModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Watcher cadence model tests failed.' }
 & java -cp $output BootLatencyTest
