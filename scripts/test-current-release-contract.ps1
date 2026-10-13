@@ -43,8 +43,8 @@ $nextHeading = [regex]::Match($afterHeading, '(?m)^## ')
 $currentRelease = if ($nextHeading.Success) {
     $afterHeading.Substring(0, $nextHeading.Index)
 } else { $afterHeading }
-if ($currentRelease -notmatch ('versionCode\s+' + [regex]::Escape($code) + '\b') -or
-    $currentRelease -notmatch '(?i)SHA-256[^' + [char]10 + ']*[0-9a-f]{64}' -or
+if ($currentRelease -notmatch ('versionCode\s+[^0-9\r\n]*' + [regex]::Escape($code) + '\b') -or
+    $currentRelease -notmatch '(?im)^- Release asset:.*SHA-256.*[0-9a-f]{64}' -or
     $currentRelease -notmatch 'f929ff910bfa8e5179a2c6a63948a18fc3d6b252' -or
     $currentRelease -notmatch '(?i)NOT OBSERVED' -or
     $currentRelease -notmatch 'not asserted byte-identical') {
