@@ -3,8 +3,9 @@
 </p>
 
 <p align="center">
-  <strong>Make your AYN Thor's TOP mode truly turn off the bottom screen.</strong><br>
-  Verified display power-off · Normal CPU behaviour · Better sleep recovery
+  <strong>Fix three AYN Thor issues in one lightweight app.</strong><br>
+  Truly power off the bottom screen in TOP mode, fix the AYN Dashboard CPU clock bug,<br>
+  and help the Thor return to sleep after unexpected closed-lid wake-ups.
 </p>
 
 <p align="center">
@@ -16,18 +17,32 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.1"><img alt="Release v1.7.1" src="https://img.shields.io/badge/release-v1.7.1-F5C95D?style=for-the-badge"></a>
+  <img alt="AYN Thor" src="https://img.shields.io/badge/AYN-Thor-A78BFA?style=for-the-badge">
   <img alt="Android 13" src="https://img.shields.io/badge/Android-13-3DDC84?style=for-the-badge&logo=android&logoColor=white">
   <img alt="No Magisk or manual rooting" src="https://img.shields.io/badge/setup-no%20Magisk%20%2F%20manual%20rooting-16A34A?style=for-the-badge">
+  <img alt="Lightweight background operation" src="https://img.shields.io/badge/background-lightweight-4EAD8C?style=for-the-badge">
   <img alt="GPL-3.0" src="https://img.shields.io/badge/code-GPL--3.0-8B5CF6?style=for-the-badge">
 </p>
 
 <p align="center">
-  <sub>Signed releases · Tested on a physical Thor · Fixes keep working after you close the app</sub>
+  <sub>Signed releases · Tested on a physical Thor · Works with the app closed</sub>
 </p>
 
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/d1f1d875-792b-4b84-8d52-41b307d11ae4" alt="Jesty Thor Fix on the Thor: true lower-screen power-off compared with stock TOP mode" width="900">
-</p>
+<table>
+  <tr>
+    <th align="center">AYN NATIVE TOP · FIXES OFF</th>
+    <th align="center">TRUE OFF + CPU FIX ON</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/screenshots/thor-v171-native-top.jpg" alt="v1.7.1 app screenshot: stock AYN black-screen mode, CPU clocks pinned high, battery-draw readout around 1.72 W" width="520"></td>
+    <td align="center"><img src="assets/screenshots/thor-v171-true-off.jpg" alt="v1.7.1 app screenshot: TRUE OFF, CPU Fix active, normal CPU clocks, battery-draw readout around 0.95 W" width="520"></td>
+  </tr>
+</table>
+
+<p align="center"><sub>Current app screenshots on the same Thor. With both fixes enabled, CPU clocks are no longer pinned high and the bottom screen is powered off. The app shows about 1.72 W (fixes OFF) versus 0.95 W (ON) in these TOP-mode screenshots.</sub></p>
+
+<p align="center"><strong>Lightweight and safety-focused.</strong> In physical idle tests, the daemon used around <strong>0.09% of one CPU core in BOTH</strong> and <strong>0.32% in TOP</strong> (tested v1.7.1 candidate). It does not change CPU frequencies, voltages, thermal limits or firmware, and verifies the display state after applying a fix. <a href="docs/evidence/CODE76-PHYSICAL-VALIDATION-2026-10-12.md">Performance evidence</a> · <a href="docs/VALIDATION-EVIDENCE.md">Safety and validation</a>.</p>
 
 ---
 
@@ -37,22 +52,19 @@
 |---|---|
 | **True Bottom Screen Off** | When you use just the top screen, **actually powers down the lower display**, not just the image on it. Restores the correct state after sleep and wake. |
 | **AYN Dashboard CPU Fix** | Stops the Dashboard from keeping CPU speeds unnecessarily high while the Thor is idle. No manual CPU tuning needed. |
-| **Closed-Lid Wake Guard** | Optional protection for unexpected wakes with the lid shut. **You choose whether to enable it**; it starts switched off. Normal sleep/wake recovery was hardware-tested, but an actual blocked wake has not been captured. |
-| **App Diagnostics (v1.7.1)** | Tap the **gear at the top** to see recent events, save a troubleshooting report and try the optional Sleep Trial. |
+| **Closed-Lid Wake Guard** | Helps the Thor return to sleep after an unexpected wake while the lid is closed. |
 
 You can close the app after setting it up; the fixes keep working.
-
-<p align="center">
-  <img src="docs/images/dashboard-both-v1.5.15-review.png" alt="Jesty Thor Fix dashboard on a real AYN Thor; older app screenshot" width="760">
-</p>
-
-<p align="center"><sub>Dashboard on a real AYN Thor (earlier version shown; v1.7.1 moves Diagnostics to the top).</sub></p>
 
 ---
 
 ### Measured on a real Thor
 
-**Switching off the bottom screen makes a measurable difference** — not just a black picture. In a controlled test on a physical AYN Thor, the lower display really powered down, and the high-performance CPU cluster stopped staying near its maximum frequency.
+**The fix does more than display a black image.** On physical AYN Thor hardware, the lower display pipeline was verified as powered off in TOP mode, while the CPU fix addressed unusually high idle clock speeds.
+
+#### Controlled A/B/A benchmark
+
+The September 2026 test used repeated, logged 1-second samples under matched conditions. The results below are **system-power proxy** measurements, not a direct battery-life test.
 
 <p align="center">
   <img src="assets/charts/thor-top-mode-power.svg" alt="Controlled TOP-mode comparison: native mode showed about 2.03 W of estimated system-power proxy; True Bottom Screen Off showed about 1.24 W, roughly 39 percent lower in this test." width="880">
@@ -66,13 +78,21 @@ You can close the app after setting it up; the fixes keep working.
 
 **From stuck-near-maximum to normal clock behaviour:** all **75/75** native TOP samples were near the performance cluster's maximum speed, compared with **0/45** after the screen was really powered off.
 
-**[See the full A/B/A benchmark and raw measurements](docs/BENCHMARKS.md)** · [How display power-off was validated](docs/DEVICE-VALIDATION.md)
+#### v1.7.1: the difference at a glance
+
+A simpler look at the **battery-draw readings visible in nine TOP-mode photographs**. The bars show the average of the on-screen values in each configuration, with the observed ranges beneath.
+
+<p align="center">
+  <img src="assets/charts/thor-v171-photo-readings.svg" alt="Easy-to-read comparison of photographed app values: native TOP with fixes OFF averages 1.86 W across five snapshots (range 1.43 to 2.27 W); True Off plus CPU Fix ON averages 0.97 W across four snapshots (range 0.95 to 0.98 W)." width="880">
+</p>
+
+<sub>These are snapshots of different fix configurations, not a controlled battery-life test. The separately documented A/B/A benchmark above provides the controlled comparison.</sub>
+
+**[Full A/B/A benchmark and raw measurements](docs/BENCHMARKS.md)** · [How display power-off was validated](docs/DEVICE-VALIDATION.md)
 
 ### Lightweight in the background
 
 The app's own CPU usage stays tiny, too. In separate physical idle tests, daemon CPU use with **both screens active** fell from about **0.29% to 0.09% of one CPU core** — around **70% less than the earlier RC2 candidate**. In TOP mode it remained around **0.32% of a core**.
-
-No extra CPU polling is introduced when Diagnostics is closed. The updated candidate also passed sustained Android sleep tests in both display modes; those tests measure time asleep, **not battery lifetime**.
 
 [View the full hardware validation dossier](docs/VALIDATION-EVIDENCE.md) · [CPU and sleep measurements](docs/evidence/CODE76-PHYSICAL-VALIDATION-2026-10-12.md)
 
@@ -104,15 +124,16 @@ The app uses the Thor’s own privileged bridge. No Magisk or root required.
 
 ---
 
-### Safety
+### Safety-first design
 
-- Does **not** write CPU frequencies, voltages, thermal limits, or firmware
-- Validates the result after every change
-- Automatically restores normal behaviour if something looks wrong
-- **Lid Guard is optional:** enable it only if you want extra protection against accidental wakes while the lid is shut. Normal recovery was tested; an active wake interception was not observed.
-- Background efficiency, wake recovery and exact signed-build acceptance are covered by [physical validation data](docs/VALIDATION-EVIDENCE.md).
+**Built for stock AYN Thor hardware — no overclocking, firmware flashing, Magisk or manual rooting required.**
 
-More details on resource use and known limitations are in the documentation below.
+- **No CPU or thermal tuning:** does not write CPU frequencies, voltages or thermal limits.
+- **Verified changes:** checks the hardware display state after applying the fix.
+- **Guarded recovery:** restores normal behaviour when validation detects a problem.
+- **Optional protection:** Closed-Lid Wake Guard is off by default and can be enabled only if wanted.
+
+The safety mechanisms, physical tests and known limitations are documented in the [validation evidence](docs/VALIDATION-EVIDENCE.md) and [architecture](docs/ARCHITECTURE.md).
 
 ---
 
