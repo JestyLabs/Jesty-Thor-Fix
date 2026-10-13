@@ -186,7 +186,18 @@ final class AppUpdater {
         if (commitGate.cancel()) cancelled.set(true);
         if (progressDialog != null) dismiss(progressDialog);
         progressDialog = null;
-        worker.shutdownNow();
+        // shutdownNow may remove a successfully submitted install task before run().
+        // Such a task will never enter its worker finally: reclaim only returned,
+        // unstarted tasks; running workers keep ownership of their cleanup.
+        for (Runnable drained : worker.shutdownNow()) {
+            if (drained instanceof UpdateTaskDispatch) {
+                try {
+                    ((UpdateTaskDispatch) drained).abortIfQueued();
+                } catch (Throwable error) {
+                    Log.w(TAG, "could not recover queued update during shutdown", error);
+                }
+            }
+        }
     }
 
     /**
@@ -506,7 +517,7 @@ final class AppUpdater {
                         }
                         v.setEnabled(false);
                     });
-            worker.execute(() -> {
+            worker.execute(new UpdateTaskDispatch(() -> {
                 try {
                     File apk = downloadVerified(release, percent -> onUi(() -> bar.setProgress(percent)));
                     onUi(() -> label.setText("Checking the update..."));
@@ -521,16 +532,9 @@ final class AppUpdater {
                             : "Update failed: " + reason(error);
                     onUi(() -> toast(message));
                 } finally {
-                    commitGate.finish();
-                    installSessions.finishTransfer(attempt);
-                    busy.set(false);
-                    onUi(() -> {
-                        dismiss(progress);
-                        if (progressDialog == progress) progressDialog = null;
-                        releaseInstallReservation(attempt);
-                    });
+                    finishTransferAttempt(attempt, progress);
                 }
-            });
+            }, () -> finishTransferAttempt(attempt, progress)));
         } catch (Throwable error) {
             recoverPreparation(attempt, setupProgress, error);
         }
@@ -550,6 +554,18 @@ final class AppUpdater {
         } catch (Throwable notificationError) {
             Log.w(TAG, "could not report update preparation failure", notificationError);
         }
+    }
+
+    /** Exactly one owner: either the executing worker or a drained, unstarted task. */
+    private void finishTransferAttempt(long attempt, AlertDialog progress) {
+        commitGate.finish();
+        installSessions.finishTransfer(attempt);
+        busy.set(false);
+        onUi(() -> {
+            dismiss(progress);
+            if (progressDialog == progress) progressDialog = null;
+            releaseInstallReservation(attempt);
+        });
     }
 
     /** UI thread: an obsolete completion cannot release the next attempt's reservation. */

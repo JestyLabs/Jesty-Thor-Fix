@@ -29,6 +29,8 @@ $updateModel = Join-Path $repository 'src\com\thor\displaypowertest\UpdateVersio
 $updateTest = Join-Path $repository 'tests\UpdateVersionTest.java'
 $commitGateModel = Join-Path $repository 'src\com\thor\displaypowertest\UpdateCommitGate.java'
 $commitGateTest = Join-Path $repository 'tests\UpdateCommitGateTest.java'
+$dispatchModel = Join-Path $repository 'src\com\thor\displaypowertest\UpdateTaskDispatch.java'
+$dispatchTest = Join-Path $repository 'tests\com\thor\displaypowertest\UpdateTaskDispatchTest.java'
 $confirmationModel = Join-Path $repository 'src\com\thor\displaypowertest\UpdateConfirmationStore.java'
 $confirmationTest = Join-Path $repository 'tests\com\thor\displaypowertest\UpdateConfirmationStoreTest.java'
 $sessionModel = Join-Path $repository 'src\com\thor\displaypowertest\UpdateSessionOwnership.java'
@@ -39,7 +41,7 @@ $readiness = Join-Path $repository 'src\com\thor\displaypowertest\UpdateReadines
 $readinessTest = Join-Path $repository 'tests\com\thor\displaypowertest\UpdateReadinessTest.java'
 $clockFixture = Join-Path $repository 'tests\fixtures\android\os\SystemClock.java'
 
-& javac -source 8 -target 8 -d $output $model $test $warningModel $warningTest $updateModel $updateTest $commitGateModel $commitGateTest $readiness $readinessTest $clockFixture $confirmationModel $confirmationTest $sessionModel $sessionTest $replacementModel $replacementTest
+& javac -source 8 -target 8 -d $output $model $test $warningModel $warningTest $updateModel $updateTest $commitGateModel $commitGateTest $readiness $readinessTest $clockFixture $confirmationModel $confirmationTest $sessionModel $sessionTest $replacementModel $replacementTest $dispatchModel $dispatchTest
 if ($LASTEXITCODE -ne 0) { throw 'Dashboard test compilation failed.' }
 
 & java -cp $output DashboardStateModelTest
@@ -50,6 +52,8 @@ if ($LASTEXITCODE -ne 0) { throw 'CPU warning tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Update version tests failed.' }
 & java -cp $output UpdateCommitGateTest
 if ($LASTEXITCODE -ne 0) { throw 'Update commit cancellation tests failed.' }
+& java -cp $output com.thor.displaypowertest.UpdateTaskDispatchTest
+if ($LASTEXITCODE -ne 0) { throw 'Update queued task ownership tests failed.' }
 
 & java -cp $output com.thor.displaypowertest.UpdateReadinessTest
 if ($LASTEXITCODE -ne 0) { throw 'Updater readiness lifecycle tests failed.' }

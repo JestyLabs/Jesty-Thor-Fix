@@ -26,7 +26,8 @@ try {
     $fakes = Join-Path $work 'fakes'
     New-Item -ItemType Directory -Path $production, $fakes | Out-Null
     $names = @('AppUpdater','UpdateInstallReceiver','UpdateVersion','UpdateCommitGate',
-        'UpdateConfirmationStore','UpdateSessionOwnership','ReplacementSessionPolicy')
+        'UpdateConfirmationStore','UpdateSessionOwnership','ReplacementSessionPolicy',
+        'UpdateTaskDispatch')
     $classes = @($names | ForEach-Object { Join-Path $root "src/com/thor/displaypowertest/$_.java" })
     & $javac -encoding UTF-8 -source 8 -target 8 -classpath $jar -d $production @classes
     if ($LASTEXITCODE -ne 0) { throw 'Production updater classes did not compile' }
