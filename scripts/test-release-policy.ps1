@@ -51,24 +51,20 @@ if ($publisher -notmatch 'environment: thor-publication' -or
     $publisher -notmatch "github.ref == 'refs/heads/main'") {
     throw 'Publication must use the protected main-only publication environment.'
 }
-# A branch-protection setting can only require a check that is created on
-# EVERY ordinary PR. Protect the future admin-required emulator job from
-# being accidentally path-filtered, dependent on signing secrets, or skipped.
-#
-# This is a static CI contract, not proof that branch protection currently
-# requires the job or that its emulator tests passed on physical hardware.
-$emulatorHeader = [regex]::Match($ci, '(?m)^  android_emulator_smoke:\s*
-)
+# Protect the always-created PR emulator check from accidental trigger/path
+# filters, protected-key dependencies or disabled installer coverage.
+# This cannot change or read live required GitHub branch protection settings.
+$emulatorHeader = [regex]::Match($ci, '(?m)^  android_emulator_smoke:[ \t]*$')
 if (-not $emulatorHeader.Success) {
     throw 'CI is missing the stable PR Android emulator job.'
 }
 $emulator = $ci.Substring($emulatorHeader.Index)
-$prEvents = [regex]::Match($ci, '(?ms)^on:\s*\r?\n(?<events>.*?)(?=^permissions:)')
-if (-not $prEvents.Success) {
+$eventHeader = [regex]::Match($ci, '(?ms)^on:[ \t]*\r?\n(?<events>.*?)(?=^permissions:)')
+if (-not $eventHeader.Success) {
     throw 'Missing CI workflow event trigger block.'
 }
-$events = $prEvents.Groups['events'].Value
-$pullRequestEvent = [regex]::Match($events, '(?m)^  pull_request:\s*$')
+$events = $eventHeader.Groups['events'].Value
+$pullRequestEvent = [regex]::Match($events, '(?m)^  pull_request:[ \t]*$')
 if (-not $pullRequestEvent.Success) {
     throw 'A stable required emulator check needs a pull_request trigger.'
 }
@@ -79,16 +75,14 @@ $pullRequestConfig = if ($nextEvent.Success) {
 } else {
     $afterPullRequest
 }
-# Push-to-main branch filters are expected, but PR filters can make a
-# supposedly required check absent for arbitrary source-file edits.
-if ($pullRequestConfig -match '(?m)^\s{4}(?:paths|paths-ignore|branches|branches-ignore):') {
+# A push-to-main branches filter is fine; a PR filter can make the check
+# absent for an unrelated pull request and block its merge indefinitely.
+if ($pullRequestConfig -match '(?m)^    (?:paths|paths-ignore|branches|branches-ignore):') {
     throw 'PR required-check workflow must not have path/branch filters.'
 }
 if ($emulator -notmatch "if: github\.event_name == 'pull_request' \|\| github\.event_name == 'workflow_dispatch'" -or
-    $emulator -notmatch '(?m)^    needs: build\s*
- -or
-    $emulator -notmatch '(?m)^    name: Android emulator lifecycle and installer sessions \(no vendor bridge\)\s*
-) {
+    $emulator -notmatch '(?m)^    needs: build[ \t]*$' -or
+    $emulator -notmatch '(?m)^    name: Android emulator lifecycle and installer sessions \(no vendor bridge\)[ \t]*$') {
     throw 'The expected Android emulator check must be created for every PR after the build.'
 }
 if ($emulator -match '(?m)^    environment:' -or
@@ -101,8 +95,7 @@ if ($emulator -notmatch 'Build isolated installer harness with disposable test k
     $emulator -notmatch 'test-android-emulator-smoke\.sh') {
     throw 'PR emulator must keep its disposable-key installer and lifecycle checks.'
 }
-# The supplemental updater-specific emulator uses paths: and is not an
-# acceptable globally required context. An admin should require the stable
-# android_emulator_smoke job only after checking live settings and flakiness.
+# The focused updater-gate workflow is path-filtered and must NOT become a
+# globally required GitHub status check; use the stable emulator job instead.
 
-Write-Host 'Release workflow workflow and PR emulator CI contracts passed (live required GitHub settings still need admin verification).'
+Write-Host 'Release workflow and PR emulator CI contracts passed (live required GitHub settings still need admin verification).'
