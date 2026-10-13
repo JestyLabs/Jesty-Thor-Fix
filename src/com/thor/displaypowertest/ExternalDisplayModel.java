@@ -11,8 +11,6 @@ import java.util.regex.Pattern;
 public final class ExternalDisplayModel {
     private static final String VIEWPORT_START = "DisplayViewport{";
     private static final Pattern VIEWPORT = Pattern.compile("DisplayViewport\\{([^}]*)\\}");
-    private static final Pattern DISPLAY_ID =
-            Pattern.compile("(?:^|, )displayId=(\\d+)(?=,|$)");
 
     private ExternalDisplayModel() {}
 
@@ -20,33 +18,63 @@ public final class ExternalDisplayModel {
         if (viewportsLine == null || !viewportsLine.contains("mViewports=")) return null;
         Matcher viewports = VIEWPORT.matcher(viewportsLine);
         int matched = 0;
+        boolean hasExtra = false;
         while (viewports.find()) {
             matched++;
-            String viewport = viewports.group(1);
-            if (!viewport.contains("type=EXTERNAL") || !viewport.contains("valid=true")
-                    || !viewport.contains("isActive=true")) continue;
-            Matcher id = DISPLAY_ID.matcher(viewport);
-            if (!id.find()) return null;
-            final int displayId;
-            try {
-                displayId = Integer.parseInt(id.group(1));
-            } catch (NumberFormatException malformed) {
-                return null;
+            // Inspect every closed viewport, including inactive and invalid
+            // entries, before concluding that no extra external display exists.
+            String type = null;
+            String valid = null;
+            String active = null;
+            Integer displayId = null;
+            for (String part : viewports.group(1).split(",", -1)) {
+                int equals = part.indexOf('=');
+                if (equals <= 0 || equals == part.length() - 1) return null;
+                String key = part.substring(0, equals).trim();
+                String value = part.substring(equals + 1).trim();
+                if (key.isEmpty() || value.isEmpty()) return null;
+                if ("type".equals(key)) {
+                    if (type != null) return null;
+                    type = value;
+                } else if ("valid".equals(key)) {
+                    if (valid != null) return null;
+                    valid = value;
+                } else if ("isActive".equals(key)) {
+                    if (active != null) return null;
+                    active = value;
+                } else if ("displayId".equals(key)) {
+                    // Duplicates must be detected even when the second value
+                    // is negative or otherwise malformed. Never ignore it.
+                    if (displayId != null || !value.matches("[0-9]+")) return null;
+                    try {
+                        displayId = Integer.valueOf(value);
+                    } catch (NumberFormatException malformed) {
+                        return null;
+                    }
+                }
+                // Other well-formed metadata keys (e.g. uniqueId) do not
+                // participate in the safety decision.
             }
-            // Duplicate IDs are ambiguous. A malformed display dump must not
-            // be accepted as evidence that no dock is connected.
-            if (id.find()) return null;
-            if (displayId != ThorHardwareProfile.BOTTOM_LOGICAL_DISPLAY_ID) return true;
+            if (!"INTERNAL".equals(type) && !"EXTERNAL".equals(type)) return null;
+            if (!"true".equals(valid) && !"false".equals(valid)) return null;
+            if (!"true".equals(active) && !"false".equals(active)) return null;
+            if (displayId == null) return null;
+            if ("EXTERNAL".equals(type) && "true".equals(valid)
+                    && "true".equals(active)
+                    && displayId.intValue() != ThorHardwareProfile.BOTTOM_LOGICAL_DISPLAY_ID) {
+                hasExtra = true;
+            }
         }
         if (matched == 0) return null;
-        // A truncated or unclosed DisplayViewport{... fragment must never
-        // silently disappear and yield a false "no extra display" verdict.
+        // An unclosed DisplayViewport fragment cannot silently disappear from
+        // the safety decision, even after a valid preceding entry.
         int started = 0;
         int cursor = 0;
         while ((cursor = viewportsLine.indexOf(VIEWPORT_START, cursor)) >= 0) {
             started++;
             cursor += VIEWPORT_START.length();
         }
-        return started == matched ? Boolean.FALSE : null;
+        if (started != matched) return null;
+        return hasExtra ? Boolean.TRUE : Boolean.FALSE;
     }
 }
