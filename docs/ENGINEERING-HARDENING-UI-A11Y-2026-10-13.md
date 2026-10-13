@@ -1,6 +1,6 @@
 # Dashboard accessibility and discoverability — offline audit
 
-Scope: source inspection, host static contracts and Android build only. TalkBack, keyboard, D-pad, text scaling and visual screenshots are NOT RUN; no accessibility certification.
+Original scope: source inspection, host static contracts and Android build only. The historical NOT RUN statuses below describe that audit. Subsequent [native emulator validation](ENGINEERING-HARDENING-UI-EMULATOR-2026-10-13.md) covers keyboard/D-pad, accessibility nodes and 100/150/200% scaling, with a confirmed diagnostics dialog layout gap. TalkBack speech remains NOT RUN; no accessibility certification.
 
 ## Findings by control
 
