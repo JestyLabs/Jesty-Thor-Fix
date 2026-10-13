@@ -104,6 +104,7 @@ public final class DaemonIpcServerHostTest {
             LocalSocket[] incoming = new LocalSocket[5];
             for (int i = 0; i < incoming.length; i++) {
                 incoming[i] = new LocalSocket(true, 'I');
+                if (i == 4) incoming[i].failClose = true;
                 listener.offer(incoming[i]);
             }
             awaitAccepted(listener, 7);
@@ -121,6 +122,13 @@ public final class DaemonIpcServerHostTest {
                     "two active plus four queued; overflow refused");
             check(incoming[4].reads.get() == 0,
                     "overflow socket closed before reading a byte");
+            // Characterize a rare but important failure: closing the seventh
+            // socket itself throws. That must not kill the listening daemon.
+            LocalSocket recovered = new LocalSocket(true, 'Q');
+            listener.offer(recovered);
+            awaitClosed(recovered, "listener survives rejected socket close failure");
+            check("ok=1;echo=Q\n".equals(recovered.response()),
+                    "listener keeps serving after queue-pressure close failure");
         } finally {
             handler.unblock.countDown();
             stop(listener, server, ipc);
