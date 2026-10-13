@@ -441,10 +441,9 @@ final class AppUpdater {
             } else {
                 final boolean nativeReady = ReplacementSessionPolicy.canBeginTransfer(
                         new ReplacementSessionPolicy.NativeSessions() {
-                            private final PackageInstaller installer =
-                                    activity.getPackageManager().getPackageInstaller();
+                            
                             @Override public int[] ids() {
-                                List<PackageInstaller.SessionInfo> sessions = installer.getMySessions();
+                                List<PackageInstaller.SessionInfo> sessions = activity.getPackageManager().getPackageInstaller().getMySessions();
                                 if (sessions == null) return null;
                                 int[] ids = new int[sessions.size()];
                                 for (int i = 0; i < ids.length; i++) {
@@ -453,7 +452,7 @@ final class AppUpdater {
                                 return ids;
                             }
                             @Override public void abandon(int id) {
-                                installer.abandonSession(id);
+                                activity.getPackageManager().getPackageInstaller().abandonSession(id);
                             }
                         });
                 attempt = nativeReady ? installSessions.beginTransfer() : -2L;
