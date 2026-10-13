@@ -47,6 +47,8 @@ retaining the results you need.
   installed version preserved and ownership released.
 - Replayed terminal callbacks for the former session and an unknown session:
   explicit broadcasts complete and preserve a later cache sentinel.
+- Old terminal callbacks during a newer download preserve its cache and active
+  transfer/reservation; cancellation subsequently cleans that newer attempt.
 - Replayed pending callback: characterize the existing repeated-launch policy
   using an actual platform-provided confirmation Intent; one native session.
 - Pending confirmation while backgrounded: no launch until Activity resume.
@@ -72,7 +74,13 @@ that Android naturally emitted duplicates.
 The current pending-callback policy can launch the same confirmation again. A
 characterization PASS is not a deduplication guarantee. Process recovery means
 abandoning and retrying a stale installation, not persisting consent across death.
+The fixture host always permits installation; dashboard readiness and daemon
+handover are not simulated as product acceptance. The source-install permission
+is pre-granted on the disposable AVD; the Settings permission-grant journey is
+not exercised. The system confirmation of each installation remains mandatory.
 No physical daemon handover, vendor service, display/wake behavior, production
 certificate rotation, firmware compatibility or full dashboard acceptance is
 established by this harness. Retain raw logs and snapshots privately; publish only
 sanitized case results.
+
+Current sanitized execution results: [Android updater validation](../../../docs/UPDATER-ANDROID-VALIDATION-2026-10-13.md).
