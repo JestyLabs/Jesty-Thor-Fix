@@ -3,7 +3,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repository = Split-Path -Parent $PSScriptRoot
-$output = Join-Path $env:TEMP 'jesty-thor-boot-lid-tests'
+$output = Join-Path ([IO.Path]::GetTempPath()) ('jesty-thor-boot-lid-' + [Guid]::NewGuid().ToString('N'))
 
 $manifest = Get-Content -LiteralPath (Join-Path $repository 'apk\AndroidManifest.xml') -Raw
 $identity = Get-Content -LiteralPath (Join-Path $repository 'src\com\thor\displaypowertest\DaemonIdentity.java') -Raw
@@ -358,15 +358,8 @@ if ($bootReceiver -notmatch 'const-string v1, "android\.intent\.action\.BOOT_COM
     throw 'The exported BootReceiver must ignore any action other than BOOT_COMPLETED.'
 }
 
-if (Test-Path -LiteralPath $output) {
-    $resolved = [IO.Path]::GetFullPath((Resolve-Path -LiteralPath $output).Path)
-    $expected = [IO.Path]::GetFullPath($output)
-    if (-not [String]::Equals($resolved, $expected, [StringComparison]::OrdinalIgnoreCase)) {
-        throw "Refusing to clean unexpected test path: $resolved"
-    }
-    Remove-Item -LiteralPath $output -Recurse -Force
-}
 New-Item -ItemType Directory -Path $output | Out-Null
+try {
 
 $sources = @(
     (Join-Path $repository 'src\com\thor\displaypowertest\BootGateModel.java'),
@@ -468,3 +461,9 @@ if ($LASTEXITCODE -ne 0) { throw 'Handoff recovery model tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'PServer bridge diagnostic tests failed.' }
 & java -cp $output DaemonArgsTest
 if ($LASTEXITCODE -ne 0) { throw 'Daemon argument tests failed.' }
+} finally {
+    # Per-invocation output cannot collide with another test run.
+    if (Test-Path -LiteralPath $output) {
+        Remove-Item -LiteralPath $output -Recurse -Force
+    }
+}
