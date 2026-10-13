@@ -55,3 +55,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Updater readiness lifecycle tests failed.' }
 
 & java -cp $output com.thor.displaypowertest.UpdateConfirmationStoreTest
 if ($LASTEXITCODE -ne 0) { throw 'Updater confirmation lifecycle characterization failed.' }
+
+# The emulator checks PackageInstaller; this host harness covers the actual
+# UpdateInstallReceiver callbacks, with disposable Android test-only placeholders.
+& (Join-Path $PSScriptRoot 'test-updater-receiver-host.ps1')
