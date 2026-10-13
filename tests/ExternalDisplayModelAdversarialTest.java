@@ -79,6 +79,28 @@ public final class ExternalDisplayModelAdversarialTest {
         expect(Boolean.FALSE, viewports(TOP, BOTTOM,
                 "DisplayViewport{type=EXTERNAL, valid=false, isActive=true, displayId=7}"),
                 "known invalid external remains ignored");
+        // Android's DisplayViewport may include Rect(...) with internal commas.
+        // Those are metadata values, not separate malformed viewport fields.
+        String topWithRect = "DisplayViewport{type=INTERNAL, valid=true, isActive=true, "
+                + "displayId=0, logicalFrame=Rect(0, 0 - 1920, 1080), "
+                + "physicalFrame=Rect(0, 0 - 1920, 1080)}";
+        String bottomWithRect = "DisplayViewport{type=EXTERNAL, valid=true, isActive=true, "
+                + "displayId=4, logicalFrame=Rect(0, 0 - 1920, 1080)}";
+        String dockWithRect = "DisplayViewport{type=EXTERNAL, valid=true, isActive=true, "
+                + "displayId=7, uniqueId='local:hdmi,port', "
+                + "physicalFrame=Rect(0, 0 - 1280, 720)}";
+        expect(Boolean.FALSE, viewports(topWithRect, bottomWithRect),
+                "commas inside Rect values cannot invalidate known integrated screens");
+        expect(Boolean.TRUE, viewports(topWithRect, bottomWithRect, dockWithRect),
+                "external dock with nested comma metadata must be recognized");
+        expect(Boolean.FALSE, viewports(topWithRect, bottomWithRect,
+                "DisplayViewport{type=EXTERNAL, valid=false, isActive=true, "
+                + "displayId=7, physicalFrame=Rect(0, 0 - 1280, 720)}"),
+                "known invalid dock metadata remains ignored");
+        expect(null, viewports(topWithRect, bottomWithRect,
+                "DisplayViewport{type=EXTERNAL, valid=true, isActive=true, "
+                + "displayId=7, physicalFrame=Rect(0, 0 - 1280, 720}"),
+                "unclosed nested metadata cannot authorize a no-dock decision");
         System.out.println("ExternalDisplayModelAdversarialTest passed (" + assertions
                 + " fail-safe input checks)");
     }
