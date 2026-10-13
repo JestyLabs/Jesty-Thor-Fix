@@ -48,6 +48,7 @@ def build(out, sdk, java):
     classes.mkdir(exist_ok=True); dex.mkdir(exist_ok=True)
     src = [ROOT / f'src/com/thor/displaypowertest/{s}.java' for s in SOURCES]
     src.append(ROOT / 'tests/android/updater-e2e/UpdaterTestActivity.java')
+    src.append(ROOT / 'tests/android/updater-e2e/UpdaterTestControlReceiver.java')
     execute([java / ('bin/javac' + exe), '-encoding', 'UTF-8', '-source', '8', '-target', '8',
              '-classpath', jar, '-d', classes, *src], env=env)
     execute([tools / ('d8' + bat), '--min-api', '23', '--lib', jar, '--output', dex,
@@ -75,6 +76,7 @@ def build(out, sdk, java):
             <activity android:name="com.thor.displaypowertest.UpdaterTestActivity" android:exported="true"
                       android:launchMode="singleTask"/>
             <receiver android:name="com.thor.displaypowertest.UpdateInstallReceiver" android:exported="false"/>
+            <receiver android:name="com.thor.displaypowertest.UpdaterTestControlReceiver" android:exported="true"/>
           </application></manifest>''', encoding='utf-8')
         raw = out / (name + '-raw.apk')
         execute([tools / ('aapt2' + exe), 'link', '-o', raw, '-I', jar, '--manifest', manifest], env=env)
@@ -119,6 +121,10 @@ class Suite:
 
     def state(self):
         return json.loads(self.call('shell', 'cat', self.files + 'state.json'))
+
+    def replay_pending(self, session=-1):
+        self.call('shell', 'am', 'broadcast', '-n', PACKAGE + '/com.thor.displaypowertest.UpdaterTestControlReceiver',
+                  '--ei', 'session', str(session))
 
     def wait(self, condition, timeout=30):
         deadline = time.monotonic() + timeout
@@ -251,23 +257,43 @@ class Suite:
         def duplicate_pending():
             self.fresh(); self.installer()
             initial = self.state(); assert initial['launches'] == 1
-            self.command('duplicate_pending')
+            self.replay_pending()
             self.wait(lambda: self.state()['replays'] == 1)
             state = self.state()
-            # Characterization, not a deduplication guarantee: the current policy
-            # launches the same native confirmation again after a replay.
-            assert state['launches'] == 2 and state['session'] == initial['session'] and state['nativeSessions'] == 1
+            assert state['launches'] == 1 and state['pending'] == -1
+            assert state['session'] == initial['session'] and state['nativeSessions'] == 1
             self.installer(); self.click('Cancel', 'com.android.packageinstaller'); self.settled()
-        self.case('pending-replay-current-policy-characterized', duplicate_pending)
+        self.case('pending-replay-after-launch-deduplicated', duplicate_pending)
+        def foreground_replay():
+            self.fresh(scenario='foreground_replay'); self.installer()
+            state = self.state(); assert state['launchAttempts'] == 1 and state['launches'] == 1
+            self.click('Cancel', 'com.android.packageinstaller'); self.settled()
+        self.case('pending-replay-during-launch-deduplicated', foreground_replay)
         def background_confirmation():
             self.fresh(scenario='delayed')
             self.call('shell', 'input', 'keyevent', 'KEYCODE_HOME')
             self.wait(lambda: self.state()['pending'] >= 0)
             before = self.state(); assert before['launches'] == 0 and before['nativeSessions'] == 1
+            self.replay_pending(); self.replay_pending()
+            self.wait(lambda: self.state()['replays'] == 2)
+            assert self.state()['pending'] == before['pending'] and self.state()['launches'] == 0
             self.command('init'); self.installer()
             assert self.state()['launches'] == 1
             self.click('Cancel', 'com.android.packageinstaller'); self.settled()
         self.case('background-confirmation-deferred-until-resume', background_confirmation)
+        def failed_launch_retry():
+            self.fresh(scenario='launch_failure')
+            failed = self.settled()
+            assert failed['launchAttempts'] == 1 and failed['launches'] == 0 and failed['lastConfirmationSession'] >= 0
+            self.replay_pending(failed['lastConfirmationSession'])
+            self.wait(lambda: self.state()['replays'] == 1)
+            assert self.state()['launchAttempts'] == 1 and self.state()['pending'] == -1
+            self.command('update', scenario='normal')
+            self.click('Update', PACKAGE); self.click('Download', PACKAGE); self.installer()
+            retry = self.state()
+            assert retry['launches'] == 1 and retry['session'] != failed['lastConfirmationSession']
+            self.click('Cancel', 'com.android.packageinstaller'); self.settled()
+        self.case('confirmation-launch-failure-new-session-retry', failed_launch_retry)
         def activity_recreation():
             self.fresh(scenario='slow')
             before = self.state()

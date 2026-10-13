@@ -181,19 +181,21 @@ public final class UpdaterLifecycleHostTest {
     private static void duplicatedConfirmations() throws Exception {
         try (Scenario s = new Scenario()) {
             s.bind(9); s.updater.onResume(); pending(s.activity,9); pending(s.activity,9);
-            check(s.activity.starts == 2, "foreground duplicate policy");
+            check(s.activity.starts == 1, "foreground duplicate launches only once per session");
             System.out.println("PENDING_HOST foreground duplicates: starts=" + s.activity.starts);
         }
         try (Scenario s = new Scenario()) {
             s.bind(9); pending(s.activity,9); pending(s.activity,9);
-            check(Toast.shown == 2 && s.activity.starts == 0, "paused duplicate message policy");
+            check(Toast.shown == 1 && s.activity.starts == 0, "paused duplicate retains one prompt and message");
             s.updater.onResume(); check(s.activity.starts == 1, "deferred slot delivers once");
             s.updater.onPause(); s.updater.onResume(); pending(s.activity,9);
-            check(s.activity.starts == 2, "same-session duplicate after pause/resume follows policy");
+            check(s.activity.starts == 1, "same-session duplicate after pause/resume stays consumed");
             receiver.onReceive(s.activity,status(3,9)); int before=s.activity.starts;
             pending(s.activity,9); check(s.activity.starts==before, "terminal stops further confirmation");
             s.bind(11); pending(s.activity,11); check(s.activity.starts==before+1, "new native session remains launchable");
-            System.out.println("PENDING_HOST paused messages="+2+"; same-session launches="+2+"; new session remains eligible");
+            receiver.onReceive(s.activity,status(3,9)); pending(s.activity,11);
+            check(s.activity.starts==before+1, "old terminal does not release newer launch marker");
+            System.out.println("PENDING_HOST paused messages=1; same-session launches=1; new session remains eligible");
         }
         try (Scenario s = new Scenario()) {
             s.bind(9); s.updater.onResume(); s.activity.rejectStart=true; pending(s.activity,9);

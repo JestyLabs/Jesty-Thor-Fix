@@ -307,8 +307,8 @@ public final class UpdaterOwnershipRegression {
             s.updater.onResume();
             pending(s.activity,9,new Intent());
             pending(s.activity,9,new Intent());
-            check(s.activity.starts==2,
-                    "characterization: repeated current-session pending prompts still launch twice");
+            check(s.activity.starts==1,
+                    "repeated current-session pending prompts launch once");
         }
     }
     public static void main(String[] args) throws Exception {

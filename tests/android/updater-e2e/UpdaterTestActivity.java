@@ -29,6 +29,9 @@ public final class UpdaterTestActivity extends Activity implements AppUpdater.Ho
     private static String scenario = "normal";
     private static Intent confirmation;
     private static int launches;
+    private static int launchAttempts;
+    private static int lastConfirmationSession = -1;
+    private static boolean replayingLaunch;
     private static int replays;
     private static boolean transportInstalled;
     private final android.os.Handler snapshots = new android.os.Handler();
@@ -110,14 +113,32 @@ public final class UpdaterTestActivity extends Activity implements AppUpdater.Ho
         return new Intent(this, UpdateInstallReceiver.class).setAction(UpdateInstallReceiver.ACTION_STATUS)
                 .putExtra(PackageInstaller.EXTRA_STATUS, value).putExtra(PackageInstaller.EXTRA_SESSION_ID, id);
     }
-    private void replay(Intent intent) {
-        sendOrderedBroadcast(intent, null, new android.content.BroadcastReceiver() {
+    private void replay(Intent intent) { replay(this, intent); }
+    private static void replay(android.content.Context context, Intent intent) {
+        context.sendOrderedBroadcast(intent, null, new android.content.BroadcastReceiver() {
             @Override public void onReceive(android.content.Context context, Intent delivered) {
                 replays++; mark("REPLAY_DELIVERED");
             }
         }, null, 0, null, null);
     }
-    private UpdateSessionOwnership owner() throws Exception {
+    static void replayPending(android.content.Context context, int requestedSession) throws Exception {
+        Intent nativeIntent = confirmation;
+        if (nativeIntent == null) {
+            Field storeField = AppUpdater.class.getDeclaredField("pendingConfirmations"); storeField.setAccessible(true);
+            Object store = storeField.get(null);
+            Field pendingField = UpdateConfirmationStore.class.getDeclaredField("pending"); pendingField.setAccessible(true);
+            UpdateConfirmationStore.Pending<?> pending = (UpdateConfirmationStore.Pending<?>) pendingField.get(store);
+            if (pending != null) nativeIntent = (Intent) pending.confirmation;
+        }
+        if (nativeIntent == null) throw new IllegalStateException("No platform confirmation available to replay");
+        int session = requestedSession >= 0 ? requestedSession : owner().currentSessionId();
+        Intent callback = new Intent(context, UpdateInstallReceiver.class).setAction(UpdateInstallReceiver.ACTION_STATUS)
+                .putExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_PENDING_USER_ACTION)
+                .putExtra(PackageInstaller.EXTRA_SESSION_ID, session)
+                .putExtra(Intent.EXTRA_INTENT, new Intent(nativeIntent));
+        replay(context, callback);
+    }
+    private static UpdateSessionOwnership owner() throws Exception {
         Field f = AppUpdater.class.getDeclaredField("installSessions"); f.setAccessible(true);
         return (UpdateSessionOwnership) f.get(null);
     }
@@ -126,7 +147,8 @@ public final class UpdaterTestActivity extends Activity implements AppUpdater.Ho
                 .put("session", owner().currentSessionId()).put("transfer", owner().transferInProgress())
                 .put("nativeSessions", getPackageManager().getPackageInstaller().getMySessions().size())
                 .put("reserved", reserved).put("reservations", reservations)
-                .put("launches", launches).put("replays", replays)
+                .put("launches", launches).put("launchAttempts", launchAttempts)
+                .put("lastConfirmationSession", lastConfirmationSession).put("replays", replays)
                 .put("pending", pendingSession())
                 .put("sentinel", new File(getCacheDir(), "updates/sentinel").exists())
                 .put("version", getPackageManager().getPackageInfo(getPackageName(), 0).versionName);
@@ -143,7 +165,18 @@ public final class UpdaterTestActivity extends Activity implements AppUpdater.Ho
     @Override public void startActivity(Intent intent) {
         // Observe the actual platform-provided Intent; never invent a confirmation.
         if ("android.content.pm.action.CONFIRM_INSTALL".equals(intent.getAction())) {
-            confirmation = new Intent(intent); launches++; mark("NATIVE_CONFIRMATION");
+            confirmation = new Intent(intent); launchAttempts++;
+            lastConfirmationSession = intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1);
+            if ("launch_failure".equals(scenario)) throw new android.content.ActivityNotFoundException("Injected test launch failure");
+            launches++; mark("NATIVE_CONFIRMATION");
+            if ("foreground_replay".equals(scenario) && !replayingLaunch) {
+                replayingLaunch = true;
+                try {
+                    Intent replay = status(PackageInstaller.STATUS_PENDING_USER_ACTION, lastConfirmationSession)
+                            .putExtra(Intent.EXTRA_INTENT, new Intent(intent));
+                    new UpdateInstallReceiver().onReceive(this, replay);
+                } finally { replayingLaunch = false; }
+            }
         }
         super.startActivity(intent);
     }
