@@ -6,7 +6,7 @@
 
 - Original workstream base: `main` at `281e8c9f1d0982bc766843d1be083cb93e19cb7d` (2026-10-12). The v1.7.1 code76 source, UI-only follow-up and physical evidence were integrated into `main` (published release commit `f929ff910bfa8e5179a2c6a63948a18fc3d6b252`); stable v1.7.1 was published on 2026-10-12. **The branch was reconciled with accepted `main` at `8f0e7ca815c72b2d66b2dc1762c235e247ab32bb` on 2026-10-13, using an ancestry-preserving merge (`60066a3152b8d10f1556a695a32d5be21f11ab2d`). Recheck for later `main` changes before future code/workflow edits.**
 - RC3 draft #63 and old recovery #64 were closed unmerged; their accepted functionality was integrated via code76 #68. Code77 contingency #69 was archived unmerged. Mixed-refresh #37 remains an independent research PR. **Do not revisit or modify the published v1.7.1 APK through this maintenance track.**
-- With v1.7.1 now published, this PR remains **documentation/planning-only until separately approved, re-baselined steps are selected**. No daemon, boot, CPU Fix, Lid Guard, display, IPC, updater, workflow, signing or install changes are authorized by this update.
+- Following explicit authorization for more offline work on 2026-10-13, this draft now includes new **host-only updater/IPC tests**, a **test-only SystemClock fixture**, and one small **production client-side IPC response-check correction** in `SocketClient`, delegated to `DaemonResponsePolicy`. Boot/display/CPU/Lid Guard, daemon command handling, updater installation, CI policies, signing, releases and physical device are untouched. The IPC runtime change must not ship without final CI and affected-path acceptance.
 - Before any implementation step, inspect the accepted RC3 baseline, identify overlaps with ongoing PRs, and update this branch from the approved target. Re-evaluate each work item against code that actually shipped, rather than refactoring an outdated snapshot.
 - Implement and review **one small, independently testable step at a time**. Each step needs a focused diff, named tests, a brief risk assessment and explicit evidence level. Keep the PR in draft until the agreed acceptance gates are complete.
 - No automatic merge, release, signing, device installation, privileged fault injection or physical testing. Those actions need separate authorization.
@@ -29,6 +29,7 @@
 - [ ] Exercise real platform installation-session callbacks for cancellation before commit, installation denial, stale callbacks and session cleanup in an isolated emulator.
 - [ ] Model reconnect and version handover races with deterministic seams, while keeping production socket credentials and daemon identity checks intact.
 - [ ] Test concurrent lifecycle events and failure recovery in host/emulator environments, explicitly distinguishing simulated behavior from hardware outcomes.
+- [x] Add host test coverage for 12 simultaneous Cancel/Commit contenders (30 repetitions) and the actual `UpdateReadiness` adapter with a test-only fake Android SystemClock (stale/paused state, boot hold across daemon loss, clock rollback). These do **not** prove Android PackageInstaller behavior.
 - [ ] Make additional CI gates mandatory only after stability and runtime cost are measured.
 
 **Gate:** repeatable tests with documented assertions and evidence limits. No claim that emulator installation validates Thor privileged functionality.
@@ -45,6 +46,7 @@
 ### 4. Privileged IPC and lifecycle robustness
 
 - [ ] Review Unix-socket peer identity, permissions, stale endpoint ownership and bounded concurrency/timeout paths.
+- [x] Add strict client response-ACK boundary: `SocketClient.request` uses `DaemonResponsePolicy` rather than trusting any `ok=1` prefix; reject `ok=10`/`ok=1x`. Pure host tests wired into Windows CI. **Await actual CI and physical daemon-command regression before any release.**
 - [ ] Add adversarial *host-only* tests for malformed/unknown one-byte commands, connection floods, interrupted reads, resource exhaustion and authenticated daemon identity/race conditions. **Partial test-only progress:** `IpcPeerPolicyTest` now exhaustively checks all 512 POSIX permission combinations and UID ownership extremes; locally compiled/executed on OpenJDK 21. The actual daemon/socket lifecycle and CI JDK 17 still require separate validation.
 - [ ] Exercise failures through fakes/mocks, not by stopping or altering vendor services on a live device.
 - [ ] Arrange separate independent security review if available; record its exact scope rather than assuming a static scan is an audit.
