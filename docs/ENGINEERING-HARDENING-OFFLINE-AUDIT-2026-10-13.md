@@ -68,3 +68,18 @@ The current source manifest targets SDK **25** while running on the project's te
 - [ ] Conduct a new production release only after separate approval and physical gate.
 
 **No runtime changes are implied by completing the checked static tasks.** See [#67](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/67) for the maintenance workstream.
+
+## F. Implementation after this static-only audit (2026-10-13)
+
+With separate authorization for continued offline development, PR #67 now includes the following **post-audit** changes on its draft branch. They are not part of the published v1.7.1 APK.
+
+| Area | Change | Validation boundary |
+| --- | --- | --- |
+| Updater Cancel/Commit | `UpdateCommitGateTest`: 12 competing operations across 30 attempts; checks exactly one accepted transition and next-attempt isolation | Host Java only; **not** an actual PackageInstaller lifecycle test |
+| Updater readiness | New `UpdateReadinessTest` and test-only Android `SystemClock` stub, wired into `scripts/test-dashboard.ps1`. Tests paused/stale samples, clock rollback, retained known boot hold across daemon outages and repair/update blocking | Deterministic host model/adapter test; no Android device or vendor Binder |
+| IPC acknowledgement | New pure `DaemonResponsePolicy` and tests, with `SocketClient.request` changed to reject malformed `ok=10`/`ok=1x` prefixes | **One production IPC client conditional changed.** Must be compiled by final JDK 17 CI and exercised through trusted real daemon socket before release |
+| IPC UID boundary | The `IpcPeerPolicyTest` exhaustive mode/UID matrix from earlier commits remains present | Pure policy tests cannot establish actual kernel peer credentials or timeout/flood safety |
+
+Historical no-runtime statements above apply to the **initial static audit**. The explicitly identified IPC client change supersedes those statements for the complete PR diff. No changes were made to privileged daemon commands, boot/CPU/display/Lid Guard runtime, protected publishing workflows or shipped APK. No physical test, signing, merge or release was performed. Hardware-independent assertions are not a substitute for final physical acceptance.
+
+**Next gates:** check final-head Windows/Java-17 build, host suites, CodeQL and the Android 13 emulator; review actual failure/timeout paths with fakes; run a narrowly scoped real Thor IPC response/identity regression before merging any code that would ship.
