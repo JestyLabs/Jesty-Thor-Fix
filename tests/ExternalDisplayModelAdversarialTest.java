@@ -55,6 +55,30 @@ public final class ExternalDisplayModelAdversarialTest {
                         + " displayId=7}"), "conflicting active IDs cannot establish no dock");
         expect(Boolean.TRUE, viewports(TOP, BOTTOM, dock.replace("displayId=7","displayId=8")),
                 "another valid active external ID blocks Guard");
+        // Five Codex R3 malformed closed-entry reproductions.
+        expect(null, viewports(TOP, BOTTOM,
+                "DisplayViewport{type=EXTERNAL, valid=true, displayId=7}"),
+                "missing isActive is not evidence of no dock");
+        expect(null, viewports(TOP, BOTTOM,
+                "DisplayViewport{type=EXTERNAL, valid=unknown, isActive=true, displayId=7}"),
+                "unknown validity cannot be ignored");
+        expect(null, viewports(TOP, BOTTOM,
+                "DisplayViewport{type=EXTERNAL, valid=true, isActive=unknown, displayId=7}"),
+                "unknown active state cannot be ignored");
+        expect(null, viewports(TOP, BOTTOM,
+                "DisplayViewport{type=EXTERNAL, valid=true, isActive=true, displayId=4, displayId=-7}"),
+                "malformed duplicate ID is unknown");
+        expect(null, viewports(TOP, BOTTOM, "DisplayViewport{garbage}"),
+                "malformed closed viewport is unknown");
+        expect(null, viewports(TOP, BOTTOM,
+                "DisplayViewport{type=EXTERNAL, valid=true, isActive=true, displayId=4, displayId=7}"),
+                "duplicate valid IDs remain rejected");
+        expect(Boolean.FALSE, viewports(TOP, BOTTOM,
+                "DisplayViewport{type=EXTERNAL, valid=true, isActive=false, displayId=7}"),
+                "valid inactive external remains ignored");
+        expect(Boolean.FALSE, viewports(TOP, BOTTOM,
+                "DisplayViewport{type=EXTERNAL, valid=false, isActive=true, displayId=7}"),
+                "known invalid external remains ignored");
         System.out.println("ExternalDisplayModelAdversarialTest passed (" + assertions
                 + " fail-safe input checks)");
     }
