@@ -4,9 +4,9 @@
 
 ## Scope and integration boundary
 
-- Original workstream base: `main` at `281e8c9f1d0982bc766843d1be083cb93e19cb7d` (2026-10-12). The v1.7.1 code76 source, UI-only follow-up and physical evidence are now integrated into `main` (snapshot `f929ff910bfa8e5179a2c6a63948a18fc3d6b252`). **Re-baseline against the then-current main before any future code edits.**
-- RC3 draft #63 and old recovery #64 were closed unmerged; their accepted functionality was integrated via code76 #68. Code77 contingency #69 was archived unmerged. Mixed-refresh #37 remains an independent research PR. **The v1.7.1 signed-release gate and exact APK identity take precedence.**
-- While v1.7.1 signing/publication verification is in progress, this branch stays **documentation-only**. No daemon, boot, CPU Fix, Lid Guard, display, IPC, updater, workflow, signing or install changes are authorized by this track.
+- Original workstream base: `main` at `281e8c9f1d0982bc766843d1be083cb93e19cb7d` (2026-10-12). The v1.7.1 code76 source, UI-only follow-up and physical evidence were integrated into `main` (published release commit `f929ff910bfa8e5179a2c6a63948a18fc3d6b252`); stable v1.7.1 was published on 2026-10-12. **This draft branch is behind `main`; reconcile against the then-current accepted `main` before any runtime or workflow edits.**
+- RC3 draft #63 and old recovery #64 were closed unmerged; their accepted functionality was integrated via code76 #68. Code77 contingency #69 was archived unmerged. Mixed-refresh #37 remains an independent research PR. **Do not revisit or modify the published v1.7.1 APK through this maintenance track.**
+- With v1.7.1 now published, this PR remains **documentation/planning-only until separately approved, re-baselined steps are selected**. No daemon, boot, CPU Fix, Lid Guard, display, IPC, updater, workflow, signing or install changes are authorized by this update.
 - Before any implementation step, inspect the accepted RC3 baseline, identify overlaps with ongoing PRs, and update this branch from the approved target. Re-evaluate each work item against code that actually shipped, rather than refactoring an outdated snapshot.
 - Implement and review **one small, independently testable step at a time**. Each step needs a focused diff, named tests, a brief risk assessment and explicit evidence level. Keep the PR in draft until the agreed acceptance gates are complete.
 - No automatic merge, release, signing, device installation, privileged fault injection or physical testing. Those actions need separate authorization.
@@ -60,9 +60,9 @@
 
 **Gate:** a fresh environment can build an unsigned APK and run the supported host tests from written steps, with recorded tool versions and without privileged credentials.
 
-### 6. TOP-mode idle CPU characterization — deferred after code76 acceptance
+### 6. TOP-mode idle CPU characterization — deferred post-v1.7.1 release
 
-**Status:** analysis/planning only. This item is deliberately outside the ongoing signed candidate76 acceptance and is **not** authorization to tune watcher behavior or run new physical tests.
+**Status:** analysis/planning only. Stable v1.7.1/code76 has been published; the measured TOP overhead is not a release blocker and this item is **not** authorization to tune watcher behavior or run new physical tests.
 
 **Why:** On the physical AYN Thor, the established RC2 → code76 awake-idle daemon CPU medians were **BOTH 0.289403% → 0.087931%** (−69.6%) and **TOP 0.322314% → 0.317188%** (−1.6%) of one CPU core. TOP retained low overhead and passed the predeclared budget, but differs from BOTH in steady state. Historical watcher optimization samples recorded similarly low BOTH (~0.093%) and higher TOP (~0.350%) medians. The RC2 BOTH result is higher than both of those OTHER BOTH measurements, so do not infer that the code76 CPU Fix adoption patch caused a 69.6% performance improvement.
 
@@ -128,3 +128,62 @@ Follow [public evidence policy](PUBLIC-EVIDENCE-POLICY.md), [research workflow](
 - A temporary [archive branch](https://github.com/JestyLabs/Jesty-Thor-Fix/tree/archive/branch-prune-snapshot-2026-10-13) pins **all 38** non-main/non-#37/non-#67 branch tips via explicit Git merge parents. Independent readback verified **38/38** tips with original exact SHAs. Its tree holds only an inventory and the main snapshot; **it is not a runtime merge**.
 - After creating and verifying an immutable **archival tag** at the archive commit, and once v1.7.1 release signing/publication is settled, delete only the manifest-listed stale branches whose remote tip SHA still matches its pinned SHA and which are not sources of any newly opened PR.
 - The expected final active GitHub branch set is **`main` + #37 + #67**. Tags retain historical recovery/prototype code without cluttering active branches. Stop, do not force, on any changed ref.
+
+## 9. Follow-ups from independent code/release audit (2026-10-13)
+
+This section records **only additional actionable gaps** not adequately tracked by items 1–6; it does not re-score the project or widen the already published v1.7.1 release. Existing work already covers architecture/controller boundaries (1), updater + lifecycle integration (2), device matrix and active Guard validation (3), adversarial IPC review (4), reproducible contributor builds (5), and TOP-only daemon CPU attribution (6). The isolated bright-flash question remains in [issue #65](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/65) / refresh research [#37](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/37); do not duplicate or imply a proven root cause.
+
+### 9A. P1 — reconcile shipped-release documentation and provenance
+
+**Observed gap:** the stable [v1.7.1 GitHub release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.1) was published on 2026-10-12, but some retained readiness/evidence material still describes code76 final approval/publication as pending, and `docs/RELEASE-INTEGRITY.md` has no v1.7.1 stable record corresponding to the v1.7.0 record. Historical pre-release plans must remain traceable, not be silently rewritten as though every proposed gate was physically exercised.
+
+- [ ] Verify the exact published asset's SHA-256, certificate, package/versionCode, source commit and successful source CI/publish run; derive values from the actual release artifact and recorded provenance, **never invent hashes or assume an RC test APK is byte-identical**.
+- [ ] Add a concise v1.7.1 stable promotion entry to `docs/RELEASE-INTEGRITY.md`, explicitly distinguishing physically accepted code76 candidate evidence from any subsequent UI-only artifact differences.
+- [ ] Update the *current-state* summary in `docs/VALIDATION-EVIDENCE.md` and annotate completed release-readiness material with final publication status. Retain old pending/unknown observations as historical evidence; notably **active Closed-Lid Wake Guard blocked-wake interception was not observed** and must not become a PASS by implication.
+- [ ] Add a release-document consistency check if it can reliably detect stale current-version/status references without trying to mechanically rewrite historical documents.
+
+**Gate:** verified release metadata, no changed APK, no fabricated physical claim, and no loss of historical audit trail. This is a documentation-only release housekeeping task and can be delivered separately; it must not become an excuse to alter the stable app.
+
+### 9B. P1 — close the difference between CI coverage and enforced branch gates
+
+**Observed gap:** PR CI includes Android 13 emulator/installer sessions, but the public `main` branch metadata currently advertises `build` and both CodeQL analyses as required checks; the emulator job was not listed there. The presence of signing/publishing environment checks in YAML alone does not prove every GitHub-side reviewer/branch restriction is active.
+
+- [ ] Map build, CodeQL, emulator, installer, release-policy and signer/publisher jobs to **actual required branch checks**, conditional triggers, skipped states, and repository rules; do not assume all green jobs are merge-blocking.
+- [ ] Decide which emulator/integration checks should be required on relevant PRs, and adjust workflows and rules coherently only after checking runtime/flakiness and avoiding permanently pending/skipped required checks.
+- [ ] Verify GitHub-side signing/publication environment protections and approvals using an account with sufficient permissions; if administration settings cannot be inspected, record them as **unverified**, not enabled.
+- [ ] Keep test-key emulator artifacts separate from protected production signing and preserve exact-artifact publication and certificate/size/hash validation.
+
+**Gate:** documented evidence of which checks truly block unsafe merges/releases, not just intended YAML policy. Any GitHub settings mutation or workflow hardening is a separate reviewed change.
+
+### 9C. P2 — discoverability and accessibility: scoped UI-only review
+
+**Observed gap:** updater settings are reached through a long-press on the GitHub action, an interaction without an obvious visible affordance. The hand-built, landscape-only Android dashboard lacks documented systematic TalkBack, font scaling and alternate input validation.
+
+- [ ] Audit every settings/diagnostics/update entry point for obvious affordances; specifically consider a visible and clearly named updates/settings access path instead of relying solely on the GitHub long-press. Preserve user consent and all updater safety gates.
+- [ ] Run a targeted manual accessibility checklist: TalkBack content descriptions/focus order, actionable hit areas, contrast, larger fonts/text clipping, keyboard/controller navigation and landscape behavior. Record what was actually tested.
+- [ ] Treat UI changes as independent opt-in product work: no privileged daemon, install gate, watcher or display-power changes; retain screenshot or on-device visual verification for any altered UI.
+
+**Gate:** a documented accessibility/discoverability baseline and, if warranted, a separate small UI PR; no claim of complete accessibility certification from code inspection.
+
+### 9D. P2 — Android/firmware compatibility and contributor independence
+
+**Observed gap:** `targetSdkVersion=25` is intentional but carries future compatibility cost. Hardware display/CRTC/Hall constants and the vendor `PServerBinder` are specific to tested Thor firmware. A generic Android build or another dual-screen device cannot establish support.
+
+- [ ] Maintain a **non-executing feasibility audit** of target SDK migration: boot/background service behavior, hidden API/bridge access, install-source permissions, PackageInstaller callbacks, exported components and tests needed before any target change. Do **not** raise the target in this track without explicit physical approval.
+- [ ] Clearly separate validated Thor firmware/device revisions from untested dock, external display, BOTTOM-only or other hardware variants, cross-referencing item 3 rather than re-running that matrix.
+- [ ] Reduce single-maintainer dependency with precise clean-checkout/test/build instructions, public troubleshooting, artifact/test provenance and contributor-friendly failure messages; link to item 5 instead of a build-system rewrite.
+
+**Gate:** an accurate support boundary and executable contributor setup; no new compatibility claim without the exact firmware/device evidence.
+
+### 9E. P2/P3 — quality evidence beyond daemon CPU and static checks
+
+**Observed gap:** measured daemon CPU and Android suspend are valuable but do not quantify total battery-runtime improvement or gameplay impact. Power proxies, short snapshots and CPU-tick percentages must not be presented as controlled battery-life or frame-time results.
+
+- [ ] Define an **optional, separate** energy study with repeatable workload, brightness, wireless/USB state, environment, instrumentation and matched A/B(A) configurations; use calibrated electrical measurements when possible. Preserve the distinction between proxy readings, suspend duration and measured energy.
+- [ ] Define an optional gameplay performance sanity matrix (frame times, input/frame pacing and background daemon behavior) if a real user-facing regression is suspected; do not add a continuous runtime diagnostic solely for this study.
+- [ ] Record test-tier/branch coverage explicitly (host state models, Android emulator, physical Thor, and **not tested**); investigate quantitative coverage only if it improves assurance on the boot/updater/IPC paths, rather than pursuing a cosmetic percentage.
+- [ ] Prefer independent review of privileged behavior and real failure cases over additional documentation or feature count (cross-reference items 2 and 4).
+
+**Gate:** meaningful, repeatable measurements with transparent limitations. Optional performance/energy investigations are **not** retroactive release blockers for v1.7.1.
+
+**Order of execution:** 9A and 9B are the first new engineering hygiene priorities; 9C–9E are follow-ups to schedule only when the core 1–6 safety/correctness tasks justify them. Each proposed code, CI, settings or hardware change remains separately scoped and explicitly authorized.
