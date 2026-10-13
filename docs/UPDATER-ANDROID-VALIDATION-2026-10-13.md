@@ -1,5 +1,9 @@
 # Updater Android validation — 2026-10-13
 
+**Historical execution snapshot.** Its repeated-pending characterization describes
+the policy at `8e78f75`, before the subsequent [confirmation deduplication](UPDATER-CONFIRMATION-DEDUP-2026-10-13.md).
+Do not interpret that former limitation as the current implementation contract.
+
 Baseline: PR #67 remote head `3e84c9e9850cb90ef408b50a06df65e31ab7e8ee`.
 The existing P1-D suite was retained. This work exercises the real updater and
 receiver against Android 13/API 33 on an isolated x86_64 disposable emulator,

@@ -49,16 +49,22 @@ retaining the results you need.
   explicit broadcasts complete and preserve a later cache sentinel.
 - Old terminal callbacks during a newer download preserve its cache and active
   transfer/reservation; cancellation subsequently cleans that newer attempt.
-- Replayed pending callback: characterize the existing repeated-launch policy
-  using an actual platform-provided confirmation Intent; one native session.
+- Replayed pending callback during/after launch: one launch per native session,
+  using an actual platform-provided confirmation Intent.
 - Pending confirmation while backgrounded: no launch until Activity resume.
+- Repeated background callbacks: retain one deferred Intent, deliver once on resume.
+- Injected Activity launch exception: release the failed native session, reject its
+  obsolete callback and allow a new attempt/session to reach consent.
 - Activity recreation during transfer: cancellation/cleanup, then successful
   retry up to native consent in the same process.
 - Process killed behind native consent, then reopened: unknown callbacks fail
   closed, stale native session abandoned on startup, fresh retry reaches consent.
 
 Assertions observe atomic app-local snapshots without bringing the Activity to
-the foreground. Terminal replay broadcasts have completion acknowledgements, so
+the foreground. A test-only control receiver injects pending broadcasts while the
+native installer remains visible. A direct receiver replay inside the test
+Activity's launch override separately tests reentrant dispatch. Replay broadcasts
+have completion acknowledgements, so
 the test cannot pass before the receiver actually handles them. Every scenario
 installs a clean base fixture and closes residual installer UI from earlier tests.
 
@@ -71,8 +77,9 @@ behavior. The production transport, endpoint allowlist and signing policy are
 unchanged. Duplicate callbacks are deliberately injected broadcasts, not a claim
 that Android naturally emitted duplicates.
 
-The current pending-callback policy can launch the same confirmation again. A
-characterization PASS is not a deduplication guarantee. Process recovery means
+Deferred callbacks are coalesced and launched sessions stay consumed until a
+terminal callback or a deliberate replacement. A launch exception invalidates
+and abandons that native session; retry uses a fresh attempt/session. Process recovery means
 abandoning and retrying a stale installation, not persisting consent across death.
 The fixture host always permits installation; dashboard readiness and daemon
 handover are not simulated as product acceptance. The source-install permission
@@ -83,4 +90,6 @@ certificate rotation, firmware compatibility or full dashboard acceptance is
 established by this harness. Retain raw logs and snapshots privately; publish only
 sanitized case results.
 
-Current sanitized execution results: [Android updater validation](../../../docs/UPDATER-ANDROID-VALIDATION-2026-10-13.md).
+Current confirmation policy: [deduplication validation](../../../docs/UPDATER-CONFIRMATION-DEDUP-2026-10-13.md).
+The earlier [Android updater validation](../../../docs/UPDATER-ANDROID-VALIDATION-2026-10-13.md)
+records the original 14-case baseline, including its former repeated-launch behavior.
