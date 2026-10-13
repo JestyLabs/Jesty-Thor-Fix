@@ -63,19 +63,25 @@ if (-not $emulatorHeader.Success) {
     throw 'CI is missing the stable PR Android emulator job.'
 }
 $emulator = $ci.Substring($emulatorHeader.Index)
-$prTrigger = [regex]::Match($ci, '(?m)^  pull_request:\s*
-)
-if (-not $prTrigger.Success -or $prTrigger.Index -gt $emulatorHeader.Index) {
-    throw 'The PR trigger must exist without a path-specific filter.'
+$prEvents = [regex]::Match($ci, '(?ms)^on:\s*\r?\n(?<events>.*?)(?=^permissions:)')
+if (-not $prEvents.Success) {
+    throw 'Missing CI workflow event trigger block.'
 }
-$prTriggersBlock = $ci.Substring($prTrigger.Index, $emulatorHeader.Index - $prTrigger.Index)
-# Avoid accidental false positives from YAML-level PR filters in the global
-# event trigger, which could leave a required GitHub check pending forever.
-$prOnly = [regex]::Match($ci, '(?ms)^on:\s*\r?\n(?<events>.*?)(?=^permissions:)', 'IgnoreCase')
-if (-not $prOnly.Success -or
-    $prOnly.Groups['events'].Value -notmatch '(?m)^  pull_request:\s*
- -or
-    $prOnly.Groups['events'].Value -match '(?m)^\s{4}(?:paths|paths-ignore|branches|branches-ignore):') {
+$events = $prEvents.Groups['events'].Value
+$pullRequestEvent = [regex]::Match($events, '(?m)^  pull_request:\s*$')
+if (-not $pullRequestEvent.Success) {
+    throw 'A stable required emulator check needs a pull_request trigger.'
+}
+$afterPullRequest = $events.Substring($pullRequestEvent.Index + $pullRequestEvent.Length)
+$nextEvent = [regex]::Match($afterPullRequest, '(?m)^  [A-Za-z_][A-Za-z_0-9-]*:')
+$pullRequestConfig = if ($nextEvent.Success) {
+    $afterPullRequest.Substring(0, $nextEvent.Index)
+} else {
+    $afterPullRequest
+}
+# Push-to-main branch filters are expected, but PR filters can make a
+# supposedly required check absent for arbitrary source-file edits.
+if ($pullRequestConfig -match '(?m)^\s{4}(?:paths|paths-ignore|branches|branches-ignore):') {
     throw 'PR required-check workflow must not have path/branch filters.'
 }
 if ($emulator -notmatch "if: github\.event_name == 'pull_request' \|\| github\.event_name == 'workflow_dispatch'" -or
