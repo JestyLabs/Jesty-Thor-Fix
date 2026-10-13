@@ -392,6 +392,7 @@ $sources = @(
     (Join-Path $repository 'src\com\thor\displaypowertest\WatcherCadenceModel.java'),
     (Join-Path $repository 'tests\BootAndLidModelTest.java'),
     (Join-Path $repository 'tests\ExternalDisplayModelAdversarialTest.java'),
+    (Join-Path $repository 'tests\BootGateAdversarialTest.java'),
     (Join-Path $repository 'tests\BootLatencyTest.java'),
     (Join-Path $repository 'tests\DaemonLaunchModelTest.java'),
     (Join-Path $repository 'tests\DaemonLaunchScriptTest.java'),
@@ -422,6 +423,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Boot/lid test compilation failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Boot/lid tests failed.' }
 & java -cp $output ExternalDisplayModelAdversarialTest
 if ($LASTEXITCODE -ne 0) { throw 'External-display fail-safe parser tests failed.' }
+& java -cp $output BootGateAdversarialTest
+if ($LASTEXITCODE -ne 0) { throw 'Boot gate adversarial matrix failed.' }
 & java -cp $output CpuBootAttemptModelTest
 if ($LASTEXITCODE -ne 0) { throw 'CPU boot attempt model tests failed.' }
 & java -cp $output PreComposerCpuProofModelTest
