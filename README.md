@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>Fix three frustrating AYN Thor issues in one lightweight app.</strong><br>
+  <strong>Fix three AYN Thor issues in one lightweight app.</strong><br>
   Truly power off the bottom screen in TOP mode, fix the AYN Dashboard CPU clock bug,<br>
   and help the Thor return to sleep after unexpected closed-lid wake-ups.
 </p>
@@ -17,13 +17,16 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.1"><img alt="Release v1.7.1" src="https://img.shields.io/badge/release-v1.7.1-F5C95D?style=for-the-badge"></a>
+  <img alt="AYN Thor" src="https://img.shields.io/badge/AYN-Thor-A78BFA?style=for-the-badge">
   <img alt="Android 13" src="https://img.shields.io/badge/Android-13-3DDC84?style=for-the-badge&logo=android&logoColor=white">
   <img alt="No Magisk or manual rooting" src="https://img.shields.io/badge/setup-no%20Magisk%20%2F%20manual%20rooting-16A34A?style=for-the-badge">
+  <img alt="Lightweight background operation" src="https://img.shields.io/badge/background-lightweight-4EAD8C?style=for-the-badge">
   <img alt="GPL-3.0" src="https://img.shields.io/badge/code-GPL--3.0-8B5CF6?style=for-the-badge">
 </p>
 
 <p align="center">
-  <sub>Signed releases · Tested on a physical Thor · Very low background CPU usage · Works with the app closed</sub>
+  <sub>Signed releases · Tested on a physical Thor · Works with the app closed</sub>
 </p>
 
 <table>
@@ -39,7 +42,7 @@
 
 <p align="center"><sub>Current app screenshots on the same Thor. With both fixes enabled, CPU clocks are no longer pinned high and the bottom screen is powered off. The app shows about 1.72 W (fixes OFF) versus 0.95 W (ON) in these TOP-mode screenshots.</sub></p>
 
-<p align="center"><strong>Lightweight by design:</strong> in physical idle tests, the daemon used approximately <strong>0.09% of one CPU core in BOTH</strong> and <strong>0.32% in TOP</strong> (tested v1.7.1 candidate). <a href="docs/evidence/CODE76-PHYSICAL-VALIDATION-2026-10-12.md">See measurements</a>.</p>
+<p align="center"><strong>Lightweight and safety-focused.</strong> In physical idle tests, the daemon used around <strong>0.09% of one CPU core in BOTH</strong> and <strong>0.32% in TOP</strong> (tested v1.7.1 candidate). It does not change CPU frequencies, voltages, thermal limits or firmware, and verifies the display state after applying a fix. <a href="docs/evidence/CODE76-PHYSICAL-VALIDATION-2026-10-12.md">Performance evidence</a> · <a href="docs/VALIDATION-EVIDENCE.md">Safety and validation</a>.</p>
 
 ---
 
