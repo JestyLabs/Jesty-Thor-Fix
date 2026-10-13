@@ -468,71 +468,89 @@ final class AppUpdater {
         }
         // Invalidate old callbacks only AFTER native ownership is resolved.
         // Never discard a usable old prompt on an unconfirmed abandonment.
-        pendingConfirmations.discardAll();
-        cancelled.set(false);
-        host.setInstallReserved(true);
+        AlertDialog setupProgress = null;
+        try {
+            pendingConfirmations.discardAll();
+            cancelled.set(false);
+            host.setInstallReserved(true);
 
-        int padding = Math.round(24 * activity.getResources().getDisplayMetrics().density);
-        LinearLayout box = new LinearLayout(activity);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(padding, padding / 2, padding, 0);
-        TextView label = new TextView(activity);
-        label.setText("Downloading v" + release.version() + "...");
-        box.addView(label);
-        ProgressBar bar = new ProgressBar(activity, null,
-                android.R.attr.progressBarStyleHorizontal);
-        bar.setMax(100);
-        box.addView(bar);
-        AlertDialog progress = dialog().setTitle("Updating")
-                .setView(box)
-                .setCancelable(false)
-                // Builder button listeners auto-dismiss even when cancellation loses
-                // the commit race. Install our own click listener after showing.
-                .setNegativeButton("Cancel", null)
-                .show();
-        progress.getButton(android.content.DialogInterface.BUTTON_NEGATIVE)
-                .setOnClickListener(v -> {
-                    if (commitGate.cancel()) {
-                        // The gate is changed first: even before this flag is
-                        // observed, the worker cannot cross the commit boundary.
-                        cancelled.set(true);
-                        label.setText("Cancelling update...");
-                    } else {
-                        label.setText("Waiting for Android's installer...");
-                        toast("Android install confirmation is already being prepared");
-                    }
-                    // Keep progress visible until the worker performs cleanup.
-                    // A second Cancel must not imply cancellation was accepted.
-                    v.setEnabled(false);
-                });
-        progressDialog = progress;
+            int padding = Math.round(24 * activity.getResources().getDisplayMetrics().density);
+            LinearLayout box = new LinearLayout(activity);
+            box.setOrientation(LinearLayout.VERTICAL);
+            box.setPadding(padding, padding / 2, padding, 0);
+            TextView label = new TextView(activity);
+            label.setText("Downloading v" + release.version() + "...");
+            box.addView(label);
+            ProgressBar bar = new ProgressBar(activity, null,
+                    android.R.attr.progressBarStyleHorizontal);
+            bar.setMax(100);
+            box.addView(bar);
+            AlertDialog progress = dialog().setTitle("Updating")
+                    .setView(box)
+                    .setCancelable(false)
+                    .setNegativeButton("Cancel", null)
+                    .show();
+            setupProgress = progress;
+            progressDialog = progress;
+            progress.getButton(android.content.DialogInterface.BUTTON_NEGATIVE)
+                    .setOnClickListener(v -> {
+                        if (commitGate.cancel()) {
+                            cancelled.set(true);
+                            label.setText("Cancelling update...");
+                        } else {
+                            label.setText("Waiting for Android's installer...");
+                            toast("Android install confirmation is already being prepared");
+                        }
+                        v.setEnabled(false);
+                    });
+            worker.execute(() -> {
+                try {
+                    File apk = downloadVerified(release, percent -> onUi(() -> bar.setProgress(percent)));
+                    onUi(() -> label.setText("Checking the update..."));
+                    verifyArchive(apk, release);
+                    install(apk, attempt);
+                    if (installSessions.ownsTransfer(attempt)) clearDownloads(activity);
+                    onUi(() -> toast("Confirm the update in Android's installer"));
+                } catch (Throwable error) {
+                    Log.w(TAG, "update failed", error);
+                    if (installSessions.ownsTransfer(attempt)) clearDownloads(activity);
+                    String message = cancelled.get() ? "Update cancelled"
+                            : "Update failed: " + reason(error);
+                    onUi(() -> toast(message));
+                } finally {
+                    commitGate.finish();
+                    installSessions.finishTransfer(attempt);
+                    busy.set(false);
+                    onUi(() -> {
+                        dismiss(progress);
+                        if (progressDialog == progress) progressDialog = null;
+                        host.setInstallReserved(false);
+                    });
+                }
+            });
+        } catch (Throwable error) {
+            recoverPreparation(attempt, setupProgress, error);
+        }
+    }
 
-        worker.execute(() -> {
-            try {
-                File apk = downloadVerified(release, percent -> onUi(() -> bar.setProgress(percent)));
-                onUi(() -> label.setText("Checking the update..."));
-                verifyArchive(apk, release);
-                install(apk, attempt);
-                // The committed session holds its own copy of the APK.
-                if (installSessions.ownsTransfer(attempt)) clearDownloads(activity);
-                onUi(() -> toast("Confirm the update in Android's installer"));
-            } catch (Throwable error) {
-                Log.w(TAG, "update failed", error);
-                if (installSessions.ownsTransfer(attempt)) clearDownloads(activity);
-                String message = cancelled.get() ? "Update cancelled"
-                        : "Update failed: " + reason(error);
-                onUi(() -> toast(message));
-            } finally {
-                commitGate.finish();
-                installSessions.finishTransfer(attempt);
-                busy.set(false);
-                onUi(() -> {
-                    dismiss(progress);
-                    if (progressDialog == progress) progressDialog = null;
-                    host.setInstallReserved(false);
-                });
-            }
-        });
+    /** A rejected task has no worker; restore only this attempt's local state. */
+    private void recoverPreparation(long attempt, AlertDialog prepared, Throwable error) {
+        Log.w(TAG, "update preparation failed", error);
+        commitGate.finish();
+        installSessions.finishTransfer(attempt);
+        busy.set(false);
+        if (prepared != null) dismiss(prepared);
+        if (progressDialog == prepared) progressDialog = null;
+        try {
+            host.setInstallReserved(false);
+        } catch (Throwable releaseError) {
+            Log.w(TAG, "could not release update UI reservation", releaseError);
+        }
+        try {
+            toast("Update not started: " + reason(error));
+        } catch (Throwable notificationError) {
+            Log.w(TAG, "could not report update preparation failure", notificationError);
+        }
     }
 
     /** Worker thread: waits briefly for a fresh dashboard sample, then gives the reason or null. */

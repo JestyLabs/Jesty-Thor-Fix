@@ -114,7 +114,9 @@ public final class UpdaterOwnershipRegression {
             method.setAccessible(true);
             try {
                 method.invoke(updater,new Object[]{null});
-                return false;
+                return Toast.lastText != null && Toast.lastText.contains("HOST_UI_CHECKPOINT")
+                        && !((AtomicBoolean)field(updater,"busy")).get()
+                        && !owner().transferInProgress();
             } catch(InvocationTargetException e) {
                 if("HOST_UI_CHECKPOINT".equals(e.getCause().getMessage())) return true;
                 throw (Exception)e.getCause();
@@ -255,7 +257,7 @@ public final class UpdaterOwnershipRegression {
             s.installer.failAbandon=false;
             check(s.attemptDownloadPrefix(),"R1: user may retry when native abandon succeeds");
             check(!s.installer.sessions.containsKey(9)&&!owner().ownsSession(9)
-                    &&owner().transferInProgress(),"R1: successful retry starts next transfer");
+                    &&!owner().transferInProgress(),"R1: successful native retry reaches UI checkpoint then recovers");
         }
         try(Scenario s=new Scenario()) {
             s.bound(9);
