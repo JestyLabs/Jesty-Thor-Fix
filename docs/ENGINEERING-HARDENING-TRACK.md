@@ -26,7 +26,7 @@
 ### 2. Android integration coverage
 
 - [x] Inventory existing host, Android emulator, `PackageInstaller.Session` and update-gate tests; compare gaps in [offline audit](ENGINEERING-HARDENING-OFFLINE-AUDIT-2026-10-13.md). Keep integration implementation as a separate task.
-- [ ] Exercise real platform installation-session callbacks for cancellation before commit, installation denial, stale callbacks and session cleanup in an isolated emulator.
+- [ ] Exercise the **full production** app/receiver/PackageInstaller lifecycle, including cancellation before commit, denial, stale callbacks and cleanup, in an isolated Android emulator. **Partial host coverage completed:** 11 local assertions on the actual `UpdateInstallReceiver` class with stub Android services, wired into `test-dashboard.ps1`; checks pending confirmation, success, aborted/generic failures, default failure, duplicate terminal callback behavior. Separate PR CI/emulator runs and end-to-end app wiring still required.
 - [ ] Model reconnect and version handover races with deterministic seams, while keeping production socket credentials and daemon identity checks intact.
 - [ ] Test concurrent lifecycle events and failure recovery in host/emulator environments, explicitly distinguishing simulated behavior from hardware outcomes.
 - [x] Add host test coverage for 12 simultaneous Cancel/Commit contenders (30 repetitions) and the actual `UpdateReadiness` adapter with a test-only fake Android SystemClock (stale/paused state, boot hold across daemon loss, clock rollback). These do **not** prove Android PackageInstaller behavior.
@@ -56,7 +56,7 @@
 ### 5. Contributor and build reproducibility
 
 - [ ] Inventory documented tool versions, checksums, operating-system requirements, build inputs and repeatability of the existing Windows/Apktool pipeline.
-- [ ] Provide a clean contributor quick-start for unsigned local builds and tests, without requiring a production signing key or device.
+- [x] Add [credential-free contributor quick start](CONTRIBUTOR-QUICKSTART.md) and link from `CONTRIBUTING.md`: JDK 17, Android SDK API 34, Build Tools 35.0.0, SHA-pinned Apktool 3.0.3, all public test suites and unsigned `build.ps1`. **Fresh independent Windows checkout validation assigned to offline Codex; do not mark the clean-environment acceptance gate passed yet.**
 - [ ] Consider containerized/toolchain bootstrap or Gradle feasibility only if measurable benefits outweigh migration and binary-compatibility risk; do not force a build-system rewrite.
 - [ ] Verify that public source builds remain distinct from exact signed, hardware-accepted release artifacts.
 
@@ -65,6 +65,8 @@
 ### 6. TOP-mode idle CPU characterization — deferred post-v1.7.1 release
 
 **Status:** analysis/planning only. Stable v1.7.1/code76 has been published; the measured TOP overhead is not a release blocker and this item is **not** authorization to tune watcher behavior or run new physical tests.
+
+**Additional existing-window offline analysis:** the independent 2026-10-13 review recomputed per-thread process ticks. Across three ~182 s windows per mode, the thread labeled `Thread-1` had **BOTH median 0.087970%** and **TOP median 0.311525% of one core**; the total code76 daemon medians remained **BOTH 0.087931%** and **TOP 0.317188%**. Sampling spans/thread reuse and 10 ms CPU tick quantization prevent exact per-thread reconciliation. This **narrows the measured difference to one sampled thread**, but does not identify its Java method or prove waste. The default decision remains **no watcher change without a code-path attribution and wake-repair safety argument**.
 
 **Why:** On the physical AYN Thor, the established RC2 → code76 awake-idle daemon CPU medians were **BOTH 0.289403% → 0.087931%** (−69.6%) and **TOP 0.322314% → 0.317188%** (−1.6%) of one CPU core. TOP retained low overhead and passed the predeclared budget, but differs from BOTH in steady state. Historical watcher optimization samples recorded similarly low BOTH (~0.093%) and higher TOP (~0.350%) medians. The RC2 BOTH result is higher than both of those OTHER BOTH measurements, so do not infer that the code76 CPU Fix adoption patch caused a 69.6% performance improvement.
 
@@ -141,7 +143,7 @@ This section records **only additional actionable gaps** not adequately tracked 
 
 **Observed gap:** the stable [v1.7.1 GitHub release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.1) was published on 2026-10-12, but some retained readiness/evidence material still describes code76 final approval/publication as pending, and `docs/RELEASE-INTEGRITY.md` has no v1.7.1 stable record corresponding to the v1.7.0 record. Historical pre-release plans must remain traceable, not be silently rewritten as though every proposed gate was physically exercised.
 
-- [x] Record release asset metadata SHA-256/size, manifest package/version, source SHA and successful CI/sign/publish run; [release integrity](RELEASE-INTEGRITY.md#171-stable-publication--verifiable-public-metadata-2026-10-12) labels GitHub-metadata and workflow-verified facts separately. **Independent local APK rehash/certificate verification remains not performed**; do not mark that additional check as complete.
+- [x] Record release asset metadata SHA-256/size, manifest package/version, source SHA and successful CI/sign/publish run; [release integrity](RELEASE-INTEGRITY.md#171-stable-publication--verifiable-public-metadata-2026-10-12) distinguishes public workflow provenance, **independent offline rehash of the owner's archived published APK**, and separately reported offline signer/package checks. No new on-device install or fresh independent network re-download is claimed.
 - [x] Add v1.7.1 stable release provenance to `docs/RELEASE-INTEGRITY.md`, explicitly separating the physically tested code76 candidate from the final UI-only-different stable APK.
 - [x] Update the current-state `docs/VALIDATION-EVIDENCE.md` summary, annotate `docs/RELEASE-READINESS-1.7.1.md` as historical and clarify `docs/COMPATIBILITY.md` Guard limits. **Active Guard interception remains NOT OBSERVED**; historical unknown cases remain unchanged.
 - [ ] Add a release-document consistency check if it can reliably detect stale current-version/status references without trying to mechanically rewrite historical documents.
