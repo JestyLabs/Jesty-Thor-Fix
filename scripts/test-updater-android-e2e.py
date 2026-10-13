@@ -50,6 +50,7 @@ def build(out, sdk, java):
     src.append(ROOT / 'tests/android/updater-e2e/UpdaterTestActivity.java')
     src.append(ROOT / 'tests/android/updater-e2e/UpdaterTestControlReceiver.java')
     src.append(ROOT / 'tests/android/updater-e2e/LocalTransport.java')
+    src.append(ROOT / 'tests/android/updater-e2e/UpdateMetadataCharacterization.java')
     execute([java / ('bin/javac' + exe), '-encoding', 'UTF-8', '-source', '8', '-target', '8',
              '-classpath', jar, '-d', classes, *src], env=env)
     execute([tools / ('d8' + bat), '--min-api', '23', '--lib', jar, '--output', dex,

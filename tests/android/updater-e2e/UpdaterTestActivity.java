@@ -53,6 +53,8 @@ public final class UpdaterTestActivity extends Activity implements AppUpdater.Ho
             } else URL.setURLStreamHandlerFactory(protocol -> "https".equals(protocol)
                     ? new URLStreamHandler() {
                         @Override protected URLConnection openConnection(URL url) {
+                            HttpURLConnection metadata = UpdateMetadataCharacterization.connection(url);
+                            if (metadata != null) return metadata;
                             return new FixtureConnection(url);
                         }
                     } : null);
@@ -91,7 +93,8 @@ public final class UpdaterTestActivity extends Activity implements AppUpdater.Ho
                         .put("size", apk.length()).put("sha256", hash);
                 getSharedPreferences("updates", MODE_PRIVATE).edit().putString("release", release.toString()).commit();
                 updater.start(); updater.promptUpdate(); mark("OFFERED");
-            } else if ("inspect".equals(mode)) inspect();
+            } else if ("metadata_tests".equals(mode)) UpdateMetadataCharacterization.run(this, updater, fixtures);
+            else if ("inspect".equals(mode)) inspect();
             else if ("recreate".equals(mode)) {
                 setIntent(new Intent(this, UpdaterTestActivity.class).putExtra("mode", "init"));
                 recreate();
