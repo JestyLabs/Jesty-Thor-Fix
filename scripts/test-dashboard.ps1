@@ -31,11 +31,13 @@ $commitGateModel = Join-Path $repository 'src\com\thor\displaypowertest\UpdateCo
 $commitGateTest = Join-Path $repository 'tests\UpdateCommitGateTest.java'
 $confirmationModel = Join-Path $repository 'src\com\thor\displaypowertest\UpdateConfirmationStore.java'
 $confirmationTest = Join-Path $repository 'tests\com\thor\displaypowertest\UpdateConfirmationStoreTest.java'
+$sessionModel = Join-Path $repository 'src\com\thor\displaypowertest\UpdateSessionOwnership.java'
+$sessionTest = Join-Path $repository 'tests\com\thor\displaypowertest\UpdateSessionOwnershipTest.java'
 $readiness = Join-Path $repository 'src\com\thor\displaypowertest\UpdateReadiness.java'
 $readinessTest = Join-Path $repository 'tests\com\thor\displaypowertest\UpdateReadinessTest.java'
 $clockFixture = Join-Path $repository 'tests\fixtures\android\os\SystemClock.java'
 
-& javac -source 8 -target 8 -d $output $model $test $warningModel $warningTest $updateModel $updateTest $commitGateModel $commitGateTest $readiness $readinessTest $clockFixture $confirmationModel $confirmationTest
+& javac -source 8 -target 8 -d $output $model $test $warningModel $warningTest $updateModel $updateTest $commitGateModel $commitGateTest $readiness $readinessTest $clockFixture $confirmationModel $confirmationTest $sessionModel $sessionTest
 if ($LASTEXITCODE -ne 0) { throw 'Dashboard test compilation failed.' }
 
 & java -cp $output DashboardStateModelTest
@@ -52,6 +54,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Updater readiness lifecycle tests failed.' }
 
 & java -cp $output com.thor.displaypowertest.UpdateConfirmationStoreTest
 if ($LASTEXITCODE -ne 0) { throw 'Updater confirmation lifecycle characterization failed.' }
+& java -cp $output com.thor.displaypowertest.UpdateSessionOwnershipTest
+if ($LASTEXITCODE -ne 0) { throw 'Updater session ownership tests failed.' }
 
 # The emulator checks PackageInstaller; this host harness covers the actual
 # UpdateInstallReceiver callbacks, with disposable Android test-only placeholders.
