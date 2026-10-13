@@ -3,12 +3,9 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repository = Split-Path -Parent $PSScriptRoot
-$output = Join-Path $env:TEMP 'jesty-thor-dashboard-tests'
-
-if (Test-Path -LiteralPath $output) {
-    Remove-Item -LiteralPath $output -Recurse -Force
-}
+$output = Join-Path ([IO.Path]::GetTempPath()) ('jesty-thor-dashboard-tests-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $output | Out-Null
+try {
 
 # The updater is an ordinary app install; it must never reach the root daemon or a shell.
 $updaterSources = @('AppUpdater.java', 'UpdateInstallReceiver.java', 'UpdateVersion.java',
@@ -59,3 +56,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Updater confirmation lifecycle characterizatio
 # The emulator checks PackageInstaller; this host harness covers the actual
 # UpdateInstallReceiver callbacks, with disposable Android test-only placeholders.
 & (Join-Path $PSScriptRoot 'test-updater-receiver-host.ps1')
+} finally {
+    if (Test-Path -LiteralPath $output) {
+        Remove-Item -LiteralPath $output -Recurse -Force
+    }
+}
