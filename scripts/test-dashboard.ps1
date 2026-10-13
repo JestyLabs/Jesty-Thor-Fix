@@ -57,6 +57,20 @@ if ($LASTEXITCODE -ne 0) { throw 'Updater confirmation lifecycle characterizatio
 & java -cp $output com.thor.displaypowertest.UpdateSessionOwnershipTest
 if ($LASTEXITCODE -ne 0) { throw 'Updater session ownership tests failed.' }
 
+# Static UI contract: when switches have no visible text, their screen-reader
+# labels must come from their adjacent feature heading; do not couple a TalkBack
+# fix to the daemon, updater installer or hardware.
+$viewsSource = Get-Content -LiteralPath (Join-Path $repository 'src\com\thor\displaypowertest\DashboardViews.java') -Raw
+$layoutSource = Get-Content -LiteralPath (Join-Path $repository 'src\com\thor\displaypowertest\DashboardLayout.java') -Raw
+if ($viewsSource -notmatch 'toggle\.setContentDescription\(title\)' -or
+    $viewsSource -notmatch 'action\.setFocusable\(true\)' -or
+    $layoutSource -notmatch 'github\.setContentDescription\("GitHub project\. Long press for update settings"\)' -or
+    $layoutSource -notmatch 'updateAction\.setContentDescription\("View available software update"\)' -or
+    $layoutSource -notmatch 'backgroundImage\.setImportantForAccessibility\(View\.IMPORTANT_FOR_ACCESSIBILITY_NO\)' -or
+    $layoutSource -notmatch 'videoTexture\.setImportantForAccessibility\(View\.IMPORTANT_FOR_ACCESSIBILITY_NO\)') {
+    throw 'Dashboard accessibility baseline regressed (static contract only; TalkBack not yet run).'
+}
+
 # The emulator checks PackageInstaller; this host harness covers the actual
 # UpdateInstallReceiver callbacks, with disposable Android test-only placeholders.
 & (Join-Path $PSScriptRoot 'test-updater-receiver-host.ps1')

@@ -59,11 +59,13 @@ final class DashboardLayout {
         backgroundImage = new ImageView(activity);
         backgroundImage.setImageResource(views.resource("drawable", "jesty_thor_background"));
         backgroundImage.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        backgroundImage.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         root.addView(backgroundImage, views.match());
 
         // BackgroundMediaController installs the surface listener.
         videoTexture = new TextureView(activity);
         videoTexture.setOpaque(false);
+        videoTexture.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         root.addView(videoTexture, views.match());
 
         View shade = new View(activity);
@@ -107,6 +109,7 @@ final class DashboardLayout {
         highlight.setCornerRadius(views.dp(21));
         updateAction.setBackground(highlight);
         updateAction.setVisibility(View.GONE);
+        updateAction.setContentDescription("View available software update");
         updateAction.setOnClickListener(v -> actions.onUpdate());
         LinearLayout.LayoutParams updateParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, views.dp(38));
@@ -131,6 +134,9 @@ final class DashboardLayout {
         bottomActions.addView(support);
 
         TextView github = views.topAction("\u2605  GITHUB");
+        // The long-press settings shortcut remains a legacy affordance; let
+        // TalkBack users discover it without changing click/consent behavior.
+        github.setContentDescription("GitHub project. Long press for update settings");
         github.setOnClickListener(v -> actions.onGithub());
         github.setOnLongClickListener(v -> {
             actions.onGithubLongPress();
