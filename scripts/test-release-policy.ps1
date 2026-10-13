@@ -98,4 +98,7 @@ if ($emulator -notmatch 'Build isolated installer harness with disposable test k
 # The focused updater-gate workflow is path-filtered and must NOT become a
 # globally required GitHub status check; use the stable emulator job instead.
 
+& (Join-Path $PSScriptRoot 'test-current-release-contract.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'Current manifest/release provenance contract failed.' }
+
 Write-Host 'Release workflow and PR emulator CI contracts passed (live required GitHub settings still need admin verification).'
