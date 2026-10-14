@@ -107,5 +107,6 @@ if ($emulator -notmatch 'Build isolated installer harness with disposable test k
 # PowerShell child scripts throw on failure; LASTEXITCODE is left over from
 # the prior native command and MUST NOT be reused as this script's exit status.
 & (Join-Path $PSScriptRoot 'test-current-release-contract.ps1')
+& (Join-Path $PSScriptRoot 'test-release-contract-candidates.ps1')
 
 Write-Host 'Release workflow and PR emulator CI contracts passed (live required GitHub settings still need admin verification).'

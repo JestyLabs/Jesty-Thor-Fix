@@ -3,7 +3,7 @@
 ## 1.7.1 stable publication — verifiable public metadata (2026-10-12)
 
 - GitHub stable release: [v1.7.1](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.1) (published `2026-10-12T23:30:05Z`; not marked pre-release).
-- Package/version: `com.thor.displaypowertest`, versionName `1.7.1`, versionCode `76` in the [published source manifest](../apk/AndroidManifest.xml).
+- Package/version: `com.thor.displaypowertest`, versionName `1.7.1`, versionCode `76` in the [published source manifest](https://github.com/JestyLabs/Jesty-Thor-Fix/blob/f929ff910bfa8e5179a2c6a63948a18fc3d6b252/apk/AndroidManifest.xml).
 - Release asset: `Jesty-Thor-Fix-1.7.1.apk`, **9,221,298 bytes**; GitHub release asset API reports SHA-256 `c7331f2fc6c5d820655dc7372967c3b72009dd1fdfe8e32faa371878252de590` (`sha256:` digest field). This value was first recorded from public release metadata. A later offline review on 2026-10-13 **independently rehashed the 9,221,298-byte published APK copied into the owner-private evidence bundle** and reproduced this SHA-256. This confirms the bundled file's byte hash, not a new physical install or a network re-download in that later review.
 - Immutable source reference recorded by the release/tag: `f929ff910bfa8e5179a2c6a63948a18fc3d6b252` (later `main` commits are **not** the published v1.7.1 source).
 - [Source CI run 38320243808](https://github.com/JestyLabs/Jesty-Thor-Fix/actions/runs/38320243808) at that commit: **build PASS; Sign main candidate PASS; Android emulator installer/lifecycle job SKIPPED**, because that job is restricted to PR/manual-dispatch events. This is a CI gating limitation, not evidence of failed emulator tests.

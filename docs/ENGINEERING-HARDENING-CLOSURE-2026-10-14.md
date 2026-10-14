@@ -12,8 +12,13 @@ Further optional architecture and UI changes remain frozen.
 completed successfully, including build and the generic Android lifecycle and
 installer job. Signing was skipped. Both jobs in
 [CodeQL analysis38568123688](https://github.com/JestyLabs/Jesty-Thor-Fix/actions/runs/38568123688)
-succeeded, but the aggregate CodeQL check failed. The current instance of
-alert30 remains open. Scanner execution does not dispose the finding.
+succeeded. The aggregate CodeQL failure at that original snapshot was later
+resolved by the scoped formal false-positive disposition of alert30. At head
+`6fc1f51`, [CI38573605900](https://github.com/JestyLabs/Jesty-Thor-Fix/actions/runs/38573605900)
+completed successfully, including Android; both analyses and the aggregate
+CodeQL check are SUCCESS. Owner-authorized disposition followed independent
+review and the original current SARIF. Scanner execution alone was not used
+as a disposition.
 
 The CI artifact is compiled at synthetic merge
 `9732e66cbf2176fff590a45a1bc6df6068965e8c`, associated with the pinned PR head.
@@ -43,15 +48,15 @@ signing/release workflows are unchanged against the reviewed main baseline.
 The parser and IPC corrections do change product behavior; an unchanged CPU
 controller does not make the entire candidate equivalent to code76.
 
-## Three decisions before physical entry
+## Physical-entry gates after independent review
 
-1. Record the formal, independently supported disposition of CodeQL30 for the
-   current analysis. The contextual false-positive proposal remains separate
-   from permission to apply it. No suppression or alert-state change is made here.
-2. Obtain explicit independent IPC acceptance at the current runtime baseline,
-   including the narrow stale-probe correction and the non-atomic predecessor
-   observations. Host characterization alone is not safe native replacement proof.
-3. Approve a candidate/recovery pair, activation method and artifact provenance.
+- [x] Formal CodeQL30 disposition recorded and verified as contextual false
+  positive; check SUCCESS at `6fc1f51`. This is specific to the reviewed result.
+- [x] Independent risk review conditionally accepts the first activation as
+  in-place installation followed by a normal owner-controlled reboot. The
+  stale-probe correction is accepted at source level; live handover remains
+  unvalidated. The decision does not authorize installation or certify all IPC.
+- [ ] Approve a candidate/recovery pair, activation method and artifact provenance.
    Higher version/code, daemon identity and rollback constraints must be resolved
    together. Exact final-candidate CI is required after any metadata/source change.
 
@@ -74,6 +79,33 @@ model or successful APK install cannot establish that these device events occurr
 The current code76 artifact cannot test a true upgrade from stablecode76. A
 candidate must use a reviewed higher code and numerically newer version; manifest
 and DaemonIdentity must match. No version/code is reserved or changed by this plan.
+
+The independent risk decision requires the first session to exclude prolonged
+TOP sleep and external sleep automation, recorded NOT RUN. The separately
+documented [stable black-screen incident](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/82)
+is not resolved by those exclusions. Recovery must be independently prepared
+before any installation; vendor failure surfaces still have explicit stop gates.
+
+## Candidate CI identity contract
+
+The former source/publication contract required the source manifest's version
+to have an existing stable-publication record. A private synthetic higher-version
+fixture reproduced the failure before a candidate could be prepared.
+
+The contract now verifies published1.7.1/code76 provenance independently from
+source identity. Source must either match that identity or advance both numeric
+version and code, with manifest and daemon identity synchronized. Published
+links, source/digest record, Guard caveats, package, SDK and non-exported installer
+components remain checked. Eighteen scenarios run through the real contract
+script in disposable source fixtures, including invalid identities and corrupted
+provenance. The release-policy suite invokes this regression in existing CI.
+
+These checks neither publish a candidate nor select/reserve version numbers,
+authorize signing or prove artifact recovery. Actual app identity and
+signing/publication workflows remain unchanged. The pinned publication baseline
+must be updated through a reviewed provenance change after a later real release;
+it is not inferred from newer source metadata. CI on the resulting head is still
+required before using any candidate artifact.
 
 ## Data-preserving recovery contract
 
