@@ -1,0 +1,85 @@
+name: Frozen candidate forward-recovery retention
+
+on:
+  push:
+    branches: [validation/pr67-recovery-pair-20261014]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  recovery_pair:
+    name: Frozen RC78 to recovery79 retention (test key only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          packages: platform-tools
+      - name: Install pinned test build-tools version
+        run: sdkmanager "platforms;android-34" "build-tools;35.0.0"
+      - name: Verify frozen source runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import json, subprocess
+          expected = [(38596116146, '8d2935736080567c6c538035d8925519a083ac41'),
+                      (38596899951, '8746ea1fbdfe122c2a54064a9b019d590a3968a7')]
+          for run_id, sha in expected:
+              run = json.loads(subprocess.check_output(['gh', 'api', f'repos/JestyLabs/Jesty-Thor-Fix/actions/runs/{run_id}']))
+              assert run['head_sha'] == sha and run['conclusion'] == 'success'
+              assert run['path'] == '.github/workflows/host-tests.yml'
+          print('PASS frozen CI sources')
+          PY
+      - name: Download exact RC78 unsigned input
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: JestyLabs/Jesty-Thor-Fix
+          run-id: 38596116146
+          name: unsigned-build-v1.7.2-rc1-5661b3a56402060b5b6eb82600307db971680a79
+          path: frozen-input/candidate
+      - name: Download exact recovery79 unsigned input
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: JestyLabs/Jesty-Thor-Fix
+          run-id: 38596899951
+          name: unsigned-build-v1.7.2-recovery-8746ea1fbdfe122c2a54064a9b019d590a3968a7
+          path: frozen-input/recovery
+      - name: Coherent disposable signing and instrumentation build
+        run: |
+          python3 scripts/test-recovery-pair-android.py --sdk "$ANDROID_HOME" --java "$JAVA_HOME" \
+            --candidate frozen-input/candidate/Jesty-Thor-Fix-1.7.2-rc1-unsigned.apk \
+            --recovery frozen-input/recovery/Jesty-Thor-Fix-1.7.2-recovery-unsigned.apk \
+            --work "$RUNNER_TEMP/recovery-pair-private" --build-only
+      - name: Enable KVM for disposable emulator
+        run: |
+          test -c /dev/kvm
+          sudo chmod a+rw /dev/kvm
+      - name: Install forward recovery and verify actual data
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        with:
+          api-level: 33
+          avd-name: pr67-recovery-pair-api33
+          target: default
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: |
+            python3 scripts/test-recovery-pair-android.py --sdk "$ANDROID_HOME" --java "$JAVA_HOME" --serial emulator-5554 --avd pr67-recovery-pair-api33 --candidate frozen-input/candidate/Jesty-Thor-Fix-1.7.2-rc1-unsigned.apk --recovery frozen-input/recovery/Jesty-Thor-Fix-1.7.2-recovery-unsigned.apk --work "$RUNNER_TEMP/recovery-pair-private" --run-only
+      # No raw captures, test APKs, private key or certificate details are uploaded.
+      # The Python runner prints a sanitized result and removes the private key.
