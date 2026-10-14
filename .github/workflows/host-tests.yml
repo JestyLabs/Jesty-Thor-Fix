@@ -25,6 +25,11 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          fetch-depth: 0
+
+      - name: Verify recovery source contract
+        shell: pwsh
+        run: ./scripts/test-recovery-source-contract.ps1
 
       - name: Verify public repository text
         shell: pwsh
