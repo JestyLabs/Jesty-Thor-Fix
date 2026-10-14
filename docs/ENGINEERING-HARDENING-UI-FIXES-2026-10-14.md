@@ -21,8 +21,9 @@ Trial handlers are unchanged; no trial was armed and no report was exported.
 The instrumentation opened and dismissed the actual Passive Sleep Trial entry.
 No hardware switch, update download/installation or external link was activated.
 
-The test viewport includes software navigation reducing available landscape
-width to 1816px (density 2.625). This explains why the original three-button
+The immersive Activity decor measures 1920 x 1080px, while its resource display
+metrics report 1794px landscape width (density 2.625); native dialogs expose
+software navigation and have narrower bounds. This explains why the original three-button
 dialog also clips at 150% in this regression, while the prior 1920px-wide audit
 showed clipping only at 200%. Both are pinned observations, not contradictory
 results. Acceptance uses measured viewport/bounds rather than physical display

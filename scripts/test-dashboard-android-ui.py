@@ -98,17 +98,21 @@ def assess(data):
     text = all(not v.get('verticalTextClipped') and not v.get('ellipsisCharacters')
                and v.get('maxLineWidth', 0) <= v.get('availableWidth', 0) + 1
                for c in captures.values() for v in c.get('views', []))
-    buttons = {str(n.get('text', '')).lower(): n for n in nodes(captures['enter-diagnostics']['accessibility'])
+    dialog_tree = captures['enter-diagnostics']['accessibility']
+    window = list(map(int, re.findall(r'-?\d+', dialog_tree.get('bounds', ''))))
+    buttons = {str(n.get('text', '')).lower(): n for n in nodes(dialog_tree)
                if n.get('class') == 'android.widget.Button'}
-    diagnostics = True
+    diagnostics = len(window) == 4
     for label in ('close', 'save report', 'sleep trial'):
         node = buttons.get(label, {})
         bounds = list(map(int, re.findall(r'-?\d+', node.get('bounds', ''))))
         diagnostics &= bool(node.get('visible')) and len(bounds) == 4
         if len(bounds) == 4:
             left, top, right, bottom = bounds
-            diagnostics &= bottom - top >= 47.5 * density and left >= 0 and top >= 0
-            diagnostics &= right <= base['widthPixels'] and bottom <= base['heightPixels']
+            diagnostics &= bottom - top >= 47.5 * density
+            if len(window) == 4:
+                diagnostics &= left >= window[0] and top >= window[1]
+                diagnostics &= right <= window[2] and bottom <= window[3]
     diagnostics &= any(n['key'] == 'SLEEP_ENTRY_RESULT' and n['openedSleepEntry'] for n in data['navigation'])
     return {'navigation': bool(navigation), 'touch-targets': bool(touch),
             'dashboard-text': bool(text), 'diagnostics-actions': bool(diagnostics)}
