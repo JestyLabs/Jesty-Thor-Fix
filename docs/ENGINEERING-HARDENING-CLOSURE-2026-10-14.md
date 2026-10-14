@@ -96,9 +96,17 @@ The contract now verifies published1.7.1/code76 provenance independently from
 source identity. Source must either match that identity or advance both numeric
 version and code, with manifest and daemon identity synchronized. Published
 links, source/digest record, Guard caveats, package, SDK and non-exported installer
-components remain checked. Eighteen scenarios run through the real contract
+components remain checked. Forty-five scenarios run through the real contract
 script in disposable source fixtures, including invalid identities and corrupted
 provenance. The release-policy suite invokes this regression in existing CI.
+
+The [source-intent contract](CANDIDATE-SOURCE-IDENTITY.md) additionally admits
+only the reviewed `-rc1` and `-recovery` suffixes, with explicit matching role,
+full version and integer code. Proposed identities are exercised in fixtures;
+the actual manifest, daemon identity and artifact basename remain unchanged.
+Real-comparator tests confirm that differing suffixes compare equal and a
+suffix-free stable version sorts above both. No production updater or
+predecessor-policy change accompanies this CI extension.
 
 These checks neither publish a candidate nor select/reserve version numbers,
 authorize signing or prove artifact recovery. Actual app identity and

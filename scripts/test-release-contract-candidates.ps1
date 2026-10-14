@@ -147,6 +147,26 @@ try {
     } -ExpectedError 'Source intent must be valid JSON'
     Test-Scenario 'unreviewed-suffix' -Version '1.7.2-preview' -Code '78' -Role 'candidate' -ExpectedError 'Expected a numeric current app manifest versionName and versionCode'
     Test-Scenario 'suffix-case-drift' -Version '1.7.2-RC1' -Code '78' -Role 'candidate' -ExpectedError 'Expected a numeric current app manifest versionName and versionCode'
+    Test-Scenario 'intent-single-object-array' -Version '1.7.2-rc1' -Code '78' -Role 'candidate' -Mutate {
+        param($caseRoot)
+        '[{"role":"candidate","versionName":"1.7.2-rc1","versionCode":78}]' |
+            Set-Content -LiteralPath (Join-Path $caseRoot 'release-source-intent.json') -Encoding utf8
+    } -ExpectedError 'Source intent must be an object with only role, versionName and integer versionCode'
+    Test-Scenario 'intent-null' -Version '1.7.2-rc1' -Code '78' -Role 'candidate' -Mutate {
+        param($caseRoot)
+        'null' | Set-Content -LiteralPath (Join-Path $caseRoot 'release-source-intent.json') -Encoding utf8
+    } -ExpectedError 'Source intent must be an object with only role, versionName and integer versionCode'
+    Test-Scenario 'intent-missing-role' -Version '1.7.2-rc1' -Code '78' -Role 'candidate' -Mutate {
+        param($caseRoot)
+        '{"versionName":"1.7.2-rc1","versionCode":78}' |
+            Set-Content -LiteralPath (Join-Path $caseRoot 'release-source-intent.json') -Encoding utf8
+    } -ExpectedError 'Source intent must be an object with only role, versionName and integer versionCode'
+    Test-Scenario 'intent-floating-code' -Version '1.7.2-rc1' -Code '78' -Role 'candidate' -Mutate {
+        param($caseRoot)
+        '{"role":"candidate","versionName":"1.7.2-rc1","versionCode":78.0}' |
+            Set-Content -LiteralPath (Join-Path $caseRoot 'release-source-intent.json') -Encoding utf8
+    } -ExpectedError 'Source intent must be an object with only role, versionName and integer versionCode'
+    Test-Scenario 'unreviewed-rc-suffix' -Version '1.7.2-rc2' -Code '78' -Role 'candidate' -ExpectedError 'Expected a numeric current app manifest versionName and versionCode'
     Write-Host "Release contract candidate regression passed: $checks scenarios; source fixtures only, no build/sign/device."
 } finally {
     if (Test-Path -LiteralPath $sandbox) {
