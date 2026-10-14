@@ -5,6 +5,10 @@ This supplements the [earlier static audit](ENGINEERING-HARDENING-UI-A11Y-2026-1
 It is a local Android UI validation, not physical Thor acceptance or complete
 accessibility certification. This step changes documentation only.
 
+The pinned findings below are subsequently addressed by
+[native UI regression fixes](ENGINEERING-HARDENING-UI-FIXES-2026-10-14.md).
+That implementation changes product layout and has its own validation boundary.
+
 ## Method and evidence boundary
 
 The actual product APK and a separate instrumentation APK were signed with a
