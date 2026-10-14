@@ -13,7 +13,7 @@ $checks = 0
 
 function Test-Scenario {
     param([string] $Name, [string] $Version = '1.7.1', [string] $Code = '76',
-        [string] $Identity = '', [scriptblock] $Mutate, [string] $ExpectedError = '')
+        [string] $Identity = '', [string] $Role = '', [scriptblock] $Mutate, [string] $ExpectedError = '')
     $caseRoot = Join-Path $sandbox $Name
     foreach ($relative in $files) {
         $target = Join-Path $caseRoot $relative
@@ -31,6 +31,10 @@ function Test-Scenario {
     $identityText = Get-Content -LiteralPath $identityPath -Raw
     $identityText = [regex]::Replace($identityText, 'String VERSION = "[^"]+"', ('String VERSION = "' + $Identity + '"'))
     Set-Content -LiteralPath $identityPath -Value $identityText -Encoding utf8
+    if ($Role) {
+        @{ role = $Role; versionName = $Version; versionCode = [int] $Code } |
+            ConvertTo-Json | Set-Content -LiteralPath (Join-Path $caseRoot 'release-source-intent.json') -Encoding utf8
+    }
     if ($Mutate) { & $Mutate $caseRoot }
     $failure = ''
     try { & (Join-Path $caseRoot 'scripts/test-current-release-contract.ps1') *> $null }
@@ -46,13 +50,16 @@ function Test-Scenario {
 
 try {
     Test-Scenario 'published-baseline'
+    Test-Scenario 'proposed-candidate' -Version '1.7.2-rc1' -Code '78' -Role 'candidate'
+    Test-Scenario 'proposed-recovery' -Version '1.7.2-recovery' -Code '79' -Role 'recovery'
+    Test-Scenario 'proposed-stable' -Version '1.7.2' -Code '80' -Role 'stable'
     Test-Scenario 'future-source-without-publication' -Version '1.7.2' -Code '77'
     Test-Scenario 'forward-recovery-source' -Version '1.7.2' -Code '78'
     Test-Scenario 'same-version-higher-code' -Code '77' -ExpectedError 'Source identity must match the published baseline or advance both version and code'
     Test-Scenario 'future-same-code' -Version '1.7.2' -ExpectedError 'Source identity must match the published baseline or advance both version and code'
     Test-Scenario 'future-lower-code' -Version '1.7.2' -Code '75' -ExpectedError 'Source identity must match the published baseline or advance both version and code'
     Test-Scenario 'older-version-higher-code' -Version '1.7.0' -Code '77' -ExpectedError 'Source identity must match the published baseline or advance both version and code'
-    Test-Scenario 'invalid-version' -Version '1.7.2-rc1' -Code '77' -ExpectedError 'Expected a numeric current app manifest versionName and versionCode'
+    Test-Scenario 'invalid-version' -Version 'invalid' -Code '77' -ExpectedError 'Expected a numeric current app manifest versionName and versionCode'
     Test-Scenario 'daemon-identity-mismatch' -Version '1.7.2' -Code '77' -Identity '1.7.1' -ExpectedError 'Manifest and daemon identities must remain synchronized'
     Test-Scenario 'runtime-alias-drift' -Version '1.7.2' -Code '77' -Mutate {
         param($caseRoot)
@@ -102,6 +109,44 @@ try {
         $path = Join-Path $caseRoot 'docs/RELEASE-INTEGRITY.md'
         (Get-Content -LiteralPath $path -Raw).Replace('NOT OBSERVED', 'PASS') | Set-Content -LiteralPath $path -Encoding utf8
     } -ExpectedError 'Published v1.7.1 integrity must distinguish digest/source'
+    Test-Scenario 'candidate-no-intent' -Version '1.7.2-rc1' -Code '78' -ExpectedError 'Suffixed source identity requires explicit release-source-intent.json'
+    Test-Scenario 'recovery-no-intent' -Version '1.7.2-recovery' -Code '79' -ExpectedError 'Suffixed source identity requires explicit release-source-intent.json'
+    Test-Scenario 'candidate-wrong-role' -Version '1.7.2-rc1' -Code '78' -Role 'recovery' -ExpectedError 'Source intent role does not match the complete versionName'
+    Test-Scenario 'recovery-wrong-role' -Version '1.7.2-recovery' -Code '79' -Role 'candidate' -ExpectedError 'Source intent role does not match the complete versionName'
+    Test-Scenario 'suffix-with-stable-role' -Version '1.7.2-rc1' -Code '78' -Role 'stable' -ExpectedError 'Source intent role does not match the complete versionName'
+    Test-Scenario 'numeric-with-candidate-role' -Version '1.7.2' -Code '80' -Role 'candidate' -ExpectedError 'Source intent role does not match the complete versionName'
+    Test-Scenario 'candidate-same-code' -Version '1.7.2-rc1' -Code '76' -Role 'candidate' -ExpectedError 'Source identity must match the published baseline or advance both version and code'
+    Test-Scenario 'recovery-lower-code' -Version '1.7.2-recovery' -Code '75' -Role 'recovery' -ExpectedError 'Source identity must match the published baseline or advance both version and code'
+    Test-Scenario 'old-candidate-base' -Version '1.7.1-rc1' -Code '78' -Role 'candidate' -ExpectedError 'Source identity must match the published baseline or advance both version and code'
+    Test-Scenario 'truncated-daemon-suffix' -Version '1.7.2-rc1' -Code '78' -Identity '1.7.2' -Role 'candidate' -ExpectedError 'Manifest and daemon identities must remain synchronized'
+    Test-Scenario 'wrong-daemon-suffix' -Version '1.7.2-recovery' -Code '79' -Identity '1.7.2-rc1' -Role 'recovery' -ExpectedError 'Manifest and daemon identities must remain synchronized'
+    Test-Scenario 'intent-version-mismatch' -Version '1.7.2-rc1' -Code '78' -Role 'candidate' -Mutate {
+        param($caseRoot)
+        @{ role = 'candidate'; versionName = '1.7.2'; versionCode = 78 } | ConvertTo-Json |
+            Set-Content -LiteralPath (Join-Path $caseRoot 'release-source-intent.json') -Encoding utf8
+    } -ExpectedError 'Source intent must exactly match manifest versionName and versionCode'
+    Test-Scenario 'intent-code-mismatch' -Version '1.7.2-recovery' -Code '79' -Role 'recovery' -Mutate {
+        param($caseRoot)
+        @{ role = 'recovery'; versionName = '1.7.2-recovery'; versionCode = 78 } | ConvertTo-Json |
+            Set-Content -LiteralPath (Join-Path $caseRoot 'release-source-intent.json') -Encoding utf8
+    } -ExpectedError 'Source intent must exactly match manifest versionName and versionCode'
+    Test-Scenario 'unknown-intent-role' -Version '1.7.2-rc1' -Code '78' -Role 'preview' -ExpectedError 'Source intent role does not match the complete versionName'
+    Test-Scenario 'intent-extra-field' -Version '1.7.2-rc1' -Code '78' -Role 'candidate' -Mutate {
+        param($caseRoot)
+        @{ role = 'candidate'; versionName = '1.7.2-rc1'; versionCode = 78; bypass = $true } | ConvertTo-Json |
+            Set-Content -LiteralPath (Join-Path $caseRoot 'release-source-intent.json') -Encoding utf8
+    } -ExpectedError 'Source intent must be an object with only role, versionName and integer versionCode'
+    Test-Scenario 'intent-string-code' -Version '1.7.2-rc1' -Code '78' -Role 'candidate' -Mutate {
+        param($caseRoot)
+        '{"role":"candidate","versionName":"1.7.2-rc1","versionCode":"78"}' |
+            Set-Content -LiteralPath (Join-Path $caseRoot 'release-source-intent.json') -Encoding utf8
+    } -ExpectedError 'Source intent must be an object with only role, versionName and integer versionCode'
+    Test-Scenario 'intent-invalid-json' -Version '1.7.2-rc1' -Code '78' -Role 'candidate' -Mutate {
+        param($caseRoot)
+        '{' | Set-Content -LiteralPath (Join-Path $caseRoot 'release-source-intent.json') -Encoding utf8
+    } -ExpectedError 'Source intent must be valid JSON'
+    Test-Scenario 'unreviewed-suffix' -Version '1.7.2-preview' -Code '78' -Role 'candidate' -ExpectedError 'Expected a numeric current app manifest versionName and versionCode'
+    Test-Scenario 'suffix-case-drift' -Version '1.7.2-RC1' -Code '78' -Role 'candidate' -ExpectedError 'Expected a numeric current app manifest versionName and versionCode'
     Write-Host "Release contract candidate regression passed: $checks scenarios; source fixtures only, no build/sign/device."
 } finally {
     if (Test-Path -LiteralPath $sandbox) {
