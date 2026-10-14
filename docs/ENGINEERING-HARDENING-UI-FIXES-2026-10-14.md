@@ -16,7 +16,11 @@ or physical Thor validation.
 
 The final product was rebuilt with JDK 17 and signed only with a fresh disposable
 test key. Dashboard host tests, public-content validation and release workflow
-contracts passed locally. Exported report formatting and the Save Report/Sleep
+contracts passed locally. The diagnostics privacy/preview/passive-trial host
+models also pass (736 assertions). Their former UI-slot assertion was removed:
+native UI tests now prove Sleep Trial reachability, while privacy checks still
+reject timers, privileged requests and raw exit details.
+Exported report formatting and the Save Report/Sleep
 Trial handlers are unchanged; no trial was armed and no report was exported.
 The instrumentation opened and dismissed the actual Passive Sleep Trial entry.
 No hardware switch, update download/installation or external link was activated.
