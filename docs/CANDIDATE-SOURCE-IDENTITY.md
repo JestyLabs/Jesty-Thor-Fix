@@ -1,17 +1,20 @@
 # Candidate and forward-recovery source identity
 
 This contract prepares private candidate builds without changing published
-provenance or reserving a release identity. App metadata remains `1.7.1/code76`.
+provenance. The owner approved the candidate/recovery identities on 2026-10-14;
+candidate app metadata is now `1.7.2-rc1/code78`.
 
-The reviewed numbering proposal is:
+The approved preparation identities and planned future public identity are:
 
-| Role | Proposed versionName | Proposed versionCode | Functional source |
+| Role | versionName | versionCode | Functional source |
 | --- | --- | --- | --- |
 | Candidate | `1.7.2-rc1` | 78 | Accepted PR67 candidate head |
 | Forward recovery | `1.7.2-recovery` | 79 | Published stable `f929ff910bfa8e5179a2c6a63948a18fc3d6b252` |
 | Future public stable | `1.7.2` | 80 | Separately accepted release head |
 
-These values remain proposals pending owner approval and artifact verification.
+Candidate78 and recovery79 are approved for metadata and unsigned-build
+preparation. Stable80 is planned for a separately accepted public release.
+Artifact verification, production signing and physical acceptance remain separate.
 The recovery must preserve stable functional code, with only approved identity
 metadata and isolated build/CI adaptations. It must not inherit PR67 product
 changes or depend on the candidate's updater. It does not resolve the separate
@@ -21,8 +24,7 @@ stable black-screen incident.
 
 The current-release contract admits a numeric triple, optionally followed by
 exactly `-rc1` or `-recovery`. A suffixed source requires a reviewed root-level
-`release-source-intent.json` with exactly three fields. For example, the candidate
-proposal would use:
+`release-source-intent.json` with exactly three fields. The candidate uses:
 
 ```json
 {
@@ -32,9 +34,10 @@ proposal would use:
 }
 ```
 
-No intent file is added to the actual baseline by this preparation step. A future
-metadata change must include its matching intent in the reviewed source so CI
-checks it automatically; a local-only file is insufficient for remote CI.
+The candidate's matching intent is included in reviewed source so CI checks it
+automatically; a local-only file is insufficient for remote CI. Recovery uses a
+separate stable-source contract that permits only its approved metadata and
+isolated CI changes, without importing candidate product code.
 Accepted roles are `candidate` for `-rc1`, `recovery` for `-recovery`, and `stable`
 for a numeric version. Numeric versions may omit intent; any supplied intent is
 still validated. Role and version strings are case-sensitive and the code must

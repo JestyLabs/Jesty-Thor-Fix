@@ -42,7 +42,8 @@ the reviewed merge base, so no merge is needed merely to change that history:
 | Display safety parser | ExternalDisplayModel | Fail-closed malformed/unknown viewport tests; physical Guard/external-display truth remains outside generic emulator coverage |
 | UI | Diagnostics, dashboard layout and views | Native generic Android checks; TalkBack, physical controls and device-specific layout remain explicitly bounded |
 
-Blob comparison confirms D, CpuFixController, AutoService, PServer, predecessor
+At the reviewed runtime baseline before the approved identity bump, blob
+comparison confirms D, CpuFixController, AutoService, PServer, predecessor
 policy, DaemonIdentity, UpdateVersion, manifest, boot receiver, build script and
 signing/release workflows are unchanged against the reviewed main baseline.
 The parser and IPC corrections do change product behavior; an unchanged CPU
@@ -76,9 +77,11 @@ is gone; the boot receiver requests the held launch path. Vendor stale-endpoint
 classification and subsequent BOOT READY/health must still be observed. A host
 model or successful APK install cannot establish that these device events occurred.
 
-The current code76 artifact cannot test a true upgrade from stablecode76. A
-candidate must use a reviewed higher code and numerically newer version; manifest
-and DaemonIdentity must match. No version/code is reserved or changed by this plan.
+The current code76 artifact cannot test a true upgrade from stablecode76. The
+owner approved candidate `1.7.2-rc1/code78`, stable-source forward recovery
+`1.7.2-recovery/code79`, and planned future stable `1.7.2/code80`. Candidate
+manifest, DaemonIdentity and artifact basename now match the approved identity.
+This approval covers metadata and unsigned-build preparation.
 
 The independent risk decision requires the first session to exclude prolonged
 TOP sleep and external sleep automation, recorded NOT RUN. The separately
@@ -102,14 +105,14 @@ provenance. The release-policy suite invokes this regression in existing CI.
 
 The [source-intent contract](CANDIDATE-SOURCE-IDENTITY.md) additionally admits
 only the reviewed `-rc1` and `-recovery` suffixes, with explicit matching role,
-full version and integer code. Proposed identities are exercised in fixtures;
-the actual manifest, daemon identity and artifact basename remain unchanged.
+full version and integer code. The approved identities are exercised in fixtures;
+candidate manifest, daemon identity, intent and artifact basename are synchronized.
 Real-comparator tests confirm that differing suffixes compare equal and a
 suffix-free stable version sorts above both. No production updater or
 predecessor-policy change accompanies this CI extension.
 
-These checks neither publish a candidate nor select/reserve version numbers,
-authorize signing or prove artifact recovery. Actual app identity and
+These checks neither publish a candidate, authorize signing nor prove artifact
+recovery. Candidate identity changed only after explicit owner approval;
 signing/publication workflows remain unchanged. The pinned publication baseline
 must be updated through a reviewed provenance change after a later real release;
 it is not inferred from newer source metadata. CI on the resulting head is still
