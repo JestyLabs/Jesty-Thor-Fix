@@ -64,3 +64,38 @@ temporary policy was applied to production; stable 1.7.1 remains excluded.
 Raw captures, temporary policies and native fixtures stay owner-local outside
 Git. This follow-up does not dispose the separate CodeQL alert or establish
 independent security review, native vendor handover or physical acceptance.
+
+### Stale-probe failure correction — 2026-10-14
+
+Native characterization of the unchanged private cleanup helper reproduced an
+incorrect pathname removal when socket creation failed from descriptor pressure.
+The regression failed on the original helper and passed after a narrow change:
+only a known connection-refused error permits stale cleanup. A typed errno is
+used when available; the characterized cause-free native refusal must exactly
+match the platform error string. Permission, resource, unsupported wrapper and
+unclassified failures are propagated before unlinking.
+
+The corrected helper preserves the live fixture pathname and reconnects after
+resources are released. Missing, genuinely stale and reachable endpoint controls
+retain their behavior. The host suite now passes 44 assertions, including typed
+errors and ambiguous-message cases. Native coverage is the actual cleanup helper
+in a disposable API 33 process; its bounded descriptor pressure did not exercise
+the production instance-lock lifecycle or privileged command handler. Vendor
+error surfaces, full launch/reboot recovery and inode races still require their
+separate acceptance. This supersedes the earlier all-IOException classification
+as the current implementation, without closing the independent IPC gate.
+
+### Predecessor observation window — characterization only
+
+An owner-local host harness executes the real `PServer` class with simulated
+authenticated transport/Binder and root-command semantics. Its 23 assertions
+characterize unchanged operation, unsafe TOP visible before Q, mode change after
+Q, identity change between I and Q, and root UID change before bridge execution.
+The model confirms that a submitted request is not proof of its privileged
+effect and that the existing command does not atomically revalidate the earlier
+version/display observations. No shell or signal is executed by the harness.
+
+This is a source/control-flow witness for the separate handover review, not a
+native unsafe-kill reproduction. No predecessor allowance, protocol or PServer
+runtime change follows from this experiment. The candidate handover/recovery
+gate remains open for an explicit safety decision.
