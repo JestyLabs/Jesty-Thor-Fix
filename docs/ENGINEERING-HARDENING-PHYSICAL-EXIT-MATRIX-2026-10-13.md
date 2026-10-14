@@ -2,12 +2,17 @@
 
 All cases below are NOT RUN in this workstream. No ADB, install, restart, screen command or capture is authorized by this document. Owner controls each operation.
 
+Current entry decisions and the proposed data-preserving activation/recovery path
+are recorded in the [2026-10-14 closure checkpoint](ENGINEERING-HARDENING-CLOSURE-2026-10-14.md).
+That checkpoint supersedes the original offline preparation status below;
+physical scenarios remain NOT RUN.
+
 ## Entry requirements
 
-- [ ] Reproduce and resolve both Codex updater bugs with production AppUpdater plus receiver on exact PR SHA, including stale consent after cancel and old callback deleting new download.
-- [ ] Re-run clean Windows JDK 17 and full unsigned build, CI, CodeQL, Android 13 disposable-key emulator on ONE exact head.
+- [x] Reproduce and resolve the identified updater ownership/lifecycle bugs with real AppUpdater/receiver host fixtures and the controlled Android installer suite; current runtime/test baseline `e190544` has completed build/Android CI. This is offline evidence, not a physical session.
+- [ ] Require full unsigned build, CI and Android emulator validation on the final candidate identity/head. Analyses succeeded at `e190544`; the aggregate CodeQL finding disposition remains a separate open gate. A metadata bump needs new CI.
 - [ ] Independently review all privileged IPC/client changes and source-to-build provenance.
-- [ ] Identify exact signed candidate SHA/versionCode/certificate, preserve stable fallback and private safe-stop/recovery steps.
+- [ ] Identify exact signed candidate and forward-recovery source/build/version/code/provenance; preserve the stable baseline, but do not assume a code76 downgrade is supported. Review activation by controlled reboot separately from live daemon replacement.
 - [ ] Obtain owner approval before any physical write, installation, restart, or additional active-lid reproduction.
 - [ ] Record initial switches, display mode and battery/USB state in private log for restoration.
 
