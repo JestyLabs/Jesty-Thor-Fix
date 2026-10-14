@@ -3,7 +3,13 @@ package com.thor.displaypowertest;
 import android.net.LocalSocket;
 import android.system.Os;
 import android.system.OsConstants;
+import android.system.ErrnoException;
+import android.system.StructStat;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
 /**
  * Exercises real SecureChannel.connect/isTrustedApp/listen entry checks
@@ -143,10 +149,56 @@ public final class SecureChannelHostTest {
                 "real listen requests no-follow, close-on-exec private instance lock");
     }
 
+    private static Throwable staleProbeError(IOException failure) throws Exception {
+        reset();
+        // The fake inode never creates a host file. Refuse an existing device-shaped
+        // path before invoking the real helper; this test must never unlink host data.
+        if (new File(SecureChannel.path()).exists()) throw new AssertionError("unexpected host device path");
+        Os.socketStat = new StructStat(10042, 10042, OsConstants.S_IFSOCK | 0600);
+        LocalSocket.Plan plan = new LocalSocket.Plan(0);
+        plan.connectError = failure;
+        LocalSocket.enqueue(plan);
+        Method cleanup = SecureChannel.class.getDeclaredMethod("removeStaleSocket", int.class);
+        cleanup.setAccessible(true);
+        try {
+            cleanup.invoke(null, 10042);
+            throw new AssertionError("fake pathname must not be removed");
+        } catch (InvocationTargetException error) {
+            require(LocalSocket.latest.closes == 1, "failed stale probe socket closed");
+            return error.getCause();
+        }
+    }
+
+    private static void staleProbeFailureClassification() throws Exception {
+        IOException[] unknown = {
+                new IOException("socket failed", new ErrnoException("socket", OsConstants.EMFILE)),
+                new IOException("permission failure", new ErrnoException("connect", OsConstants.EACCES)),
+                new IOException("Connection refused", new ErrnoException("connect", OsConstants.EACCES)),
+                new IOException("unclassified transport failure"),
+                new IOException((String) null),
+                new IOException("connect failed: Connection refused"),
+                new IOException("Connection refused", new IllegalStateException("unclassified cause")),
+                new FileNotFoundException("Connection refused")
+        };
+        for (IOException failure : unknown) {
+            require(staleProbeError(failure) == failure,
+                    "unclassified/resource/permission error preserved before stale unlink");
+        }
+        for (IOException refused : new IOException[]{
+                new IOException("connect", new ErrnoException("connect", OsConstants.ECONNREFUSED)),
+                new IOException(Os.strerror(OsConstants.ECONNREFUSED))}) {
+            Throwable result = staleProbeError(refused);
+            require(result instanceof IOException && result != refused
+                    && "Cannot remove stale secure socket".equals(result.getMessage()),
+                    "known refusal reaches missing fake pathname; no native unlink claimed");
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         clientPeerTrust();
         appPeerTrust();
         listenerPreflight();
+        staleProbeFailureClassification();
         System.out.println("SecureChannelHostTest passed: " + checks
                 + " assertions; native peer/file locking/stale socket NOT VERIFIED");
     }

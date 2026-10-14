@@ -8,6 +8,7 @@ public final class LocalSocket implements AutoCloseable {
     public static final class Plan {
         public final Integer uid;
         public boolean connectFailure, timeoutFailure, credentialFailure;
+        public IOException connectError;
         public Plan(Integer uid) { this.uid = uid; }
     }
     private static final ArrayDeque<Plan> plans = new ArrayDeque<>();
@@ -22,6 +23,7 @@ public final class LocalSocket implements AutoCloseable {
     }
     public void connect(LocalSocketAddress address) throws IOException {
         connects++;
+        if (plan.connectError != null) throw plan.connectError;
         if (plan.connectFailure) throw new IOException("synthetic connect failure");
     }
     public void setSoTimeout(int value) {

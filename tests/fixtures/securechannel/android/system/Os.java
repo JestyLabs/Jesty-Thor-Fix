@@ -11,11 +11,12 @@ public final class Os {
     public static boolean failStat;
     public static int openCalls, lastOpenFlags;
     public static String lastOpenPath;
+    public static StructStat socketStat;
     public static void reset() {
         appUid=10042; filesUid=10042;
         appMode=OsConstants.S_IFDIR|0700;
         filesMode=OsConstants.S_IFDIR|0700;
-        failStat=false; openCalls=0; lastOpenFlags=0; lastOpenPath=null;
+        failStat=false; openCalls=0; lastOpenFlags=0; lastOpenPath=null; socketStat=null;
     }
     public static StructStat stat(String path) throws ErrnoException {
         if (failStat) throw new ErrnoException("stat", OsConstants.EACCES);
@@ -26,7 +27,11 @@ public final class Os {
         throw new ErrnoException("stat", OsConstants.ENOENT);
     }
     public static StructStat lstat(String path) throws ErrnoException {
+        if (socketStat != null && path.endsWith("/jesty-thor-control-v2.sock")) return socketStat;
         throw new ErrnoException("lstat", OsConstants.ENOENT);
+    }
+    public static String strerror(int errno) {
+        return errno == OsConstants.ECONNREFUSED ? "Connection refused" : "synthetic errno=" + errno;
     }
     public static FileDescriptor open(String path, int flags, int mode) throws ErrnoException {
         openCalls++; lastOpenFlags=flags; lastOpenPath=path;
