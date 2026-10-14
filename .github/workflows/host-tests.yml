@@ -5,6 +5,12 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      sign_main_candidate:
+        description: Explicit protected signing of this main CI build (not the frozen pair)
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -97,6 +103,10 @@ jobs:
         shell: pwsh
         run: ./scripts/test-release-policy.ps1
 
+      - name: Validate frozen signing and encrypted delivery policy
+        shell: pwsh
+        run: ./scripts/test-approved-physical-signing-policy.ps1
+
       - name: Build unsigned APK
         shell: pwsh
         run: |
@@ -113,7 +123,7 @@ jobs:
   sign_main_candidate:
     name: Sign main candidate
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor == 'SirJesty' && github.triggering_actor == 'SirJesty'
+    if: github.event_name == 'workflow_dispatch' && inputs.sign_main_candidate == true && github.ref == 'refs/heads/main' && github.actor == 'SirJesty' && github.triggering_actor == 'SirJesty'
     runs-on: windows-latest
     environment: thor-signing
     concurrency:
@@ -128,8 +138,13 @@ jobs:
         env:
           ORIGINAL_ACTOR: ${{ github.actor }}
           TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          CALLER_EVENT: ${{ github.event_name }}
+          MAIN_SIGNING_OPT_IN: ${{ inputs.sign_main_candidate }}
           SIGNING_ENV_READY: ${{ vars.THOR_SIGNING_ENV_READY }}
         run: |
+          if ($env:CALLER_EVENT -cne 'workflow_dispatch' -or $env:MAIN_SIGNING_OPT_IN -cne 'true') {
+              throw 'Main candidate signing requires an explicit manual opt-in; pushes never sign.'
+          }
           if ($env:ORIGINAL_ACTOR -cne 'SirJesty' -or $env:TRIGGERING_ACTOR -cne 'SirJesty') {
               throw 'Only the designated release operator may sign production candidates'
           }
