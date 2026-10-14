@@ -36,3 +36,31 @@ probe as evidence of disconnection; notably, permission errors and
 connection-refused errors are not distinguished. Preserve this as an open
 fail-closed design review before changing the recovery path, because Android
 vendor implementations and reboot recovery require explicit acceptance.
+
+### Transport and predecessor test gates — 2026-10-14
+
+Owner-local API 33 transport experiments use the unchanged production channel
+and a synthetic responder, with SELinux Enforcing. Kernel peer rejection,
+private socket/lock metadata and controlled stale recovery were observed. The
+production command handler and vendor bridge are outside this fixture.
+
+The initial timeout criterion accepted any read IOException within a broad
+window. Its replacement keeps the peer alive for at least 1500 ms, acknowledges
+read readiness, records the exact observed API 33 error and requires a narrow
+100–399 ms window. A 200 ms client read failed at 204 ms; a 5000 ms control read
+received its response at 1502 ms without an exception. Nine host criterion
+checks reject unrelated errors, the former 500 ms counterexample and an
+uncharacterized exception type. This validates the characterized client read,
+not the production server's 1500 ms timeout, queue pressure or total deadlines.
+
+The existing `PreviousSecureDaemonIdentityTest` now applies 51 additional
+negative checks to old, release-candidate and stable identities: protocol,
+watcher, BOTH/CRTC, PID, acknowledgement and null-input gates. All 119 assertions
+pass in the host suite. Temporary source controls confirm a narrow future
+allowlist hypothesis retains these checks, while an identity-specific bypass
+is rejected even after revising the future positive expectation. Neither
+temporary policy was applied to production; stable 1.7.1 remains excluded.
+
+Raw captures, temporary policies and native fixtures stay owner-local outside
+Git. This follow-up does not dispose the separate CodeQL alert or establish
+independent security review, native vendor handover or physical acceptance.
