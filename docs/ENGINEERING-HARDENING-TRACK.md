@@ -1,5 +1,7 @@
 # Incremental engineering hardening
 
+> **Execution status, 2026-10-16:** this ledger preserves dated planning and offline checkpoints. Current RC78 results are [15 PASS / 1 historical FAIL, with A1 separate PASS](PR67-PHYSICAL-VALIDATION-2026-10-16.md). Older statements about signing or physical tests still pending describe their original checkpoint; consult the [current integration gates](PR67-INTEGRATION-GATES-2026-10-16.md).
+
 **State:** draft work plan. This document records engineering work items, not a release validation or an assessment of shipped quality.
 
 ## Scope and integration boundary

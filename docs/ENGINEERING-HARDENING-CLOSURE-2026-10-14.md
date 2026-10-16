@@ -1,5 +1,7 @@
 # PR67 closure decisions and candidate activation
 
+> **Historical checkpoint:** this document preserves preparation on 2026-10-14. Candidate activation and the approved supervised session subsequently completed; see [the 2026-10-16 closure and limits](PR67-PHYSICAL-VALIDATION-2026-10-16.md) and [integration gates](PR67-INTEGRATION-GATES-2026-10-16.md). Dated main, signing and NOT RUN statements below are not current execution instructions.
+
 Runtime/test baseline: `e190544b311cc173c9ae19a70d2ed77c6768340a`.
 Current main: `1868aca0cb5cbcdd28218d43cb87135921195d7c`; its tree matches
 the reviewed merge base `9714de9726fca22f417e624a3834a59b20f50b0a`.

@@ -1,5 +1,7 @@
 # Single consolidated future Thor session — preparation only
 
+> **Historical pre-session plan:** NOT RUN states below are preserved from 2026-10-13. Current execution is recorded in [the 2026-10-16 physical closure](PR67-PHYSICAL-VALIDATION-2026-10-16.md): 15 PASS / 1 historical FAIL in T00–T15, plus separate A1 PASS. Exclusions remain unexecuted; this plan is not authorization for another test.
+
 All cases below are NOT RUN in this workstream. No ADB, install, restart, screen command or capture is authorized by this document. Owner controls each operation.
 
 Current entry decisions and the proposed data-preserving activation/recovery path

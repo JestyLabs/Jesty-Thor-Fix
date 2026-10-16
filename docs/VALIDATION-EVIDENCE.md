@@ -1,6 +1,12 @@
 # Physical validation & performance evidence
 
-**Jesty Thor Fix — engineering evidence index** · Updated 2026-10-13
+## RC78 hardening session — 15–16 October 2026
+
+The [scoped physical closure](PR67-PHYSICAL-VALIDATION-2026-10-16.md) records **15 PASS / 1 historical FAIL** in T00–T15, plus separate A1 BOTH CPU acceptance PASS. A1 median was **0.088457127% of one core** (ceiling **0.188455954%**); T10 TOP median **0.324422937%** (ceiling **0.424110373%**). Original T09 BOTH remains **FAIL**, median **0.285730014%**; variability is unexplained. [Sanitized RC78 window inputs](evidence/PR67-CPU-WINDOWS-2026-10-16.csv) preserve the separate series.
+
+Normal short lid recovery and UI/diagnostic/final-state checks passed only in their documented scope. Recovery79 was staged/abandoned, not installed; active blocking, prolonged TOP sleep and distribution remain outside acceptance. See [integration and release gates](PR67-INTEGRATION-GATES-2026-10-16.md). Earlier measurements below retain their original versions and conditions.
+
+**Jesty Thor Fix — engineering evidence index** · Updated 2026-10-16
 
 Jesty Thor Fix is developed and tested against real AYN Thor hardware. This page collects the strongest reproducible findings, separates released behavior from experimental candidates, and links each conclusion to its test method. The primary criteria are **functional correctness, efficient background operation, dependable sleep/wake, and safe recovery**.
 
