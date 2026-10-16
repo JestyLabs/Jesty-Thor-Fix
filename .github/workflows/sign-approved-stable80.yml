@@ -1,0 +1,276 @@
+name: Sign approved frozen stable80 chain
+
+on:
+  workflow_dispatch:
+    inputs:
+      role:
+        description: Frozen artefact approved for controlled candidate preparation
+        required: true
+        type: choice
+        options: [stable80, recoveryR, returnS]
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  DELIVERY_RECIPIENT_SPKI_BASE64: 'MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA4A0r5neyipWdMeWR/bttR7Fb/k3MopG16FideRG02gv1BEF9vKbw4hb5l7A+Ft0vAYOYQ1oZAIrYkqGkWeoJHnm1HI0IOVNq88NO7JshltyZpj1vf3NJWtUWVJZt+JTj3EOMpjgMnmNU7hnR+NE+FFhTiNKaINYmg+LoPPnKcAikVZ4uFPnTCA7XkpfBjx0YZToYoi9hngBTRiEZof1YoogD5ezEXxvyU61Eb45t71wdsKin6PamLZQGJHW1By2yIVs5eIKXizlofftw3wshReciUFLb0GTWik7ZA3LFhio5uUqi3vRZRMSwwu0vt86itfPevfzOwDkSiyzV/4AFksXz/jbFUDRhNp0U4AYuiGEyScAOeBlyDSOQsSDwl6jogeDL96Ms61tSnEp0JtuovrRmcmgGlFG+ssQujhjKWFKK5udRjO6fDkEW6+a8ubI8MrL8oHfCq5lVJg8orEzof4UMBgRuNF5Zbi5NBT1fLv1VXRLzd3aa0OmbT58DYZ7hAgMBAAE='
+  DELIVERY_RECIPIENT_SHA256: '9fe9d00d898a9473b79286287f42684fc08b64e95ce9f49b066e6c733455b9b6'
+  EXPECTED_SIGNER_SHA256: '727D4850779BED1E51018108E13BC399D4DA38CFC68F4F7504120AD5E2DAD6FC'
+
+jobs:
+  sign:
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'JestyLabs/Jesty-Thor-Fix' && github.ref == 'refs/heads/main' && github.actor == 'SirJesty' && github.triggering_actor == 'SirJesty'
+    runs-on: windows-latest
+    environment: thor-signing
+    concurrency:
+      group: thor-release-keystore-${{ github.repository }}
+      cancel-in-progress: false
+    steps:
+      - name: Authorize protected caller
+        shell: pwsh
+        env:
+          ORIGINAL_ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          CALLER_REF: ${{ github.ref }}
+          CALLER_REPOSITORY: ${{ github.repository }}
+          CALLER_EVENT: ${{ github.event_name }}
+          SIGNING_ENV_READY: ${{ vars.THOR_SIGNING_ENV_READY }}
+        run: |
+          if ($env:ORIGINAL_ACTOR -cne 'SirJesty' -or $env:TRIGGERING_ACTOR -cne 'SirJesty' -or
+              $env:CALLER_REF -cne 'refs/heads/main' -or $env:CALLER_REPOSITORY -cne 'JestyLabs/Jesty-Thor-Fix' -or
+              $env:CALLER_EVENT -cne 'workflow_dispatch' -or $env:SIGNING_ENV_READY -cne 'true') {
+              throw 'Protected caller, designated operator or signing readiness rejected.'
+          }
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          packages: platform-tools
+      - name: Install signing tools
+        shell: pwsh
+        run: sdkmanager "build-tools;35.0.0"
+      - name: Validate frozen source and artefact
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APPROVED_ROLE: ${{ inputs.role }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repo = 'JestyLabs/Jesty-Thor-Fix'
+          switch -CaseSensitive ($env:APPROVED_ROLE) {
+              'stable80' {
+                  $spec = @{ role='stable80'; run=38971826428; event='workflow_dispatch'; branch='signing/stable80-ci-20261016'; head='c92f5f4c8876a6098c8b3f699d84b08bdd010e8e'; producer='c92f5f4c8876a6098c8b3f699d84b08bdd010e8e'; artifact=12077442413; archive='9af85ab9824231e58635d5a90b7255b91eefe2db008a34521202db7365a06b4f'; apk='701d0eabc38c4251c6081d6614230c66f9d769842012b4699dd19bce34dd7434'; version='1.7.2'; code='80' }
+              }
+              'recoveryR' {
+                  $spec = @{ role='recoveryR'; run=38971834700; event='workflow_dispatch'; branch='signing/recoveryR-ci-20261016'; head='b93bd5fe7740f90d68a0b563348991c30d36cc9c'; producer='b93bd5fe7740f90d68a0b563348991c30d36cc9c'; artifact=12077236962; archive='267be20a74adcc029eb573a58d87b481bb0463dfe507d972169408ddf2290beb'; apk='f4cfed1a0e939496159917faad144d4f6686a9beda0afbdbfa9cf0c4c828863a'; version='1.7.3-recovery'; code='81' }
+              }
+              'returnS' {
+                  $spec = @{ role='returnS'; run=38971843043; event='workflow_dispatch'; branch='signing/returnS-ci-20261016'; head='170e7f22125538cf39bb10b8af1c21ee6292549f'; producer='170e7f22125538cf39bb10b8af1c21ee6292549f'; artifact=12077691955; archive='a1794469c6121b728784c6824a47656457858d45128cc25511c090d811b4ab21'; apk='ad8d24cbd2fb18a63dbe14af9331ef31bd7ac36abb9381b3edb849cb5422443a'; version='1.7.3'; code='82' }
+              }
+              default { throw 'Role is not in the frozen approval.' }
+          }
+          $run = gh api "repos/$repo/actions/runs/$($spec.run)" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Source lookup failed.' }
+          if ($run.id -ne $spec.run -or $run.run_attempt -ne 1 -or $run.event -cne $spec.event -or
+              $run.path -cne '.github/workflows/host-tests.yml' -or $run.name -cne 'CI' -or
+              $run.status -cne 'completed' -or $run.conclusion -cne 'success' -or
+              $run.head_sha -cne $spec.head -or $run.head_branch -cne $spec.branch -or
+              $run.repository.full_name -cne $repo -or $run.head_repository.full_name -cne $repo -or
+              $run.repository.id -ne 1389567045 -or $run.head_repository.id -ne 1389567045) {
+              throw 'Source is not the exact approved successful run and first attempt.'
+          }
+          $payload = gh api "repos/$repo/actions/runs/$($spec.run)/artifacts?per_page=100" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Artefact lookup failed.' }
+          if ($payload.total_count -ne 1 -or @($payload.artifacts).Count -ne 1) { throw 'Approved run must contain exactly one artefact.' }
+          $artifact = $payload.artifacts[0]
+          $name = "unsigned-build-v$($spec.version)-$($spec.producer)"
+          if ($artifact.id -ne $spec.artifact -or $artifact.name -cne $name -or
+              $artifact.expired -isnot [bool] -or $artifact.expired -or
+              $artifact.digest -cne ('sha256:' + $spec.archive) -or
+              $artifact.workflow_run.id -ne $spec.run -or $artifact.workflow_run.head_sha -cne $spec.head -or
+              $artifact.workflow_run.head_branch -cne $spec.branch -or
+              $artifact.workflow_run.repository_id -ne 1389567045 -or $artifact.workflow_run.head_repository_id -ne 1389567045) {
+              throw 'Artefact identity, digest or provenance differs from the frozen approval.'
+          }
+          $values = [ordered]@{ APPROVED_ROLE=$spec.role; APPROVED_RUN=$spec.run; APPROVED_HEAD=$spec.head;
+              APPROVED_PRODUCER=$spec.producer; APPROVED_ARTIFACT=$spec.artifact; APPROVED_ARCHIVE_SHA=$spec.archive;
+              APPROVED_APK_SHA=$spec.apk; APPROVED_VERSION=$spec.version; APPROVED_CODE=$spec.code;
+              APPROVED_FILENAME="Jesty-Thor-Fix-$($spec.version)-unsigned.apk" }
+          foreach ($item in $values.GetEnumerator()) { "$($item.Key)=$($item.Value)" >> $env:GITHUB_ENV }
+      - name: Download and inspect exact unsigned input
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($PSVersionTable.PSVersion -lt [version]'7.4') { throw 'Binary native redirection requires PowerShell7.4 or newer.' }
+          $inputDir = Join-Path $env:RUNNER_TEMP 'approved-frozen-input'
+          New-Item -ItemType Directory -Path $inputDir -ErrorAction Stop | Out-Null
+          $archive = Join-Path $inputDir 'approved.zip'
+          gh api "repos/JestyLabs/Jesty-Thor-Fix/actions/artifacts/$env:APPROVED_ARTIFACT/zip" > $archive
+          if ($LASTEXITCODE -ne 0) { throw 'Exact archive download failed.' }
+          if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant() -cne $env:APPROVED_ARCHIVE_SHA) { throw 'Archive SHA256 differs from frozen approval.' }
+          $apk = Join-Path $inputDir $env:APPROVED_FILENAME
+          $zip = [IO.Compression.ZipFile]::OpenRead($archive)
+          try {
+              if ($zip.Entries.Count -ne 1 -or $zip.Entries[0].FullName -cne $env:APPROVED_FILENAME) { throw 'Archive must contain only the exact approved APK basename.' }
+              $entryStream = $zip.Entries[0].Open()
+              $targetStream = [IO.File]::Open($apk, [IO.FileMode]::CreateNew)
+              try { $entryStream.CopyTo($targetStream) } finally { $targetStream.Dispose(); $entryStream.Dispose() }
+          } finally { $zip.Dispose() }
+          if ((Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash.ToLowerInvariant() -cne $env:APPROVED_APK_SHA) { throw 'Unsigned APK SHA256 differs from frozen approval.' }
+          $aapt = Join-Path $env:ANDROID_SDK_ROOT 'build-tools/35.0.0/aapt.exe'
+          $badging = (& $aapt dump badging $apk | Out-String)
+          if ($LASTEXITCODE -ne 0) { throw 'Unsigned badging failed.' }
+          $package = [regex]::Match($badging, "(?m)^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'")
+          if (-not $package.Success -or $package.Groups[1].Value -cne 'com.thor.displaypowertest' -or
+              $package.Groups[2].Value -cne $env:APPROVED_CODE -or $package.Groups[3].Value -cne $env:APPROVED_VERSION -or
+              $badging -notmatch "targetSdkVersion:'25'") { throw 'Unsigned package/version/code/SDK differs from frozen approval.' }
+          "UNSIGNED_APK=$apk" >> $env:GITHUB_ENV
+      - name: Validate pinned delivery recipient
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not [Security.Cryptography.AesGcm]::IsSupported) { throw 'Authenticated owner delivery is unavailable on this runner.' }
+          $public = [Convert]::FromBase64String($env:DELIVERY_RECIPIENT_SPKI_BASE64)
+          $fingerprint = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($public)).ToLowerInvariant()
+          if ($fingerprint -cne $env:DELIVERY_RECIPIENT_SHA256) { throw 'Delivery recipient differs from approved fingerprint.' }
+          $rsa = [Security.Cryptography.RSA]::Create(); $read = 0
+          try {
+              $rsa.ImportSubjectPublicKeyInfo($public, [ref]$read)
+              if ($read -ne $public.Length -or $rsa.KeySize -ne 3072) { throw 'Delivery recipient must be the exact approved RSA3072 public key.' }
+              $probe = [Security.Cryptography.RandomNumberGenerator]::GetBytes(32)
+              try { $null = $rsa.Encrypt($probe, [Security.Cryptography.RSAEncryptionPadding]::OaepSHA256) }
+              finally { [Array]::Clear($probe, 0, $probe.Length) }
+          } finally { $rsa.Dispose() }
+      - name: Prepare protected signing material
+        shell: pwsh
+        env:
+          KEYSTORE_B64: ${{ secrets.THOR_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.THOR_KEYSTORE_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:KEYSTORE_B64) -or [string]::IsNullOrWhiteSpace($env:KEYSTORE_PASSWORD)) { throw 'Protected signing material unavailable.' }
+          $keystore = Join-Path $env:RUNNER_TEMP 'approved-frozen-pair.keystore'
+          "JESTY_KEYSTORE=$keystore" >> $env:GITHUB_ENV
+          [IO.File]::WriteAllBytes($keystore, [Convert]::FromBase64String($env:KEYSTORE_B64))
+      - name: Sign exact approved APK
+        shell: pwsh
+        env:
+          THOR_KEYSTORE_PASSWORD: ${{ secrets.THOR_KEYSTORE_PASSWORD }}
+        run: |
+          if ((Get-FileHash -LiteralPath $env:UNSIGNED_APK -Algorithm SHA256).Hash.ToLowerInvariant() -cne $env:APPROVED_APK_SHA) { throw 'Unsigned input changed before signing.' }
+          New-Item -ItemType Directory -Path output -ErrorAction Stop | Out-Null
+          $signed = Join-Path (Resolve-Path output) ('Jesty-Thor-Fix-{0}-approved-{1}.apk' -f $env:APPROVED_VERSION, $env:APPROVED_PRODUCER)
+          $apksigner = Join-Path $env:ANDROID_SDK_ROOT 'build-tools/35.0.0/apksigner.bat'
+          & $apksigner sign --ks $env:JESTY_KEYSTORE --ks-key-alias 'thor-display-power-auto' --ks-pass 'env:THOR_KEYSTORE_PASSWORD' --key-pass 'env:THOR_KEYSTORE_PASSWORD' --out $signed $env:UNSIGNED_APK
+          if ($LASTEXITCODE -ne 0) { throw 'Protected signing failed.' }
+          "SIGNED_APK=$signed" >> $env:GITHUB_ENV
+      - name: Verify certificate identity and functional payload
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $apksigner = Join-Path $env:ANDROID_SDK_ROOT 'build-tools/35.0.0/apksigner.bat'
+          $verify = (& $apksigner verify --verbose --print-certs $env:SIGNED_APK 2>&1 | Out-String)
+          if ($LASTEXITCODE -ne 0) { throw 'Signed APK verification failed.' }
+          $signer = [regex]::Match($verify, 'Signer #1 certificate SHA-256 digest:\s*([0-9a-fA-F]{64})').Groups[1].Value.ToUpperInvariant()
+          if ($verify -notmatch 'Number of signers:\s*1\b' -or $signer -cne $env:EXPECTED_SIGNER_SHA256) { throw 'Signed APK must have exactly the established production signer.' }
+          $aapt = Join-Path $env:ANDROID_SDK_ROOT 'build-tools/35.0.0/aapt.exe'
+          $badging = (& $aapt dump badging $env:SIGNED_APK | Out-String)
+          if ($LASTEXITCODE -ne 0) { throw 'Signed badging failed.' }
+          $package = [regex]::Match($badging, "(?m)^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'")
+          if (-not $package.Success -or $package.Groups[1].Value -cne 'com.thor.displaypowertest' -or
+              $package.Groups[2].Value -cne $env:APPROVED_CODE -or $package.Groups[3].Value -cne $env:APPROVED_VERSION) { throw 'Signed package/version/code differs from approval.' }
+          function Get-FunctionalPayload([string] $Path) {
+              $map = [Collections.Generic.Dictionary[string,string]]::new([StringComparer]::Ordinal)
+              $zip = [IO.Compression.ZipFile]::OpenRead($Path)
+              try {
+                  foreach ($entry in $zip.Entries) {
+                      if ($entry.FullName.EndsWith('/') -or $entry.FullName -match '(?i)^META-INF/(MANIFEST\.MF|[^/]+\.(SF|RSA|DSA|EC))$') { continue }
+                      $stream = $entry.Open(); $hash = [Security.Cryptography.SHA256]::Create()
+                      try { $value = [Convert]::ToHexString($hash.ComputeHash($stream)) } finally { $hash.Dispose(); $stream.Dispose() }
+                      if (-not $map.TryAdd($entry.FullName,$value)) { throw 'Duplicate APK payload entry.' }
+                  }
+              } finally { $zip.Dispose() }
+              return ,$map
+          }
+          if ((Get-FileHash -LiteralPath $env:UNSIGNED_APK -Algorithm SHA256).Hash.ToLowerInvariant() -cne $env:APPROVED_APK_SHA) { throw 'Unsigned original changed during signing.' }
+          $before = Get-FunctionalPayload $env:UNSIGNED_APK
+          $after = Get-FunctionalPayload $env:SIGNED_APK
+          if ($before.Count -ne $after.Count) { throw 'Signed functional payload entry set changed.' }
+          foreach ($name in $before.Keys) {
+              if (-not $after.ContainsKey($name) -or $before[$name] -cne $after[$name]) { throw 'Signed functional payload differs from approved unsigned input.' }
+          }
+          $metadata = [ordered]@{ role=$env:APPROVED_ROLE; sourceRun=$env:APPROVED_RUN; sourceHead=$env:APPROVED_HEAD;
+              producer=$env:APPROVED_PRODUCER; artifactId=$env:APPROVED_ARTIFACT; archiveSha256=$env:APPROVED_ARCHIVE_SHA;
+              unsignedSha256=$env:APPROVED_APK_SHA; signedSha256=(Get-FileHash -LiteralPath $env:SIGNED_APK -Algorithm SHA256).Hash;
+              package='com.thor.displaypowertest'; version=$env:APPROVED_VERSION; code=$env:APPROVED_CODE;
+              establishedCertificateVerified=$true; functionalPayloadIdentical=$true; releasePublished=$false; deviceInstalled=$false }
+          $metadata | ConvertTo-Json | Set-Content -LiteralPath output/approved-provenance.json -Encoding utf8
+      - name: Seal verified output for owner-only delivery
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # No signed bytes, plaintext provenance or private recipient key are uploaded.
+          $public = [Convert]::FromBase64String($env:DELIVERY_RECIPIENT_SPKI_BASE64)
+          $fingerprint = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($public)).ToLowerInvariant()
+          if ($fingerprint -cne $env:DELIVERY_RECIPIENT_SHA256) { throw 'Delivery recipient differs from approved fingerprint.' }
+          $memory = [IO.MemoryStream]::new(); $rsa = [Security.Cryptography.RSA]::Create(); $aes = $null
+          $plain = $null; $key = $null
+          try {
+              $read = 0; $rsa.ImportSubjectPublicKeyInfo($public, [ref]$read)
+              if ($read -ne $public.Length -or $rsa.KeySize -ne 3072) { throw 'Delivery recipient must be the exact approved RSA3072 public key.' }
+              $zip = [IO.Compression.ZipArchive]::new($memory, [IO.Compression.ZipArchiveMode]::Create, $true)
+              try {
+                  foreach ($item in @(@{name='approved.apk'; path=$env:SIGNED_APK}, @{name='approved-provenance.json'; path='output/approved-provenance.json'})) {
+                      $entry = $zip.CreateEntry($item.name); $target = $entry.Open(); $source = $null
+                      try { $source = [IO.File]::OpenRead($item.path); $source.CopyTo($target) }
+                      finally { if ($source) { $source.Dispose() }; $target.Dispose() }
+                  }
+              } finally { $zip.Dispose() }
+              $plain = $memory.ToArray()
+              $key = [Security.Cryptography.RandomNumberGenerator]::GetBytes(32)
+              $nonce = [Security.Cryptography.RandomNumberGenerator]::GetBytes(12)
+              $tag = [byte[]]::new(16); $cipher = [byte[]]::new($plain.Length)
+              $header = [ordered]@{ format='jesty-thor-sealed-delivery-v1'; recipient=$fingerprint; role=$env:APPROVED_ROLE; sourceRun=$env:APPROVED_RUN }
+              $aad = [Text.Encoding]::UTF8.GetBytes(($header | ConvertTo-Json -Compress))
+              $aes = [Security.Cryptography.AesGcm]::new($key, 16)
+              $aes.Encrypt($nonce, $plain, $cipher, $tag, $aad)
+              $wrapped = $rsa.Encrypt($key, [Security.Cryptography.RSAEncryptionPadding]::OaepSHA256)
+              $envelope = [ordered]@{ header=[Convert]::ToBase64String($aad); wrappedKey=[Convert]::ToBase64String($wrapped);
+                  nonce=[Convert]::ToBase64String($nonce); tag=[Convert]::ToBase64String($tag); ciphertext=[Convert]::ToBase64String($cipher) }
+              New-Item -ItemType Directory -Path delivery-output -ErrorAction Stop | Out-Null
+              $delivery = Join-Path (Resolve-Path delivery-output) 'approved-delivery.sealed.json'
+              [IO.File]::WriteAllText($delivery, ($envelope | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
+              "SEALED_DELIVERY=$delivery" >> $env:GITHUB_ENV
+          } finally {
+              if ($aes) { $aes.Dispose() }; $rsa.Dispose()
+              if ($plain) { [Array]::Clear($plain, 0, $plain.Length) }
+              if ($key) { [Array]::Clear($key, 0, $key.Length) }
+              $buffer = $memory.GetBuffer(); [Array]::Clear($buffer, 0, $buffer.Length); $memory.Dispose()
+          }
+      - name: Store only encrypted owner delivery
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: encrypted-stable80-${{ inputs.role }}-${{ github.run_id }}
+          path: ${{ env.SEALED_DELIVERY }}
+          if-no-files-found: error
+          retention-days: 14
+      - name: Cleanup protected signing material
+        if: always()
+        shell: pwsh
+        run: |
+          $keystore = Join-Path $env:RUNNER_TEMP 'approved-frozen-pair.keystore'
+          if (Test-Path -LiteralPath $keystore) { Remove-Item -LiteralPath $keystore -Force }
+          foreach ($name in @('output','approved-frozen-input')) {
+              $path = if ($name -ceq 'output') { Join-Path $env:GITHUB_WORKSPACE $name } else { Join-Path $env:RUNNER_TEMP $name }
+              if (Test-Path -LiteralPath $path) {
+                  $resolved = [IO.Path]::GetFullPath((Resolve-Path -LiteralPath $path).Path)
+                  $expected = [IO.Path]::GetFullPath($path)
+                  $items = @(Get-Item -LiteralPath $path) + @(Get-ChildItem -LiteralPath $path -Recurse -Force)
+                  if ($resolved -cne $expected -or @($items | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint }).Count) { throw 'Unexpected plaintext cleanup path.' }
+                  Remove-Item -LiteralPath $path -Recurse -Force
+              }
+          }
