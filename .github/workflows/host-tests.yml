@@ -115,6 +115,10 @@ jobs:
         shell: pwsh
         run: ./scripts/test-approved-physical-signing-policy.ps1
 
+      - name: Validate frozen stable80 signing and encrypted delivery policy
+        shell: pwsh
+        run: ./scripts/test-approved-stable80-signing-policy.ps1
+
       - name: Build unsigned APK
         shell: pwsh
         run: |
