@@ -15,7 +15,7 @@ public final class SocketClient {
             BufferedReader reader = new BufferedReader(new InputStreamReader(
                     socket.getInputStream(), StandardCharsets.UTF_8));
             String response = reader.readLine();
-            if (response == null || !response.startsWith("ok=1")) {
+            if (!DaemonResponsePolicy.isPositiveAck(response)) {
                 throw new IllegalStateException(response == null
                         ? "No daemon acknowledgement" : response);
             }

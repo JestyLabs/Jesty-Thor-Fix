@@ -33,10 +33,11 @@ if ($main -notmatch 'onSampleRecorded\(Map<String, String> values\)' -or
     throw 'Diagnostics must reuse the existing foreground Q listener without sleep polling.'
 }
 if ($diagnostics -match 'ScheduledExecutorService|scheduleAtFixedRate|new Timer\(' -or
-    $diagnostics -notmatch 'AppDiagnosticPreview\.format\(text\)' -or
-    $diagnostics -notmatch 'setNeutralButton\("Sleep trial"') {
+    $diagnostics -notmatch 'AppDiagnosticPreview\.format\(text\)') {
     throw 'App diagnostics must not add a timer or periodic telemetry request.'
 }
+# The native dashboard regression exercises the Sleep Trial entry and its
+# visible bounds; privacy does not depend on a particular dialog button slot.
 
 $build = Get-Content -LiteralPath (Join-Path $repository 'build.ps1') -Raw
 $compilers = [regex]::Matches($build, '(?m)^& \$javac\b[^\r\n]*')

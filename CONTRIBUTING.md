@@ -16,6 +16,10 @@ For unsupported devices such as the Retroid Pocket Duo, start with read-only pro
 
 Remove device serials, account names, email addresses, local computer paths, tokens, and unrelated Android logs before posting.
 
+## Build, host tests and CI
+
+For an unsigned, credential-free Windows development environment, follow the [clean-checkout quick start](docs/CONTRIBUTOR-QUICKSTART.md). It documents JDK 17, Android SDK/Apktool prerequisites, host suites, and the difference between an unsigned build, CI emulator evidence and signed device acceptance.
+
 ## Pull requests
 
 - Preserve the validated wake-repair timings unless new device traces justify a change.
