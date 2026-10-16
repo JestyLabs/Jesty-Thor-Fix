@@ -62,13 +62,13 @@ jobs:
           $repo = 'JestyLabs/Jesty-Thor-Fix'
           switch -CaseSensitive ($env:APPROVED_ROLE) {
               'stable80' {
-                  $spec = @{ role='stable80'; run=38973454601; event='workflow_dispatch'; branch='signing/stable80-ci-20261016'; head='ff80a2c3377321de586aa183b21f55924a0904d1'; producer='ff80a2c3377321de586aa183b21f55924a0904d1'; artifact=12077574553; archive='78d73485601aa1ac2b31862909bcc94399ae6f664a1e66d5e2d951c0230dc052'; apk='7e7e73da557780239d1534fc1a82c8199406d258039fa4ddf624f0cf1a363c2c'; version='1.7.2'; code='80' }
+                  $spec = @{ role='stable80'; run=38975584456; event='workflow_dispatch'; branch='signing/stable80-ci-20261016'; head='7529e4a2910faa1bc253142914487f4578b30936'; producer='7529e4a2910faa1bc253142914487f4578b30936'; artifact=12079101412; archive='dd239a7fdb8296a16d261567b728c00557a72a1a6cb77eec3bf6c993c6ad2379'; apk='421752420af1cd510e18101356cbcb05753757e78d792a7facad2eb3af5758de'; version='1.7.2'; code='80' }
               }
               'recoveryR' {
                   $spec = @{ role='recoveryR'; run=38971834700; event='workflow_dispatch'; branch='signing/recoveryR-ci-20261016'; head='b93bd5fe7740f90d68a0b563348991c30d36cc9c'; producer='b93bd5fe7740f90d68a0b563348991c30d36cc9c'; artifact=12077236962; archive='267be20a74adcc029eb573a58d87b481bb0463dfe507d972169408ddf2290beb'; apk='f4cfed1a0e939496159917faad144d4f6686a9beda0afbdbfa9cf0c4c828863a'; version='1.7.3-recovery'; code='81' }
               }
               'returnS' {
-                  $spec = @{ role='returnS'; run=38973462543; event='workflow_dispatch'; branch='signing/returnS-ci-20261016'; head='d2293e8b01aa72f77ab422f664505023b9e8a4bd'; producer='d2293e8b01aa72f77ab422f664505023b9e8a4bd'; artifact=12078015934; archive='5dfa2060d83020b95aad615db6f0fe3c5b6909dc875b0c28c79845cda566d5f9'; apk='9ca918bd7c24bbc5104a65271b1b46033227fde1f2b3f276381b01ec44e80440'; version='1.7.3'; code='82' }
+                  $spec = @{ role='returnS'; run=38975591593; event='workflow_dispatch'; branch='signing/returnS-ci-20261016'; head='e3f5fb46360f23479b2b9a8db1c0ab3a8712f7ad'; producer='e3f5fb46360f23479b2b9a8db1c0ab3a8712f7ad'; artifact=12078882744; archive='a0ec3894f7029e9fcc66ad187b917d1a615fc28aefa699dd2b59673b6efeb01c'; apk='41fedd9ac4ab52e1774cb50de1c62b28972f6e55ad8c3f8faadf43a7f4bfe57a'; version='1.7.3'; code='82' }
               }
               default { throw 'Role is not in the frozen approval.' }
           }
