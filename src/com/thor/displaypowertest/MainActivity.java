@@ -37,6 +37,7 @@ public final class MainActivity extends Activity {
         super.onCreate(state);
         diagnostics = new AppDiagnostics(this, state == null ? null : state.getString("diagnostic_export"));
         SharedPreferences preferences = getSharedPreferences("state", MODE_PRIVATE);
+        final RebootActivation.Ticket activation = RebootActivation.ticket(this, preferences);
         configureWindow();
         DashboardViews views = new DashboardViews(this);
         layout = new DashboardLayout(views, new DashboardLayout.TopActions() {
@@ -60,7 +61,7 @@ public final class MainActivity extends Activity {
             @Override public void requestDaemonReplacement() {
                 MainActivity.this.requestDaemonReplacement();
             }
-        });
+        }, activation);
         settings = new DashboardSettingsController(this, preferences, layout, renderer);
         telemetry = new TelemetryPoller(this, new TelemetryPoller.Listener() {
             @Override public void onSampleRecorded(Map<String, String> values) {
@@ -71,6 +72,7 @@ public final class MainActivity extends Activity {
                 renderer.render(values, settings);
             }
             @Override public void onUnavailable() {
+                settings.setActivationPending(true);
                 renderer.renderUnavailable(settings.displayCommandInFlight());
             }
         });
@@ -86,6 +88,7 @@ public final class MainActivity extends Activity {
             }
             @Override public void onNoUpdate() { layout.updateAction.setVisibility(View.GONE); }
             @Override public String installBlocker() {
+                if (!activation.isAuthorized()) return activation.pendingMessage();
                 return updateReadiness.installBlocker(activityResumed,
                         settings.anyCommandInFlight());
             }
@@ -157,6 +160,7 @@ public final class MainActivity extends Activity {
 
     private void startTelemetry() {
         if (telemetry.running()) return;
+        settings.setActivationPending(true);
         renderer.resetForStart();
         telemetry.start();
     }

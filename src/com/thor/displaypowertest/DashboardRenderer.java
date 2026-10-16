@@ -30,6 +30,8 @@ final class DashboardRenderer implements DashboardSettingsController.Feedback {
 
     private final DashboardStateModel dashboardModel = new DashboardStateModel();
     private final Host host;
+    private final RebootActivation.Ticket activation;
+    private boolean restartRequired;
     private final TextView stateText;
     private final TextView stateDetail;
     private final TextView littleValue;
@@ -41,8 +43,9 @@ final class DashboardRenderer implements DashboardSettingsController.Feedback {
     private final TextView warningValue;
     private final TextView lidValue;
 
-    DashboardRenderer(DashboardLayout layout, Host host) {
+    DashboardRenderer(DashboardLayout layout, Host host, RebootActivation.Ticket activation) {
         this.host = host;
+        this.activation = activation;
         stateText = layout.stateText;
         stateDetail = layout.stateDetail;
         littleValue = layout.littleValue;
@@ -92,6 +95,10 @@ final class DashboardRenderer implements DashboardSettingsController.Feedback {
     }
 
     void renderUnavailable(boolean displayCommandInFlight) {
+        if (restartRequired || !activation.isAuthorized()) {
+            renderRestartRequired();
+            return;
+        }
         if (!displayCommandInFlight) {
             stateText.setText("DAEMON UNAVAILABLE");
             stateText.setTextColor(RED);
@@ -104,7 +111,23 @@ final class DashboardRenderer implements DashboardSettingsController.Feedback {
     }
 
     void render(Map<String, String> values, DashboardSettingsController settings) {
-        if (settings.displayCommandInFlight()) return;
+        RebootActivationPolicy.State activationState = RebootActivationPolicy.telemetry(
+                values, DaemonIdentity.RUNTIME_ID);
+        restartRequired = !activation.isAuthorized()
+                || activationState == RebootActivationPolicy.State.RESTART_REQUIRED;
+        settings.setActivationPending(activationState != RebootActivationPolicy.State.READY
+                || restartRequired);
+        if (restartRequired) {
+            renderRestartRequired();
+            return;
+        }
+        if (settings.displayCommandInFlight()) {
+            if (activationState != RebootActivationPolicy.State.READY) {
+                stateText.setText("ACTIVATION PENDING");
+                stateText.setTextColor(AMBER);
+            }
+            return;
+        }
         boolean enabled = "1".equals(values.get("fix"));
         boolean desiredDisplayFix = settings.desiredDisplayFix();
         String displayEffective = value(values, "display_effective");
@@ -199,6 +222,37 @@ final class DashboardRenderer implements DashboardSettingsController.Feedback {
                 ? RED : clocks == null ? AMBER : color(clocks.tone));
         warningValue.setText(CpuWarningModel.text(
                 bootHeld, watcherReady, cpuIntentMismatch, cpuPhase, clocks));
+        if (activationState != RebootActivationPolicy.State.READY) {
+            stateText.setText("ACTIVATION PENDING");
+            stateText.setTextColor(AMBER);
+            stateDetail.setText("Waiting for the current background service to report READY.");
+            stateDetail.setVisibility(View.VISIBLE);
+        }
+
+    }
+
+    private void renderRestartRequired() {
+        dashboardModel.resetClocks();
+        dashboardModel.resetBattery();
+        boolean authorized = activation.isAuthorized();
+        boolean needsRestart = !authorized
+                && activation.evidence() == RebootActivation.Evidence.RESTART_REQUIRED;
+        stateText.setText(needsRestart ? "RESTART REQUIRED" : "ACTIVATION BLOCKED");
+        stateText.setTextColor(AMBER);
+        stateDetail.setText(authorized
+                ? "A kernel reboot has already been verified, but the service identity could not be verified "
+                        + "for this installation. Do not keep restarting. Save diagnostics and seek support; "
+                        + "do not uninstall or clear app data."
+                : activation.pendingMessage());
+        stateDetail.setVisibility(View.VISIBLE);
+        littleValue.setText("\u2014");
+        bigValue.setText("\u2014");
+        primeValue.setText("\u2014");
+        displayValue.setText(authorized ? "SERVICE IDENTITY MISMATCH" : "ACTIVATION PENDING");
+        displayDetail.setText("The installed version is not yet verified as active.");
+        powerValue.setText("\u2014");
+        warningValue.setText("");
+        lidValue.setText("WAKE GUARD UNVERIFIED");
     }
 
     private static String clock(long current, long maximum) {

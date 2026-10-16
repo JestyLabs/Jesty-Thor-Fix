@@ -1,8 +1,8 @@
 # Incremental engineering hardening
 
-> **Post-merge status, 2026-10-16:** PR #67 was merged into `main` as `229df903384ca3dfa0796005b5e697c3c58676af`. This ledger preserves dated planning and offline checkpoints, not the current PR state. The [RC78 physical record](PR67-PHYSICAL-VALIDATION-2026-10-16.md) remains **15 PASS / 1 historical FAIL**, with separate A1 PASS. Statements below about pending CI, merge, signing or physical tests reflect their historical checkpoint. The [integration review](PR67-INTEGRATION-GATES-2026-10-16.md) is a pre-merge snapshot. Stable 1.7.2 is not published.
+> **Execution status, 2026-10-16:** this ledger preserves dated planning and offline checkpoints. Current RC78 results are [15 PASS / 1 historical FAIL, with A1 separate PASS](PR67-PHYSICAL-VALIDATION-2026-10-16.md). Older statements about signing or physical tests still pending describe their original checkpoint; consult the [current integration gates](PR67-INTEGRATION-GATES-2026-10-16.md).
 
-**State:** archived work-plan ledger for the merged PR #67. This document records the original engineering work items, not stable 1.7.2 release validation or an assessment of shipped quality.
+**State:** draft work plan. This document records engineering work items, not a release validation or an assessment of shipped quality.
 
 ## Scope and integration boundary
 
