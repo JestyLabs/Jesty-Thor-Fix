@@ -36,9 +36,9 @@ function Check([string] $Name, [scriptblock] $Action, [string] $Reject = '') {
 function Reset-Source([string] $Role) {
     $script:role = $Role
     $specs = @{
-        stable80=@{ role='stable80'; run=38971826428; event='workflow_dispatch'; branch='signing/stable80-ci-20261016'; head='c92f5f4c8876a6098c8b3f699d84b08bdd010e8e'; producer='c92f5f4c8876a6098c8b3f699d84b08bdd010e8e'; artifact=12077442413; archive='9af85ab9824231e58635d5a90b7255b91eefe2db008a34521202db7365a06b4f'; apk='701d0eabc38c4251c6081d6614230c66f9d769842012b4699dd19bce34dd7434'; version='1.7.2'; code='80' }
+        stable80=@{ role='stable80'; run=38973454601; event='workflow_dispatch'; branch='signing/stable80-ci-20261016'; head='ff80a2c3377321de586aa183b21f55924a0904d1'; producer='ff80a2c3377321de586aa183b21f55924a0904d1'; artifact=12077574553; archive='78d73485601aa1ac2b31862909bcc94399ae6f664a1e66d5e2d951c0230dc052'; apk='7e7e73da557780239d1534fc1a82c8199406d258039fa4ddf624f0cf1a363c2c'; version='1.7.2'; code='80' }
         recoveryR=@{ role='recoveryR'; run=38971834700; event='workflow_dispatch'; branch='signing/recoveryR-ci-20261016'; head='b93bd5fe7740f90d68a0b563348991c30d36cc9c'; producer='b93bd5fe7740f90d68a0b563348991c30d36cc9c'; artifact=12077236962; archive='267be20a74adcc029eb573a58d87b481bb0463dfe507d972169408ddf2290beb'; apk='f4cfed1a0e939496159917faad144d4f6686a9beda0afbdbfa9cf0c4c828863a'; version='1.7.3-recovery'; code='81' }
-        returnS=@{ role='returnS'; run=38971843043; event='workflow_dispatch'; branch='signing/returnS-ci-20261016'; head='170e7f22125538cf39bb10b8af1c21ee6292549f'; producer='170e7f22125538cf39bb10b8af1c21ee6292549f'; artifact=12077691955; archive='a1794469c6121b728784c6824a47656457858d45128cc25511c090d811b4ab21'; apk='ad8d24cbd2fb18a63dbe14af9331ef31bd7ac36abb9381b3edb849cb5422443a'; version='1.7.3'; code='82' }
+        returnS=@{ role='returnS'; run=38973462543; event='workflow_dispatch'; branch='signing/returnS-ci-20261016'; head='d2293e8b01aa72f77ab422f664505023b9e8a4bd'; producer='d2293e8b01aa72f77ab422f664505023b9e8a4bd'; artifact=12078015934; archive='5dfa2060d83020b95aad615db6f0fe3c5b6909dc875b0c28c79845cda566d5f9'; apk='9ca918bd7c24bbc5104a65271b1b46033227fde1f2b3f276381b01ec44e80440'; version='1.7.3'; code='82' }
     }
     $spec=$specs[$Role]; if(-not $spec){throw 'Unknown fixture role.'}
     $script:runId=$spec.run
@@ -227,7 +227,7 @@ try {
         $fixture=Join-Path $sandbox 'sealed-fixture';New-Item -ItemType Directory -Path $fixture|Out-Null;Set-Location -LiteralPath $fixture
         [Environment]::CurrentDirectory=$fixture; New-Item -ItemType Directory -Path output|Out-Null
         $actualSigned=if($TestSignedApk){[IO.Path]::GetFullPath($TestSignedApk)}else{Join-Path $sandbox 'signed.apk'}
-        Set-TestEnv 'SIGNED_APK' $actualSigned;Set-TestEnv 'APPROVED_ROLE' 'stable80';Set-TestEnv 'APPROVED_RUN' '38971826428'
+        Set-TestEnv 'SIGNED_APK' $actualSigned;Set-TestEnv 'APPROVED_ROLE' 'stable80';Set-TestEnv 'APPROVED_RUN' '38973454601'
         Set-TestEnv 'GITHUB_ENV' (Join-Path $fixture 'delivery.env')
         [IO.File]::WriteAllText((Join-Path $fixture 'output/approved-provenance.json'),'{"privateMarker":"owner-only","functionalPayloadIdentical":true}')
         Check 'actual-encryption-block' {& $seal}

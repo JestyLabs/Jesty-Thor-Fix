@@ -88,7 +88,9 @@ def assess(data):
     captures = {c['name']: c for c in data['captures']}
     base = captures['dashboard']; density = base['density']
     tabs = [n['focus'] for n in data['navigation'] if n['key'] == 'TAB']
-    navigation = len(set(tabs)) == 7 and tabs[0] == tabs[-1]
+    expected_stops = 4 if data['activationGatePresent'] else 7
+    navigation = (data['tabStops'] == expected_stops and len(tabs) == expected_stops + 1
+                  and len(set(tabs)) == expected_stops and tabs[0] == tabs[-1])
     navigation &= all(any(n.get('text') == title for n in nodes(captures[name]['accessibility']))
                       for name, title in [('enter-diagnostics', 'App diagnostics'),
                                           ('settings-keyboard', 'Updates'), ('update-dialog', 'Update available')])
@@ -114,8 +116,14 @@ def assess(data):
                 diagnostics &= left >= window[0] and top >= window[1]
                 diagnostics &= right <= window[2] and bottom <= window[3]
     diagnostics &= any(n['key'] == 'SLEEP_ENTRY_RESULT' and n['openedSleepEntry'] for n in data['navigation'])
-    return {'navigation': bool(navigation), 'touch-targets': bool(touch),
-            'dashboard-text': bool(text), 'diagnostics-actions': bool(diagnostics)}
+    checks = {'navigation': bool(navigation), 'touch-targets': bool(touch),
+              'dashboard-text': bool(text), 'diagnostics-actions': bool(diagnostics)}
+    if data['activationGatePresent']:
+        switches = [v for v in base['views'] if v.get('class') == 'Switch']
+        checks['activation-pending-controls'] = (len(switches) == 3
+            and all(not v['enabled'] for v in switches)
+            and any(v.get('text') == 'RESTART REQUIRED' for v in base['views']))
+    return checks
 
 
 def run(args):
@@ -147,7 +155,8 @@ def run(args):
                        HARNESS + '/' + HARNESS + '.UiAuditInstrumentation')
             (output / f'scale{scale}-instrumentation.log').write_text(log, encoding='utf-8')
             if 'result=PASS' not in log:
-                raise AssertionError('UI collector did not finish in the expected target windows')
+                raise AssertionError('UI collector did not finish: ' + '\n'.join(
+                    line for line in log.splitlines() if 'INSTRUMENTATION_RESULT:' in line))
             remote = f'/sdcard/Android/data/{PACKAGE}/files/scale{scale}'
             path = output / f'scale{scale}-results.json'
             call('pull', remote + '-results.json', path)
@@ -164,7 +173,8 @@ def run(args):
         call('shell', 'settings', 'put', 'system', 'font_scale', '1.0')
         call('shell', 'am', 'force-stop', PACKAGE)
         (output / 'results.json').write_text(json.dumps(results, indent=2), encoding='utf-8')
-    if len(results) != 4 * len(args.font_scale or (100, 150, 200)) or any(r['result'] != 'PASS' for r in results):
+    expected_cases = 5 if data['activationGatePresent'] else 4
+    if len(results) != expected_cases * len(args.font_scale or (100, 150, 200)) or any(r['result'] != 'PASS' for r in results):
         raise AssertionError('Dashboard native UI acceptance checks failed')
 
 
