@@ -1,0 +1,2 @@
+package com.thor.displaypowertest;import android.widget.TextView;
+final class DashboardLayout {final TextView stateText=new TextView(),stateDetail=new TextView(),littleValue=new TextView(),bigValue=new TextView(),primeValue=new TextView(),displayValue=new TextView(),displayDetail=new TextView(),powerValue=new TextView(),warningValue=new TextView(),lidValue=new TextView();}

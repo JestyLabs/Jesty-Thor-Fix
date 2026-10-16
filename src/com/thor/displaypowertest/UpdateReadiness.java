@@ -15,10 +15,13 @@ final class UpdateReadiness {
     private volatile long sampleAt;
     private volatile boolean bootHeld;
     private volatile boolean bothActive;
+    private volatile boolean restartRequired;
 
     /** Null means the daemon did not answer; a previously seen boot hold is kept. */
     void record(Map<String, String> values) {
         if (values != null) {
+            restartRequired = RebootActivationPolicy.telemetry(values,
+                    DaemonIdentity.RUNTIME_ID) == RebootActivationPolicy.State.RESTART_REQUIRED;
             bootHeld = "1".equals(values.get("display_actions_held"));
             bothActive = "0".equals(values.get("mode"))
                     && "1".equals(values.get("top_crtc")) && "1".equals(values.get("bottom_crtc"));
@@ -33,6 +36,7 @@ final class UpdateReadiness {
     }
 
     String installBlocker(boolean activityResumed, boolean commandInFlight) {
+        if (restartRequired) return RebootActivationPolicy.restartMessage();
         UpdateVersion.DeviceState state = activityResumed
                 ? deviceState : UpdateVersion.DeviceState.UNKNOWN;
         return UpdateVersion.installBlocker(state,

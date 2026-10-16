@@ -1,5 +1,5 @@
 {
-  "versionName": "1.7.2-rc1",
-  "role": "candidate",
-  "versionCode": 78
+  "role": "stable",
+  "versionName": "1.7.3",
+  "versionCode": 82
 }

@@ -1,7 +1,5 @@
 # PR67 — integration review and remaining release gates
 
-> **Historical pre-merge snapshot (not current status).** PR #67 merged into `main` on 2026-10-16 as `229df903384ca3dfa0796005b5e697c3c58676af`. CI and CodeQL passed on the integrated PR head and post-merge `main`. The original review, requirements and test scope below are preserved as dated evidence. Stable 1.7.2/code80 remains unpublished and requires separate authorization and acceptance.
-
 **Pre-integration review snapshot: 16 October 2026.** The tested-candidate source commit is `8d2935736080567c6c538035d8925519a083ac41`; accepted main is `7cff7cf49bc4261157fc69cd735a15dbbd2461ef`. Their automatic local combination produced tree `cd24c4acdb691310aa2548d40288b60b94f2eef5` without conflicts. This identifies the reviewed combination before branch integration. Any later integration head is a separate commit: the physical evidence remains attached to the tested-candidate source and original signed APK. An integration commit or CI result does not imply a rebuilt APK received physical acceptance.
 
 Relative to the tested-candidate source commit, the combination changes only CI and adds the approved physical-pair workflow/policy test. Runtime sources and candidate identity are unchanged. The actual combined workflow preserves:
