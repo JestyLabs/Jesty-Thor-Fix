@@ -103,9 +103,9 @@ The app's own CPU usage stays tiny, too. In separate physical idle tests, daemon
 We are still looking into the following issues. **These are research areas, not advertised fixes in v1.7.1.**
 
 - **🖥️ 120 Hz / screen tearing** — Understanding mixed-refresh behaviour when the two Thor displays run at different rates. [Research #37](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/37).
-- **🔌 Device-service reliability** — Investigating rare cases where Android temporarily loses access to a built-in device service.
+- **🔌 Device-service reliability and wake black screens** — Investigating rare cases where Android temporarily loses access to a built-in device service, and a separately tracked [TOP wake black-screen incident (#84)](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/84). No cause or fix is established for the blackout.
 - **🎮 TOP-mode game focus** — Checking reports of games losing focus when the bottom screen is off.
-- **⚡ Further efficiency and reliability** — More hardware edge cases, safer recovery and precise profiling. [Engineering research #67](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/67).
+- **⚡ Further efficiency and reliability** — More hardware edge cases, safer recovery and precise profiling. The [engineering hardening PR #67](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/67) is merged; stable v1.7.2 is not yet published.
 
 Interested in future device support, including Retroid Pocket Duo? That's **research only** and requires separate volunteer hardware testing — it is **not supported** today. [Full roadmap](docs/ROADMAP.md).
 
