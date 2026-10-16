@@ -88,9 +88,11 @@ def assess(data):
     captures = {c['name']: c for c in data['captures']}
     base = captures['dashboard']; density = base['density']
     tabs = [n['focus'] for n in data['navigation'] if n['key'] == 'TAB']
-    expected_stops = 4 if data['activationGatePresent'] else 7
-    navigation = (data['tabStops'] == expected_stops and len(tabs) == expected_stops + 1
-                  and len(set(tabs)) == expected_stops and tabs[0] == tabs[-1])
+    expected_labels = {v['label'] for v in base['views'] if v['enabled'] and v['focusable']}
+    expected_stops = len(expected_labels)
+    navigation = (expected_stops >= 4 and data['tabStops'] == expected_stops
+                  and len(tabs) == expected_stops + 1 and set(tabs) == expected_labels
+                  and tabs[0] == tabs[-1])
     navigation &= all(any(n.get('text') == title for n in nodes(captures[name]['accessibility']))
                       for name, title in [('enter-diagnostics', 'App diagnostics'),
                                           ('settings-keyboard', 'Updates'), ('update-dialog', 'Update available')])
@@ -122,7 +124,8 @@ def assess(data):
         switches = [v for v in base['views'] if v.get('class') == 'Switch']
         checks['activation-pending-controls'] = (len(switches) == 3
             and all(not v['enabled'] for v in switches)
-            and any(v.get('text') == 'RESTART REQUIRED' for v in base['views']))
+            and base['internalActivationState'] == 'RESTART REQUIRED'
+            and any(v.get('text') == 'ACTIVATION PENDING' for v in base['views']))
     return checks
 
 

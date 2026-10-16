@@ -111,6 +111,7 @@ public final class UiAuditInstrumentation extends Instrumentation {
                     }
                     data.put(item);
                 }
+                sample.put("internalActivationState",((TextView)field(field(activity,"layout"),"stateText")).getText().toString());
                 sample.put("views",data).put("focus",label(activity.getWindow().getDecorView().findFocus()))
                         .put("fontScale",activity.getResources().getConfiguration().fontScale)
                         .put("density",activity.getResources().getDisplayMetrics().density)
@@ -188,7 +189,7 @@ public final class UiAuditInstrumentation extends Instrumentation {
             });
             capture("dashboard",true);
             int tabStops=0;
-            for(View view:views) if(view.isShown() && view.isEnabled() && view.isClickable() && view.isFocusable()) tabStops++;
+            for(View view:views) if(view.isShown() && view.isEnabled() && view.isFocusable()) tabStops++;
             if(tabStops<4) throw new IllegalStateException("Expected at least four enabled dashboard actions");
             for(int i=0;i<tabStops+1;i++) key("TAB",KeyEvent.KEYCODE_TAB,0);
             key("SHIFT_TAB",KeyEvent.KEYCODE_TAB,KeyEvent.META_SHIFT_ON);
