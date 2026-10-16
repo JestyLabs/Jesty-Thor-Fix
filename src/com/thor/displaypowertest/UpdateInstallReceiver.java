@@ -17,9 +17,6 @@ public final class UpdateInstallReceiver extends BroadcastReceiver {
         int status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS,
                 PackageInstaller.STATUS_FAILURE);
         int sessionId = intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1);
-        // A delayed or duplicated status from an older Android session must
-        // never clear the next transfer's download or show an obsolete prompt.
-        if (!AppUpdater.isActiveInstallSession(sessionId)) return;
         switch (status) {
             case PackageInstaller.STATUS_PENDING_USER_ACTION: {
                 Intent confirm = intent.getParcelableExtra(Intent.EXTRA_INTENT);
@@ -27,15 +24,13 @@ public final class UpdateInstallReceiver extends BroadcastReceiver {
                     fail(context, sessionId, "Update failed: Android did not ask for confirmation");
                     break;
                 }
-                // AppUpdater launches only from a resumed Activity. Forcing a
-                // new task can recover an old installer window after process
-                // death instead of presenting this session's confirmation.
+                confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 AppUpdater.deliverConfirmation(context, confirm, sessionId);
                 break;
             }
             case PackageInstaller.STATUS_SUCCESS:
                 // Normally not delivered: Android stops this process to replace the APK.
-                AppUpdater.finishInstallSession(context, sessionId, true, null);
+                AppUpdater.clearDownloads(context);
                 break;
             case PackageInstaller.STATUS_FAILURE_ABORTED:
                 fail(context, sessionId, "Update cancelled");
@@ -50,6 +45,8 @@ public final class UpdateInstallReceiver extends BroadcastReceiver {
     }
 
     private static void fail(Context context, int sessionId, String message) {
-        AppUpdater.finishInstallSession(context, sessionId, false, message);
+        AppUpdater.abandonSession(context, sessionId);
+        AppUpdater.clearDownloads(context);
+        Toast.makeText(context, message, Toast.LENGTH_LONG).show();
     }
 }

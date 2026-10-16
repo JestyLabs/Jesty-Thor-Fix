@@ -1,12 +1,6 @@
 # Physical validation & performance evidence
 
-## RC78 hardening session — 15–16 October 2026
-
-The [scoped physical closure](PR67-PHYSICAL-VALIDATION-2026-10-16.md) records **15 PASS / 1 historical FAIL** in T00–T15, plus separate A1 BOTH CPU acceptance PASS. A1 median was **0.088457127% of one core** (ceiling **0.188455954%**); T10 TOP median **0.324422937%** (ceiling **0.424110373%**). Original T09 BOTH remains **FAIL**, median **0.285730014%**; variability is unexplained. [Sanitized RC78 window inputs](evidence/PR67-CPU-WINDOWS-2026-10-16.csv) preserve the separate series.
-
-Normal short lid recovery and UI/diagnostic/final-state checks passed only in their documented scope. Recovery79 was staged/abandoned, not installed; active blocking, prolonged TOP sleep and distribution remain outside acceptance. See [integration and release gates](PR67-INTEGRATION-GATES-2026-10-16.md). Earlier measurements below retain their original versions and conditions.
-
-**Jesty Thor Fix — engineering evidence index** · Updated 2026-10-16
+**Jesty Thor Fix — engineering evidence index** · Updated 2026-10-12
 
 Jesty Thor Fix is developed and tested against real AYN Thor hardware. This page collects the strongest reproducible findings, separates released behavior from experimental candidates, and links each conclusion to its test method. The primary criteria are **functional correctness, efficient background operation, dependable sleep/wake, and safe recovery**.
 
@@ -45,15 +39,14 @@ The project's release records cover exact-APK identity, established signing, in-
 
 | Version | Status |
 | --- | --- |
-| **v1.7.1 / code 76 — [published stable](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.1)** | Published 2026-10-12; [release identity and CI provenance](RELEASE-INTEGRITY.md#171-stable-publication--verifiable-public-metadata-2026-10-12) recorded. Final release includes approved UI-only changes relative to the separate physically tested signed code76 candidate; active Guard wake interception remains unobserved. |
-| **v1.7.0 / code 71** | Previously published stable; physically accepted |
+| **v1.7.0 / code 71** | Published stable; physically accepted |
 | **v1.7.1-rc2 / code 73** | Signed device-test baseline; CPU and suspend measurements completed on 2026-10-12 |
 | **v1.7.1-rc3 / code 74, [PR #63](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/63)** | Installed physically; BOTH recovered, but CPU Fix confirmation failed after handoff. Superseded by the reviewed candidate76 fix for ongoing testing |
-| **1.7.1 / code 76 test candidate, [PR #68](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/68)** | Separate physically tested signed candidate: **smoke, BOTH/TOP idle CPU, BOTH/TOP sustained suspend and basic Guard ON recovery PASS**. The later v1.7.1 stable release was published with approved UI-only differences; active blocked-wake interception remains unobserved. |
+| **1.7.1 / code 76, [PR #68](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/68)** | Signed candidate: **smoke, BOTH/TOP idle CPU, BOTH/TOP sustained suspend and basic Guard ON recovery PASS**. Active blocked-wake interception unobserved; final release/artifact authorization pending |
 | **1.7.1-rc6 / code 77, [PR #69](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/69)** | Signed forward-only recovery prepared, **not installed** |
 | **Earlier recovery / codes 75, [PR #64](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/64)** | Historical candidate only; not a normal rollback from code76 |
 
-Physical acceptance is recorded per tested build. Code76's matched Guard OFF CPU and quiet-suspend comparisons and isolated Guard ON **normal-recovery smoke** are complete. An effective closed-lid wake interception was not observed, so no active-blocking guarantee is inferred. Final v1.7.1 stable release publication completed on 2026-10-12; [public asset digest, signer-policy verification and exact source/CI run](RELEASE-INTEGRITY.md#171-stable-publication--verifiable-public-metadata-2026-10-12) are recorded separately. Physical acceptance remains scoped to the tested signed candidate; the later released APK was not byte-identical due to reviewed UI-only changes.
+Physical acceptance is recorded per tested build. Code76's matched Guard OFF CPU and quiet-suspend comparisons and isolated Guard ON **normal-recovery smoke** are complete. An effective closed-lid wake interception was not observed, so no active-blocking guarantee is inferred. Final artifact/release acceptance remains separately gated.
 
 ## Evidence standard
 

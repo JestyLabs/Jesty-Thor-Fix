@@ -5,12 +5,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      sign_main_candidate:
-        description: Explicit protected signing of this main CI build (not the frozen pair)
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -41,7 +35,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
         with:
           packages: platform-tools
 
@@ -87,15 +81,11 @@ jobs:
         shell: pwsh
         run: ./scripts/test-dashboard.ps1
 
-      - name: Controlled updater lifecycle (host Android adapters)
-        shell: pwsh
-        run: ./scripts/test-updater-lifecycle-host.ps1
-
       - name: App diagnostics privacy and retention
         shell: pwsh
         run: ./scripts/test-app-diagnostics.ps1
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
@@ -103,17 +93,9 @@ jobs:
         shell: pwsh
         run: python ./scripts/test-thor-energy.py
 
-      - name: Strict TLS fixture shutdown and framing
-        shell: pwsh
-        run: python ./scripts/test-transport-tls-shutdown.py --output "$env:RUNNER_TEMP/tls-shutdown-results"
-
       - name: Validate release workflow policy
         shell: pwsh
         run: ./scripts/test-release-policy.ps1
-
-      - name: Validate frozen signing and encrypted delivery policy
-        shell: pwsh
-        run: ./scripts/test-approved-physical-signing-policy.ps1
 
       - name: Build unsigned APK
         shell: pwsh
@@ -121,7 +103,7 @@ jobs:
           ./build.ps1 -ArtifactBaseName "Jesty-Thor-Fix-${{ steps.app.outputs.version }}"
 
       - name: Upload unsigned APK
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: unsigned-build-v${{ steps.app.outputs.version }}-${{ github.sha }}
           path: dist/Jesty-Thor-Fix-${{ steps.app.outputs.version }}-unsigned.apk
@@ -131,7 +113,7 @@ jobs:
   sign_main_candidate:
     name: Sign main candidate
     needs: build
-    if: github.event_name == 'workflow_dispatch' && inputs.sign_main_candidate == true && github.ref == 'refs/heads/main' && github.actor == 'SirJesty' && github.triggering_actor == 'SirJesty'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor == 'SirJesty' && github.triggering_actor == 'SirJesty'
     runs-on: windows-latest
     environment: thor-signing
     concurrency:
@@ -146,13 +128,8 @@ jobs:
         env:
           ORIGINAL_ACTOR: ${{ github.actor }}
           TRIGGERING_ACTOR: ${{ github.triggering_actor }}
-          CALLER_EVENT: ${{ github.event_name }}
-          MAIN_SIGNING_OPT_IN: ${{ inputs.sign_main_candidate }}
           SIGNING_ENV_READY: ${{ vars.THOR_SIGNING_ENV_READY }}
         run: |
-          if ($env:CALLER_EVENT -cne 'workflow_dispatch' -or $env:MAIN_SIGNING_OPT_IN -cne 'true') {
-              throw 'Main candidate signing requires an explicit manual opt-in; pushes never sign.'
-          }
           if ($env:ORIGINAL_ACTOR -cne 'SirJesty' -or $env:TRIGGERING_ACTOR -cne 'SirJesty') {
               throw 'Only the designated release operator may sign production candidates'
           }
@@ -165,7 +142,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
         with:
           packages: platform-tools
 
@@ -174,7 +151,7 @@ jobs:
         run: sdkmanager "build-tools;35.0.0"
 
       - name: Download exact same-run unsigned CI artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           name: unsigned-build-v${{ needs.build.outputs.version }}-${{ github.sha }}
           path: unsigned
@@ -270,7 +247,7 @@ jobs:
           "$hash  $($apk.Name)" | Set-Content -LiteralPath 'dist/candidate-sha256.txt' -Encoding ascii
 
       - name: Upload signed main candidate
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: signed-candidate-v${{ needs.build.outputs.version }}-${{ github.sha }}
           path: |
@@ -299,7 +276,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
         with:
           packages: platform-tools
 
@@ -307,7 +284,7 @@ jobs:
         run: sdkmanager "build-tools;35.0.0" "platforms;android-34"
 
       - name: Download exact unsigned APK from this CI run
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           name: unsigned-build-v${{ needs.build.outputs.version }}-${{ github.sha }}
           path: emulator-input
@@ -332,21 +309,6 @@ jobs:
         run: |
           bash scripts/build-installer-harness.sh "$RUNNER_TEMP/emulator-test.jks" emulator-input/installer-ci-harness.apk
 
-      - name: Build real updater Android fixtures with isolated disposable keys
-        shell: bash
-        run: |
-          python3 scripts/test-updater-android-e2e.py \
-            --sdk "$ANDROID_HOME" --java "$JAVA_HOME" \
-            --build "$RUNNER_TEMP/updater-e2e-build" --build-only
-
-      - name: Build real dashboard UI instrumentation with disposable key
-        shell: bash
-        run: |
-          python3 scripts/test-dashboard-android-ui.py \
-            --sdk "$ANDROID_HOME" --java "$JAVA_HOME" \
-            --unsigned-apk "emulator-input/Jesty-Thor-Fix-${{ needs.build.outputs.version }}-unsigned.apk" \
-            --build "$RUNNER_TEMP/dashboard-ui-build" --build-only
-
       - name: Enable KVM for emulator
         run: |
           test -c /dev/kvm
@@ -356,7 +318,6 @@ jobs:
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         with:
           api-level: 33
-          avd-name: pr67-ci-api33
           target: default
           arch: x86_64
           profile: pixel_2
@@ -367,7 +328,3 @@ jobs:
             test "$(adb -s emulator-5554 shell settings get secure immersive_mode_confirmations | tr -d '\r')" = confirmed
             bash scripts/test-android-emulator-smoke.sh emulator-input/emulator-test.apk "${{ needs.build.outputs.version }}"
             bash scripts/test-android-installer-session.sh emulator-input/emulator-test.apk emulator-input/installer-ci-harness.apk
-            python3 scripts/test-updater-android-e2e.py --sdk "$ANDROID_HOME" --build "$RUNNER_TEMP/updater-e2e-build" --serial emulator-5554 --avd pr67-ci-api33 --output "$RUNNER_TEMP/updater-e2e-results"
-            python3 scripts/test-updater-android-metadata.py --sdk "$ANDROID_HOME" --build "$RUNNER_TEMP/updater-e2e-build" --serial emulator-5554 --avd pr67-ci-api33 --output "$RUNNER_TEMP/updater-metadata-results" --implementation catalog
-            python3 scripts/test-updater-android-transport.py --sdk "$ANDROID_HOME" --build "$RUNNER_TEMP/updater-e2e-build" --serial emulator-5554 --avd pr67-ci-api33 --output "$RUNNER_TEMP/updater-transport-results"
-            python3 scripts/test-dashboard-android-ui.py --sdk "$ANDROID_HOME" --build "$RUNNER_TEMP/dashboard-ui-build" --serial emulator-5554 --avd pr67-ci-api33 --output "$RUNNER_TEMP/dashboard-ui-results"

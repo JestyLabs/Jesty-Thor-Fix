@@ -36,6 +36,7 @@ public final class DaemonRuntime {
     }
 
     public void run() throws Exception {
+        LocalServerSocket listener = SecureChannel.listen();
         boolean coordinating = session.active();
         if (coordinating) {
             String[] launch = DaemonLaunchScript.traceFields(System.getenv("JT"));
@@ -61,7 +62,6 @@ public final class DaemonRuntime {
         }
         DaemonState.setEnabled(args.displayFixEnabled);
         if (!coordinating) LidGuard.setEnabled(session.lidGuardDesired());
-        LocalServerSocket listener = SecureChannel.listen();
         if (coordinating) trace.mark("LISTEN_OK", null);
         WatcherSupervisor.start();
         DisplayEventManager.register();

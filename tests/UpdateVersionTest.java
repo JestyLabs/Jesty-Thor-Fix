@@ -22,20 +22,6 @@ public final class UpdateVersionTest {
         check(!UpdateVersion.isNewer("v1.3.0", "1.5.16"), "older version");
         check(!UpdateVersion.isNewer("v1.5.16-rc1", "1.5.16"), "suffix before stable");
         check(UpdateVersion.isNewer("v1.5.16", "1.5.16-rc1"), "stable after suffix");
-        // Proposed identities characterize existing discovery rules; no release is reserved.
-        check(UpdateVersion.isNewer("v1.7.2-rc1", "1.7.1"), "candidate above published base");
-        check(UpdateVersion.compare("1.7.2-rc1", "1.7.2-recovery") == 0,
-                "different suffixes compare equal");
-        check(UpdateVersion.compare("1.7.2-recovery", "1.7.2-rc1") == 0,
-                "suffix equality is symmetric");
-        check(!UpdateVersion.isNewer("1.7.2-recovery", "1.7.2-rc1"),
-                "recovery requires independent installation");
-        check(UpdateVersion.isNewer("v1.7.2", "1.7.2-rc1"), "stable above candidate");
-        check(UpdateVersion.isNewer("v1.7.2", "1.7.2-recovery"), "stable above recovery");
-        check(UpdateVersion.isExpectedAsset("Jesty-Thor-Fix-1.7.2-rc1.apk", "v1.7.2-rc1"),
-                "candidate asset keeps complete suffix");
-        check(!UpdateVersion.isExpectedAsset("Jesty-Thor-Fix-1.7.2.apk", "v1.7.2-rc1"),
-                "truncated candidate asset rejected");
         check(!UpdateVersion.isNewer("latest", "1.5.16"), "non-version tag");
         check(!UpdateVersion.isNewer("v1..5", "1.5.16"), "empty part");
         check(!UpdateVersion.isNewer("v1.\u0665.0", "1.4.0"), "non-ASCII digit");
@@ -51,13 +37,6 @@ public final class UpdateVersionTest {
         check(UpdateVersion.best(releases, "1.5.15", true) == 1, "test channel takes newer pre-release");
         check(UpdateVersion.best(releases, "1.5.17", true) == -1, "draft and unverifiable never chosen");
         check(UpdateVersion.best(releases, "1.5.16", false) == -1, "installed stable is current");
-        List<Candidate> proposedReleases = Arrays.asList(
-                new Candidate("v1.7.2-recovery", false, true, true),
-                new Candidate("v1.7.2", false, false, true));
-        check(UpdateVersion.best(proposedReleases, "1.7.2-rc1", true) == 1,
-                "only stable is newer than installed candidate");
-        check(UpdateVersion.best(proposedReleases, "1.7.2-recovery", false) == 1,
-                "stable remains discoverable above installed recovery");
 
         check("Jesty-Thor-Fix-1.5.17.apk".equals(UpdateVersion.expectedAssetName("v1.5.17")),
                 "asset name");

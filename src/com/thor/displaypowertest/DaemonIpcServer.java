@@ -34,12 +34,7 @@ public final class DaemonIpcServer {
             try {
                 connections.execute(() -> serve(socket));
             } catch (RejectedExecutionException busy) {
-                // The queue is full: close the refused client, but never let
-                // a broken peer terminate the privileged listener itself.
-                try { socket.close(); }
-                catch (IOException closeError) {
-                    Log.w("ThorDisplayDaemon", "could not close rejected local client");
-                }
+                socket.close();
             }
         }
     }

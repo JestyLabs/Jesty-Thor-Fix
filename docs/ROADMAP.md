@@ -1,6 +1,6 @@
 # Current roadmap
 
-Updated 2026-10-16. Stable release: **v1.7.1 / code76**, published on 2026-10-12. The supervised RC78 hardening session is complete in its approved scope: **15 PASS / 1 historical FAIL**, with separate BOTH acceptance A1 PASS. See [physical results and limits](PR67-PHYSICAL-VALIDATION-2026-10-16.md). PR #67 was merged into `main` on 2026-10-16 as `229df903384ca3dfa0796005b5e697c3c58676af`; the published stable remains v1.7.1/code76. This merge does not authorize a stable 1.7.2 release. Earlier candidate and control records remain historical evidence.
+Updated 2026-10-12. Stable release: **v1.7.0**. The completed control baseline is **RC2 / code73**. The corrected integrated **code76 [PR #68](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/68)** is undergoing supervised physical acceptance; the original code74 [PR #63](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/63) remains a separate historical candidate.
 
 See [physical validation evidence](VALIDATION-EVIDENCE.md) for completed test results. Historical investigations remain in their original, dated reports rather than being repeated here as future work.
 
@@ -15,12 +15,15 @@ See [physical validation evidence](VALIDATION-EVIDENCE.md) for completed test re
 
 These tests support the named outcomes. They do not need to be rerun solely because their original work item was previously phrased as an investigation.
 
-## Priority 1 — stable 1.7.2 release readiness (separate from merged PR #67)
+## Priority 1 — finish code76 release acceptance
 
-- **Completed:** scoped RC78 installation/reboot, normal mode transitions, short Guard OFF/ON recovery, UI/diagnostic export and selected final state. Recovery79 create/write/abandon passed; it was not installed.
-- **CPU:** A1 BOTH and T10 TOP passed their respective three-window budgets. Original T09 BOTH remains FAIL; the cause of variability is unknown. Do not rewrite it or repeat accepted series without a concrete reason.
-- **PR #67 integration completed:** the merged PR incorporated PR83 policy. CI and CodeQL passed on the integrated PR head and post-merge `main`; production signing remains manual and default-off. The [integration gates](PR67-INTEGRATION-GATES-2026-10-16.md) preserve the dated pre-merge review, not remaining merge work.
-- **Separate release work:** stable 1.7.2/code80 provenance, predecessor migration and public updater flow require their own decisions. Long TOP sleep/PR82 and active closed-lid blocking remain unproven in this session. Keep [private captures out of Git](PUBLIC-EVIDENCE-POLICY.md).
+- **Completed:** code76 signed in-place installation, authenticated daemon handoff, restored CPU Fix confirmation, BOTH/TOP and short sleep/wake smoke.
+- **Completed:** matched ~182 s daemon CPU windows (three in BOTH, three in TOP); both mode budgets **PASS**. The RC2 control is preserved and does **not** need repeating.
+- **Completed:** unplugged long quiet-suspend BOTH and TOP trials, with final bounded Android clock endpoints and normal wake; both mode budgets **PASS**.
+- **Completed:** isolated Lid Guard ON normal close/Power/open smoke in BOTH and TOP, with normal recovery, no confirmed active wake block, and final Guard OFF restoration.
+- **Remaining scope decision:** active closed-lid wake interception was not observed (blocked counter 0); decide whether dedicated reproduction is needed for release claims. Do **not** convert it into a PASS by assumption.
+- **Prepared recovery:** signed code77 [PR #69](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/69), not installed. Code75 [PR #64](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/64) is historical and is not a normal downgrade after code76.
+- **Next release steps:** include the scoped [UI-only PR #73](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/73), establish exact release-eligible signed APK identity, review release scope and obtain owner approval. Keep [private captures out of Git](PUBLIC-EVIDENCE-POLICY.md).
 
 ## Priority 2 — performance and battery evidence
 

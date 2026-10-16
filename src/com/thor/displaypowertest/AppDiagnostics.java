@@ -10,8 +10,6 @@ import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Build;
 import android.os.SystemClock;
-import android.widget.Button;
-import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -112,31 +110,12 @@ final class AppDiagnostics {
                 body.setTextIsSelectable(true);
                 body.setTextSize(14);
                 body.setLineSpacing(padding / 4f, 1f);
-                // Keep only two native footer buttons: at large font scales,
-                // three stack beyond the dialog's visible area. The trial entry
-                // stays in the scrollable content without changing its handler.
-                LinearLayout content = new LinearLayout(activity);
-                content.setOrientation(LinearLayout.VERTICAL);
-                Button trialEntry = new Button(activity);
-                trialEntry.setText("Sleep trial");
-                trialEntry.setMinimumHeight((int) (48 * activity.getResources().getDisplayMetrics().density + .5f));
-                LinearLayout.LayoutParams trialParams = new LinearLayout.LayoutParams(-1, -2);
-                trialParams.setMargins(padding, padding, padding, 0);
-                content.addView(trialEntry, trialParams);
-                content.addView(body);
                 ScrollView scroll = new ScrollView(activity);
-                scroll.addView(content);
-                AlertDialog dialog = new AlertDialog.Builder(activity).setTitle("App diagnostics").setView(scroll)
+                scroll.addView(body);
+                new AlertDialog.Builder(activity).setTitle("App diagnostics").setView(scroll)
                         .setNegativeButton("Close", null)
-                        .setPositiveButton("Save report", (d, which) -> save(text)).show();
-                trialEntry.setOnClickListener(v -> {
-                    dialog.dismiss();
-                    showSleepTrial();
-                });
-                // The selectable preview otherwise receives initial keyboard
-                // focus and scrolls the entry action out of view on opening.
-                dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus();
-                scroll.post(() -> scroll.scrollTo(0, 0));
+                        .setNeutralButton("Sleep trial", (dialog, which) -> showSleepTrial())
+                        .setPositiveButton("Save report", (dialog, which) -> save(text)).show();
             });
         }, "app-diagnostics").start();
     }

@@ -111,15 +111,15 @@ public final class BootCoordinator implements CpuFixController.HandoffRecovery {
             lastBooted = gateEdge("CPU_GATE_BOOT_COMPLETED", lastBooted, booted);
             lastComposer = gateEdge("CPU_GATE_COMPOSER_RUNNING", lastComposer, composer);
             if (lastWatcher == null || !lastWatcher.equals(watcher)) {
-                trace.mark("CPU_GATE_WATCHER", "value=" + BootTraceFieldPolicy.token(watcher));
+                trace.mark("CPU_GATE_WATCHER", "value=" + safeToken(watcher));
                 lastWatcher = watcher;
             }
             if (lastProperty == null || !lastProperty.equals(property)) {
-                trace.mark("CPU_GATE_PROPERTY", "value=" + BootTraceFieldPolicy.token(property));
+                trace.mark("CPU_GATE_PROPERTY", "value=" + safeToken(property));
                 lastProperty = property;
             }
             if (lastPid == null || !lastPid.equals(composerPid)) {
-                trace.mark("CPU_GATE_COMPOSER_PID", "value=" + BootTraceFieldPolicy.pid(composerPid));
+                trace.mark("CPU_GATE_COMPOSER_PID", "value=" + safePid(composerPid));
                 lastPid = composerPid;
             }
 
@@ -160,8 +160,8 @@ public final class BootCoordinator implements CpuFixController.HandoffRecovery {
             }
 
             if (gateResult == EarlyCpuGateModel.Result.READY) {
-                trace.mark("CPU_GATE_READY", "property=" + BootTraceFieldPolicy.token(property)
-                        + ";composer_pid=" + BootTraceFieldPolicy.pid(composerPid));
+                trace.mark("CPU_GATE_READY", "property=" + safeToken(property)
+                        + ";composer_pid=" + safePid(composerPid));
                 BootSafety.phase("APPLYING CPU FIX");
 
                 // Even when getprop already matches, the controller must inspect
@@ -174,11 +174,11 @@ public final class BootCoordinator implements CpuFixController.HandoffRecovery {
                     return CpuPhaseResult.HANDED_OFF;
                 }
                 if (result.startsWith("ok=1")) {
-                    trace.mark("CPU_GATE_COMPLETE", "result=" + BootTraceFieldPolicy.result(result));
+                    trace.mark("CPU_GATE_COMPLETE", "result=" + safeResult(result));
                     return CpuPhaseResult.CONTINUE;
                 }
                 if (CpuFixController.retryableAttemptResult(result)) {
-                    trace.mark("CPU_GATE_RETRY", "result=" + BootTraceFieldPolicy.result(result));
+                    trace.mark("CPU_GATE_RETRY", "result=" + safeResult(result));
                     try { Thread.sleep(EarlyCpuGateModel.POLL_MS); }
                     catch (InterruptedException ignored) {
                         Thread.currentThread().interrupt();
@@ -241,12 +241,12 @@ public final class BootCoordinator implements CpuFixController.HandoffRecovery {
             int samples = gate.stableSamples();
             if (previousSamples > 0 && samples != previousSamples + 1) {
                 trace.mark("GATE_RESET", "previous_samples=" + previousSamples
-                        + ";previous=" + BootTraceFieldPolicy.candidate(previousCandidate)
-                        + ";candidate=" + BootTraceFieldPolicy.candidate(gate.candidate()));
+                        + ";previous=" + safeCandidate(previousCandidate)
+                        + ";candidate=" + safeCandidate(gate.candidate()));
             }
             if (samples == 1 || (samples <= 3 && samples == previousSamples + 1)) {
                 trace.mark("GATE_STABLE_SAMPLE", "n=" + samples
-                        + ";candidate=" + BootTraceFieldPolicy.candidate(gate.candidate()));
+                        + ";candidate=" + safeCandidate(gate.candidate()));
             }
             if (samples == 3 && previousSamples == 2) {
                 trace.mark("GATE_GRACE_BEGIN", "grace_ms=" + gate.graceMs());
@@ -297,4 +297,19 @@ public final class BootCoordinator implements CpuFixController.HandoffRecovery {
         return current;
     }
 
+    private static String safeToken(String value) {
+        return value != null && value.matches("[A-Z0-9_?.-]{1,40}") ? value : "?";
+    }
+
+    private static String safePid(String value) {
+        return value != null && value.matches("[1-9][0-9]{0,9}") ? value : "?";
+    }
+
+    private static String safeResult(String value) {
+        return value != null && value.matches("[A-Za-z0-9_=;.-]{1,160}") ? value : "?";
+    }
+
+    private static String safeCandidate(String candidate) {
+        return candidate != null && candidate.matches("[0-2]:[01]:[01]") ? candidate : "-";
+    }
 }
