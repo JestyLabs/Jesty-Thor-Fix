@@ -156,22 +156,9 @@ public final class UpdateVersion {
 
     /** Explains how the running background service is replaced after the update. */
     public static String handoverNote(DeviceState state, boolean bothActive) {
-        if (state == DeviceState.RESPONDING && bothActive) {
-            return "After Android installs it, open Jesty Thor Fix again. The new background"
-                    + " service takes over roughly 30 seconds later.";
-        }
-        if (state == DeviceState.RESPONDING) {
-            return "Both screens are not on (BOTH). The current background service keeps"
-                    + " running and is replaced only when you open the app in BOTH, or at"
-                    + " the next reboot. Switching to BOTH first is recommended.";
-        }
-        if (state == DeviceState.UNAVAILABLE) {
-            return "The background service is not responding. After the update, open the"
-                    + " app again; if it stays unavailable, reboot the Thor.";
-        }
-        return "After Android installs it, open Jesty Thor Fix again. The new background"
-                + " service replaces the current one when both screens are on (BOTH),"
-                + " or at the next reboot.";
+        return "After Android installs this version, open Jesty Thor Fix once to prepare activation, "
+                + "then restart the Thor normally. Reopen the app to verify the background service. "
+                + "Installation alone does not activate the new service.";
     }
 
     /** Keeps the dialog short: first section of the notes, no Markdown markup, capped. */

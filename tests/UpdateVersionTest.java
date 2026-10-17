@@ -138,12 +138,15 @@ public final class UpdateVersionTest {
                 Arrays.asList(a, b), true), "smaller multi-signer set");
         check(!UpdateVersion.signersCompatible(Arrays.asList(a), false, Arrays.<byte[]>asList(),
                 false), "unsigned archive");
-        check(UpdateVersion.handoverNote(DeviceState.RESPONDING, true).contains("30 seconds"),
-                "BOTH handover");
-        check(UpdateVersion.handoverNote(DeviceState.RESPONDING, false).contains("BOTH"),
-                "TOP handover warns");
-        check(UpdateVersion.handoverNote(DeviceState.UNKNOWN, false).contains("BOTH"),
-                "unknown handover stays neutral");
+        for (DeviceState device : DeviceState.values()) {
+            for (boolean both : new boolean[]{true, false}) {
+                String note = UpdateVersion.handoverNote(device, both);
+                check(note.contains("restart the Thor normally"), "explicit reboot for every state");
+                check(note.indexOf("open Jesty Thor Fix once") < note.indexOf("restart the Thor normally"),
+                        "first open precedes reboot in upgrade guidance");
+                check(!note.contains("30 seconds"), "no timed activation promise");
+            }
+        }
 
         String notes = "# Jesty Thor Fix v1.5.17\n\n<p align=\"center\">x</p>\n"
                 + "**Faster** boot with `ProcessWait`.\n\n## Details\nhidden";

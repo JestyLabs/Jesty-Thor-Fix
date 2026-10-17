@@ -111,6 +111,7 @@ public final class UiAuditInstrumentation extends Instrumentation {
                     }
                     data.put(item);
                 }
+                sample.put("internalActivationState",((TextView)field(field(activity,"layout"),"stateText")).getText().toString());
                 sample.put("views",data).put("focus",label(activity.getWindow().getDecorView().findFocus()))
                         .put("fontScale",activity.getResources().getConfiguration().fontScale)
                         .put("density",activity.getResources().getDisplayMetrics().density)
@@ -171,13 +172,13 @@ public final class UiAuditInstrumentation extends Instrumentation {
             if (!"com.thor.displaypowertest".equals(getTargetContext().getPackageName())) throw new IllegalStateException("Unexpected target");
             output = getTargetContext().getExternalFilesDir(null);
             String hash = new String(new char[64]).replace('\0','a');
-            String release = new JSONObject().put("tag","v1.7.2").put("prerelease",false)
+            String release = new JSONObject().put("tag","v99.0.0").put("prerelease",false)
                     .put("notes","Synthetic release metadata for layout only. No download is performed.")
-                    .put("asset","Jesty-Thor-Fix-1.7.2.apk")
-                    .put("url","https://github.com/JestyLabs/Jesty-Thor-Fix/releases/download/v1.7.2/Jesty-Thor-Fix-1.7.2.apk")
+                    .put("asset","Jesty-Thor-Fix-99.0.0.apk")
+                    .put("url","https://github.com/JestyLabs/Jesty-Thor-Fix/releases/download/v99.0.0/Jesty-Thor-Fix-99.0.0.apk")
                     .put("size",4096).put("sha256",hash).toString();
             getTargetContext().getSharedPreferences("updates",0).edit().putBoolean("auto_check",false)
-                    .putBoolean("include_prereleases",false).putString("release",release).putString("prompted_tag","v1.7.2").commit();
+                    .putBoolean("include_prereleases",false).putString("release",release).putString("prompted_tag","v99.0.0").commit();
             getTargetContext().getSharedPreferences("state",0).edit().putBoolean("fix_enabled",false)
                     .putBoolean("dashboard_cpu_fix_enabled",false).putBoolean("lid_guard_enabled",false).commit();
             activity = startActivitySync(new Intent().setClassName("com.thor.displaypowertest","com.thor.displaypowertest.MainActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
@@ -187,7 +188,10 @@ public final class UiAuditInstrumentation extends Instrumentation {
                 catch(Exception error) { throw new RuntimeException(error); }
             });
             capture("dashboard",true);
-            for(int i=0;i<8;i++) key("TAB",KeyEvent.KEYCODE_TAB,0);
+            int tabStops=0;
+            for(View view:views) if(view.isShown() && view.isEnabled() && view.isFocusable()) tabStops++;
+            if(tabStops<4) throw new IllegalStateException("Expected at least four enabled dashboard actions");
+            for(int i=0;i<tabStops+1;i++) key("TAB",KeyEvent.KEYCODE_TAB,0);
             key("SHIFT_TAB",KeyEvent.KEYCODE_TAB,KeyEvent.META_SHIFT_ON);
             key("DPAD_LEFT",KeyEvent.KEYCODE_DPAD_LEFT,0); key("DPAD_RIGHT",KeyEvent.KEYCODE_DPAD_RIGHT,0);
             key("DPAD_UP",KeyEvent.KEYCODE_DPAD_UP,0); key("DPAD_DOWN",KeyEvent.KEYCODE_DPAD_DOWN,0);
@@ -235,7 +239,11 @@ public final class UiAuditInstrumentation extends Instrumentation {
                 for(View view:views) if(view instanceof ScrollView) { ScrollView scroll=(ScrollView)view; scroll.scrollTo(0,scroll.getChildAt(0).getHeight()); break; }
             });
             capture("lower-metrics",true);
-            JSONObject report = new JSONObject().put("captures",captures).put("navigation",navigation)
+            boolean activationGatePresent;
+            try { Class.forName("com.thor.displaypowertest.RebootActivation",false,getTargetContext().getClassLoader()); activationGatePresent=true; }
+            catch(ClassNotFoundException absent) { activationGatePresent=false; }
+            JSONObject report = new JSONObject().put("activationGatePresent",activationGatePresent)
+                    .put("tabStops",tabStops).put("captures",captures).put("navigation",navigation)
                     .put("syntheticCachedRelease",true).put("mediaPausedForStaticCapture",true)
                     .put("hardwareControlsActivated",false).put("talkBackSpeechTested",false);
             try(FileOutputStream stream=new FileOutputStream(new File(output,prefix+"-results.json"))) { stream.write(report.toString(2).getBytes(StandardCharsets.UTF_8)); }

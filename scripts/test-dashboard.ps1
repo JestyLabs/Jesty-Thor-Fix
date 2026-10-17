@@ -39,15 +39,20 @@ $replacementModel = Join-Path $repository 'src\com\thor\displaypowertest\Replace
 $replacementTest = Join-Path $repository 'tests\com\thor\displaypowertest\ReplacementSessionPolicyTest.java'
 $readiness = Join-Path $repository 'src\com\thor\displaypowertest\UpdateReadiness.java'
 $readinessTest = Join-Path $repository 'tests\com\thor\displaypowertest\UpdateReadinessTest.java'
+$activationPolicy = Join-Path $repository 'src\com\thor\displaypowertest\RebootActivationPolicy.java'
+$identity = Join-Path $repository 'src\com\thor\displaypowertest\DaemonIdentity.java'
+$activationTest = Join-Path $repository 'tests\RebootActivationPolicyTest.java'
 $clockFixture = Join-Path $repository 'tests\fixtures\android\os\SystemClock.java'
 
-& javac -source 8 -target 8 -d $output $model $test $warningModel $warningTest $updateModel $updateTest $commitGateModel $commitGateTest $readiness $readinessTest $clockFixture $confirmationModel $confirmationTest $sessionModel $sessionTest $replacementModel $replacementTest $dispatchModel $dispatchTest
+& javac -source 8 -target 8 -d $output $model $test $warningModel $warningTest $updateModel $updateTest $commitGateModel $commitGateTest $readiness $readinessTest $clockFixture $confirmationModel $confirmationTest $sessionModel $sessionTest $replacementModel $replacementTest $dispatchModel $dispatchTest $activationPolicy $identity $activationTest
 if ($LASTEXITCODE -ne 0) { throw 'Dashboard test compilation failed.' }
 
 & java -cp $output DashboardStateModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Dashboard tests failed.' }
 & java -cp $output CpuWarningModelTest
 if ($LASTEXITCODE -ne 0) { throw 'CPU warning tests failed.' }
+& java -cp $output RebootActivationPolicyTest
+if ($LASTEXITCODE -ne 0) { throw 'Reboot activation policy tests failed.' }
 & java -cp $output UpdateVersionTest
 if ($LASTEXITCODE -ne 0) { throw 'Update version tests failed.' }
 & java -cp $output UpdateCommitGateTest
