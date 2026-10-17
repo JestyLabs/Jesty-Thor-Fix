@@ -7,7 +7,9 @@ public final class PreviousSecureDaemonIdentity {
     public static int safePid(String health, String snapshot) {
         if (health == null || snapshot == null
                 || !health.startsWith("ok=1;")
-                || !snapshot.startsWith("ok=1;")) return -1;
+                || !snapshot.startsWith("ok=1;")
+                || health.contains(";ok=")
+                || snapshot.contains(";ok=")) return -1;
         String version = field(health, "version");
         if (!field(health, "protocol").equals("2")
                 || !(version.equals("1.5.3") || version.equals("1.5.5")
@@ -47,6 +49,9 @@ public final class PreviousSecureDaemonIdentity {
         if (start < 0) return "";
         start += needle.length();
         int end = response.indexOf(';', start);
+        // A second occurrence makes this identity/state field ambiguous.
+        // Fail closed rather than trusting whichever occurrence came first.
+        if (end >= 0 && response.indexOf(needle, end) >= 0) return "";
         return response.substring(start, end < 0 ? response.length() : end);
     }
 }
