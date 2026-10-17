@@ -80,7 +80,7 @@ public final class RebootActivationHostTest {
         FixtureState.reset("1.7.2");FixtureState.stopEffective=false;
         run("bridge-kill-unconfirmed-no-second-daemon",1,0,false);
         FixtureState.reset("1.7.2");FixtureState.bridgeAccept=false;
-        run("bridge-reject-no-second-daemon",0,0,false);
+        run("bridge-reject-no-second-daemon",1,0,false);
         FixtureState.reset("unknown");run("unrecognized-predecessor-not-killed",0,0,false);
         FixtureState.reset("1.7.2");FixtureState.commitFailure=true;
         run("failed-baseline-write-blocks-handover",0,0,false);
