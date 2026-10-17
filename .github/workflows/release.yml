@@ -57,28 +57,45 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
         run: |
-          if ($env:CANDIDATE_RUN_ID -notmatch '^\d+$') {
-              throw 'candidate_run_id must be a numeric GitHub Actions run ID'
+          if ($env:CANDIDATE_RUN_ID -notmatch '^[1-9][0-9]*$') {
+              throw 'Enter a positive numeric manual signed CI run ID, not an unsigned push run.'
           }
 
           $run = gh api "repos/${{ github.repository }}/actions/runs/$env:CANDIDATE_RUN_ID" | ConvertFrom-Json
-          if ($run.conclusion -ne 'success') {
-              throw "Candidate run conclusion is '$($run.conclusion)', expected success"
+          if ($LASTEXITCODE -ne 0 -or $null -eq $run) {
+              throw "CI run #$env:CANDIDATE_RUN_ID could not be fetched. Verify the ID and repository."
           }
-          # Signing is intentionally manual and protected. A push-to-main CI run
-          # cannot carry a signed artifact because the signing job is default-off.
+          if ($run.status -ne 'completed' -or $run.conclusion -ne 'success') {
+              throw "CI run #$env:CANDIDATE_RUN_ID is $($run.status)/$($run.conclusion); cancelled/running/failed IDs cannot be published. Pick a completed successful MANUAL CI execution with 'Sign main candidate' PASS from https://github.com/${{ github.repository }}/actions/workflows/host-tests.yml."
+          }
+          # Signing is intentionally manual and protected: default pushes have no signed asset.
           if ($run.event -ne 'workflow_dispatch' -or $run.head_branch -ne 'main' -or
               $run.actor.login -cne 'SirJesty' -or $run.triggering_actor.login -cne 'SirJesty') {
               throw "Candidate must be an authorized manual CI execution on main; got event=$($run.event), branch=$($run.head_branch)"
           }
-          if ($run.status -ne 'completed' -or
-              $run.path -ne '.github/workflows/host-tests.yml' -or
-              $run.repository.full_name -ne '${{ github.repository }}') {
-              throw 'Candidate run is not the completed CI workflow in this repository'
+          if ($run.path -ne '.github/workflows/host-tests.yml' -or
+              $run.repository.full_name -ne '${{ github.repository }}' -or
+              [string]$run.head_sha -notmatch '^[0-9a-fA-F]{40}$') {
+              throw 'Candidate has incorrect CI workflow, repository or commit identity.'
+          }
+
+          $artifacts = gh api "repos/${{ github.repository }}/actions/runs/$env:CANDIDATE_RUN_ID/artifacts?per_page=100" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $null -eq $artifacts) {
+              throw 'Unable to fetch signed CI artifacts; refusing to publish.'
+          }
+          $suffix = "-$($run.head_sha)"
+          $signed = @($artifacts.artifacts | Where-Object {
+              $_.name -like "signed-candidate-v*$suffix" -and
+              $_.name -match '^signed-candidate-v[A-Za-z0-9._-]+-[0-9a-fA-F]{40}$' -and
+              $_.expired -ne $true -and [long]$_.size_in_bytes -gt 0
+          })
+          if ($signed.Count -ne 1) {
+              throw "CI run #$env:CANDIDATE_RUN_ID contains $($signed.Count) valid signed candidate artifact(s), expected exactly 1. A green unsigned build does not qualify. Choose the successful manual CI run with 'Sign main candidate' PASS."
           }
 
           "sha=$($run.head_sha)" >> $env:GITHUB_OUTPUT
-
+          "artifact_name=$($signed[0].name)" >> $env:GITHUB_OUTPUT
+          "Verified signed candidate #$env:CANDIDATE_RUN_ID, commit $($run.head_sha), artifact $($signed[0].name)." >> $env:GITHUB_STEP_SUMMARY
       - uses: actions/checkout@v7
         with:
           ref: ${{ steps.source.outputs.sha }}
@@ -98,9 +115,8 @@ jobs:
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
           run-id: ${{ inputs.candidate_run_id }}
-          pattern: signed-candidate-*
+          name: ${{ steps.source.outputs.artifact_name }}
           path: candidate
-          merge-multiple: true
 
       - name: Verify candidate provenance
         id: candidate
