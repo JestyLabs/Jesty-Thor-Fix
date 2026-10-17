@@ -1,6 +1,6 @@
-# Jesty Thor Fix 1.7.2 — release preparation
+# Jesty Thor Fix v1.7.2
 
-This version is under integration and has not been published. The existing public release remains available through the README.
+Stable release. The exact signed code80 APK is the same artifact that passed the scoped physical acceptance; updating requires a normal reboot before activation.
 
 ## Changes
 
