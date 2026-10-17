@@ -103,6 +103,10 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Native updater timeout evidence redaction (host-only)
+        shell: pwsh
+        run: python ./tests/test-updater-e2e-timeout.py
+
       - name: Passive energy analysis fixtures (host-only)
         shell: pwsh
         run: python ./scripts/test-thor-energy.py

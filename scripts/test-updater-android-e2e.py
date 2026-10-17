@@ -22,6 +22,34 @@ SOURCES = ['AppUpdater', 'UpdateReleaseCatalog', 'UpdateInstallReceiver', 'Updat
            'UpdateConfirmationStore', 'UpdateSessionOwnership', 'ReplacementSessionPolicy', 'UpdateTaskDispatch']
 ROOT = Path(__file__).resolve().parents[1]
 
+# A failed disposable-emulator test may expose only this fixed, benign schema.
+# Never print arbitrary state.json keys, Android dumpsys output or logcat to CI.
+SETTLEMENT_STATE_KEYS = ('version', 'transfer', 'reserved', 'session',
+                         'nativeSessions', 'pending', 'launches', 'launchAttempts')
+
+
+def settlement_timeout_evidence(state, *, installed_version=None,
+                                running_pid=None, installer_focused=None):
+    """Classify a native installer settlement timeout without exposing raw data."""
+    evidence = {'failure': 'native-updater-settlement-timeout',
+                'expected': 'transfer=false,reserved=false,session=-1,nativeSessions=0'}
+    if not isinstance(state, dict):
+        evidence['snapshot_available'] = False
+    else:
+        evidence['snapshot_available'] = True
+        evidence['fixture_state'] = {key: state.get(key) for key in SETTLEMENT_STATE_KEYS}
+        expected = {'transfer': False, 'reserved': False, 'session': -1,
+                    'nativeSessions': 0}
+        evidence['unsettled_fields'] = [key for key, value in expected.items()
+                                        if state.get(key) != value]
+        snapshot_pid = state.get('pid')
+        evidence['running_process_matches_snapshot'] = (
+            running_pid == snapshot_pid if isinstance(running_pid, int)
+            and isinstance(snapshot_pid, int) else None)
+    evidence['installed_version'] = installed_version
+    evidence['system_installer_focused'] = installer_focused
+    return evidence
+
 
 def execute(args, *, env=None, timeout=90):
     done = subprocess.run([str(a) for a in args], stdout=subprocess.PIPE,
@@ -183,7 +211,38 @@ class Suite:
         def check():
             state = self.state()
             return state if not state['transfer'] and not state['reserved'] and state['session'] == -1 and state['nativeSessions'] == 0 else False
-        return self.wait(check, timeout=timeout)
+        try:
+            return self.wait(check, timeout=timeout)
+        except AssertionError as failure:
+            # Read-only, fail-path-only observations; never change app state,
+            # extend the acceptance timeout or hide the failed assertion.
+            try:
+                snapshot = self.state()
+            except (RuntimeError, ValueError, OSError):
+                snapshot = None
+            try:
+                installed = self.call('shell', 'dumpsys', 'package', PACKAGE)
+                match = re.search(r'\\bversionName=([0-9A-Za-z.+-]+)', installed)
+                version = match.group(1) if match else None
+            except (RuntimeError, ValueError, OSError):
+                version = None
+            try:
+                pid_text = self.call('shell', 'pidof', PACKAGE).strip()
+                running_pid = int(pid_text) if re.fullmatch(r'\\d+', pid_text) else None
+            except (RuntimeError, ValueError, OSError):
+                running_pid = None
+            try:
+                windows = self.call('shell', 'dumpsys', 'window')
+                focused = next((line for line in windows.splitlines()
+                                if 'mCurrentFocus=' in line), '')
+                installer_focused = 'com.android.packageinstaller' in focused
+            except (RuntimeError, ValueError, OSError):
+                installer_focused = None
+            evidence = settlement_timeout_evidence(
+                snapshot, installed_version=version, running_pid=running_pid,
+                installer_focused=installer_focused)
+            raise AssertionError('Timed out waiting for Android state; synthetic fixture evidence: '
+                                 + json.dumps(evidence, sort_keys=True)) from failure
 
     def case(self, name, action):
         if self.args.case and name not in self.args.case:
