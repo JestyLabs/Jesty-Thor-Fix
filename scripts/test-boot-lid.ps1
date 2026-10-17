@@ -406,6 +406,7 @@ $sources = @(
     (Join-Path $repository 'tests\DaemonLaunchScriptTest.java'),
     (Join-Path $repository 'tests\DisplayDecisionModelTest.java'),
     (Join-Path $repository 'tests\DisplayGenerationModelTest.java'),
+    (Join-Path $repository 'tests\DisplayTransitionSafetyMatrixTest.java'),
     (Join-Path $repository 'tests\IpcPeerPolicyTest.java'),
     (Join-Path $repository 'tests\DaemonResponsePolicyTest.java'),
     (Join-Path $repository 'tests\LegacyDaemonIdentityTest.java'),
@@ -467,6 +468,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Boot trace sanitizer characterization failed.'
 if ($LASTEXITCODE -ne 0) { throw 'Display decision tests failed.' }
 & java -cp $output DisplayGenerationModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Display generation tests failed.' }
+& java -cp $output DisplayTransitionSafetyMatrixTest
+if ($LASTEXITCODE -ne 0) { throw 'S1 production-model transition matrix failed.' }
 & java -cp $output IpcPeerPolicyTest
 if ($LASTEXITCODE -ne 0) { throw 'IPC peer policy tests failed.' }
 & java -cp $output DaemonResponsePolicyTest
