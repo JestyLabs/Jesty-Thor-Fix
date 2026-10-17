@@ -27,7 +27,7 @@ try {
     Copy-Item -Path (Join-Path $fixture 'fixtures/*') -Destination $src -Recurse
     $package = Join-Path $src 'com/thor/displaypowertest'
     foreach ($name in @('AutoService','PServer','RebootActivation','RebootActivationPolicy',
-            'PreviousSecureDaemonIdentity','DaemonLaunchModel','DashboardRenderer',
+            'PreviousSecureDaemonIdentity','LiveHandoverPolicy','DaemonLaunchModel','DashboardRenderer',
             'DashboardStateModel','CpuWarningModel','TelemetryValues')) {
         $source = [IO.File]::ReadAllText((Join-Path $root "src/com/thor/displaypowertest/$name.java"))
         if ($name -eq 'AutoService') { $source = $source.Replace('Thread.sleep(200L);', 'Thread.sleep(0L);') }
