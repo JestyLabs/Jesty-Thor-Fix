@@ -70,6 +70,18 @@ public final class MainActivity extends Activity {
             }
             @Override public void onSample(Map<String, String> values) {
                 renderer.render(values, settings);
+                // A former daemon can remain healthy in TOP. When its hardware
+                // watcher later reports settled BOTH, retry the *verified* transfer
+                // without asking for an unnecessary reboot or app relaunch.
+                if (!activation.isAuthorized()
+                        && activation.evidence() == RebootActivation.Evidence.RESTART_REQUIRED
+                        && ("1.7.1".equals(values.get("runtime_version"))
+                            || "1.7.2".equals(values.get("runtime_version")))
+                        && "0".equals(values.get("mode"))
+                        && "1".equals(values.get("top_crtc"))
+                        && "1".equals(values.get("bottom_crtc"))) {
+                    requestDaemonReplacement();
+                }
             }
             @Override public void onUnavailable() {
                 settings.setActivationPending(true);

@@ -237,7 +237,7 @@ final class DashboardRenderer implements DashboardSettingsController.Feedback {
         boolean authorized = activation.isAuthorized();
         boolean needsRestart = !authorized
                 && activation.evidence() == RebootActivation.Evidence.RESTART_REQUIRED;
-        stateText.setText(needsRestart ? "RESTART REQUIRED" : "ACTIVATION BLOCKED");
+        stateText.setText(needsRestart ? "SERVICE TRANSFER PENDING" : "ACTIVATION BLOCKED");
         stateText.setTextColor(AMBER);
         stateDetail.setText(authorized
                 ? "A kernel reboot has already been verified, but the service identity could not be verified "

@@ -8,11 +8,13 @@ import android.os.Build;
 /** A boot broadcast is a startup trigger, never authority to bypass the baseline. */
 final class RebootActivation {
     private static final String BASELINE = "activation_v3_baseline";
+    private static final String LIVE_PROOF = "activation_v3_live_handover";
     private static final Object LOCK = new Object();
     // commit(false) may still change the process-local preferences cache.
     private static String unconfirmedRecord;
+    private static String unconfirmedLiveRecord;
 
-    enum Evidence { RESTART_REQUIRED, BOOT_VERIFIED, STORAGE_UNAVAILABLE, IDENTITY_UNAVAILABLE }
+    enum Evidence { RESTART_REQUIRED, BOOT_VERIFIED, LIVE_VERIFIED, STORAGE_UNAVAILABLE, IDENTITY_UNAVAILABLE }
 
     static final class Ticket {
         private final SharedPreferences preferences;
@@ -57,13 +59,37 @@ final class RebootActivation {
                     if (record.equals(unconfirmedRecord)) return Evidence.STORAGE_UNAVAILABLE;
                     String baseline = RebootActivationPolicy.baselineBoot(record, stamp);
                     if (baseline == null) return Evidence.STORAGE_UNAVAILABLE;
-                    return RebootActivationPolicy.authorized(stamp, stamp, boot, baseline)
-                            ? Evidence.BOOT_VERIFIED : Evidence.RESTART_REQUIRED;
+                    if (RebootActivationPolicy.authorized(stamp, stamp, boot, baseline)) {
+                        return Evidence.BOOT_VERIFIED;
+                    }
+                    String live = preferences.getString(LIVE_PROOF, "");
+                    if (live.equals(unconfirmedLiveRecord)) return Evidence.STORAGE_UNAVAILABLE;
+                    String liveBoot = RebootActivationPolicy.baselineBoot(live, stamp);
+                    return liveBoot != null && boot.equalsIgnoreCase(liveBoot)
+                            ? Evidence.LIVE_VERIFIED : Evidence.RESTART_REQUIRED;
                 } catch (RuntimeException unavailable) { return Evidence.STORAGE_UNAVAILABLE; }
             }
         }
 
-        boolean isAuthorized() { return evidence() == Evidence.BOOT_VERIFIED; }
+        boolean isAuthorized() {
+            Evidence result = evidence();
+            return result == Evidence.BOOT_VERIFIED || result == Evidence.LIVE_VERIFIED;
+        }
+
+        /** Called only after a safe predecessor stop and authenticated new runtime STARTING/READY. */
+        boolean confirmLiveHandover() {
+            synchronized (LOCK) {
+                if (evidence() != Evidence.RESTART_REQUIRED) return false;
+                try {
+                    String proof = RebootActivationPolicy.baselineRecord(stamp, boot);
+                    if (proof.isEmpty()) return false;
+                    unconfirmedLiveRecord = proof;
+                    if (!preferences.edit().putString(LIVE_PROOF, proof).commit()) return false;
+                    unconfirmedLiveRecord = null;
+                    return evidence() == Evidence.LIVE_VERIFIED;
+                } catch (RuntimeException unavailable) { return false; }
+            }
+        }
 
         String pendingMessage() {
             Evidence state = evidence();
@@ -77,8 +103,10 @@ final class RebootActivation {
                         + "Use owner-approved external recovery; do not uninstall or clear app data.";
             }
             if (state == Evidence.RESTART_REQUIRED) {
-                return "Activation is prepared for this installation. Restart the Thor normally, then reopen "
-                        + "Jesty Thor Fix to verify the background service. If activation remains blocked, "
+                return "The app is checking whether it can safely switch the background service without a reboot. "
+                        + "If the device is in TOP mode, switch to BOTH and reopen the app. "
+                        + "If automatic activation remains unavailable, restart normally. "
+                        + "If activation remains blocked afterward, "
                         + "use owner-approved external recovery; do not uninstall or clear app data.";
             }
             return RebootActivationPolicy.restartMessage();

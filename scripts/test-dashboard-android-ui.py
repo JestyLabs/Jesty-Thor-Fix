@@ -124,7 +124,7 @@ def assess(data):
         switches = [v for v in base['views'] if v.get('class') == 'Switch']
         checks['activation-pending-controls'] = (len(switches) == 3
             and all(not v['enabled'] for v in switches)
-            and base['internalActivationState'] == 'RESTART REQUIRED'
+            and base['internalActivationState'] == 'SERVICE TRANSFER PENDING'
             and any(v.get('text') == 'ACTIVATION PENDING' for v in base['views']))
     return checks
 

@@ -6,7 +6,7 @@ public final class RebootDashboardHostTest {
     private static int checks;
     private static void check(boolean b,String m){checks++;if(!b)throw new AssertionError(m);}
     private static Map<String,String> sample(){
-        Map<String,String> q=new HashMap<>();q.put("runtime_version","1.7.2");
+        Map<String,String> q=new HashMap<>();q.put("runtime_version","1.7.3");
         q.put("boot_phase","READY");q.put("display_actions_held","0");q.put("watcher_health","RUNNING");
         q.put("fix","1");q.put("display_effective","CONFIRMED");q.put("mode","0");q.put("top_crtc","1");q.put("bottom_crtc","1");return q;
     }
@@ -20,10 +20,10 @@ public final class RebootDashboardHostTest {
         FixtureState.reset("1.7.2");DashboardLayout views=new DashboardLayout();
         DashboardSettingsController settings=new DashboardSettingsController();int[] requests={0};
         DashboardRenderer ui=renderer(views,requests);ui.render(sample(),settings);
-        check(views.stateText.text.equals("RESTART REQUIRED")&&settings.pending,"current telemetry cannot bypass same-boot baseline");
-        check(views.stateDetail.text.contains("Activation is prepared"),"successful baseline preparation visible");
+        check(views.stateText.text.equals("SERVICE TRANSFER PENDING")&&settings.pending,"current telemetry cannot bypass same-boot baseline");
+        check(views.stateDetail.text.contains("safely switch"),"successful baseline preparation visible");
         Map<String,String> beforeBoot=sample();beforeBoot.put("runtime_version","1.7.1");ui.render(beforeBoot,settings);
-        check(views.stateText.text.equals("RESTART REQUIRED")&&settings.pending,"old runtime cannot skip the first required reboot");
+        check(views.stateText.text.equals("SERVICE TRANSFER PENDING")&&settings.pending,"old runtime cannot skip the first required reboot");
         check(views.displayValue.text.equals("ACTIVATION PENDING"),"prepared baseline is not yet a post-boot mismatch");
         FixtureState.boot="00000000-0000-0000-0000-000000000002";ui=renderer(views,requests);ui.render(sample(),settings);
         check(views.stateText.text.equals("ACTIVE")&&!settings.pending,"new boot and current READY can be active without broadcast");

@@ -47,6 +47,10 @@ public final class DaemonRuntime {
                     + ";process_start_ms=" + probe.processStartMs());
         }
         BootSafety.begin(coordinating);
+        // Hold the exclusive native instance lock before touching global CPU hooks.
+        // A competing daemon must exit without privileged side effects.
+        LocalServerSocket listener = SecureChannel.listen();
+        if (coordinating) trace.mark("LISTEN_OK", null);
         String earlyAttempt = cpuFix.adoptEarlyAttempt();
         if (!earlyAttempt.startsWith("ok=1")) {
             Log.e("ThorDisplayDaemon", "early CPU attempt rejected: " + earlyAttempt);
@@ -61,8 +65,6 @@ public final class DaemonRuntime {
         }
         DaemonState.setEnabled(args.displayFixEnabled);
         if (!coordinating) LidGuard.setEnabled(session.lidGuardDesired());
-        LocalServerSocket listener = SecureChannel.listen();
-        if (coordinating) trace.mark("LISTEN_OK", null);
         WatcherSupervisor.start();
         DisplayEventManager.register();
         if (coordinating) trace.mark("SERVICES_REGISTERED", null);

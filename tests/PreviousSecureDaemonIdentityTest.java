@@ -144,8 +144,11 @@ public final class PreviousSecureDaemonIdentityTest {
         }
 
         check(PreviousSecureDaemonIdentity.safePid(
-                HEALTH.replace("1.5.3", "1.7.1"), BOTH) < 0,
-                "current identity is not a previous-daemon allowance");
+                HEALTH.replace("1.5.3", "1.7.1"), BOTH) == 11398,
+                "published code76 is an exact older daemon identity");
+        check(PreviousSecureDaemonIdentity.safePid(
+                HEALTH.replace("1.5.3", "1.7.2"), BOTH) == 11398,
+                "published code80 is an exact older daemon identity");
 
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.5.4"), BOTH) < 0,
                 "unknown version must not be killed");
