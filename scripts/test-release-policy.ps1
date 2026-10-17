@@ -35,6 +35,22 @@ if ($ci -notmatch "github.event_name == 'workflow_dispatch' && inputs.sign_main_
     throw 'Candidate signing/publishing provenance must require protected manual CI.'
 }
 
+# Reject the exact 2026-10-17 operational failure: a cancelled manual CI ID
+# must not proceed, and an unsigned-only successful CI cannot be published.
+# These are workflow contract checks, not a simulation of live GitHub permissions.
+if (-not $publisher.Contains("$" + 'run.status -ne ''completed'' -or $run.conclusion -ne ''success''') -or
+    -not $publisher.Contains('cancelled/running/failed IDs cannot be published') -or
+    -not $publisher.Contains('/artifacts?per_page=100') -or
+    -not $publisher.Contains('$_.expired -ne $true') -or
+    -not $publisher.Contains('[long]$_.size_in_bytes -gt 0') -or
+    -not $publisher.Contains('$signed.Count -ne 1') -or
+    -not $publisher.Contains('artifact_name=$($signed[0].name)') -or
+    -not $publisher.Contains('name: ${{ steps.source.outputs.artifact_name }}') -or
+    $publisher.Contains('pattern: signed-candidate-*') -or
+    $publisher.Contains('merge-multiple: true')) {
+    throw 'Publisher must reject cancelled/unsigned/expired/ambiguous candidates and download only its verified artifact.'
+}
+
 # Regression-only structural checks. GitHub Environment access rules and secrets
 # MUST still be verified in Settings; this script cannot enforce administration.
 $sections = [regex]::Match($ci, '(?ms)^  build:\s*\r?\n(?<build>.*?)(?=^  sign_main_candidate:)')
