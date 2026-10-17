@@ -14,6 +14,9 @@ $identity = Get-Content -LiteralPath (Join-Path $root 'src\com\thor\displaypower
 $publishedVersion = '1.7.1'
 $publishedCode = 76
 $publishedSource = 'f929ff910bfa8e5179a2c6a63948a18fc3d6b252'
+# The historical code76 publication evidence above remains pinned independently
+# of the latest public download advertised in the README.
+$latestPublicVersion = '1.7.3'
 
 $versionMatches = [regex]::Matches($manifest, 'android:versionName="([^"]+)"')
 $codeMatches = [regex]::Matches($manifest, 'android:versionCode="([0-9]+)"')
@@ -68,6 +71,7 @@ if ($daemonVersion.Count -ne 1 -or $daemonVersion[0].Groups[1].Value -cne $versi
     throw 'Manifest and daemon identities must remain synchronized.'
 }
 $releaseTag = '/releases/tag/v' + $publishedVersion
+$latestPublicReleaseTag = '/releases/tag/v' + $latestPublicVersion
 if ($manifest -notmatch 'package="com\.thor\.displaypowertest"' -or
     $manifest -notmatch 'android:targetSdkVersion="25"' -or
     $manifest -notmatch 'android:name="android\.permission\.REQUEST_INSTALL_PACKAGES"') {
@@ -77,10 +81,11 @@ if ($manifest -notmatch '(?s)<receiver\s+android:name="com\.thor\.displaypowerte
     $manifest -notmatch '(?s)<service\s+android:name="com\.thor\.displaypowertest\.AutoService"\s+android:exported="false"\s*/>') {
     throw 'Installer status receiver and root-handoff service must remain non-exported.'
 }
-if (-not $readme.Contains($releaseTag) -or
+if (-not $readme.Contains($latestPublicReleaseTag) -or
+    -not $readme.Contains('Download v' + $latestPublicVersion) -or
     -not $integrity.Contains($releaseTag) -or
     -not $evidence.Contains($releaseTag)) {
-    throw "README/release integrity/evidence index must all link published v$publishedVersion."
+    throw "README must point to public v$latestPublicVersion while integrity/evidence retain the pinned historical v$publishedVersion."
 }
 # Verify the pinned publication section, independently of candidate identity.
 $integrityHeaderPattern = '(?m)^## ' + [regex]::Escape($publishedVersion) + ' stable publication\b[^\r\n]*'
