@@ -39,6 +39,19 @@ class SettlementTimeoutEvidenceTest(unittest.TestCase):
         self.assertCountEqual(evidence['unsettled_fields'],
                               ['transfer', 'reserved', 'session', 'nativeSessions'])
 
+    def test_malicious_content_inside_known_keys_is_not_emitted(self):
+        state = {'version': 'SECRET-DONT-PRINT!', 'transfer': 'SECRET-DONT-PRINT!',
+                 'reserved': False, 'session': {'secrets': 'SECRET-DONT-PRINT!'},
+                 'nativeSessions': 0, 'pid': 'SECRET-DONT-PRINT!'}
+        evidence = module.settlement_timeout_evidence(state,
+                installed_version='SECRET-DONT-PRINT!', installer_focused='bad')
+        self.assertNotIn('SECRET-DONT-PRINT!', str(evidence))
+        self.assertIsNone(evidence['fixture_state']['version'])
+        self.assertIsNone(evidence['fixture_state']['transfer'])
+        self.assertIsNone(evidence['fixture_state']['session'])
+        self.assertIsNone(evidence['installed_version'])
+        self.assertIsNone(evidence['system_installer_focused'])
+
     def test_fully_settled_diagnostics_require_no_extra_operation(self):
         state = {'transfer': False, 'reserved': False, 'session': -1,
                  'nativeSessions': 0, 'pid': 10, 'version': '1.0.1'}
