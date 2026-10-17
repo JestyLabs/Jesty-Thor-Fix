@@ -65,8 +65,11 @@ jobs:
           if ($run.conclusion -ne 'success') {
               throw "Candidate run conclusion is '$($run.conclusion)', expected success"
           }
-          if ($run.event -ne 'push' -or $run.head_branch -ne 'main') {
-              throw "Candidate must come from a successful push to main; got event=$($run.event), branch=$($run.head_branch)"
+          # Signing is intentionally manual and protected. A push-to-main CI run
+          # cannot carry a signed artifact because the signing job is default-off.
+          if ($run.event -ne 'workflow_dispatch' -or $run.head_branch -ne 'main' -or
+              $run.actor.login -cne 'SirJesty' -or $run.triggering_actor.login -cne 'SirJesty') {
+              throw "Candidate must be an authorized manual CI execution on main; got event=$($run.event), branch=$($run.head_branch)"
           }
           if ($run.status -ne 'completed' -or
               $run.path -ne '.github/workflows/host-tests.yml' -or
