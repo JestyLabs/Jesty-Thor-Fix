@@ -4,6 +4,10 @@ Updated 2026-10-17. Current published stable: **[v1.7.3 / code83](https://github
 
 See [physical validation evidence](VALIDATION-EVIDENCE.md) for completed test results. Historical investigations remain in their original, dated reports rather than being repeated here as future work.
 
+## Engineering quality programme (post-v1.7.3)
+
+The current **JTF-QUALITY-2026-10-17** improvement track is governed by the [evidence-led quality roadmap](ENGINEERING-QUALITY-ROADMAP-2026-10-17.md), the [execution contract](ENGINEERING-QUALITY-EXECUTION-CONTRACT.md), and [root AGENTS.md](../AGENTS.md). It starts with offline sleep/wake characterization; no bug fix, Thor validation or release is implied by opening the governance PR. The archived PR #67 hardening ledger is historical rather than an active instruction source.
+
 ## Completed and hardware-validated
 
 - **True Bottom Screen Off:** verified physical display-pipeline changes in TOP, BOTH restoration and normal post-wake repair.
