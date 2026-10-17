@@ -15,6 +15,8 @@ public final class LiveHandoverPolicy {
         // Exact published predecessors only; never a broad version comparison.
         String version = field(health, "version");
         if (!"1.7.2".equals(version) && !"1.7.1".equals(version)) return -1;
+        // I and Q must describe the same process generation, not a socket takeover.
+        if (!version.equals(field(snapshot, "runtime_version"))) return -1;
         if (!"READY".equals(field(health, "boot_phase"))) return -1;
         if (!expected(field(health, "fix"), displayFix)
                 || !expected(field(snapshot, "fix"), displayFix)
@@ -27,7 +29,8 @@ public final class LiveHandoverPolicy {
         // Do not retire a daemon while the lid is known closed or a dock is connected.
         // With Guard OFF the stock firmware reports external_display=unknown.
         if ("closed".equals(field(snapshot, "lid"))
-                || "1".equals(field(snapshot, "external_display"))) return -1;
+                || "1".equals(field(snapshot, "external_display"))
+                || (lidGuard && !"0".equals(field(snapshot, "external_display")))) return -1;
         return pid;
     }
 
