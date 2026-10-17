@@ -1,6 +1,6 @@
 # Activation and external recovery
 
-This guide describes the 1.7.2 activation change under integration. The public download remains the version linked from the README until a release is published.
+This guide describes the activation and external recovery behavior of Jesty Thor Fix v1.7.2. The public stable APK is linked from the README.
 
 After installing an approved package, open Jesty Thor Fix once. Wait for confirmation that activation is prepared, restart the Thor normally, then reopen the app and verify that the installed service is ready. Installing the package alone does not activate its daemon. Returning from sleep or restarting only the Android interface does not count as a kernel reboot.
 
