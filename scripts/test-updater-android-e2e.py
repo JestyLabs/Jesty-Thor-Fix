@@ -37,17 +37,33 @@ def settlement_timeout_evidence(state, *, installed_version=None,
         evidence['snapshot_available'] = False
     else:
         evidence['snapshot_available'] = True
-        evidence['fixture_state'] = {key: state.get(key) for key in SETTLEMENT_STATE_KEYS}
+        # Strictly type-check EVERY emitted value, including allowlisted keys.
+        # A corrupted or unexpected fixture state must never print arbitrary text.
+        sanitized = {}
+        for key in SETTLEMENT_STATE_KEYS:
+            value = state.get(key)
+            if key == 'version':
+                sanitized[key] = (value if isinstance(value, str) and
+                                  re.fullmatch(r'[0-9A-Za-z.+-]{1,48}', value) else None)
+            elif key in ('transfer', 'reserved'):
+                sanitized[key] = value if type(value) is bool else None
+            else:
+                sanitized[key] = (value if type(value) is int
+                                  and -1 <= value <= 1000000000 else None)
+        evidence['fixture_state'] = sanitized
         expected = {'transfer': False, 'reserved': False, 'session': -1,
                     'nativeSessions': 0}
         evidence['unsettled_fields'] = [key for key, value in expected.items()
                                         if state.get(key) != value]
         snapshot_pid = state.get('pid')
         evidence['running_process_matches_snapshot'] = (
-            running_pid == snapshot_pid if isinstance(running_pid, int)
-            and isinstance(snapshot_pid, int) else None)
-    evidence['installed_version'] = installed_version
-    evidence['system_installer_focused'] = installer_focused
+            running_pid == snapshot_pid if type(running_pid) is int
+            and type(snapshot_pid) is int else None)
+    evidence['installed_version'] = (installed_version if isinstance(installed_version, str)
+                                     and re.fullmatch(r'[0-9A-Za-z.+-]{1,48}', installed_version)
+                                     else None)
+    evidence['system_installer_focused'] = (installer_focused
+                                             if type(installer_focused) is bool else None)
     return evidence
 
 
