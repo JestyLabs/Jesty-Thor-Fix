@@ -90,3 +90,7 @@ try {
         Remove-Item -LiteralPath $resolved -Recurse -Force
     }
 }
+
+# Expected mutant failures are asserted above. A successful script must not
+# propagate the last mutant JVM's nonzero native exit status to the CI shell.
+$global:LASTEXITCODE = 0
