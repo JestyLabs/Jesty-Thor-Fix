@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.1"><strong>Download v1.7.1</strong></a>
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.2"><strong>Download v1.7.2</strong></a>
   · <a href="#what-it-fixes">Features</a>
   · <a href="#measured-on-a-real-thor">Results</a>
   · <a href="#current-investigations">What's next</a>
@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.1"><img alt="Release v1.7.1" src="https://img.shields.io/badge/release-v1.7.1-F5C95D?style=for-the-badge"></a>
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.2"><img alt="Release v1.7.2" src="https://img.shields.io/badge/release-v1.7.2-F5C95D?style=for-the-badge"></a>
   <img alt="AYN Thor" src="https://img.shields.io/badge/AYN-Thor-A78BFA?style=for-the-badge">
   <img alt="Android 13" src="https://img.shields.io/badge/Android-13-3DDC84?style=for-the-badge&logo=android&logoColor=white">
   <img alt="No Magisk or manual rooting" src="https://img.shields.io/badge/setup-no%20Magisk%20%2F%20manual%20rooting-16A34A?style=for-the-badge">
@@ -98,18 +98,18 @@ The app's own CPU usage stays tiny, too. In separate physical idle tests, daemon
 
 ---
 
-### 1.7.2 integration
+### Updating to v1.7.2
 
-The reboot activation change has completed its scoped physical acceptance and is being integrated. The public download above remains v1.7.1 until publication. See [1.7.2 preparation and known issues](docs/RELEASE-NOTES-1.7.2.md) and the [activation/recovery guide](docs/ACTIVATION-RECOVERY-GUIDE.md). Persistent black screens after TOP sleep/wake remain open in [issue #84](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/84); no cause or correction is claimed.
+**Important: activation requires a real device reboot after updating.** Install normally without clearing app data, **open the app once** and wait for activation preparation, **restart the Thor**, then reopen the app to confirm the service is ready. Sleep/wake or an Android interface restart does **not** count. If activation stays blocked after a verified reboot, stop and follow the [activation guide](docs/ACTIVATION-RECOVERY-GUIDE.md) instead of repeatedly restarting. [What changed in v1.7.2](docs/RELEASE-NOTES-1.7.2.md).
 
 ### Current investigations
 
-We are still looking into the following issues. **These are research areas, not advertised fixes in v1.7.1.**
+We are still looking into the following areas. **These are research, not advertised fixes in v1.7.2.**
 
 - **🖥️ 120 Hz / screen tearing** — Understanding mixed-refresh behaviour when the two Thor displays run at different rates. [Research #37](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/37).
-- **🔌 Device-service reliability and wake black screens** — Investigating rare cases where Android temporarily loses access to a built-in device service, and a separately tracked [TOP wake black-screen incident (#84)](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/84). No cause or fix is established for the blackout.
+- **🔌 Device-service reliability** — Investigating rare cases where Android temporarily loses access to a built-in device service.
 - **🎮 TOP-mode game focus** — Checking reports of games losing focus when the bottom screen is off.
-- **⚡ Further efficiency and reliability** — More hardware edge cases, safer recovery and precise profiling. The [engineering hardening PR #67](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/67) is merged; stable v1.7.2 is not yet published.
+- **⚡ Further efficiency and reliability** — More hardware edge cases, safer recovery and precise profiling. The [engineering hardening PR #67](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/67) is included in v1.7.2.
 
 Interested in future device support, including Retroid Pocket Duo? That's **research only** and requires separate volunteer hardware testing — it is **not supported** today. [Full roadmap](docs/ROADMAP.md).
 
@@ -117,10 +117,10 @@ Interested in future device support, including Retroid Pocket Duo? That's **rese
 
 ### How to use
 
-1. **[Download Jesty Thor Fix v1.7.1](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.1)** (official signed APK)
-2. Install and open **Jesty Thor Fix**
-3. Enable the controls you want
-4. Close the app (or swipe it away). The fixes continue in the background.
+1. **[Download Jesty Thor Fix v1.7.2](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.2)** (official signed APK).
+2. Install as a normal update **without uninstalling or clearing data**.
+3. Open the app once to prepare activation, then **reboot the Thor normally**.
+4. Reopen the app, confirm the service is ready, and use your saved controls. The fixes keep running after closing the app.
 
 The app uses the Thor’s own privileged bridge. No Magisk or root required.
 
@@ -177,7 +177,7 @@ Jesty Thor Fix is free and open source. No features are locked behind donations.
 [Diagnostics RC validation](docs/APP-DIAGNOSTICS-RC-VALIDATION.md) · 
 [Compatibility](docs/COMPATIBILITY.md) · 
 [Benchmarks](docs/BENCHMARKS.md) · 
-[What's new in v1.7.1](docs/RELEASE-NOTES-1.7.1.md) ·
+[What's new in v1.7.2](docs/RELEASE-NOTES-1.7.2.md) ·
 [Build from source](docs/BUILD-AND-RELEASE.md) · 
 [Release integrity](docs/RELEASE-INTEGRITY.md)
 
