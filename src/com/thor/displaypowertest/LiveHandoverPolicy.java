@@ -45,6 +45,9 @@ public final class LiveHandoverPolicy {
         if (start < 0) return "";
         start += needle.length();
         int end = response.indexOf(';', start);
+        // Refuse contradictory repeated keys, including exact-value repeats.
+        // The predecessor must supply a single, unambiguous state snapshot.
+        if (end >= 0 && response.indexOf(needle, end) >= 0) return "";
         return response.substring(start, end < 0 ? response.length() : end);
     }
 }
