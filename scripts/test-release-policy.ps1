@@ -26,6 +26,15 @@ if ($ci -match '(?m)^\s+contents: write\s*$' -or $testSigner -match '(?m)^\s+con
     throw 'Only the environment-protected publication job may request contents: write.'
 }
 
+# Signing is intentionally manual. A push CI run cannot contain a signed asset.
+# Keep the publisher aligned with the CI signing gate and the protected operator.
+if ($ci -notmatch "github.event_name == 'workflow_dispatch' && inputs.sign_main_candidate == true" -or
+    -not $publisher.Contains('$run.event -ne ''workflow_dispatch''') -or
+    -not $publisher.Contains('$run.actor.login -cne ''SirJesty''') -or
+    -not $publisher.Contains('$run.triggering_actor.login -cne ''SirJesty''')) {
+    throw 'Candidate signing/publishing provenance must require protected manual CI.'
+}
+
 # Regression-only structural checks. GitHub Environment access rules and secrets
 # MUST still be verified in Settings; this script cannot enforce administration.
 $sections = [regex]::Match($ci, '(?ms)^  build:\s*\r?\n(?<build>.*?)(?=^  sign_main_candidate:)')
