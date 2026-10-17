@@ -374,6 +374,7 @@ $sources = @(
     (Join-Path $repository 'src\com\thor\displaypowertest\DaemonResponsePolicy.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\LegacyDaemonIdentity.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\PreviousSecureDaemonIdentity.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\LiveHandoverPolicy.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\PropertyState.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\ProcessWait.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\Telemetry.java'),
@@ -402,6 +403,7 @@ $sources = @(
     (Join-Path $repository 'tests\DaemonResponsePolicyTest.java'),
     (Join-Path $repository 'tests\LegacyDaemonIdentityTest.java'),
     (Join-Path $repository 'tests\PreviousSecureDaemonIdentityTest.java'),
+    (Join-Path $repository 'tests\LiveHandoverPolicyTest.java'),
     (Join-Path $repository 'tests\PropertyStateTest.java'),
     (Join-Path $repository 'tests\ProcessWaitTest.java'),
     (Join-Path $repository 'tests\com\thor\displaypowertest\BootTraceFieldPolicyTest.java'),
@@ -465,6 +467,9 @@ if ($LASTEXITCODE -ne 0) { throw 'IPC reply parsing tests failed.' }
 & java -cp $output LegacyDaemonIdentityTest
 if ($LASTEXITCODE -ne 0) { throw 'Legacy daemon identity tests failed.' }
 & java -cp $output PreviousSecureDaemonIdentityTest
+if ($LASTEXITCODE -ne 0) { throw 'Previous secure daemon tests failed.' }
+& java -cp $output LiveHandoverPolicyTest
+if ($LASTEXITCODE -ne 0) { throw 'Live handover policy tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Previous secure daemon identity tests failed.' }
 & java -cp $output HallNodeModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Hall node model tests failed.' }
