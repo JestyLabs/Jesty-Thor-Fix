@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       candidate_run_id:
-        description: 'Successful CI run ID that produced the signed candidate'
+        description: 'ID of successful MANUAL signed CI run; not cancelled, failed or push CI'
         required: true
         type: string
       channel:
