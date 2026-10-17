@@ -106,7 +106,7 @@ final class RebootActivation {
                 return "The app is checking whether it can safely switch the background service without a reboot. "
                         + "If the device is in TOP mode, switch to BOTH and reopen the app. "
                         + "If automatic activation remains unavailable, restart normally. "
-                        + "If activation remains blocked afterward, 
+                        + "If activation remains blocked afterward, "
                         + "use owner-approved external recovery; do not uninstall or clear app data.";
             }
             return RebootActivationPolicy.restartMessage();
