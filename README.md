@@ -98,6 +98,10 @@ The app's own CPU usage stays tiny, too. In separate physical idle tests, daemon
 
 ---
 
+### 1.7.2 integration
+
+The reboot activation change has completed its scoped physical acceptance and is being integrated. The public download above remains v1.7.1 until publication. See [1.7.2 preparation and known issues](docs/RELEASE-NOTES-1.7.2.md) and the [activation/recovery guide](docs/ACTIVATION-RECOVERY-GUIDE.md). Persistent black screens after TOP sleep/wake remain open in [issue #84](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/84); no cause or correction is claimed.
+
 ### Current investigations
 
 We are still looking into the following issues. **These are research areas, not advertised fixes in v1.7.1.**

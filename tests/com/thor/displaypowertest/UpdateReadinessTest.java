@@ -21,8 +21,8 @@ public final class UpdateReadinessTest {
                 "paused Activity invalidates even a recently received sample");
         check(state.installBlocker(true, true) != null,
                 "an in-flight command blocks even with fresh healthy telemetry");
-        check(state.handoverNote().contains("30 seconds"),
-                "BOTH mode uses the direct handover guidance");
+        check(state.handoverNote().contains("restart the Thor normally"),
+                "BOTH mode requires a normal reboot");
 
         SystemClock.setElapsedRealtimeForTest(START + UpdateVersion.MAX_SAMPLE_AGE_MS);
         check(state.installBlocker(true, false) == null,
@@ -52,21 +52,32 @@ public final class UpdateReadinessTest {
         state.record(snapshot(false, false));
         check(state.installBlocker(true, false) == null,
                 "only a fresh responding daemon explicitly clearing the hold releases it");
-        check(state.handoverNote().contains("BOTH"),
-                "TOP mode warns that immediate daemon handover is deferred");
+        check(state.handoverNote().contains("restart the Thor normally"),
+                "TOP mode requires a normal reboot");
         state.record(null);
         check(state.installBlocker(true, false) == null,
                 "an unavailable daemon without a known hold may receive repair updates");
         check(state.installBlocker(true, true) != null,
                 "in-flight actions still block when the daemon is unavailable");
-        check(state.handoverNote().contains("not responding"),
+        check(state.handoverNote().contains("restart the Thor normally"),
                 "unavailable daemon has recovery guidance");
 
+        Map<String,String> old = snapshot(false, true);
+        old.remove("runtime_version");
+        state.record(old);
+        check(state.installBlocker(true, false).contains("restart the Thor normally"), "old runtime needs reboot before another update");
+        state.record(null);
+        check(state.installBlocker(true, false).contains("restart the Thor normally"), "lost response cannot clear known pending upgrade");
+        state.record(snapshot(false, true));
+        check(state.installBlocker(true, false) == null, "exact new runtime clears pending");
         System.out.println("UpdateReadinessTest passed (host clock fixture)");
     }
 
     private static Map<String, String> snapshot(boolean hold, boolean both) {
         Map<String, String> values = new HashMap<>();
+        values.put("runtime_version", DaemonIdentity.RUNTIME_ID);
+        values.put("boot_phase", hold ? "WAITING_FOR_ANDROID" : "READY");
+        values.put("watcher_health", "RUNNING");
         values.put("display_actions_held", hold ? "1" : "0");
         values.put("mode", both ? "0" : "1");
         values.put("top_crtc", "1");

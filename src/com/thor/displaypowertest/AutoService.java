@@ -26,6 +26,12 @@ public final class AutoService extends Service {
         if (workerRunning) return START_NOT_STICKY;
         workerRunning = true;
         final android.content.SharedPreferences state = getSharedPreferences("state", MODE_PRIVATE);
+        if (!RebootActivation.allowStart(this, state)) {
+            workerRunning = false;
+            Log.w(TAG, "activation pending; boot evidence not verified");
+            stopSelf();
+            return START_NOT_STICKY;
+        }
         final boolean enabled = state.getBoolean("fix_enabled", true);
         final boolean dashboardFixEnabled = state.getBoolean("dashboard_cpu_fix_enabled", false);
         try {
@@ -41,7 +47,6 @@ public final class AutoService extends Service {
                     Log.d(TAG, "start worker fromBoot=" + fromBoot
                             + " receiver_ms=" + receiverAt + " service_ms=" + serviceAt);
                     boolean protocolMigration = !state.getBoolean("daemon_protocol_unix_v2", false);
-                    boolean replacingSecureDaemon = false;
                     String socketState = "NOT_CHECKED";
                     Probe probe = PServer.probe(enabled);
                     if (probe == Probe.UNREACHABLE) {
@@ -72,7 +77,6 @@ public final class AutoService extends Service {
                             return;
                         }
                         Log.w(TAG, "held same-version daemon stopped; relaunching in hold");
-                        replacingSecureDaemon = true;
                         probe = Probe.UNREACHABLE;
                     }
                     if (probe == Probe.UNHEALTHY) {
@@ -81,33 +85,17 @@ public final class AutoService extends Service {
                             probe = PServer.probe(enabled);
                         }
                         if (probe == Probe.UNHEALTHY) {
-                            if (!PServer.stopPreviousSecureDaemonIfSafe()) {
-                                PServer.logHealthFailure();
-                                Log.e(TAG, "existing trusted daemon is unhealthy; launch held");
-                                return;
-                            }
-                            for (int poll = 0; poll < 25 && PServer.reachable(); poll++) {
-                                if (!pause()) return;
-                            }
-                            if (PServer.reachable()) {
-                                Log.e(TAG, "older daemon still listening; replacement held");
-                                return;
-                            }
-                            replacingSecureDaemon = true;
-                            probe = Probe.UNREACHABLE;
-                        }
-                    }
-                    if (protocolMigration && probe == Probe.UNREACHABLE) {
-                        PServer.stopLegacyDaemon();
-                        for (int attempt = 0; attempt < 25 && PServer.legacyTcpOpen(); attempt++) {
-                            if (!pause()) return;
+                            PServer.logHealthFailure();
+                            Log.e(TAG, "existing daemon cannot activate this package; normal reboot required");
+                            return;
                         }
                     }
                     if (PServer.legacyTcpOpen()) {
-                        Log.e(TAG, "legacy TCP listener still present; migration held");
+                        Log.e(TAG, "legacy listener present; normal reboot required");
                         return;
                     }
-                    boolean held = fromBoot || protocolMigration || replacingSecureDaemon;
+                    // Foreground recovery after a missed broadcast also enters the boot coordinator.
+                    boolean held = true;
                     for (int launch = 0; launch < 2 && probe == Probe.UNREACHABLE; launch++) {
                         long launchWait = SystemClock.elapsedRealtime() - serviceAt;
                         Log.d(TAG, "launching daemon socket=" + socketState

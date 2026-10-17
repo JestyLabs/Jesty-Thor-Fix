@@ -87,6 +87,10 @@ jobs:
         shell: pwsh
         run: ./scripts/test-dashboard.ps1
 
+      - name: Reboot activation and negative authorization controls
+        shell: pwsh
+        run: ./scripts/test-reboot-activation-host.ps1 -RunNegativeControls
+
       - name: Controlled updater lifecycle (host Android adapters)
         shell: pwsh
         run: ./scripts/test-updater-lifecycle-host.ps1
@@ -102,6 +106,10 @@ jobs:
       - name: Passive energy analysis fixtures (host-only)
         shell: pwsh
         run: python ./scripts/test-thor-energy.py
+
+      - name: Exact accepted release rejection cases
+        shell: pwsh
+        run: python ./scripts/test-accepted-stable80-release.py
 
       - name: Strict TLS fixture shutdown and framing
         shell: pwsh
