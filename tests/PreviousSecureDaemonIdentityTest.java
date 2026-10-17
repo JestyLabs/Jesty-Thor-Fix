@@ -162,6 +162,20 @@ public final class PreviousSecureDaemonIdentityTest {
                 "bottom display must be visibly on");
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("watcher=RUNNING", "watcher=FAILED"), BOTH) < 0,
                 "unhealthy watcher fails closed");
+        // Older handover callers also require one authoritative value per
+        // field, even when the first occurrence looks safe.
+        for (String suffix : new String[]{
+                ";ok=0", ";protocol=1", ";version=unknown",
+                ";pid=1", ";watcher=STOPPED", ";version=1.5.3" }) {
+            check(PreviousSecureDaemonIdentity.safePid(HEALTH + suffix, BOTH) < 0,
+                    "duplicate predecessor identity field denied: " + suffix);
+        }
+        for (String suffix : new String[]{
+                ";ok=0", ";mode=1", ";top_crtc=0",
+                ";bottom_crtc=0", ";mode=0" }) {
+            check(PreviousSecureDaemonIdentity.safePid(HEALTH, BOTH + suffix) < 0,
+                    "duplicate predecessor display field denied: " + suffix);
+        }
         System.out.println("PreviousSecureDaemonIdentityTest passed: " + checks + " assertions");
     }
 

@@ -28,9 +28,13 @@ public final class LiveHandoverPolicy {
                 || !expected(field(snapshot, "lid_guard"), lidGuard)) return -1;
         // Do not retire a daemon while the lid is known closed or a dock is connected.
         // With Guard OFF the stock firmware reports external_display=unknown.
-        if ("closed".equals(field(snapshot, "lid"))
-                || "1".equals(field(snapshot, "external_display"))
-                || (lidGuard && !"0".equals(field(snapshot, "external_display")))) return -1;
+        // Missing values retain their previous policy, but duplicate values do not.
+        String lid = field(snapshot, "lid");
+        String externalDisplay = field(snapshot, "external_display");
+        if (lid == null || externalDisplay == null
+                || "closed".equals(lid)
+                || "1".equals(externalDisplay)
+                || (lidGuard && !"0".equals(externalDisplay))) return -1;
         return pid;
     }
 
@@ -45,6 +49,9 @@ public final class LiveHandoverPolicy {
         if (start < 0) return "";
         start += needle.length();
         int end = response.indexOf(';', start);
+        // Null distinguishes a duplicate (invalid) from an absent field ("").
+        // This matters for lid/dock fields where UNKNOWN is allowed with Guard OFF.
+        if (end >= 0 && response.indexOf(needle, end) >= 0) return null;
         return response.substring(start, end < 0 ? response.length() : end);
     }
 }

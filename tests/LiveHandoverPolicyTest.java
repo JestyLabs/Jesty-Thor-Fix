@@ -61,6 +61,25 @@ public final class LiveHandoverPolicyTest {
                 Q.replace("lid_guard=0","lid_guard=1")
                 .replace("external_display=unknown","external_display=0"),true,false,true)==12000,
                 "Guard ON and confirmed no dock remain eligible");
+        // Every I/Q authorization field must be unambiguous. Duplicate keys
+        // must not let a healthy first value conceal an unsafe later value.
+        for (String suffix : new String[]{
+                ";ok=0", ";protocol=1", ";version=1.7.0", ";pid=1",
+                ";boot_phase=HANDOFF_FAILED", ";fix=0", ";watcher=STOPPED",
+                ";version=1.7.2" }) {
+            check(pid(H + suffix, Q) < 0,
+                    "duplicate predecessor health field denied: " + suffix);
+        }
+        for (String suffix : new String[]{
+                ";ok=0", ";runtime_version=1.7.1", ";mode=1",
+                ";top_crtc=0", ";bottom_crtc=0",
+                ";display_actions_held=1", ";display_effective=MISMATCH",
+                ";fix=0", ";cpu_fix_desired=1", ";cpu_fix_phase=PENDING",
+                ";system_load_fix=1", ";lid_guard=1", ";lid=closed",
+                ";external_display=1", ";mode=0" }) {
+            check(pid(H, Q + suffix) < 0,
+                    "duplicate predecessor snapshot field denied: " + suffix);
+        }
         System.out.println("LiveHandoverPolicyTest passed: "+assertions+" fail-closed checks.");
     }
 }
