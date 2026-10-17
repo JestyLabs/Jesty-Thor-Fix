@@ -75,7 +75,8 @@ public final class PServer {
     public static int stopLivePredecessorIfSafe(boolean displayFix, boolean cpuFix,
             boolean lidGuard) {
         int pid = safeLivePredecessor(displayFix, cpuFix, lidGuard);
-        if (pid < 1) return -1;
+        if (pid < 1 || safeLivePredecessor(displayFix, cpuFix, lidGuard) != pid) return -1;
+        // Confirm twice: a changed PID or snapshot must never reach the bridge.
         return send(identifiedDaemonKill(pid), "approved predecessor stop submitted pid=" + pid)
                 ? pid : -1;
     }
