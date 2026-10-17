@@ -30,6 +30,10 @@ First inspect source and existing host suites: DisplayActionCoordinator.onWatche
 
 Here "1/1" means TOP/BOTTOM CRTC observed active and "1/0" means TOP active/BOTTOM inactive; **CRTC flags are not pixel light output**. The input snapshot and classification must be verified against actual production conventions before implementing fixtures. The expected outcome may be refined only with code evidence, not guessed hardware semantics.
 
+## Integration evidence note — PR #98
+
+The first S1 increment lives in [draft PR #98](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/98), not in this S0 governance PR. It exercises real production **DisplayDecisionModel** and **DisplayGenerationModel** host classes against a combinatorial matrix and repeated generation invalidation; both existing host suites, the overall Android CI and CodeQL **passed on its initial pinned head** 51e9587ca05f8d9286a8b8c685d737a267e2e83f. This constitutes **model-level partial coverage** of S1-01 through S1-07; it does **not** execute production DisplayActionCoordinator end-to-end, establish #84's cause, validate panel luminance or constitute actual Thor testing. Remaining S1 items and coordinator boundaries are **NOT RUN**. Do not duplicate #98 in another PR.
+
 ## S1 execution order
 
 1. Pin current main/head and existing tests; produce exact path->owner->side effect map.

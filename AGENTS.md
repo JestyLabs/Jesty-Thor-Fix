@@ -6,7 +6,7 @@ This is the entry point for human contributors and coding agents (including Code
 
 ## Mandatory reading, in order
 
-1. Current branch code, HEAD, existing PRs/issues and latest published release; never trust an older handoff as the current state.
+1. Current branch code, HEAD, **central tracker #95**, existing PRs (#94, #96, #97, #98, and other live work), issues and latest published release; never trust an older handoff as the current state. Check the [parallel-work integration ledger](docs/quality/PARALLEL-WORK-INTEGRATION-2026-10-17.md) before editing to avoid duplicate work.
 2. [Quality roadmap](docs/ENGINEERING-QUALITY-ROADMAP-2026-10-17.md) — ordered workstreams, scope, objectives and acceptance.
 3. [Execution contract](docs/ENGINEERING-QUALITY-EXECUTION-CONTRACT.md) — non-negotiable delivery and safety gates.
 4. [S1 offline test matrix](docs/quality/S1-SLEEP-WAKE-OFFLINE-MATRIX.md) when touching sleep, mode transitions or display repair.

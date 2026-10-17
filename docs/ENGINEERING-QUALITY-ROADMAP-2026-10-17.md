@@ -70,6 +70,28 @@ The other dimensions (feature usefulness, overhead, diagnostics/privacy, UI/acce
 **Exit:** completed results categorized PASS / FAIL / NOT RUN / UNKNOWN per candidate and firmware; separate publication decision. Do not re-run already validated historical trials merely for optics.  
 **Forbidden:** conflating historical code76/RC78 data with current v1.7.3 behavior, treating energy proxy as battery life.
 
+
+## Integration with pre-existing parallel engineering work (no duplicate tracks)
+
+**Single public issue ledger:** [#95 — Engineering quality gates after v1.7.3](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/95). This roadmap is the executable scope/acceptance contract for that existing issue; **do not open a competing umbrella issue**. Detailed cross-PR dependencies, evidence and overlap are recorded in [the integration ledger](quality/PARALLEL-WORK-INTEGRATION-2026-10-17.md).
+
+| Existing work | Mapped programme workstream | Boundaries and acceptance |
+| --- | --- | --- |
+| [#94](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/94) — duplicate/ambiguous I/Q authorization fields | **S2 + S3**, pre-existing scoped runtime/security change | Retain independent DRAFT PR. Baseline host/CodeQL passed; original Android job **CANCELLED**, retried separately. Review legitimate daemon replies and any device-path release gate; do not claim physical authorization from host tests. Do not rewrite, transplant or silently merge its runtime diff into S1/S0. |
+| [#96](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/96) — unsigned build-output documentation | **S5 — contributor DX**, separate documentation-only change | CI and CodeQL succeeded on pinned head at time of integration; no build-system behavior change. Preserve as independently reviewable documentation PR, not duplicate work. |
+| [#97](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/97) — this governance implementation | **S0** | Roadmap, agent rules, CI contract and S1 plan only; no application runtime. Emulator run at original head failed during generic updater Android state wait; do not mark fully green without valid exact-head retest. |
+| [#98](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/98) — real production model transition matrix | **S1**, first test-only slice | Host, emulator and CodeQL CI completed successfully on its first head. Model-only evidence, NOT root cause, no vendor display validation. Remains separate DRAFT PR. |
+| [#82](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/82) and [#84](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/84) | **S1** evidence/tracker | Incident documentation only; root cause, physical recovery and fix remain unknown. Keep #65 brightness independent. |
+| [#37](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/37) | **Outside programme** | Mixed-refresh research stays independent, no stealth addition to S1 or S6 acceptance. |
+
+**Non-duplication rule:** anyone starting a task must check #95 and the above live PRs before editing. On overlap, reconcile with the existing PR head (read-only first); do not create competing fixes. Different workstreams may run concurrently only when their changed paths and privileged behavior do not overlap. A completed green CI run on a different SHA is not the accepted final-head proof. Programme **scope decisions** are recorded in #95 and surfaced in the relevant PR; a new feature requires a separately approved change-of-scope, not a checklist edit.
+
+## Administrative enforcement — unresolved external gate
+
+The **SirJesty repository account** has GitHub admin permission according to repository permission metadata. **The connected GitHub integration does not have administration API access:** reading `branches/main/protection` returned **HTTP 403, Resource not accessible by integration**; the accessible ruleset listing showed one active *tag* ruleset, not confirmed `main` protection. Account-level admin is **not** equivalent to the connected app holding repository-administration API permission. No branch rule was altered here and none may be claimed configured.
+
+Required follow-up for an authorized repository administrator using GitHub's native settings: review the actual current branch rules without weakening them; require the successful build, both CodeQL analyses and applicable Android integration check with stable names; require CODEOWNERS review where appropriate; consider preventing force pushes/deletions and requiring up-to-date PR checks. Confirm merge queue behavior and whether emulator jobs can be skipped before designating them required. Record exact settings and evidence in #95. A CI script or CODEOWNERS file **cannot** enable those protections. Do not insert a workflow with privileged secrets or request new bypass authority as a workaround.
+
 ## Scope controls
 
 - Each S1–S6 implementation increment uses a separate PR tagged with exactly one workstream ID and small testable behavior. S5 may run in parallel but MUST NOT bypass S1–S3 safety gates.

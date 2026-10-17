@@ -4,7 +4,7 @@ This is an **operational checklist**, not an assurance that a document alone can
 
 ## 0. Authority and branch hygiene
 
-- Read root [AGENTS.md](../AGENTS.md), the [quality roadmap](ENGINEERING-QUALITY-ROADMAP-2026-10-17.md), current HEAD, issues #84 and #65, open PRs and affected production code. Treat older summaries as historical until reconciled.
+- Read root [AGENTS.md](../AGENTS.md), the [quality roadmap](ENGINEERING-QUALITY-ROADMAP-2026-10-17.md), [existing central tracker #95](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/95), [parallel-work ledger](quality/PARALLEL-WORK-INTEGRATION-2026-10-17.md), current HEAD, issues #84 and #65, open PRs (#94, #96, #97, #98 among others) and affected production code. Treat older summaries as historical until reconciled.
 - Before editing, write the exact **workstream S1–S6**, objective, allowed touched paths, forbidden paths, behavioral invariants, starting SHA and intended tests in the PR or work note. If there is an overlap with an open PR, resolve the overlap read-only before writing; never cherry-pick over accepted changes blindly.
 - One behavior/one responsibility per implementation PR. Use a draft PR until the relevant offline gates are complete. Re-check current main before integration and rerun exact-head CI after any rebase.
 
