@@ -232,6 +232,121 @@ public final class DisplayActionCoordinatorHostTest {
         noPowerActions("guard / cancel interleaving");
     }
 
+    private static void lateDueRepairCannotCommitAfterBothModeEdge() throws Exception {
+        reset();
+        Telemetry.bottom = "0";
+        DisplayActionCoordinator.onWatcherSample("1");
+        DisplayActionCoordinator.scheduleWakeRepair();
+        yes(WakeRepairScheduler.pending, "S1-L01 TOP repair scheduled before mode change");
+        WakeRepairScheduler.due = true;
+        Telemetry.bottom = "1"; // fully active BOTH, no power action needed
+        long before = DisplayActionCoordinator.generation();
+        DisplayActionCoordinator.onWatcherSample("0");
+        yes(DisplayActionCoordinator.generation() > before,
+                "S1-L01 BOTH edge invalidated old TOP generation");
+        equal("0", DaemonState.mode, "S1-L01 switched to BOTH");
+        yes(!WakeRepairScheduler.pending && !WakeRepairScheduler.due,
+                "S1-L01 stale repair deadline cancelled");
+        equal(0, DaemonState.repairBegins, "S1-L01 stale due work not applied");
+        equal(0, WakeRepairScheduler.completions,
+                "S1-L01 stale due work never records a completed repair");
+        DisplayActionCoordinator.noteDisplayOn(); // late confirmation
+        equal(0, WakeRepairScheduler.displayOnNotes,
+                "S1-L01 old display ON ignored after BOTH transition");
+        DisplayActionCoordinator.onWatcherSample("0"); // duplicate event
+        equal("0", DaemonState.mode, "S1-L01 duplicate BOTH remains BOTH");
+        equal(2, WatcherCadence.modeChanges, "S1-L01 first TOP and BOTH are two mode edges");
+        noPowerActions("S1-L01 late due repair");
+    }
+
+    private static void rapidTopBothTopRejectsOrphanedDeadline() throws Exception {
+        reset();
+        Telemetry.bottom = "0";
+        DisplayActionCoordinator.onWatcherSample("1");
+        DisplayActionCoordinator.scheduleWakeRepair();
+        long firstRepair = DisplayActionCoordinator.generation();
+        Telemetry.bottom = "1";
+        DisplayActionCoordinator.onWatcherSample("0");
+        Telemetry.bottom = "0";
+        DisplayActionCoordinator.onWatcherSample("1");
+        yes(DisplayActionCoordinator.generation() > firstRepair,
+                "S1-L02 a fresh mode epoch supersedes the old TOP repair");
+        yes(!WakeRepairScheduler.pending,
+                "S1-L02 no repair should be pending after TOP/BOTH/TOP");
+        // Adversarial stub: a delayed timer delivered after it was cancelled.
+        WakeRepairScheduler.due = true;
+        DisplayActionCoordinator.onWatcherSample("1");
+        equal(0, DaemonState.repairBegins,
+                "S1-L02 orphaned deadline must not begin repair");
+        equal(0, WakeRepairScheduler.completions,
+                "S1-L02 orphaned deadline cannot complete repair");
+        yes(!WakeRepairScheduler.pending && !WakeRepairScheduler.due,
+                "S1-L02 orphaned due flag is cleared");
+        noPowerActions("S1-L02 stale due timer");
+    }
+
+    private static void rapidDuplicateModeNotificationsStayBounded() throws Exception {
+        reset();
+        Telemetry.bottom = "0";
+        DisplayActionCoordinator.onWatcherSample("1");
+        for (int i = 0; i < 20; i++) {
+            DisplayActionCoordinator.onWatcherSample("1");
+        }
+        equal(1, WatcherCadence.modeChanges,
+                "S1-L03 duplicate TOP samples do not create mode edges");
+        equal(0, WakeRepairScheduler.schedules,
+                "S1-L03 repeated stable TOP without wake signal schedules nothing");
+        equal(0, DisplayHardware.markCount,
+                "S1-L03 repeated samples do not forge a wake pending mark");
+        noPowerActions("S1-L03 duplicate TOP samples");
+    }
+
+    private static void overlappingWatcherSamplesAreCharacterizedNotCertified() throws Exception {
+        reset();
+        Telemetry.bottom = "0";
+        DisplayActionCoordinator.onWatcherSample("1");
+        DisplayHardware.property = "1";
+        Telemetry.bottom = "1";
+        LidGuard.enabled = true;
+        LidGuard.defer = true; // forbid any write while observing the ordering
+        LidGuard.entered = new CountDownLatch(1);
+        LidGuard.released = new CountDownLatch(1);
+        final AtomicReference<Throwable> failure = new AtomicReference<Throwable>();
+        Thread delayedTop = new Thread(new Runnable() {
+            @Override public void run() {
+                try { DisplayActionCoordinator.onWatcherSample("1"); }
+                catch (Throwable error) { failure.set(error); }
+            }
+        }, "synthetic-parallel-watcher");
+        delayedTop.setDaemon(true);
+        delayedTop.start();
+        try {
+            yes(LidGuard.entered.await(3, TimeUnit.SECONDS),
+                    "S1-L04 delayed TOP sample stopped before display lock");
+            DisplayActionCoordinator.onWatcherSample("0");
+            equal("0", DaemonState.mode, "S1-L04 BOTH wins while TOP callback blocked");
+        } finally {
+            LidGuard.released.countDown();
+            delayedTop.join(3000L);
+        }
+        yes(!delayedTop.isAlive() && failure.get() == null,
+                "S1-L04 no deadlock or uncaught exception on artificial overlap");
+        // This is deliberately an OBSERVATION of a parallel caller assumption.
+        // It is not a proof that DaemonWatchThread invokes concurrently in vivo.
+        if ("1".equals(DaemonState.mode)) {
+            System.out.println("S1-L04 OBSERVATION: artificial concurrent older TOP "
+                    + "callback replaced newer BOTH; concurrency contract UNVERIFIED");
+        } else {
+            System.out.println("S1-L04 OBSERVATION: artificial older callback did not "
+                    + "replace newer BOTH in this run");
+        }
+        noPowerActions("S1-L04 artificial overlap");
+        // A real later BOTH sample recovers the logical model, without I/O.
+        DisplayActionCoordinator.onWatcherSample("0");
+        equal("0", DaemonState.mode, "S1-L04 latest BOTH sample restores mode");
+        noPowerActions("S1-L04 mode resync");
+    }
+
     private static void guardCannotSleepFromUnknownDecision() throws Exception {
         reset();
         LidGuard.enabled = true;
@@ -251,6 +366,10 @@ public final class DisplayActionCoordinatorHostTest {
         lidDeferralPreventsWakeRepairScheduling();
         callbackBeforeHardwareLockDoesNotBlockCancel();
         guardCannotSleepFromUnknownDecision();
+        lateDueRepairCannotCommitAfterBothModeEdge();
+        rapidTopBothTopRejectsOrphanedDeadline();
+        rapidDuplicateModeNotificationsStayBounded();
+        overlappingWatcherSamplesAreCharacterizedNotCertified();
         System.out.println("DisplayActionCoordinatorHostTest passed: " + checks
                 + " checks against unchanged production coordinator; HOST ONLY");
     }
