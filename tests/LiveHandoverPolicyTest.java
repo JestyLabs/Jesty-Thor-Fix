@@ -17,7 +17,8 @@ public final class LiveHandoverPolicyTest {
     }
     public static void main(String[] args) {
         check(pid(H,Q)==12000, "exact code80 ready+BOTH+matching CPU is eligible");
-        check(pid(H.replace("1.7.2","1.7.1"),Q)==12000,"exact published code76 eligible");
+        check(pid(H.replace("1.7.2","1.7.1"),Q.replace("1.7.2","1.7.1"))==12000,"exact published code76 eligible");
+        check(pid(H.replace("1.7.2","1.7.1"),Q)<0,"I/Q version mismatch denied");
         for (String version : new String[]{"1.7.0","1.7.2-rc1","1.7.3",
                 "1.7.3-recovery","1.7.2-hijacked","unknown"}) {
             check(pid(H.replace("1.7.2",version),Q)<0,"unknown predecessor denied "+version);
