@@ -1,5 +1,7 @@
 # Engineering quality programme — contributor/agent instructions
 
+**Programme ID: JTF-QUALITY-2026-10-17.**
+
 This is the entry point for human contributors and coding agents (including Codex) working on the post-v1.7.3 quality programme. Read this file **before modifying anything**. This file describes project policy, not an authorization to take privileged or publishing actions.
 
 ## Mandatory reading, in order
