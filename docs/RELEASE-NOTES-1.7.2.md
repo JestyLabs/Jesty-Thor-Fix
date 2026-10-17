@@ -1,6 +1,6 @@
-# Jesty Thor Fix 1.7.2 — release preparation
+# Jesty Thor Fix v1.7.2 — historical release notes
 
-This version is under integration and has not been published. The existing public release remains available through the README.
+**Published 2026-10-17 as v1.7.2/code80**, subsequently superseded by the current [v1.7.3/code83](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.3). The installation and reboot requirements below describe the **v1.7.2 package only**; v1.7.3 supports a guarded same-kernel service transfer where its safety checks pass.
 
 ## Changes
 

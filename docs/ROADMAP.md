@@ -1,6 +1,6 @@
 # Current roadmap
 
-Updated 2026-10-16. Stable release: **v1.7.1 / code76**, published on 2026-10-12. The supervised RC78 hardening session is complete in its approved scope: **15 PASS / 1 historical FAIL**, with separate BOTH acceptance A1 PASS. See [physical results and limits](PR67-PHYSICAL-VALIDATION-2026-10-16.md). PR67 remains draft pending final integration checks and merge approval; no stable 1.7.2 release is implied. Earlier candidate and control records remain historical evidence.
+Updated 2026-10-17. Current published stable: **[v1.7.3 / code83](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.3)** (after [v1.7.2 / code80](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.2)). PRs #67, #89, #90 and #91 are merged. The v1.7.3 safe in-place daemon handover passed host, CI and Android emulator checks; it only proceeds under verified predecessor and device conditions, with guarded fallback otherwise. Historical RC78 physical testing remains scoped to its exact candidate: **15 PASS / 1 historical FAIL**, with separate A1 BOTH acceptance PASS. See [physical results and limits](PR67-PHYSICAL-VALIDATION-2026-10-16.md). Earlier candidate and recovery records remain historical evidence.
 
 See [physical validation evidence](VALIDATION-EVIDENCE.md) for completed test results. Historical investigations remain in their original, dated reports rather than being repeated here as future work.
 
@@ -15,12 +15,12 @@ See [physical validation evidence](VALIDATION-EVIDENCE.md) for completed test re
 
 These tests support the named outcomes. They do not need to be rerun solely because their original work item was previously phrased as an investigation.
 
-## Priority 1 — integrate reboot activation and prepare distribution
+## Priority 1 — maintain v1.7.3 and monitor guarded upgrades
 
-- PR #67 is merged. Its historical T09 CPU failure and later A1/T10 acceptance results remain separately documented.
-- The exact code80 candidate completed scoped Android 13 Thor update, activation/reboot, lifecycle and mode-transition acceptance. The controlled external code81/code82 recovery chain also passed on the healthy device.
-- Integrate the tested runtime with existing protected signing/publication policy, validate the resulting CI tree and review [1.7.2 preparation](RELEASE-NOTES-1.7.2.md). No repeat CPU series or broad refactor is required by that acceptance.
-- Keep the blackout investigation in [issue #84](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/84) and documentation PR #82 separate. Publication must state known limits; healthy-device recovery does not establish recovery during blackout. Keep [private captures out of Git](PUBLIC-EVIDENCE-POLICY.md).
+- **Released:** PR #67 hardening, PR #89 verified same-kernel handover, PR #90 protected publisher correction and PR #91 public README update are integrated. The exact signed stable APK is linked in the [v1.7.3 release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.3).
+- **Guarded activation:** v1.7.3 may transfer from an authenticated v1.7.1/v1.7.2 daemon without a full reboot only when the checks permit it. Otherwise preserve the documented conservative restart/recovery route and user data. See [v1.7.3 release notes](RELEASE-NOTES-1.7.3.md) and [activation guide](ACTIVATION-RECOVERY-GUIDE.md).
+- **Preserved earlier evidence:** exact code80 hardware acceptance and the separate code81/code82 external recovery trial passed in their defined healthy-device scope; the RC78 T09 CPU FAIL and later A1/T10 PASS remain distinct historical results.
+- **Separate unresolved issues:** keep [#84 persistent TOP wake blackout](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/84) (with documentation draft [#82](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/82)) and [#65 brief BOTTOM brightness flash](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/65) in their issue trackers. Neither is an advertised v1.7.3 fix; retain [private captures outside Git](PUBLIC-EVIDENCE-POLICY.md).
 
 ## Priority 2 — performance and battery evidence
 
