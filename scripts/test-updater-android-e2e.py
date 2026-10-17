@@ -222,13 +222,13 @@ class Suite:
                 snapshot = None
             try:
                 installed = self.call('shell', 'dumpsys', 'package', PACKAGE)
-                match = re.search(r'\\bversionName=([0-9A-Za-z.+-]+)', installed)
+                match = re.search(r'\bversionName=([0-9A-Za-z.+-]+)', installed)
                 version = match.group(1) if match else None
             except (RuntimeError, ValueError, OSError):
                 version = None
             try:
                 pid_text = self.call('shell', 'pidof', PACKAGE).strip()
-                running_pid = int(pid_text) if re.fullmatch(r'\\d+', pid_text) else None
+                running_pid = int(pid_text) if re.fullmatch(r'\d+', pid_text) else None
             except (RuntimeError, ValueError, OSError):
                 running_pid = None
             try:
