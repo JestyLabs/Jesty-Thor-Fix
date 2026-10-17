@@ -107,6 +107,10 @@ jobs:
         shell: pwsh
         run: python ./scripts/test-thor-energy.py
 
+      - name: Exact accepted release rejection cases
+        shell: pwsh
+        run: python ./scripts/test-accepted-stable80-release.py
+
       - name: Strict TLS fixture shutdown and framing
         shell: pwsh
         run: python ./scripts/test-transport-tls-shutdown.py --output "$env:RUNNER_TEMP/tls-shutdown-results"

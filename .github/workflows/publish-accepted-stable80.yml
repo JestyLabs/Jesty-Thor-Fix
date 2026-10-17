@@ -1,0 +1,99 @@
+name: Publish exact accepted stable80
+
+on:
+  workflow_dispatch:
+    inputs:
+      draft_release_id:
+        description: Existing private draft containing only the physically accepted stable80 APK
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-tested-candidate-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main' && github.actor == 'SirJesty' && github.triggering_actor == 'SirJesty'
+    runs-on: windows-latest
+    environment: thor-publication
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DRAFT_ID: ${{ inputs.draft_release_id }}
+    steps:
+      - name: Verify protected publication authorization
+        shell: pwsh
+        env:
+          ORIGINAL_ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          PUBLICATION_ENV_READY: ${{ vars.THOR_PUBLICATION_ENV_READY }}
+        run: |
+          if ($env:ORIGINAL_ACTOR -cne 'SirJesty' -or $env:TRIGGERING_ACTOR -cne 'SirJesty' -or
+              $env:PUBLICATION_ENV_READY -cne 'true' -or $env:DRAFT_ID -notmatch '^\d+$') {
+              throw 'Publication requires the authorized operator, protected environment and numeric draft ID.'
+          }
+
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          packages: platform-tools
+
+      - name: Install verification tools
+        shell: pwsh
+        run: sdkmanager "build-tools;35.0.0"
+
+      - name: Verify source, draft and exact signed bytes
+        shell: pwsh
+        run: |
+          git diff --exit-code 7529e4a2910faa1bc253142914487f4578b30936 HEAD -- src apk assets release-source-intent.json
+          if ($LASTEXITCODE -ne 0) { throw 'Application payload differs from the physically accepted source.' }
+          $draft = gh api "repos/$env:GITHUB_REPOSITORY/releases/$env:DRAFT_ID" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $draft.draft -ne $true -or $draft.assets.Count -ne 1) { throw 'Invalid release draft.' }
+          $asset = $draft.assets[0]
+          if ($asset.name -cne 'Jesty-Thor-Fix-1.7.2.apk' -or [string]$asset.id -notmatch '^\d+$') { throw 'Unexpected asset.' }
+          gh api "repos/$env:GITHUB_REPOSITORY/releases/assets/$($asset.id)" -H 'Accept: application/octet-stream' > accepted.apk
+          if ($LASTEXITCODE -ne 0) { throw 'Asset download failed.' }
+          $draft | ConvertTo-Json -Depth 20 | Set-Content -Encoding utf8 draft.json
+          gh api "repos/$env:GITHUB_REPOSITORY/actions/runs?head_sha=$env:GITHUB_SHA&event=push&per_page=100" > runs.json
+          if ($LASTEXITCODE -ne 0) { throw 'CI lookup failed.' }
+          python scripts/verify-accepted-stable80-release.py --release draft.json --runs runs.json --apk accepted.apk --commit "$env:GITHUB_SHA"
+          if ($LASTEXITCODE -ne 0) { throw 'Exact-artifact publication checks failed.' }
+          $tools = Join-Path $env:ANDROID_SDK_ROOT 'build-tools/35.0.0'
+          $signature = & "$tools/apksigner.bat" verify --verbose --print-certs accepted.apk 2>&1 | Out-String
+          if ($LASTEXITCODE -ne 0 -or $signature -notmatch 'Number of signers:\s*1\b' -or
+              $signature -notmatch '(?i)Signer #1 certificate SHA-256 digest:\s*727d4850779bed1e51018108e13bc399d4da38cfc68f4f7504120ad5e2dad6fc') { throw 'Established signing identity mismatch.' }
+          $identity = & "$tools/aapt.exe" dump badging accepted.apk | Select-Object -First 1
+          if ($LASTEXITCODE -ne 0 -or $identity -notmatch "^package: name='com.thor.displaypowertest' versionCode='80' versionName='1.7.2'") { throw 'APK identity mismatch.' }
+          & "$tools/zipalign.exe" -c 4 accepted.apk
+          if ($LASTEXITCODE -ne 0) { throw 'APK alignment failed.' }
+
+      - name: Revalidate draft and publish accepted bytes
+        shell: pwsh
+        run: |
+          $before = Get-Content draft.json -Raw | ConvertFrom-Json
+          $current = gh api "repos/$env:GITHUB_REPOSITORY/releases/$env:DRAFT_ID" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $current.assets.Count -ne 1 -or $current.assets[0].id -ne $before.assets[0].id) { throw 'Draft asset changed after verification.' }
+          $current | ConvertTo-Json -Depth 20 | Set-Content -Encoding utf8 draft.json
+          python scripts/verify-accepted-stable80-release.py --release draft.json --runs runs.json --apk accepted.apk --commit "$env:GITHUB_SHA"
+          if ($LASTEXITCODE -ne 0) { throw 'Draft metadata changed after verification.' }
+          gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/releases/$env:DRAFT_ID" -F draft=false -f make_latest=true
+          if ($LASTEXITCODE -ne 0) { throw 'Publication failed.' }
