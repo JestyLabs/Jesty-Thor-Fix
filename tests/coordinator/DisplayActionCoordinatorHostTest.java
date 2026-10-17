@@ -255,7 +255,7 @@ public final class DisplayActionCoordinatorHostTest {
                 "S1-L01 old display ON ignored after BOTH transition");
         DisplayActionCoordinator.onWatcherSample("0"); // duplicate event
         equal("0", DaemonState.mode, "S1-L01 duplicate BOTH remains BOTH");
-        equal(1, WatcherCadence.modeChanges, "S1-L01 count includes first TOP and BOTH");
+        equal(2, WatcherCadence.modeChanges, "S1-L01 first TOP and BOTH are two mode edges");
         noPowerActions("S1-L01 late due repair");
     }
 
