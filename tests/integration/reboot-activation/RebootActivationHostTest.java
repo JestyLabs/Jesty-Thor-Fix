@@ -30,7 +30,7 @@ public final class RebootActivationHostTest {
     }
     public static void main(String[] args)throws Exception{
         FixtureState.reset(null);run("first-open-prepares-only",0,0,false);
-        check(FixtureState.probes==0,"no probing before reboot evidence");
+        check(FixtureState.probes>0,"only read-only predecessor probing precedes reboot evidence");
         check(FixtureState.saved.containsKey(KEY),"baseline persisted on first open");
         String prepared=FixtureState.saved.get(KEY);int commits=FixtureState.commits;
         run("repeated-open-does-not-rebase",0,0,false);
@@ -42,7 +42,7 @@ public final class RebootActivationHostTest {
         FixtureState.boot=C;FixtureState.version=null;run("later-kernel-no-broadcast",0,1,true);
         check(prepared.equals(FixtureState.saved.get(KEY)),"verified boots do not replace original baseline");
 
-        FixtureState.reset("1.7.2");run("same-version-ready-is-not-reboot-proof",0,0,false);
+        FixtureState.reset("1.7.3");run("current-version-without-proof-not-authorized",0,0,false);
         FixtureState.reset(null);FixtureState.fromBoot=true;run("first-observation-is-boot-not-authority",0,0,false);
         FixtureState.boot=B;run("second-boot-receiver-can-start",0,1,true);
 
@@ -61,7 +61,29 @@ public final class RebootActivationHostTest {
         }
         FixtureState.reset("1.7.2-rc1");ticket();FixtureState.fromBoot=true;
         run("same-kernel-broadcast-with-old-daemon",0,0,false);
-        check(FixtureState.probes==0,"broadcast did not even admit probing");
+        check(FixtureState.kills==0&&FixtureState.launches==0,"unverified broadcast cannot stop or launch a daemon");
+        // Production AutoService and PServer, with simulated bridge, storage and socket.
+        FixtureState.reset("1.7.2");run("code80-same-kernel-handover",1,1,true);
+        check(FixtureState.saved.containsKey("activation_v3_live_handover"),
+                "live proof is durable only after new runtime identity");
+        run("live-proven-repeat-open-no-kill",0,0,true);
+        FixtureState.reset("1.7.1");run("code76-same-kernel-handover",1,1,true);
+        FixtureState.reset("1.7.2");FixtureState.mode="1";
+        run("top-mode-fails-closed",0,0,false);
+        FixtureState.mode="0";run("later-both-retry-activates",1,1,true);
+        FixtureState.reset("1.7.2");FixtureState.bottom="0";
+        run("dark-bottom-must-not-be-killed",0,0,false);
+        FixtureState.reset("1.7.2");FixtureState.watcher="FAILED";
+        run("unhealthy-predecessor-is-preserved",0,0,false);
+        FixtureState.reset("1.7.2");FixtureState.phase="HANDOFF_FAILED";
+        run("held-predecessor-not-killed",0,0,false);
+        FixtureState.reset("1.7.2");FixtureState.stopEffective=false;
+        run("bridge-kill-unconfirmed-no-second-daemon",1,0,false);
+        FixtureState.reset("1.7.2");FixtureState.bridgeAccept=false;
+        run("bridge-reject-no-second-daemon",0,0,false);
+        FixtureState.reset("unknown");run("unrecognized-predecessor-not-killed",0,0,false);
+        FixtureState.reset("1.7.2");FixtureState.commitFailure=true;
+        run("failed-baseline-write-blocks-handover",0,0,false);
         FixtureState.reset(null);prepareThenReboot();FixtureState.appCode++;
         run("changed-code-invalidates-earlier-baseline",0,0,false);
         FixtureState.reset(null);prepareThenReboot();FixtureState.updateTime++;
@@ -110,10 +132,10 @@ public final class RebootActivationHostTest {
         run("already-persisted-proof-needs-no-new-write",0,1,true);
         FixtureState.reset(null);prepareThenReboot();FixtureState.legacyPresent=true;
         run("legacy-occupant-no-stop",0,0,true);
-        FixtureState.reset("1.7.2");prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";
+        FixtureState.reset("1.7.3");prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";
         run("same-version-held-recovery-retained",1,1,true);
         check(FixtureState.lastHeld,"same-version recovery remains held");
-        FixtureState.reset("1.7.2");prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";FixtureState.stopEffective=false;
+        FixtureState.reset("1.7.3");prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";FixtureState.stopEffective=false;
         run("same-version-stop-no-effect-no-duplicate",1,0,true);
         FixtureState.reset(null);prepareThenReboot();FixtureState.afterLaunchPhase="WAITING_FOR_ANDROID";
         run("starting-not-ready",0,1,true);
