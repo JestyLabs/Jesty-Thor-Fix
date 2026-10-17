@@ -1,6 +1,6 @@
 # Current roadmap
 
-Updated 2026-10-16. Stable release: **v1.7.1 / code76**, published on 2026-10-12. The supervised RC78 hardening session is complete in its approved scope: **15 PASS / 1 historical FAIL**, with separate BOTH acceptance A1 PASS. See [physical results and limits](PR67-PHYSICAL-VALIDATION-2026-10-16.md). PR67 remains draft pending final integration checks and merge approval; no stable 1.7.2 release is implied. Earlier candidate and control records remain historical evidence.
+Updated 2026-10-17. Stable release: **v1.7.2 / code80**. The signed APK completed scoped Android 13 Thor acceptance of update, activation/reboot, lifecycle and normal mode transitions; the external recovery chain was separately tested on a healthy Thor. [Release notes](RELEASE-NOTES-1.7.2.md) and [activation guide](ACTIVATION-RECOVERY-GUIDE.md). PR #67 is merged. Original RC78 **15 PASS / 1 historical FAIL** and separate A1 PASS remain preserved in the [physical results](PR67-PHYSICAL-VALIDATION-2026-10-16.md); no universal reliability or blackout recovery is claimed.
 
 See [physical validation evidence](VALIDATION-EVIDENCE.md) for completed test results. Historical investigations remain in their original, dated reports rather than being repeated here as future work.
 
@@ -15,12 +15,12 @@ See [physical validation evidence](VALIDATION-EVIDENCE.md) for completed test re
 
 These tests support the named outcomes. They do not need to be rerun solely because their original work item was previously phrased as an investigation.
 
-## Priority 1 — integrate reboot activation and prepare distribution
+## Priority 1 — monitor post-release activation and reliability
 
 - PR #67 is merged. Its historical T09 CPU failure and later A1/T10 acceptance results remain separately documented.
 - The exact code80 candidate completed scoped Android 13 Thor update, activation/reboot, lifecycle and mode-transition acceptance. The controlled external code81/code82 recovery chain also passed on the healthy device.
-- Integrate the tested runtime with existing protected signing/publication policy, validate the resulting CI tree and review [1.7.2 preparation](RELEASE-NOTES-1.7.2.md). No repeat CPU series or broad refactor is required by that acceptance.
-- Keep the blackout investigation in [issue #84](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/84) and documentation PR #82 separate. Publication must state known limits; healthy-device recovery does not establish recovery during blackout. Keep [private captures out of Git](PUBLIC-EVIDENCE-POLICY.md).
+- **Integrated and published:** PR #87 brought the accepted code80 runtime to `main`, and CI/CodeQL passed on the integrated commit. The stable APK is the preserved, physically tested signed artifact; no rebuild or resigning occurred as part of publication.
+- Keep the blackout investigation in [issue #84](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/84) and separate brightness investigation [#65](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/65) open. Publication states known limits; healthy-device recovery does not establish recovery during blackout. Keep [private captures out of Git](PUBLIC-EVIDENCE-POLICY.md).
 
 ## Priority 2 — performance and battery evidence
 
