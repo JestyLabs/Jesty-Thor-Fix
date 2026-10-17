@@ -25,6 +25,7 @@ try {
         (Join-Path $tests 'DisplayOptimizationSafetyTest.java'),
         (Join-Path $tests 'DisplayDecisionModelTest.java'),
         (Join-Path $tests 'DisplayGenerationModelTest.java'),
+        (Join-Path $tests 'DisplayTransitionSafetyMatrixTest.java'),
         (Join-Path $tests 'WatcherCadenceModelTest.java'),
         (Join-Path $tests 'PropertyStateTest.java')
     )
@@ -36,6 +37,7 @@ try {
         'DisplayOptimizationSafetyTest',
         'DisplayDecisionModelTest',
         'DisplayGenerationModelTest',
+        'DisplayTransitionSafetyMatrixTest',
         'WatcherCadenceModelTest',
         'PropertyStateTest'
     )) {
