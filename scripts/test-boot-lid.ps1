@@ -97,6 +97,13 @@ if ($attemptStore -match '/data/local/tmp|/data/adb') {
 $cpuFixSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'CpuFixController.java') -Raw
 $commandSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'DaemonCommandHandler.java') -Raw
 $runtimeSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'DaemonRuntime.java') -Raw
+$listenAt = $runtimeSource.IndexOf('SecureChannel.listen()')
+$adoptAt = $runtimeSource.IndexOf('cpuFix.adoptEarlyAttempt()')
+$hookAt = $runtimeSource.IndexOf('EarlyCpuBootHookManager.reconcile(')
+if ($listenAt -lt 0 -or $adoptAt -lt 0 -or $hookAt -lt 0 -or
+    $listenAt -ge $adoptAt -or $listenAt -ge $hookAt) {
+    throw 'Exclusive daemon lock must precede privileged CPU marker/hook writes.'
+}
 if ($cpuFixSource -notmatch 'observeHelper\(' -or $commandSource -notmatch '";phase_ms="') {
     throw 'The daemon must observe its compositor helper and report its phase age.'
 }
