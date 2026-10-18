@@ -492,6 +492,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Daemon argument tests failed.' }
 & (Join-Path $PSScriptRoot 'test-ipc-server-host.ps1')
 & (Join-Path $PSScriptRoot 'test-secure-channel-host.ps1')
 & (Join-Path $PSScriptRoot 'test-reboot-activation-host.ps1')
+& (Join-Path $PSScriptRoot 'test-cpu-resume-host.ps1') -RunNegativeControls
 
 } finally {
     # Per-invocation output cannot collide with another test run.
