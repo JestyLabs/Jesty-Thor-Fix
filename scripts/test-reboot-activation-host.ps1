@@ -52,6 +52,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Reboot dashboard fixture failed' }
     & java -cp $classes RebootActivationPolicyTest
     if ($LASTEXITCODE -ne 0) { throw 'Reboot policy fixture failed' }
+    & java -cp $classes com.thor.displaypowertest.PredecessorRecheckHostTest
+    if ($LASTEXITCODE -ne 0) { throw 'S2 predecessor recheck fixture failed' }
 
     if ($RunNegativeControls) {
         # Mutants exist only in the temporary fixture copy, never the working tree.
@@ -62,7 +64,11 @@ try {
                 Test='RebootActivationPolicyTest'; Expected='same kernel cannot authorize'},
             @{Name='service-gate-bypassed'; File='RebootActivation.java';
                 Before='return ticket(context, preferences).isAuthorized();'; After='return true;';
-                Test='com.thor.displaypowertest.RebootActivationHostTest'; Expected='first-open-prepares-only: launches'}
+                Test='com.thor.displaypowertest.RebootActivationHostTest'; Expected='first-open-prepares-only: launches'},
+            @{Name='predecessor-recheck-removed'; File='PServer.java';
+                Before='if (pid < 1 || safeLivePredecessor(displayFix, cpuFix, lidGuard) != pid) return -1;';
+                After='if (pid < 1) return -1;'; Test='com.thor.displaypowertest.PredecessorRecheckHostTest';
+                Argument='pid'; Expected='S2-recheck-pid stop admission'}
         )
         foreach ($mutant in $mutants) {
             $path = Join-Path $package $mutant.File
@@ -72,7 +78,9 @@ try {
                 [IO.File]::WriteAllText($path, $original.Replace($mutant.Before, $mutant.After), [Text.UTF8Encoding]::new($false))
                 & javac -encoding UTF-8 -source 8 -target 8 -d $classes @sources
                 if ($LASTEXITCODE -ne 0) { throw 'Negative control must compile before rejection counts' }
-                $observed = (& java -cp $classes $mutant.Test 2>&1 | ForEach-Object { "$_" }) -join "`n"
+                $testArguments = @()
+                if ($mutant.Argument) { $testArguments = @($mutant.Argument) }
+                $observed = (& java -cp $classes $mutant.Test @testArguments 2>&1 | ForEach-Object { "$_" }) -join "`n"
                 if ($LASTEXITCODE -eq 0 -or -not $observed.Contains($mutant.Expected)) {
                     throw "Negative control not rejected as expected: $($mutant.Name): $observed"
                 }
