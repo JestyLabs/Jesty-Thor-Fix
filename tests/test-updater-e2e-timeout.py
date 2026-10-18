@@ -3,6 +3,8 @@
 import importlib.util
 from pathlib import Path
 import unittest
+import tempfile
+from types import SimpleNamespace
 
 SOURCE = Path(__file__).resolve().parents[1] / 'scripts/test-updater-android-e2e.py'
 spec = importlib.util.spec_from_file_location('updater_e2e_fixture', SOURCE)
@@ -58,6 +60,52 @@ class SettlementTimeoutEvidenceTest(unittest.TestCase):
         evidence = module.settlement_timeout_evidence(state, running_pid=10)
         self.assertEqual(evidence['unsettled_fields'], [])
         self.assertTrue(evidence['running_process_matches_snapshot'])
+
+
+class DiagnosticAssertionEvidenceTest(unittest.TestCase):
+    def test_fixed_schema_classifies_without_raw_data(self):
+        logs = ('TEST_ERROR SNAPSHOT_ERROR FATAL EXCEPTION: secret-process-123\n'
+                'java.io.FileNotFoundException: SECRET-DO-NOT-PRINT https://private.invalid\n'
+                ' at private.Class.method(UpdaterTestActivity.java:40)\n'
+                'java.lang.SecretTokenException: should not be allowlisted\n')
+        evidence = module.diagnostic_failure_evidence(logs)
+        self.assertEqual(evidence['markers'],
+                         {'TEST_ERROR': True, 'SNAPSHOT_ERROR': True, 'FATAL EXCEPTION': True})
+        self.assertEqual(evidence['exception_types'], ['java.io.FileNotFoundException'])
+        self.assertEqual(evidence['fixture_frames'], ['UpdaterTestActivity.java:40'])
+        for private in ('SECRET', 'https:', 'private.', 'secret-process', 'SecretToken'):
+            self.assertNotIn(private, str(evidence))
+
+    def test_unknown_types_and_unbounded_frames_cannot_leak(self):
+        self.assertFalse(any(module.diagnostic_failure_evidence(None)['markers'].values()))
+        log = ('(PrivateSecret.java:42) (AppUpdater.java:123456789)\n'
+               + ' '.join('(AppUpdater.java:' + str(n) + ')' for n in range(20))
+               + ' evil.java.io.IOException.Secret java.io.IOExceptionSuffix')
+        evidence = module.diagnostic_failure_evidence(log)
+        self.assertEqual(len(evidence['fixture_frames']), 8)
+        self.assertEqual(evidence['exception_types'], [])
+        self.assertNotIn('PrivateSecret', str(evidence))
+        self.assertNotIn('123456789', str(evidence))
+
+    def test_actual_case_retains_assertion_and_emits_sanitized_message(self):
+        with tempfile.TemporaryDirectory() as folder:
+            suite = object.__new__(module.Suite)
+            suite.args = SimpleNamespace(case=None)
+            suite.results = []
+            suite.output = Path(folder)
+            suite.call = lambda *args: ('SNAPSHOT_ERROR java.io.IOException: SECRET\n'
+                                        'at x(UpdaterTestActivity.java:40)')
+            with self.assertRaises(AssertionError) as caught:
+                suite.case('synthetic-case', lambda: None)
+            message = str(caught.exception)
+            self.assertIn('native-updater-diagnostic-assertion', message)
+            self.assertIn('java.io.IOException', message)
+            self.assertIn('UpdaterTestActivity.java:40', message)
+            self.assertNotIn('SECRET', message)
+            self.assertEqual(suite.results[0]['result'], 'FAIL')
+            # Existing raw synthetic fixture-log behavior remains local; it is
+            # not printed or added to public CI by this evidence function.
+            self.assertTrue((Path(folder) / 'synthetic-case.log').exists())
 
 
 if __name__ == '__main__':

@@ -67,6 +67,34 @@ def settlement_timeout_evidence(state, *, installed_version=None,
     return evidence
 
 
+def diagnostic_failure_evidence(diagnostics):
+    """Fixed failure-only schema; never expose raw log lines or exception text."""
+    text = diagnostics if isinstance(diagnostics, str) else ''
+    exception_types = (
+        'java.lang.IllegalStateException', 'java.lang.IllegalArgumentException',
+        'java.lang.NullPointerException', 'java.lang.RuntimeException',
+        'java.lang.SecurityException', 'java.lang.ClassCastException',
+        'java.io.FileNotFoundException', 'java.io.IOException',
+        'java.net.SocketTimeoutException', 'org.json.JSONException',
+        'android.os.DeadObjectException', 'android.os.RemoteException',
+    )
+    frames = []
+    for name in ('UpdaterTestActivity', 'UpdaterTestControlReceiver', 'AppUpdater',
+                 'UpdateInstallReceiver', 'UpdateSessionOwnership'):
+        for line in re.findall(r'\(' + re.escape(name) + r'\.java:([0-9]{1,6})\)', text):
+            frame = name + '.java:' + line
+            if frame not in frames:
+                frames.append(frame)
+    return {
+        'failure': 'native-updater-diagnostic-assertion',
+        'markers': {key: key in text for key in
+                    ('TEST_ERROR', 'SNAPSHOT_ERROR', 'FATAL EXCEPTION')},
+        'exception_types': [name for name in exception_types
+                            if re.search(r'(?<![\w.$])' + re.escape(name) + r'(?![\w.$])', text)],
+        'fixture_frames': frames[:8],
+    }
+
+
 def execute(args, *, env=None, timeout=90):
     done = subprocess.run([str(a) for a in args], stdout=subprocess.PIPE,
                           stderr=subprocess.STDOUT, text=True, encoding='utf-8',
@@ -266,7 +294,9 @@ class Suite:
         try:
             action()
             diagnostics = self.call('logcat', '-d', '-s', 'UpdaterE2E:V', 'AndroidRuntime:E', '*:S')
-            assert 'TEST_ERROR' not in diagnostics and 'SNAPSHOT_ERROR' not in diagnostics and 'FATAL EXCEPTION' not in diagnostics
+            assert 'TEST_ERROR' not in diagnostics and 'SNAPSHOT_ERROR' not in diagnostics and 'FATAL EXCEPTION' not in diagnostics, (
+                'Android diagnostic failure; redacted fixture evidence: '
+                + json.dumps(diagnostic_failure_evidence(diagnostics), sort_keys=True))
             self.results.append({'case': name, 'result': 'PASS'})
             print('PASS: ' + name, flush=True)
         except Exception as error:
