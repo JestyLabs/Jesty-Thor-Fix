@@ -36,6 +36,8 @@ final class DisplayHardware {
     static int actionCount;
     static int alignedCount;
     static boolean markSucceeds = true;
+    static boolean scriptedApply;
+    static Boolean lastRequestedOn;
     static String getProperty() { return property; }
     static synchronized boolean markWakePending() {
         markCount++;
@@ -44,6 +46,10 @@ final class DisplayHardware {
     }
     static synchronized boolean apply(boolean on, String reason) {
         actionCount++;
+        if (scriptedApply) {
+            lastRequestedOn = Boolean.valueOf(on);
+            return true;
+        }
         // Host tests must not silently succeed after an unexpected power request.
         throw new AssertionError("unexpected vendor display command: " + reason);
     }
@@ -124,11 +130,27 @@ final class Telemetry {
     static volatile String top = "1";
     static volatile String bottom = "1";
     static int reads;
+    static String[][] scriptedPairs;
+    static int pairIndex;
+    static String[] scriptedBottom;
+    static int bottomIndex;
     static String[] crtcActivePair() {
         reads++;
+        if (scriptedPairs != null) {
+            if (pairIndex >= scriptedPairs.length)
+                throw new AssertionError("unexpected extra CRTC pair read");
+            return scriptedPairs[pairIndex++].clone();
+        }
         return new String[] { top, bottom };
     }
-    static String bottomCrtcActive() { return bottom; }
+    static String bottomCrtcActive() {
+        if (scriptedBottom != null) {
+            if (bottomIndex >= scriptedBottom.length)
+                throw new AssertionError("unexpected extra bottom CRTC poll");
+            return scriptedBottom[bottomIndex++];
+        }
+        return bottom;
+    }
 }
 
 final class WatcherSupervisor {
