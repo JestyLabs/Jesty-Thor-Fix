@@ -347,6 +347,136 @@ public final class DisplayActionCoordinatorHostTest {
         noPowerActions("S1-L04 mode resync");
     }
 
+    /**
+     * S1-S01: a delayed (or stale) TOP value accompanied by UNKNOWN panel
+     * observation must not be promoted into an unverified vendor OFF action.
+     * The later authoritative BOTH sample reconciles the logical mode.
+     */
+    private static void staleTopSampleWithUnknownBottomRemainsPassive() throws Exception {
+        reset();
+        DisplayActionCoordinator.onWatcherSample("0");
+        equal("CONFIRMED", DisplayActionCoordinator.status(),
+                "S1-S01 healthy BOTH baseline");
+        long before = DisplayActionCoordinator.generation();
+
+        Telemetry.bottom = "?";
+        DisplayActionCoordinator.onWatcherSample("1");
+        equal("1", DaemonState.mode, "S1-S01 stale candidate TOP is recorded as a sample");
+        equal("PENDING", DisplayActionCoordinator.status(),
+                "S1-S01 unverified panel observation stays pending");
+        yes(DisplayActionCoordinator.generation() > before,
+                "S1-S01 candidate mode edge invalidates earlier generation");
+
+        Telemetry.bottom = "1";
+        DisplayActionCoordinator.onWatcherSample("0");
+        equal("0", DaemonState.mode, "S1-S01 subsequent BOTH sample restores mode");
+        equal("CONFIRMED", DisplayActionCoordinator.status(),
+                "S1-S01 matching BOTH panel observations confirm state");
+        noPowerActions("S1-S01 stale TOP candidate / unknown CRTC");
+    }
+
+    /** S1-S02: a delayed BOTH sample with unknown upper panel is passive. */
+    private static void staleBothSampleWithUnknownTopRemainsPassive() throws Exception {
+        reset();
+        Telemetry.bottom = "0";
+        DisplayActionCoordinator.onWatcherSample("1");
+        equal("CONFIRMED", DisplayActionCoordinator.status(),
+                "S1-S02 healthy TOP baseline");
+        long before = DisplayActionCoordinator.generation();
+
+        Telemetry.top = "?";
+        DisplayActionCoordinator.onWatcherSample("0");
+        equal("0", DaemonState.mode, "S1-S02 candidate BOTH recorded");
+        equal("PENDING", DisplayActionCoordinator.status(),
+                "S1-S02 unknown top panel blocks reconciliation");
+        yes(DisplayActionCoordinator.generation() > before,
+                "S1-S02 candidate BOTH invalidates TOP generation");
+
+        Telemetry.top = "1";
+        DisplayActionCoordinator.onWatcherSample("1");
+        equal("1", DaemonState.mode, "S1-S02 later TOP sample restores mode");
+        equal("CONFIRMED", DisplayActionCoordinator.status(),
+                "S1-S02 matching TOP panel observations confirm state");
+        noPowerActions("S1-S02 stale BOTH candidate / unknown CRTC");
+    }
+
+    /** S1-S03: unknown sampled mode invalidates a due repair before DRM. */
+    private static void unknownModeCancelsDueTopRepairBeforeHardwareRead() throws Exception {
+        reset();
+        Telemetry.bottom = "0";
+        DisplayActionCoordinator.onWatcherSample("1");
+        DisplayActionCoordinator.scheduleWakeRepair();
+        yes(WakeRepairScheduler.pending, "S1-S03 TOP repair scheduled");
+        WakeRepairScheduler.due = true;
+        long before = DisplayActionCoordinator.generation();
+        int drmBefore = Telemetry.reads;
+
+        DisplayActionCoordinator.onWatcherSample("garbled");
+        equal("?", DaemonState.mode, "S1-S03 unknown Settings mode retained as unknown");
+        equal("MODE_UNKNOWN", DisplayActionCoordinator.status(),
+                "S1-S03 unknown mode refuses hardware reconcile");
+        yes(DisplayActionCoordinator.generation() > before,
+                "S1-S03 unknown mode invalidates old repair generation");
+        yes(!WakeRepairScheduler.pending && !WakeRepairScheduler.due,
+                "S1-S03 due repair cancelled");
+        equal(drmBefore, Telemetry.reads, "S1-S03 no unnecessary DRM read on invalid mode");
+        equal(0, DaemonState.repairBegins, "S1-S03 no repair started");
+        DisplayActionCoordinator.noteDisplayOn();
+        equal(0, WakeRepairScheduler.displayOnNotes,
+                "S1-S03 late display-on callback cannot resurrect invalidated repair");
+        noPowerActions("S1-S03 unknown mode with due TOP repair");
+    }
+
+    /** S1-S04: mode-edge repair cancellation precedes a throttled DRM read. */
+    private static void modeChangeCancelsRepairWithDeferredDrmSnapshot() throws Exception {
+        reset();
+        Telemetry.bottom = "0";
+        DisplayActionCoordinator.onWatcherSample("1");
+        DisplayActionCoordinator.scheduleWakeRepair();
+        yes(WakeRepairScheduler.pending, "S1-S04 initial TOP repair pending");
+        int readsBefore = Telemetry.reads;
+        long before = DisplayActionCoordinator.generation();
+        WatcherCadence.skipRead = true;
+        Telemetry.bottom = "1";
+
+        DisplayActionCoordinator.onWatcherSample("0");
+        equal("0", DaemonState.mode, "S1-S04 BOTH edge stored despite throttled DRM");
+        yes(DisplayActionCoordinator.generation() > before,
+                "S1-S04 BOTH edge invalidates old TOP repair");
+        yes(!WakeRepairScheduler.pending && !WakeRepairScheduler.due,
+                "S1-S04 pending TOP repair cancelled before DRM read");
+        equal(readsBefore, Telemetry.reads, "S1-S04 throttled read remains skipped");
+        equal(0, DaemonState.repairBegins, "S1-S04 no obsolete repair started");
+        DisplayActionCoordinator.onWatcherSample("0");
+        equal("0", DaemonState.mode, "S1-S04 duplicate BOTH stays BOTH");
+        noPowerActions("S1-S04 cancelled repair with throttled DRM");
+    }
+
+    /**
+     * S1-S05: a syntactically valid but temporally stale Settings value may
+     * have plausible CRTCs. The pure production decision model has no access
+     * to the later authoritative Settings sample: classify, do NOT command.
+     */
+    private static void plausibleStaleModeCannotBeCertifiedFromCrtcsAlone() throws Exception {
+        reset();
+        equal(DisplayDecisionModel.Action.OFF,
+                DisplayDecisionModel.reconcile("1", "1", "1", true, false, false),
+                "S1-S05 TOP 1/1 normally authorizes OFF without knowing sample age");
+        equal(DisplayDecisionModel.Action.ON,
+                DisplayDecisionModel.reconcile("0", "1", "0", true, false, false),
+                "S1-S05 BOTH 1/0 normally authorizes ON without knowing sample age");
+        equal(DisplayDecisionModel.Action.NONE,
+                DisplayDecisionModel.reconcile("1", "?", "1", true, false, false),
+                "S1-S05 unknown upper CRTC denies TOP OFF");
+        equal(DisplayDecisionModel.Action.NONE,
+                DisplayDecisionModel.reconcile("0", "?", "0", true, false, false),
+                "S1-S05 unknown upper CRTC denies BOTH ON");
+        System.out.println("S1-S05 OBSERVATION: known CRTCs alone cannot establish "
+                + "whether a sequential Settings mode observation is stale; "
+                + "no hardware action attempted");
+        noPowerActions("S1-S05 conditional ambiguous observation");
+    }
+
     private static void guardCannotSleepFromUnknownDecision() throws Exception {
         reset();
         LidGuard.enabled = true;
@@ -370,6 +500,11 @@ public final class DisplayActionCoordinatorHostTest {
         rapidTopBothTopRejectsOrphanedDeadline();
         rapidDuplicateModeNotificationsStayBounded();
         overlappingWatcherSamplesAreCharacterizedNotCertified();
+        staleTopSampleWithUnknownBottomRemainsPassive();
+        staleBothSampleWithUnknownTopRemainsPassive();
+        unknownModeCancelsDueTopRepairBeforeHardwareRead();
+        modeChangeCancelsRepairWithDeferredDrmSnapshot();
+        plausibleStaleModeCannotBeCertifiedFromCrtcsAlone();
         System.out.println("DisplayActionCoordinatorHostTest passed: " + checks
                 + " checks against unchanged production coordinator; HOST ONLY");
     }
