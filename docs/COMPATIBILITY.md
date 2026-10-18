@@ -21,6 +21,7 @@ TKQ1.231222.001
 | BOTTOM-only mode | ⚠️ Limited | Not part of the current stable validation scope |
 | Dock / external-display use | ⚠️ Limited | Safety exclusions exist, but physical dock coverage is still deferred |
 | Other Thor firmware / revisions | 🧪 Test first | Hardware IDs and vendor behavior must be checked before making compatibility claims |
+| 120 Hz mixed-refresh / tearing | 🔍 Stock Thor issue, investigation only | Pre-existing device/firmware problem: no Jesty 120 Hz fix is available or claimed. [Research #37](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/37) |
 
 See [device validation](DEVICE-VALIDATION.md), [benchmarks](BENCHMARKS.md) and [release integrity](RELEASE-INTEGRITY.md) for the underlying evidence.
 

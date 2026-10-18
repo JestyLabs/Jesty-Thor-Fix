@@ -30,7 +30,7 @@ These tests support the named outcomes. They do not need to be rerun solely beca
 
 ## Separate research, outside RC3 acceptance
 
-- [#37](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/37): mixed-refresh / 120 Hz behavior; investigation retained for later without forcing additional device capture now.
+- [#37](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/37): **pre-existing AYN Thor 120 Hz / mixed-refresh tearing**, not a regression introduced by Jesty. Investigation only: root cause and a safe fix remain unproven. Do not market this as a Jesty bug or resolved feature; no extra device capture without a separate approved protocol.
 - [PServerBinder lifecycle](PSERVERBINDER-LIFECYCLE-INVESTIGATION.md): read-only reliability research when a naturally occurring incident supplies evidence.
 - TOP-mode app focus/input routing; only advertise a fix when independently reproduced and verified.
 - Compatibility research for other devices, including Retroid Pocket Duo, without assuming AYN-specific logic generalizes.
