@@ -12,7 +12,7 @@ These facts support **serialized delivery along the audited primary production p
 
 ## CI regression contract
 
-The script `tests/test-watcher-producer-contract.py` scans **all runtime Java under `src` and all runtime Smali under `apk/smali`**, requiring the precise coordinator call-site set to be only the existing watcher. It checks the sequential Settings read/dispatch/wait order, supervisor start/join, exclusive lock-before-watcher start, private socket bind order and the callback's passive behavior. Four negative controls ensure a second Java caller, missing join, missing exclusive lock and newly introduced direct callback power action each FAIL the check.
+The script `tests/test-watcher-producer-contract.py` scans **all runtime Java under `src` and all runtime Smali under `apk/smali`**, requiring the precise coordinator call-site set to be only the existing watcher. It checks the sequential Settings read/dispatch/wait order, supervisor start/join, exclusive lock-before-watcher start, private socket bind order and the callback's passive behavior. Five negative controls ensure a second Java caller, **second watcher-supervisor startup**, missing join, missing exclusive lock and newly introduced direct callback power action each FAIL the check.
 
 The test makes **no source/runtime changes**, does not spawn Android processes and cannot prove bytecode execution or physical side effects. It is intentionally an **architecture drift alarm**, not a concurrency model checker or a physical safety proof.
 
