@@ -43,13 +43,6 @@ def check(root: Path):
     if watcher.count(".method public run()V") != 1 or watcher.count(":watch_loop") != 2:
         # Label definition + target reference must both be present.
         raise AssertionError("S1 watcher main-loop layout changed")
-    required = (
-        "Lcom/thor/displaypowertest/WatcherCadence;->beginSample()V",
-        "Landroid/content/IContentProvider;->call(",
-        SMALI_CALL.pattern.replace(r"\(", "(").replace(r"\)", ")").replace(r"\/", "/"),
-        "Lcom/thor/displaypowertest/WatcherSupervisor;->noteSample()V",
-        "Lcom/thor/displaypowertest/WatcherCadence;->awaitNextSample()V",
-    )
     # Use literal call tokens, rather than regular-expression source strings.
     required = (
         "WatcherCadence;->beginSample()V",
