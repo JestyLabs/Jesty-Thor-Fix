@@ -136,6 +136,7 @@ try {
         throw "Hardware rollback negative control failed: $observed"
     }
     Write-Host 'S1-10 NEGATIVE_CONTROL PASS: missing rollback, rejected at HW-rollback writes'
+    & (Join-Path $PSScriptRoot 'test-watcher-lifecycle-host.ps1')
     Write-Host 'S1 real coordinator host-only characterization PASS'
 } finally {
     if (Test-Path -LiteralPath $out) {
