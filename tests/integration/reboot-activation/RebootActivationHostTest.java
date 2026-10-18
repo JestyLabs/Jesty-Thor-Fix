@@ -67,7 +67,7 @@ public final class RebootActivationHostTest {
         check(FixtureState.saved.containsKey("activation_v3_live_handover"),
                 "live proof is durable only after new runtime identity");
         run("live-proven-repeat-open-no-kill",0,0,true);
-        FixtureState.reset("1.7.1");run("code76-same-kernel-handover",1,1,true);
+        FixtureState.reset("1.7.1");run("code76-missing-Q-version-requires-reboot",0,0,false);
         FixtureState.reset("1.7.2");FixtureState.mode="1";
         run("top-mode-fails-closed",0,0,false);
         FixtureState.mode="0";run("later-both-retry-activates",1,1,true);

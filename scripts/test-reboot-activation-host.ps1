@@ -68,7 +68,11 @@ try {
             @{Name='predecessor-recheck-removed'; File='PServer.java';
                 Before='if (pid < 1 || safeLivePredecessor(displayFix, cpuFix, lidGuard) != pid) return -1;';
                 After='if (pid < 1) return -1;'; Test='com.thor.displaypowertest.PredecessorRecheckHostTest';
-                Argument='pid'; Expected='S2-recheck-pid stop admission'}
+                Argument='pid'; Expected='S2-recheck-pid stop admission'},
+            @{Name='invented-code76-runtime-field'; File='FixtureState.java';
+                Before='"1.7.1".equals(version) ? "" : ";runtime_version=" + version';
+                After='";runtime_version=" + version'; Test='com.thor.displaypowertest.RebootActivationHostTest';
+                Expected='code76-missing-Q-version-requires-reboot: stop submissions'}
         )
         foreach ($mutant in $mutants) {
             $path = Join-Path $package $mutant.File
