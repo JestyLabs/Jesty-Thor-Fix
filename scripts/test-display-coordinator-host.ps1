@@ -25,7 +25,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'S1 real coordinator characterization failed' }
 
     # The unchanged suite above deliberately cannot reach Settings on a host.
-    # For S1-09 only, replace that OS process-read boundary in a temporary copy.
+    # For S1-09/10, replace that OS process-read boundary in a temporary copy.
     # Admission, CRTC reads, applyConfirmed, generation and receipts stay real.
     $original = [IO.File]::ReadAllText((Join-Path $src 'DisplayActionCoordinator.java'))
     $signature = '    private static String readCurrentMode() {'
@@ -54,12 +54,15 @@ try {
     $readbackSources = @($sources | Where-Object {
         $_ -ne (Join-Path $src 'DisplayActionCoordinator.java') -and
         $_ -ne (Join-Path $fixture 'DisplayActionCoordinatorHostTest.java')
-    }) + @($adapter, (Join-Path $fixture 'CoordinatorReadbackHostTest.java'))
+    }) + @($adapter, (Join-Path $fixture 'CoordinatorReadbackHostTest.java'),
+        (Join-Path $fixture 'CoordinatorFailureHostTest.java'))
     & javac -encoding UTF-8 -source 8 -target 8 -d $classes @readbackSources
     if ($LASTEXITCODE -ne 0) { throw 'S1 readback adapter compilation failed' }
     & java -cp $classes com.thor.displaypowertest.CoordinatorReadbackHostTest
     if ($LASTEXITCODE -ne 0) { throw 'S1 readback characterization failed' }
     Write-Host 'S1-09 adapter: Settings reads scripted in temporary copy; no Android process or vendor execution.'
+    & java -cp $classes com.thor.displaypowertest.CoordinatorFailureHostTest
+    if ($LASTEXITCODE -ne 0) { throw 'S1 failure characterization failed' }
 
     $PSNativeCommandUseErrorActionPreference = $false
     foreach ($mutant in @(
@@ -83,6 +86,56 @@ try {
             Write-Host "S1-09 NEGATIVE_CONTROL PASS: $($mutant.Name), rejected at $($mutant.Expected)"
         } finally { [IO.File]::WriteAllText($adapter, $adapted, [Text.UTF8Encoding]::new($false)) }
     }
+    foreach ($mutant in @(
+        @{Name='ignored-apply-failure'; Before='!DisplayHardware.apply(on, reason)'; After='(!DisplayHardware.apply(on, reason) && false)'; Expected='CF-apply-failure status'; Argument='apply'},
+        @{Name='missing-retry-admission'; Before='if (key.equals(lastAttemptKey) && now - lastAttemptAt < 1500L) return false;'; After='/* negative control: admission removed */'; Expected='CF-retry suppressed at 1499ms'; Argument='retry'}
+    )) {
+        if ([regex]::Matches($adapted, [regex]::Escape($mutant.Before)).Count -ne 1) {
+            throw 'Failure negative control target changed'
+        }
+        try {
+            [IO.File]::WriteAllText($adapter, $adapted.Replace($mutant.Before, $mutant.After), [Text.UTF8Encoding]::new($false))
+            & javac -encoding UTF-8 -source 8 -target 8 -d $classes @readbackSources
+            if ($LASTEXITCODE -ne 0) { throw 'Failure negative control must compile' }
+            $observed = (& java -cp $classes com.thor.displaypowertest.CoordinatorFailureHostTest $mutant.Argument 2>&1 |
+                ForEach-Object { "$_" }) -join "`n"
+            if ($LASTEXITCODE -eq 0 -or -not $observed.Contains($mutant.Expected)) {
+                throw "Failure negative control failed: $($mutant.Name): $observed"
+            }
+            Write-Host "S1-10 NEGATIVE_CONTROL PASS: $($mutant.Name), rejected at $($mutant.Expected)"
+        } finally { [IO.File]::WriteAllText($adapter, $adapted, [Text.UTF8Encoding]::new($false)) }
+    }
+
+    # Compile the actual reflection wrapper, independently of the coordinator's
+    # DisplayHardware double. These endpoints cannot reach Android or a vendor.
+    $hardwareFixture = Join-Path $repo 'tests/displayhardware'
+    $hardwareClasses = Join-Path $out 'hardware-classes'
+    $hardwareDir = Join-Path $out 'hardware-source'
+    New-Item -ItemType Directory -Path $hardwareClasses, $hardwareDir | Out-Null
+    $hardware = Join-Path $hardwareDir 'DisplayHardware.java'
+    $hardwareOriginal = [IO.File]::ReadAllText((Join-Path $src 'DisplayHardware.java'))
+    [IO.File]::WriteAllText($hardware, $hardwareOriginal, [Text.UTF8Encoding]::new($false))
+    $hardwareSources = @($hardware, (Join-Path $src 'ThorHardwareProfile.java'),
+        (Join-Path $fixture 'android/util/Log.java')) + @(
+        Get-ChildItem -LiteralPath $hardwareFixture -Recurse -Filter '*.java' | ForEach-Object FullName
+    )
+    & javac -encoding UTF-8 -source 8 -target 8 -d $hardwareClasses @hardwareSources
+    if ($LASTEXITCODE -ne 0) { throw 'Real DisplayHardware host compilation failed' }
+    & java -cp $hardwareClasses com.thor.displaypowertest.DisplayHardwareFailureHostTest
+    if ($LASTEXITCODE -ne 0) { throw 'Real DisplayHardware characterization failed' }
+    $rollback = 'setProperty(previousProperty);'
+    if ([regex]::Matches($hardwareOriginal, [regex]::Escape($rollback)).Count -ne 1) {
+        throw 'Hardware rollback negative control target changed'
+    }
+    [IO.File]::WriteAllText($hardware, $hardwareOriginal.Replace($rollback, '/* negative control: rollback omitted */'), [Text.UTF8Encoding]::new($false))
+    & javac -encoding UTF-8 -source 8 -target 8 -d $hardwareClasses @hardwareSources
+    if ($LASTEXITCODE -ne 0) { throw 'Hardware negative control must compile' }
+    $observed = (& java -cp $hardwareClasses com.thor.displaypowertest.DisplayHardwareFailureHostTest rollback 2>&1 |
+        ForEach-Object { "$_" }) -join "`n"
+    if ($LASTEXITCODE -eq 0 -or -not $observed.Contains('HW-rollback writes')) {
+        throw "Hardware rollback negative control failed: $observed"
+    }
+    Write-Host 'S1-10 NEGATIVE_CONTROL PASS: missing rollback, rejected at HW-rollback writes'
     Write-Host 'S1 real coordinator host-only characterization PASS'
 } finally {
     if (Test-Path -LiteralPath $out) {

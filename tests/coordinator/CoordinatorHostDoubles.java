@@ -37,6 +37,8 @@ final class DisplayHardware {
     static int alignedCount;
     static boolean markSucceeds = true;
     static boolean scriptedApply;
+    static boolean applySucceeds = true;
+    static long applyElapsed;
     static Boolean lastRequestedOn;
     static String getProperty() { return property; }
     static synchronized boolean markWakePending() {
@@ -48,7 +50,9 @@ final class DisplayHardware {
         actionCount++;
         if (scriptedApply) {
             lastRequestedOn = Boolean.valueOf(on);
-            return true;
+            android.os.SystemClock.setElapsedRealtime(
+                    android.os.SystemClock.elapsedRealtime() + applyElapsed);
+            return applySucceeds;
         }
         // Host tests must not silently succeed after an unexpected power request.
         throw new AssertionError("unexpected vendor display command: " + reason);
@@ -134,6 +138,7 @@ final class Telemetry {
     static int pairIndex;
     static String[] scriptedBottom;
     static int bottomIndex;
+    static long pollElapsed;
     static String[] crtcActivePair() {
         reads++;
         if (scriptedPairs != null) {
@@ -144,6 +149,8 @@ final class Telemetry {
         return new String[] { top, bottom };
     }
     static String bottomCrtcActive() {
+        android.os.SystemClock.setElapsedRealtime(
+                android.os.SystemClock.elapsedRealtime() + pollElapsed);
         if (scriptedBottom != null) {
             if (bottomIndex >= scriptedBottom.length)
                 throw new AssertionError("unexpected extra bottom CRTC poll");
