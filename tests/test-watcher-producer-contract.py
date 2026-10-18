@@ -39,6 +39,21 @@ def check(root: Path):
     if locations != [WATCH]:
         raise AssertionError("S1 watcher call-site drift: " + repr(locations))
 
+    # One invocation site is not enough if a second supervisor can start
+    # another instance of that same serial loop. Guard startup topology too.
+    start_sites = []
+    new_thread_sites = []
+    for path in sorted((root / "src").rglob("*.java")):
+        text = path.read_text(encoding="utf-8")
+        name = path.relative_to(root).as_posix()
+        start_sites.extend([name] * len(re.findall(
+            r"\bWatcherSupervisor\s*\.\s*start\s*\(", text)))
+        new_thread_sites.extend([name] * len(re.findall(
+            r"\bnew\s+DaemonWatchThread\s*\(", text)))
+    if start_sites != [RUNTIME] or new_thread_sites != [SUPERVISOR]:
+        raise AssertionError("S1 watcher process-start topology drift: "
+                             + repr((start_sites, new_thread_sites)))
+
     watcher = (root / WATCH).read_text(encoding="utf-8")
     if watcher.count(".method public run()V") != 1 or watcher.count(":watch_loop") != 2:
         # Label definition + target reference must both be present.
@@ -117,6 +132,16 @@ class WatcherProducerContract(unittest.TestCase):
                 encoding="utf-8",
             )
             with self.assertRaisesRegex(AssertionError, "call-site drift"):
+                check(root)
+
+    def test_negative_second_supervisor_start(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.copy_sample(folder)
+            extra = root / "src/com/thor/displaypowertest/SecondSupervisor.java"
+            extra.write_text(
+                "class SecondSupervisor { void begin() { "
+                "WatcherSupervisor.start(); } }", encoding="utf-8")
+            with self.assertRaisesRegex(AssertionError, "process-start topology drift"):
                 check(root)
 
     def test_negative_missing_join(self):
