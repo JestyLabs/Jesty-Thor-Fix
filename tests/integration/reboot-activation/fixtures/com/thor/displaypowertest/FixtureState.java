@@ -15,6 +15,7 @@ public final class FixtureState {
  scriptedReplies=null;replyIndex=0;requests=new StringBuilder();
  finished=new CountDownLatch(1);errors=new ArrayList<>();}
  public static String health(){return "ok=1;protocol="+protocol+";version="+version+";pid="+pid+";boot_phase="+phase+";fix=1;watcher="+watcher;}
- public static String snapshot(){return "ok=1;runtime_version="+version+";mode="+mode+";top_crtc="+top+";bottom_crtc="+bottom+";display_actions_held=0;display_effective=CONFIRMED;fix=1;cpu_fix_desired=0;cpu_fix_phase=CONFIRMED;system_load_fix=0;lid_guard=0;lid=open;external_display=unknown";}
+ // Published code76 did not emit Q.runtime_version; never invent identity evidence.
+ public static String snapshot(){return "ok=1"+("1.7.1".equals(version) ? "" : ";runtime_version=" + version)+";mode="+mode+";top_crtc="+top+";bottom_crtc="+bottom+";display_actions_held=0;display_effective=CONFIRMED;fix=1;cpu_fix_desired=0;cpu_fix_phase=CONFIRMED;system_load_fix=0;lid_guard=0;lid=open;external_display=unknown";}
  public static boolean transact(String cmd){if(cmd.startsWith("P=")){kills++;if(!bridgeAccept)return false;if(stopEffective)version=null;return true;}
  if(cmd.equals("fixture-launch")){launches++;version="1.7.3";phase=afterLaunchPhase;return true;}throw new AssertionError("unexpected command");}}
