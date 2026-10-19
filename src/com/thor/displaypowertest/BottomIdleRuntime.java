@@ -103,6 +103,15 @@ public final class BottomIdleRuntime {
         if (restore && active != null) active.post(DisplayActionCoordinator::restoreIdleBottom);
     }
 
+    /** Revoke earlier touch proof if hidden display-id decoding stops working. */
+    public static void onInputFailure() {
+        synchronized (LOCK) {
+            POLICY.wake();
+            if (handler != null) handler.removeCallbacks(TIMEOUT);
+            inputState = "UNAVAILABLE";
+        }
+    }
+
     private static void scheduleLocked(long now) {
         if (handler == null) return;
         handler.removeCallbacks(TIMEOUT);
@@ -161,7 +170,8 @@ public final class BottomIdleRuntime {
             if (input == null) throw new IllegalStateException("channel unavailable");
             createdReceiver = new BottomIdleTouchMonitor(input, android.os.Looper.myLooper());
             synchronized (LOCK) {
-                if (handler != null && POLICY.enabled()) {
+                if (handler != null && POLICY.enabled()
+                        && handler.getLooper() == android.os.Looper.myLooper()) {
                     monitor = created;
                     receiver = createdReceiver;
                     inputState = "WAITING_FOR_TOUCH";

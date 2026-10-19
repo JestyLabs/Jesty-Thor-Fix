@@ -7,30 +7,53 @@ import android.view.InputEvent;
 import android.view.InputEventReceiver;
 import android.view.MotionEvent;
 
+import java.lang.reflect.Method;
+
 /**
- * Passive listener for *one* logical display, not a global accessibility
- * service, event injector or another poller. All events are unhandled.
+ * Passive, non-consuming input observer. Hidden display-id reflection is
+ * resolved once during construction; unsupported firmware fails closed.
  */
 final class BottomIdleTouchMonitor extends InputEventReceiver {
-    private long lastMoveAt;
+    private final Method displayIdMethod;
+    private long lastMoveAt = -1L;
 
     BottomIdleTouchMonitor(InputChannel channel, Looper looper) {
         super(channel, looper);
+        try {
+            Method found;
+            try {
+                found = InputEvent.class.getDeclaredMethod("getDisplayId");
+            } catch (NoSuchMethodException missing) {
+                found = MotionEvent.class.getDeclaredMethod("getDisplayId");
+            }
+            found.setAccessible(true);
+            displayIdMethod = found;
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException("display-id API unavailable; idle touch monitor disabled",
+                    failure);
+        }
     }
 
     @Override public void onInputEvent(InputEvent event) {
         try {
             if (!(event instanceof MotionEvent)) return;
             MotionEvent touch = (MotionEvent) event;
-            if (touch.getDisplayId() != ThorHardwareProfile.BOTTOM_LOGICAL_DISPLAY_ID) return;
             int action = touch.getActionMasked();
             long now = SystemClock.elapsedRealtime();
-            if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN
-                    || action == MotionEvent.ACTION_UP
-                    || (action == MotionEvent.ACTION_MOVE && now - lastMoveAt >= 2000L)) {
-                if (action == MotionEvent.ACTION_MOVE) lastMoveAt = now;
-                BottomIdleRuntime.onBottomTouch(now);
-            }
+            if (action != MotionEvent.ACTION_DOWN && action != MotionEvent.ACTION_POINTER_DOWN
+                    && action != MotionEvent.ACTION_UP && action != MotionEvent.ACTION_MOVE) return;
+            if (action == MotionEvent.ACTION_MOVE && lastMoveAt >= 0L
+                    && now - lastMoveAt < 2000L) return;
+            // The callback must NOT assume that a global event belongs to display 4.
+            Object displayId = displayIdMethod.invoke(event);
+            if (!(displayId instanceof Integer)
+                    || ((Integer) displayId).intValue()
+                            != ThorHardwareProfile.BOTTOM_LOGICAL_DISPLAY_ID) return;
+            if (action == MotionEvent.ACTION_MOVE) lastMoveAt = now;
+            BottomIdleRuntime.onBottomTouch(now);
+        } catch (Throwable failure) {
+            // A failed reflective read may never count as proof of inactivity.
+            BottomIdleRuntime.onInputFailure();
         } finally {
             finishInputEvent(event, false);
         }
