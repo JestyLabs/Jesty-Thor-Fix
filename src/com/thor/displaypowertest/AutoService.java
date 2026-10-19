@@ -77,6 +77,7 @@ public final class AutoService extends Service {
                         int grace = DaemonLaunchModel.unreachableGracePolls(socket);
                         Log.d(TAG, "secure socket " + socket + "; grace_polls=" + grace
                                 + " elapsed_ms=" + SystemClock.elapsedRealtime());
+                    reconcileBottomIdle(state);
                         if (socket == DaemonLaunchModel.SocketState.ALIVE) {
                             probe = PServer.probe(enabled);
                         }
@@ -160,6 +161,41 @@ public final class AutoService extends Service {
             }
         }, "thor-start").start();
         return START_NOT_STICKY;
+    }
+
+    /**
+     * Boot/startup reconciliation is bounded and runs only while the temporary
+     * AutoService worker is alive. The daemon never polls application prefs.
+     */
+    private static void reconcileBottomIdle(android.content.SharedPreferences prefs) {
+        boolean desired = prefs.getBoolean("bottom_idle_enabled", false);
+        int minutes = prefs.getInt("bottom_idle_minutes",
+                BottomIdleSettings.minutesAt(BottomIdleSettings.DEFAULT_INDEX));
+        if (!BottomIdleSettings.validMinutes(minutes)) minutes =
+                BottomIdleSettings.minutesAt(BottomIdleSettings.DEFAULT_INDEX);
+        char command = desired ? BottomIdleSettings.commandFor(minutes)
+                : BottomIdleSettings.DISABLE_COMMAND;
+        int attempts = desired ? 30 : 1;
+        for (int i = 0; i < attempts; i++) {
+            try {
+                String identity = SocketClient.request('I', 800);
+                if (identity.contains(";boot_phase=READY;")) {
+                    SocketClient.request(command, 1800);
+                    return;
+                }
+            } catch (Throwable failure) {
+                if (i == attempts - 1) {
+                    Log.w(TAG, "bottom idle preference could not be reconciled", failure);
+                }
+            }
+            if (i + 1 < attempts) {
+                try { Thread.sleep(1500L); }
+                catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
+        }
     }
 
     private static boolean pause() {
