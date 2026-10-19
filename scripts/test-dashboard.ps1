@@ -23,6 +23,9 @@ if ($activity -match 'SocketClient|new (TextView|LinearLayout|Switch|MediaPlayer
 
 $model = Join-Path $repository 'src\com\thor\displaypowertest\DashboardStateModel.java'
 $test = Join-Path $repository 'tests\DashboardStateModelTest.java'
+$idleSettings = Join-Path $repository 'src\com\thor\displaypowertest\BottomIdleSettings.java'
+$idlePolicy = Join-Path $repository 'src\com\thor\displaypowertest\BottomIdlePolicy.java'
+$idleTest = Join-Path $repository 'tests\BottomIdlePolicyTest.java'
 $warningModel = Join-Path $repository 'src\com\thor\displaypowertest\CpuWarningModel.java'
 $warningTest = Join-Path $repository 'tests\CpuWarningModelTest.java'
 $updateModel = Join-Path $repository 'src\com\thor\displaypowertest\UpdateVersion.java'
@@ -44,9 +47,11 @@ $identity = Join-Path $repository 'src\com\thor\displaypowertest\DaemonIdentity.
 $activationTest = Join-Path $repository 'tests\RebootActivationPolicyTest.java'
 $clockFixture = Join-Path $repository 'tests\fixtures\android\os\SystemClock.java'
 
-& javac -source 8 -target 8 -d $output $model $test $warningModel $warningTest $updateModel $updateTest $commitGateModel $commitGateTest $readiness $readinessTest $clockFixture $confirmationModel $confirmationTest $sessionModel $sessionTest $replacementModel $replacementTest $dispatchModel $dispatchTest $activationPolicy $identity $activationTest
+& javac -source 8 -target 8 -d $output $idleSettings $idlePolicy $idleTest $model $test $warningModel $warningTest $updateModel $updateTest $commitGateModel $commitGateTest $readiness $readinessTest $clockFixture $confirmationModel $confirmationTest $sessionModel $sessionTest $replacementModel $replacementTest $dispatchModel $dispatchTest $activationPolicy $identity $activationTest
 if ($LASTEXITCODE -ne 0) { throw 'Dashboard test compilation failed.' }
 
+& java -cp $output BottomIdlePolicyTest
+if ($LASTEXITCODE -ne 0) { throw 'Bottom idle policy tests failed.' }
 & java -cp $output DashboardStateModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Dashboard tests failed.' }
 & java -cp $output CpuWarningModelTest

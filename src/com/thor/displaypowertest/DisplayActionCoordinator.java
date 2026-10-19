@@ -26,6 +26,7 @@ public final class DisplayActionCoordinator {
      */
     public static void onWatcherSample(String sampledMode) {
         String mode = BootSafety.knownMode(sampledMode) ? sampledMode : "?";
+        BottomIdleRuntime.onModeSample(mode);
         boolean stableTopWake = "1".equals(mode) && mode.equals(lastMode)
                 && !BootSafety.isHeld() && DaemonState.isEnabled()
                 && "1".equals(DisplayHardware.getProperty());
@@ -84,6 +85,11 @@ public final class DisplayActionCoordinator {
                     return;
                 }
             }
+            if ("0".equals(mode) && "0".equals(bottom)
+                    && BottomIdleRuntime.isOffOrPending()) {
+                status = "IDLE_OFF";
+                return;
+            }
             DisplayDecisionModel.Action action = DisplayDecisionModel.reconcile(
                     mode, top, bottom, true, false, WakeRepairScheduler.isPending());
             if (action == DisplayDecisionModel.Action.OFF) attempt(false, "WATCH_TOP", mode);
@@ -108,6 +114,8 @@ public final class DisplayActionCoordinator {
             String bottom = crtc[1];
             if (!DisplayDecisionModel.readyForReconcile(mode, top, bottom))
                 return "ok=0;error=DISPLAY_TRANSITION";
+            // An explicit user action overrides an automatically darkened panel.
+            BottomIdleRuntime.onDisplayWake();
             boolean targetOn = !requested || !"1".equals(mode);
             if (!applyConfirmed(targetOn, "USER_RECONCILE", mode))
                 return "ok=0;error=DISPLAY_UNCONFIRMED";
@@ -146,9 +154,32 @@ public final class DisplayActionCoordinator {
         }
     }
     public static void noteDisplayOn() {
+        BottomIdleRuntime.onDisplayWake();
         synchronized (DisplayHardware.class) {
             if (generations.isRepairCurrent() && WakeRepairScheduler.isPending())
                 WakeRepairScheduler.noteDisplayOn();
+        }
+    }
+
+    /** Only the coordinator may turn off the lower panel on a timed lease. */
+    public static void requestIdleBottomOff(long ticket) {
+        synchronized (DisplayHardware.class) {
+            boolean eligible = BottomIdleRuntime.isPending(ticket)
+                    && !BootSafety.isHeld() && DaemonState.isEnabled()
+                    && "RUNNING".equals(WatcherSupervisor.health())
+                    && "0".equals(DaemonState.getMode());
+            boolean confirmed = eligible && applyConfirmed(false, "BOTTOM_IDLE", "0");
+            BottomIdleRuntime.completeOff(ticket, confirmed);
+            if (confirmed) status = "IDLE_OFF";
+        }
+    }
+
+    /** A touch or tile OFF may restore only a currently confirmed BOTH panel. */
+    public static void restoreIdleBottom() {
+        synchronized (DisplayHardware.class) {
+            if (BootSafety.isHeld() || !"0".equals(DaemonState.getMode())) return;
+            if (applyConfirmed(true, "BOTTOM_IDLE_RESTORE", "0")) status = "CONFIRMED";
+            else WatcherCadence.onDisplayEvent();
         }
     }
 
