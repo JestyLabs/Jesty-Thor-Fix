@@ -126,6 +126,7 @@ public final class DisplayActionCoordinator {
             generations.invalidate();
             cancelRepairLocked();
             DaemonState.setEnabled(requested);
+            BottomIdleRuntime.onModeSample(mode);
             status = "CONFIRMED";
             return "ok=1;fix=" + (requested ? "1" : "0") + ";display=confirmed";
         }

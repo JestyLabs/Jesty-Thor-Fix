@@ -210,6 +210,9 @@ final class DashboardSettingsController {
         } else if ("UNAVAILABLE".equals(inputState)) {
             bottomIdleHelp.setText("Bottom touch monitor unavailable — automatic off will not activate.");
             bottomIdleHelp.setTextColor(AMBER);
+        } else if ("SUSPENDED".equals(inputState)) {
+            bottomIdleHelp.setText("Waiting for BOTH mode with True Bottom Screen Off enabled.");
+            bottomIdleHelp.setTextColor(MUTED);
         } else if ("WAITING_FOR_TOUCH".equals(inputState)) {
             bottomIdleHelp.setText("Touch the bottom screen once in BOTH to start the inactivity timer.");
             bottomIdleHelp.setTextColor(MUTED);

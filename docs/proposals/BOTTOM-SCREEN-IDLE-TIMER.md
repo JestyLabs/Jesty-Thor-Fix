@@ -12,6 +12,7 @@ scope above. Nothing is merged, signed, released or physically validated.
 - In BOTH (mode 0), the privileged daemon registers a passive gesture input
   monitor for logical display 4. A *fresh positive bottom-touch observation*
   is mandatory: a missing or unverified monitor can never trigger OFF.
+- The input monitor is attached only while BOTH and True Bottom Screen Off are active; TOP, BOTTOM-only and stock display behaviour leave the Looper dormant. If disabled, the watcher uses a cheap volatile flag and Q returns a shared constant with no new threads, monitors or scheduled timeouts.
 - One delayed message is scheduled per last input event; no periodic read,
   framebuffer capture, Accessibility Service or input injection.
 - Timeout asks DisplayActionCoordinator (the existing sole hardware-action

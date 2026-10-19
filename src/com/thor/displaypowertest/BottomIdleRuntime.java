@@ -62,13 +62,12 @@ public final class BottomIdleRuntime {
                     thread = new HandlerThread("thor-bottom-idle");
                     thread.start();
                     handler = new Handler(thread.getLooper());
-                    inputState = "CONNECTING";
-                    long epoch = ++monitorEpoch;
-                    handler.post(() -> attachMonitor(epoch));
+                    inputState = "SUSPENDED";
                 } else {
-                    inputState = receiver == null ? "UNAVAILABLE" : "WAITING_FOR_TOUCH";
                     handler.removeCallbacks(TIMEOUT);
+                    inputState = receiver == null ? "SUSPENDED" : "WAITING_FOR_TOUCH";
                 }
+                reconcileMonitoringLocked(DaemonState.getMode());
             }
         }
         if (restore && minutes != 0 && handler != null) {
@@ -93,9 +92,46 @@ public final class BottomIdleRuntime {
             if (!POLICY.enabled()) return;
             if (POLICY.mode(mode)) {
                 if (handler != null) handler.removeCallbacks(TIMEOUT);
-                inputState = receiver == null ? inputState : "WAITING_FOR_TOUCH";
+                if (!"UNAVAILABLE".equals(inputState)) {
+                    inputState = receiver == null ? "SUSPENDED" : "WAITING_FOR_TOUCH";
+                }
             }
+            reconcileMonitoringLocked(mode);
         }
+    }
+
+    /**
+     * No input monitor when the lower panel is not in BOTH or the True Off
+     * display path is disabled. Attach/detach only on mode/setting edges.
+     * Never retry an unavailable hidden API on every watcher sample.
+     */
+    private static void reconcileMonitoringLocked(String mode) {
+        if (handler == null || !POLICY.enabled()) return;
+        boolean needed = "0".equals(mode) && DaemonState.isEnabled();
+        if (needed) {
+            if (receiver == null && !"CONNECTING".equals(inputState)
+                    && !"UNAVAILABLE".equals(inputState)) {
+                inputState = "CONNECTING";
+                long epoch = ++monitorEpoch;
+                handler.post(() -> attachMonitor(epoch));
+            }
+            return;
+        }
+        if (receiver == null && !"CONNECTING".equals(inputState)) {
+            if (!"UNAVAILABLE".equals(inputState)) inputState = "SUSPENDED";
+            return;
+        }
+        // Drop ownership before async cleanup so old events cannot re-arm.
+        long unusedEpoch = ++monitorEpoch;
+        BottomIdleTouchMonitor closingReceiver = receiver;
+        Object closingMonitor = monitor;
+        receiver = null;
+        monitor = null;
+        inputState = "SUSPENDED";
+        handler.post(() -> {
+            if (closingReceiver != null) closingReceiver.dispose();
+            disposeMonitor(closingMonitor);
+        });
     }
 
     /** A display-on notification invalidates pre-sleep evidence and timers. */
