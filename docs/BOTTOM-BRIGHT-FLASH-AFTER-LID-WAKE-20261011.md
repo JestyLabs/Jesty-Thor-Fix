@@ -1,5 +1,7 @@
 # BOTTOM bright flash after wake — investigation conclusion
 
+Follow-up: [framework OFF-sentinel correction feasibility](SECONDARY-DISPLAY-OFF-BRIGHTNESS-RESEARCH.md) records a separate prospective correction and optional-feature acceptance criteria. It does not change the runtime disposition below.
+
 PR #62 closes the research phase for [issue #65](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/65), on top of the TOP cancellation correction integrated in PR #82. No new runtime brightness or display-power workaround is justified by the available evidence. A concrete defect in the archived firmware's secondary-display brightness conversion was identified; its contribution to the observed physical flash remains unmeasured.
 
 ## Observations and rechecked timing
