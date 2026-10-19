@@ -2,8 +2,6 @@ package com.thor.displaypowertest;
 
 import android.os.SystemClock;
 import android.util.Log;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 
 /** The only author of lower-panel transitions and guard-requested sleep. */
 public final class DisplayActionCoordinator {
@@ -61,9 +59,16 @@ public final class DisplayActionCoordinator {
             WatcherCadence.completeDrmRead(readGeneration);
             String top = crtc[0];
             String bottom = crtc[1];
-            if (stableTopWake && "1".equals(top) && "1".equals(bottom)) {
+            if ("0".equals(top) && "0".equals(bottom)) {
+                if (WakeRepairScheduler.isPending()) generations.invalidate();
+                cancelRepairLocked();
+                status = "DISPLAY_ASLEEP_OR_TRANSITION";
+                return;
+            }
+            if (stableTopWake && "1".equals(top) && "1".equals(bottom)
+                    && !WakeRepairScheduler.isPending()) {
                 if (deferredByLid) return;
-                if (DisplayHardware.markWakePending()) scheduleRepairLocked();
+                scheduleRepairLocked();
                 return;
             }
             if (due) {
@@ -152,6 +157,13 @@ public final class DisplayActionCoordinator {
         }
     }
 
+    /** Pending work is internal; it must not change the firmware sleep/wake flag. */
+    public static boolean isWakeRepairPending() {
+        synchronized (DisplayHardware.class) {
+            return generations.isRepairCurrent() && WakeRepairScheduler.isPending();
+        }
+    }
+
     /** LidGuard decides policy; this method serializes and rechecks the action. */
     public static boolean requestGuardSleep(long authorizedLidEpoch) {
         synchronized (DisplayHardware.class) {
@@ -237,20 +249,6 @@ public final class DisplayActionCoordinator {
         return confirmed;
     }
     private static String readCurrentMode() {
-        Process process = null;
-        try {
-            process = new ProcessBuilder("settings", "get", "system",
-                    "dual_screen_display_mode").start();
-            if (!ProcessWait.exited(process, 2000L) || process.exitValue() != 0) return "?";
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream()))) {
-                String value = reader.readLine();
-                return BootSafety.knownMode(value) ? value : "?";
-            }
-        } catch (Throwable error) {
-            return "?";
-        } finally {
-            if (process != null) process.destroy();
-        }
+        return DisplayModeReader.current();
     }
 }
