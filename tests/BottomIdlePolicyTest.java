@@ -24,6 +24,13 @@ public final class BottomIdlePolicyTest {
         check(p.beginOff(900000) == -1, "never turn off without bottom touch");
         p.touch(1000);
         check(p.delayMs(1000) == 300000, "five minutes");
+        p.pointerDown(true);
+        check(p.delayMs(900000) == -1, "held finger is active usage");
+        check(p.beginOff(900000) == -1, "held touch must never darken bottom");
+        p.pointerDown(false);
+        p.touch(1000);
+        check(p.delayMs(1000) == 300000, "released touch rearms");
+
         p.touch(6000);
         check(p.delayMs(6000) == 300000, "fresh touch resets deadline");
         check(p.beginOff(305999) == -1, "not early");

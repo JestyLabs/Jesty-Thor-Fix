@@ -153,7 +153,7 @@ public final class BottomIdleRuntime {
         }
     }
 
-    public static void onBottomTouch(long now, long epoch) {
+    public static void onBottomTouch(long now, long epoch, int action) {
         final Handler active;
         final boolean restore;
         synchronized (LOCK) {
@@ -161,6 +161,14 @@ public final class BottomIdleRuntime {
                     || "UNAVAILABLE".equals(inputState) || !DaemonState.isEnabled()) return;
             restore = POLICY.touch(now);
             if (!POLICY.inputVerified()) return;
+            if (action == android.view.MotionEvent.ACTION_DOWN
+                    || action == android.view.MotionEvent.ACTION_POINTER_DOWN
+                    || action == android.view.MotionEvent.ACTION_MOVE) {
+                POLICY.pointerDown(true);
+            } else if (action == android.view.MotionEvent.ACTION_UP
+                    || action == android.view.MotionEvent.ACTION_CANCEL) {
+                POLICY.pointerDown(false);
+            }
             inputState = "OBSERVED";
             active = handler;
             scheduleLocked(now);

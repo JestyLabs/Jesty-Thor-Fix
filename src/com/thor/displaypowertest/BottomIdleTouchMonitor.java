@@ -43,7 +43,8 @@ final class BottomIdleTouchMonitor extends InputEventReceiver {
             int action = touch.getActionMasked();
             long now = SystemClock.elapsedRealtime();
             if (action != MotionEvent.ACTION_DOWN && action != MotionEvent.ACTION_POINTER_DOWN
-                    && action != MotionEvent.ACTION_UP && action != MotionEvent.ACTION_MOVE) return;
+                    && action != MotionEvent.ACTION_UP && action != MotionEvent.ACTION_CANCEL
+                    && action != MotionEvent.ACTION_MOVE) return;
             if (action == MotionEvent.ACTION_MOVE && lastMoveAt >= 0L
                     && now - lastMoveAt < 2000L) return;
             // The callback must NOT assume that a global event belongs to display 4.
@@ -52,7 +53,7 @@ final class BottomIdleTouchMonitor extends InputEventReceiver {
                     || ((Integer) displayId).intValue()
                             != ThorHardwareProfile.BOTTOM_LOGICAL_DISPLAY_ID) return;
             if (action == MotionEvent.ACTION_MOVE) lastMoveAt = now;
-            BottomIdleRuntime.onBottomTouch(now, monitorEpoch);
+            BottomIdleRuntime.onBottomTouch(now, monitorEpoch, action);
         } catch (Throwable failure) {
             // A failed reflective read may never count as proof of inactivity.
             BottomIdleRuntime.onInputFailure(monitorEpoch);

@@ -11,6 +11,7 @@ public final class BottomIdlePolicy {
     private boolean touchVerified;
     private boolean off;
     private boolean pending;
+    private boolean pointerDown;
     private int minutes;
     private long lastTouchAt = -1L;
     private long generation;
@@ -53,6 +54,14 @@ public final class BottomIdlePolicy {
     }
 
     /** The generation is an exact lease for a single delayed OFF attempt. */
+    /** A held gesture is active usage, even when it has no MOVE samples. */
+    public synchronized void pointerDown(boolean pressed) {
+        if (pointerDown != pressed) {
+            pointerDown = pressed;
+            generation++;
+        }
+    }
+
     public synchronized long beginOff(long nowMs) {
         if (delayMs(nowMs) != 0L) return -1L;
         pending = true;
@@ -74,7 +83,7 @@ public final class BottomIdlePolicy {
 
     /** -1 means not armed; 0 means due; otherwise milliseconds until due. */
     public synchronized long delayMs(long nowMs) {
-        if (!enabled || !both || !touchVerified || off || pending || lastTouchAt < 0L)
+        if (!enabled || !both || !touchVerified || pointerDown || off || pending || lastTouchAt < 0L)
             return -1L;
         if (nowMs < lastTouchAt) return -1L;
         return Math.max(0L, minutes * 60000L - (nowMs - lastTouchAt));
@@ -89,6 +98,7 @@ public final class BottomIdlePolicy {
 
     private void clear() {
         touchVerified = false;
+        pointerDown = false;
         off = false;
         pending = false;
         lastTouchAt = -1L;
