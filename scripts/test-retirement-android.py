@@ -191,6 +191,10 @@ def run(args):
                 prepared = execute(instrument(version, 'prepare', support)).stdout
                 if 'PREPARED_NOT_ACTIVATED' not in prepared or 'outcome=FAIL' in prepared:
                     raise RuntimeError('Fixture preparation failed: ' + prepared)
+                app_owner = shell('stat -c %u:%g ' + shlex.quote(files))
+                owner_match = re.fullmatch(r'([0-9]+):([0-9]+)', app_owner)
+                if not owner_match or int(owner_match[1]) < 10000 or owner_match[1] != owner_match[2]:
+                    raise RuntimeError('Disposable app directory ownership was not confirmed')
                 shell('mkdir ' + shlex.quote(remote))
                 adb_call('push', str(trial / 'predecessor-dex.jar'), remote + '/predecessor.jar')
                 pm = shell('pm path ' + PACKAGE)
@@ -222,7 +226,10 @@ def run(args):
                             continue
                         # App-owned ack; a launch acknowledgement is not an exit receipt.
                         ack = files + '/owner-ack-' + str(number)
-                        shell('run-as ' + PACKAGE + ' sh -c ' + shlex.quote('printf "%s\\n" ' + shlex.quote(request) + ' >' + shlex.quote(ack)))
+                        pending_ack = ack + '.pending'
+                        shell('umask 077; printf "%s\\n" ' + shlex.quote(request) + ' >' + shlex.quote(pending_ack)
+                              + ' && chown ' + app_owner + ' ' + shlex.quote(pending_ack)
+                              + ' && mv ' + shlex.quote(pending_ack) + ' ' + shlex.quote(ack))
                         handled.add(number)
                     time.sleep(.02)
                 output = active.communicate(timeout=5)[0]

@@ -26,6 +26,9 @@ python3 scripts/test-retirement-android.py --sdk "$ANDROID_HOME" --build "$RUNNE
 
 Use a new external build directory, a disposable signing key and package
 **org.example.rfixture**. Never mix fixture sources/stubs into the production APK.
+The test APK is non-debuggable. The already certified root supervisor writes
+private acknowledgements atomically with verified app ownership; no run-as or
+debuggable exception is needed.
 Before mutation, the driver requires an emulator-shaped serial, the exact owned
 AVD `pr67-ci-api33`, qemu=1, API33, x86_64 and absent PServerBinder. It recertifies
 after root; every ADB command is serial-specific. Physical/foreign targets fail.
