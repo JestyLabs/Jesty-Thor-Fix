@@ -250,29 +250,39 @@ final class DashboardSettingsController {
             restoreIdleControls();
             return;
         }
-        final boolean previousEnabled = desiredBottomIdle();
-        final int previousMinutes = desiredBottomIdleMinutes();
+        // Slider changes must preserve a concurrent QS tile toggle, rather
+        // than silently disabling the option with a stale checked snapshot.
+        final boolean sliderOnly = enabled == desiredBottomIdle();
         idleCommandInFlight = true;
         bottomIdleToggle.setEnabled(false);
         bottomIdleSlider.setEnabled(false);
         commandExecutor.execute(() -> {
-            try {
-                if (!preferences.edit().putBoolean(BOTTOM_IDLE, enabled)
-                        .putInt(BOTTOM_IDLE_MINUTES, minutes).commit()) {
-                    throw new IllegalStateException("ok=0;error=IDLE_PREFERENCE_WRITE_FAILED");
+            // Dashboard and tile are in the same Android app process. Serialize
+            // preference writes with their matching authenticated daemon ACK.
+            synchronized (BottomIdleSettings.class) {
+                final boolean previousEnabled = desiredBottomIdle();
+                final int previousMinutes = desiredBottomIdleMinutes();
+                final boolean targetEnabled = sliderOnly ? previousEnabled : enabled;
+                try {
+                    if (!preferences.edit().putBoolean(BOTTOM_IDLE, targetEnabled)
+                            .putInt(BOTTOM_IDLE_MINUTES, minutes).commit()) {
+                        throw new IllegalStateException("ok=0;error=IDLE_PREFERENCE_WRITE_FAILED");
+                    }
+                    if (targetEnabled || previousEnabled) {
+                        SocketClient.request(targetEnabled ? BottomIdleSettings.commandFor(minutes)
+                                : BottomIdleSettings.DISABLE_COMMAND, 1800);
+                    }
+                    activity.runOnUiThread(() -> finishIdleChange(null));
+                } catch (Throwable error) {
+                    final boolean rejected = rejected(error);
+                    if (rejected && !preferences.edit().putBoolean(BOTTOM_IDLE, previousEnabled)
+                            .putInt(BOTTOM_IDLE_MINUTES, previousMinutes).commit()) {
+                        android.util.Log.e("ThorIdle", "preference rollback failed", error);
+                    }
+                    activity.runOnUiThread(() -> finishIdleChange(rejected
+                            ? "Auto Bottom Off rejected; setting restored"
+                            : "Auto Bottom Off status uncertain; check again"));
                 }
-                if (enabled || previousEnabled) {
-                    SocketClient.request(enabled ? BottomIdleSettings.commandFor(minutes)
-                            : BottomIdleSettings.DISABLE_COMMAND, 1800);
-                }
-                activity.runOnUiThread(() -> finishIdleChange(null));
-            } catch (Throwable error) {
-                final boolean rejected = rejected(error);
-                if (rejected) preferences.edit().putBoolean(BOTTOM_IDLE, previousEnabled)
-                        .putInt(BOTTOM_IDLE_MINUTES, previousMinutes).commit();
-                activity.runOnUiThread(() -> finishIdleChange(rejected
-                        ? "Auto Bottom Off rejected; setting restored"
-                        : "Auto Bottom Off status uncertain; check again"));
             }
         });
     }

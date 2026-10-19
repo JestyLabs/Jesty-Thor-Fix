@@ -25,12 +25,6 @@ public final class BottomIdleTileService extends TileService {
         super.onClick();
         if (!CHANGING.compareAndSet(false, true)) return;
         final SharedPreferences prefs = getSharedPreferences("state", MODE_PRIVATE);
-        final boolean previous = prefs.getBoolean("bottom_idle_enabled", false);
-        final boolean enabled = !previous;
-        int saved = prefs.getInt("bottom_idle_minutes",
-                BottomIdleSettings.minutesAt(BottomIdleSettings.DEFAULT_INDEX));
-        final int minutes = BottomIdleSettings.validMinutes(saved) ? saved
-                : BottomIdleSettings.minutesAt(BottomIdleSettings.DEFAULT_INDEX);
         Tile tile = getQsTile();
         if (tile != null) {
             tile.setState(Tile.STATE_UNAVAILABLE);
@@ -38,13 +32,29 @@ public final class BottomIdleTileService extends TileService {
         }
         new Thread(() -> {
             try {
-                if (!prefs.edit().putBoolean("bottom_idle_enabled", enabled).commit())
-                    throw new IllegalStateException("could not save Quick Settings intent");
-                SocketClient.request(enabled ? BottomIdleSettings.commandFor(minutes)
-                        : BottomIdleSettings.DISABLE_COMMAND, 1800);
-            } catch (Throwable failure) {
-                prefs.edit().putBoolean("bottom_idle_enabled", previous).commit();
-                Log.w(TAG, "Quick Settings change not acknowledged; rolled back", failure);
+                synchronized (BottomIdleSettings.class) {
+                    final boolean previous = prefs.getBoolean("bottom_idle_enabled", false);
+                    final boolean enabled = !previous;
+                    int saved = prefs.getInt("bottom_idle_minutes",
+                            BottomIdleSettings.minutesAt(BottomIdleSettings.DEFAULT_INDEX));
+                    int minutes = BottomIdleSettings.validMinutes(saved) ? saved
+                            : BottomIdleSettings.minutesAt(BottomIdleSettings.DEFAULT_INDEX);
+                    try {
+                        if (!prefs.edit().putBoolean("bottom_idle_enabled", enabled).commit())
+                            throw new IllegalStateException("ok=0;error=IDLE_PREFERENCE_WRITE_FAILED");
+                        SocketClient.request(enabled ? BottomIdleSettings.commandFor(minutes)
+                                : BottomIdleSettings.DISABLE_COMMAND, 1800);
+                    } catch (Throwable failure) {
+                        // No response is NOT an explicit rejection: the daemon
+                        // may already have applied it. Keep intent for recovery.
+                        if (failure.getMessage() != null
+                                && failure.getMessage().startsWith("ok=0")) {
+                            if (!prefs.edit().putBoolean("bottom_idle_enabled", previous).commit())
+                                Log.e(TAG, "Quick Settings rollback could not be persisted");
+                        }
+                        Log.w(TAG, "Quick Settings command not confirmed", failure);
+                    }
+                }
             } finally {
                 CHANGING.set(false);
                 requestRefresh(getApplicationContext());

@@ -176,20 +176,27 @@ public final class AutoService extends Service {
                 BottomIdleSettings.minutesAt(BottomIdleSettings.DEFAULT_INDEX));
         if (!BottomIdleSettings.validMinutes(minutes)) minutes =
                 BottomIdleSettings.minutesAt(BottomIdleSettings.DEFAULT_INDEX);
-        char command = BottomIdleSettings.commandFor(minutes);
         int attempts = 30;
         for (int i = 0; i < attempts; i++) {
             try {
                 String identity = SocketClient.request('I', 800);
                 if (identity.contains(";boot_phase=READY;")) {
-                    // A dashboard open must not reset a running idle deadline.
-                    String current = SocketClient.request('Q', 2300);
-                    java.util.Map<String, String> live = TelemetryValues.parse(current);
-                    if ("1".equals(live.get("idle_enabled"))
-                            && Integer.toString(minutes).equals(live.get("idle_minutes")))
+                    synchronized (BottomIdleSettings.class) {
+                        // The tile may have changed intent while boot was held.
+                        if (!prefs.getBoolean("bottom_idle_enabled", false)) return;
+                        int wanted = prefs.getInt("bottom_idle_minutes",
+                                BottomIdleSettings.minutesAt(BottomIdleSettings.DEFAULT_INDEX));
+                        if (!BottomIdleSettings.validMinutes(wanted)) wanted =
+                                BottomIdleSettings.minutesAt(BottomIdleSettings.DEFAULT_INDEX);
+                        // A dashboard open must not reset a running deadline.
+                        String current = SocketClient.request('Q', 2300);
+                        java.util.Map<String, String> live = TelemetryValues.parse(current);
+                        if ("1".equals(live.get("idle_enabled"))
+                                && Integer.toString(wanted).equals(live.get("idle_minutes")))
+                            return;
+                        SocketClient.request(BottomIdleSettings.commandFor(wanted), 1800);
                         return;
-                    SocketClient.request(command, 1800);
-                    return;
+                    }
                 }
             } catch (Throwable failure) {
                 if (i == attempts - 1) {
