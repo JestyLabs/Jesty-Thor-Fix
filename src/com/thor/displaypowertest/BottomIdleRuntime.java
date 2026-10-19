@@ -187,8 +187,12 @@ public final class BottomIdleRuntime {
                 }
             });
         }
-        // Never abandon physical ownership of a darkened panel silently.
-        if (restore) DisplayActionCoordinator.restoreIdleBottom();
+        // Finish the current input event before potentially expensive
+        // display reconciliation; do not hold the input-dispatch callback.
+        if (restore) {
+            final Handler owner = handler;
+            if (owner != null) owner.post(DisplayActionCoordinator::restoreIdleBottom);
+        }
     }
 
     private static void scheduleLocked(long now) {

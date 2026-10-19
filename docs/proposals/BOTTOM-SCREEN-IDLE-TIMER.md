@@ -42,3 +42,13 @@ scope above. Nothing is merged, signed, released or physically validated.
 The feature MUST remain in Draft until physical signoff; emulator tests cannot
 validate vendor input routing or display wake. The feature is opt-in; no new
 app-permission grant, instrumentation or background polling is used.
+
+## Review after the first successful Android 13 emulator run
+
+- Emulation passed on `b3f28fea`, including 100%, 150% and 200% font scaling.
+- Found a misplaced `AutoService.reconcileBottomIdle` call inside the unavailable-socket branch before the daemon was started. Moved it after successful daemon activation and made the default-off path a strict early return.
+- Idle input monitor now attaches **only in BOTH with True Bottom Screen Off enabled** and drops its InputChannel on TOP/BOTTOM-only/stock mode. This avoids an unnecessary system input monitor while the feature cannot act. The optional Looper remains dormant while enabled but not eligible.
+- Explicit monitor generations fence late callbacks and slow hidden Binder replies across toggles and mode changes; losing the input decoder invalidates the lease and queues screen restoration without blocking input dispatch.
+- Quick Settings and dashboard writes are serialized in the app process; a lost ACK preserves intent rather than falsely rolling it back. Reopening the dashboard checks effective daemon settings before sending a reconfiguration, avoiding deadline resets.
+- **No independent stock-display mode implementation.** CPU Fix may be OFF, but turning the lower panel off while the True Off mechanism is disabled would require additional, separately validated safety/recovery semantics. Do not present it as supported.
+- Remaining acceptance blocker: physical Thor input routing while the bottom display is in `SurfaceControl.POWER_MODE_OFF`; CPU/battery deltas cannot be proven by emulator tests.

@@ -47,6 +47,26 @@ public final class BottomIdlePolicyTest {
         p.touch(1000500);
         p.configure(0);
         check(p.delayMs(999999) == -1 && !p.enabled(), "disabled has no timer");
+        // Negative controls: disabled or unknown mode can never mint an OFF lease.
+        for (int minute : new int[]{1, 2, 3, 5, 10, 15, 20, 30, 45, 60}) {
+            p.configure(minute);
+            p.mode("?");
+            p.touch(100L);
+            check(p.beginOff(100L + minute * 60000L + 1L) == -1L,
+                    "unknown mode must disarm, timeout " + minute);
+            p.mode("0");
+            check(p.beginOff(100L + minute * 60000L + 1L) == -1L,
+                    "new mode requires verified touch, timeout " + minute);
+            p.touch(100L);
+            check(p.beginOff(100L + minute * 60000L - 1L) == -1L,
+                    "must not expire before deadline " + minute);
+            long lease = p.beginOff(100L + minute * 60000L);
+            check(lease > 0L && p.isPending(lease), "deadline arms exactly " + minute);
+            p.configure(0);
+            check(!p.isPending(lease), "disabled invalidates lease " + minute);
+            check(!p.completeOff(lease, true, 5000000L),
+                    "stale lease cannot claim ownership " + minute);
+        }
         try { p.configure(7); throw new AssertionError("unlisted timeout"); }
         catch (IllegalArgumentException expected) {}
         System.out.println("BottomIdlePolicyTest passed");

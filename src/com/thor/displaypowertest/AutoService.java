@@ -172,10 +172,6 @@ public final class AutoService extends Service {
         // Default-off is a strict fast path: no daemon query, retry, thread,
         // timer or additional IPC when this optional feature is not selected.
         if (!desired) return;
-        int minutes = prefs.getInt("bottom_idle_minutes",
-                BottomIdleSettings.minutesAt(BottomIdleSettings.DEFAULT_INDEX));
-        if (!BottomIdleSettings.validMinutes(minutes)) minutes =
-                BottomIdleSettings.minutesAt(BottomIdleSettings.DEFAULT_INDEX);
         int attempts = 30;
         for (int i = 0; i < attempts; i++) {
             try {
