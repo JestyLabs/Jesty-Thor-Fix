@@ -17,7 +17,10 @@ $sources = @('DisplayActionCoordinator.java','DisplayHardware.java','DisplayDeci
     'DisplayGenerationModel.java','ThorHardwareProfile.java') | ForEach-Object { Join-Path $source $_ }
 $sources += @(Get-ChildItem (Join-Path $test 'fixtures') -Recurse -File -Filter '*.java' | Select-Object -ExpandProperty FullName)
 $sources += Join-Path $test 'DisplayWakeCoordinatorTest.java'
+$sources += Join-Path $test 'BottomWakeCharacterizationTest.java'
 & javac -d $OutputDirectory @sources
 if ($LASTEXITCODE -ne 0) { throw 'Coordinator host compilation failed' }
 & java -cp $OutputDirectory com.thor.displaypowertest.DisplayWakeCoordinatorTest
 if ($LASTEXITCODE -ne 0) { throw 'Coordinator host regression failed' }
+& java -cp $OutputDirectory com.thor.displaypowertest.BottomWakeCharacterizationTest
+if ($LASTEXITCODE -ne 0) { throw 'BOTH coordinator characterization failed' }
