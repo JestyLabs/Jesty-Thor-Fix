@@ -41,12 +41,7 @@
     move-result v0
     if-eqz v0, :cond_0
 
-    const-string v0, "display.power.state"
-    invoke-static {v0}, Landroid/os/SystemProperties;->get(Ljava/lang/String;)Ljava/lang/String;
-    move-result-object v1
-
-    const-string v2, "0"
-    invoke-virtual {v2, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    invoke-static {}, Lcom/thor/displaypowertest/DisplayActionCoordinator;->isWakeRepairPending()Z
     move-result v3
     if-eqz v3, :cond_0
 
