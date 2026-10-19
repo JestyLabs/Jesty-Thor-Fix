@@ -11,6 +11,12 @@ public final class BottomIdlePolicyTest {
         }
         check(BottomIdleSettings.minutesFor('z') == 0, "off command");
         check(BottomIdleSettings.minutesFor('E') == -1, "existing IPC must not alias");
+        for (String mode : new String[]{"0", "1", "2", "?", ""}) {
+            check(BottomIdlePolicy.shouldObserve(mode, true) == "0".equals(mode),
+                    "monitor present only in BOTH: " + mode);
+            check(!BottomIdlePolicy.shouldObserve(mode, false),
+                    "stock mode must have no idle input watcher: " + mode);
+        }
         BottomIdlePolicy p = new BottomIdlePolicy();
         p.configure(5);
         p.mode("0");

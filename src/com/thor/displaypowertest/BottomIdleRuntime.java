@@ -20,6 +20,7 @@ public final class BottomIdleRuntime {
     private static final BottomIdlePolicy POLICY = new BottomIdlePolicy();
     private static volatile boolean active;
     private static long monitorEpoch;
+    private static long pendingAttachEpoch = -1L;
     private static HandlerThread thread;
     private static Handler handler;
     private static BottomIdleTouchMonitor receiver;
@@ -47,6 +48,7 @@ public final class BottomIdleRuntime {
                 handler = null;
                 thread = null;
                 monitorEpoch++;
+                pendingAttachEpoch = -1L;
                 oldReceiver = receiver;
                 oldMonitor = monitor;
                 receiver = null;
@@ -107,22 +109,28 @@ public final class BottomIdleRuntime {
      */
     private static void reconcileMonitoringLocked(String mode) {
         if (handler == null || !POLICY.enabled()) return;
-        boolean needed = "0".equals(mode) && DaemonState.isEnabled();
+        boolean needed = BottomIdlePolicy.shouldObserve(mode, DaemonState.isEnabled());
         if (needed) {
-            if (receiver == null && !"CONNECTING".equals(inputState)
+            if (receiver == null && pendingAttachEpoch == -1L
                     && !"UNAVAILABLE".equals(inputState)) {
                 inputState = "CONNECTING";
                 long epoch = ++monitorEpoch;
+                pendingAttachEpoch = epoch;
                 handler.post(() -> attachMonitor(epoch));
             }
             return;
         }
-        if (receiver == null && !"CONNECTING".equals(inputState)) {
+        // A cancelled attach must not succeed if its Binder call returns late.
+        if (pendingAttachEpoch >= 0L) {
+            monitorEpoch++;
+            pendingAttachEpoch = -1L;
+        }
+        if (receiver == null) {
             if (!"UNAVAILABLE".equals(inputState)) inputState = "SUSPENDED";
             return;
         }
         // Drop ownership before async cleanup so old events cannot re-arm.
-        long unusedEpoch = ++monitorEpoch;
+        monitorEpoch++;
         BottomIdleTouchMonitor closingReceiver = receiver;
         Object closingMonitor = monitor;
         receiver = null;
@@ -253,6 +261,7 @@ public final class BottomIdleRuntime {
                         && handler.getLooper() == android.os.Looper.myLooper()) {
                     monitor = created;
                     receiver = createdReceiver;
+                    pendingAttachEpoch = -1L;
                     inputState = "WAITING_FOR_TOUCH";
                     return;
                 }
@@ -260,8 +269,12 @@ public final class BottomIdleRuntime {
         } catch (Throwable error) {
             Log.w(TAG, "bottom input monitor unavailable; auto-off remains disarmed", error);
             synchronized (LOCK) {
+                if (epoch == pendingAttachEpoch) pendingAttachEpoch = -1L;
                 if (POLICY.enabled() && epoch == monitorEpoch) inputState = "UNAVAILABLE";
             }
+        }
+        synchronized (LOCK) {
+            if (pendingAttachEpoch == epoch) pendingAttachEpoch = -1L;
         }
         if (createdReceiver != null) createdReceiver.dispose();
         disposeMonitor(created);

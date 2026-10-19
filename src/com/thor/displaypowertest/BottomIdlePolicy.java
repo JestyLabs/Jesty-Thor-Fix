@@ -15,6 +15,11 @@ public final class BottomIdlePolicy {
     private long lastTouchAt = -1L;
     private long generation;
 
+    /** Hardware observation is useful only while the lower panel is visible. */
+    public static boolean shouldObserve(String mode, boolean displayFixEnabled) {
+        return displayFixEnabled && "0".equals(mode);
+    }
+
     public synchronized void configure(int configuredMinutes) {
         if (configuredMinutes != 0 && !BottomIdleSettings.validMinutes(configuredMinutes))
             throw new IllegalArgumentException("timeout");
