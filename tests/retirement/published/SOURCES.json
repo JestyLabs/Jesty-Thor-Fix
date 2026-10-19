@@ -1,0 +1,149 @@
+{
+  "files": [
+    {
+      "version": "1.7.1",
+      "source_commit": "f929ff910bfa8e5179a2c6a63948a18fc3d6b252",
+      "source_path": "src/com/thor/displaypowertest/DaemonState.java",
+      "sha256": "8524c2f73bd95e6db85cb340dd0aa96ea64dba5bef4a29ad38062a36a644f478"
+    },
+    {
+      "version": "1.7.1",
+      "source_commit": "f929ff910bfa8e5179a2c6a63948a18fc3d6b252",
+      "source_path": "src/com/thor/displaypowertest/DaemonCommandHandler.java",
+      "sha256": "2cb7f2facadaca2bc4e5dcfd407e0e9ee06446d32a9724459e3b86108039fd71"
+    },
+    {
+      "version": "1.7.1",
+      "source_commit": "f929ff910bfa8e5179a2c6a63948a18fc3d6b252",
+      "source_path": "src/com/thor/displaypowertest/DaemonIdentity.java",
+      "sha256": "6086a24f463dbbed485da04ee23175f0a78fff397e913ac0f9cf3eca043b8408"
+    },
+    {
+      "version": "1.7.1",
+      "source_commit": "f929ff910bfa8e5179a2c6a63948a18fc3d6b252",
+      "source_path": "src/com/thor/displaypowertest/DisplayDecisionModel.java",
+      "sha256": "955b0a804a280170ef7ae1b69343a4a11227866bd4b4b8fcc0fa6ab81f777429"
+    },
+    {
+      "version": "1.7.1",
+      "source_commit": "f929ff910bfa8e5179a2c6a63948a18fc3d6b252",
+      "source_path": "src/com/thor/displaypowertest/DaemonIpcServer.java",
+      "sha256": "978508c5082a0d354d432062dedfdfb275077c05574911a6d0be323de4b37a57"
+    },
+    {
+      "version": "1.7.1",
+      "source_commit": "f929ff910bfa8e5179a2c6a63948a18fc3d6b252",
+      "source_path": "src/com/thor/displaypowertest/SecureChannel.java",
+      "sha256": "244532dd976d8cd7f359389552fd3affc50fced41dd1259fbae80a092bd2a7b1"
+    },
+    {
+      "version": "1.7.1",
+      "source_commit": "f929ff910bfa8e5179a2c6a63948a18fc3d6b252",
+      "source_path": "src/com/thor/displaypowertest/IpcPeerPolicy.java",
+      "sha256": "f0b16bc682666233744f76afe463e48a7899415818168adb47e1285208d0e937"
+    },
+    {
+      "version": "1.7.1",
+      "source_commit": "f929ff910bfa8e5179a2c6a63948a18fc3d6b252",
+      "source_path": "src/com/thor/displaypowertest/DaemonLaunchModel.java",
+      "sha256": "d8d9de465333d6581c93de45bb72a59d13e22098636e1312c0a5b28cc09f94bd"
+    },
+    {
+      "version": "1.7.2",
+      "source_commit": "9fa9323c153044bae06b8b87ab09138ab5e25f3f",
+      "source_path": "src/com/thor/displaypowertest/DaemonState.java",
+      "sha256": "8cf0c6c3b5b1b2ff02fb444366c39d745ff959bde65850a1bd4acc82e115e948"
+    },
+    {
+      "version": "1.7.2",
+      "source_commit": "9fa9323c153044bae06b8b87ab09138ab5e25f3f",
+      "source_path": "src/com/thor/displaypowertest/DaemonCommandHandler.java",
+      "sha256": "2cb7f2facadaca2bc4e5dcfd407e0e9ee06446d32a9724459e3b86108039fd71"
+    },
+    {
+      "version": "1.7.2",
+      "source_commit": "9fa9323c153044bae06b8b87ab09138ab5e25f3f",
+      "source_path": "src/com/thor/displaypowertest/DaemonIdentity.java",
+      "sha256": "0a378bd00891ca501d4f75ba64771ec598e0a2569974f48eab45effdf2a73d9e"
+    },
+    {
+      "version": "1.7.2",
+      "source_commit": "9fa9323c153044bae06b8b87ab09138ab5e25f3f",
+      "source_path": "src/com/thor/displaypowertest/DisplayDecisionModel.java",
+      "sha256": "955b0a804a280170ef7ae1b69343a4a11227866bd4b4b8fcc0fa6ab81f777429"
+    },
+    {
+      "version": "1.7.2",
+      "source_commit": "9fa9323c153044bae06b8b87ab09138ab5e25f3f",
+      "source_path": "src/com/thor/displaypowertest/DaemonIpcServer.java",
+      "sha256": "d58b809e336ba78e170abe7d8406c352d4c95710ca9bf5316ce87367e265e2cb"
+    },
+    {
+      "version": "1.7.2",
+      "source_commit": "9fa9323c153044bae06b8b87ab09138ab5e25f3f",
+      "source_path": "src/com/thor/displaypowertest/SecureChannel.java",
+      "sha256": "6fd6048940c2374f3ff1385aea97abe8b219ca8151b581339ba690db20c9093b"
+    },
+    {
+      "version": "1.7.2",
+      "source_commit": "9fa9323c153044bae06b8b87ab09138ab5e25f3f",
+      "source_path": "src/com/thor/displaypowertest/IpcPeerPolicy.java",
+      "sha256": "f0b16bc682666233744f76afe463e48a7899415818168adb47e1285208d0e937"
+    },
+    {
+      "version": "1.7.2",
+      "source_commit": "9fa9323c153044bae06b8b87ab09138ab5e25f3f",
+      "source_path": "src/com/thor/displaypowertest/DaemonLaunchModel.java",
+      "sha256": "d8d9de465333d6581c93de45bb72a59d13e22098636e1312c0a5b28cc09f94bd"
+    },
+    {
+      "version": "1.7.3",
+      "source_commit": "ed2429581b577db9c0f37cc0dd51774e28e3b992",
+      "source_path": "src/com/thor/displaypowertest/DaemonState.java",
+      "sha256": "8cf0c6c3b5b1b2ff02fb444366c39d745ff959bde65850a1bd4acc82e115e948"
+    },
+    {
+      "version": "1.7.3",
+      "source_commit": "ed2429581b577db9c0f37cc0dd51774e28e3b992",
+      "source_path": "src/com/thor/displaypowertest/DaemonCommandHandler.java",
+      "sha256": "2cb7f2facadaca2bc4e5dcfd407e0e9ee06446d32a9724459e3b86108039fd71"
+    },
+    {
+      "version": "1.7.3",
+      "source_commit": "ed2429581b577db9c0f37cc0dd51774e28e3b992",
+      "source_path": "src/com/thor/displaypowertest/DaemonIdentity.java",
+      "sha256": "8d321751d63f8b45ec8684521cb2aa36f5dd148548483fd9ddd2c735e6f0adcf"
+    },
+    {
+      "version": "1.7.3",
+      "source_commit": "ed2429581b577db9c0f37cc0dd51774e28e3b992",
+      "source_path": "src/com/thor/displaypowertest/DisplayDecisionModel.java",
+      "sha256": "955b0a804a280170ef7ae1b69343a4a11227866bd4b4b8fcc0fa6ab81f777429"
+    },
+    {
+      "version": "1.7.3",
+      "source_commit": "ed2429581b577db9c0f37cc0dd51774e28e3b992",
+      "source_path": "src/com/thor/displaypowertest/DaemonIpcServer.java",
+      "sha256": "d58b809e336ba78e170abe7d8406c352d4c95710ca9bf5316ce87367e265e2cb"
+    },
+    {
+      "version": "1.7.3",
+      "source_commit": "ed2429581b577db9c0f37cc0dd51774e28e3b992",
+      "source_path": "src/com/thor/displaypowertest/SecureChannel.java",
+      "sha256": "6fd6048940c2374f3ff1385aea97abe8b219ca8151b581339ba690db20c9093b"
+    },
+    {
+      "version": "1.7.3",
+      "source_commit": "ed2429581b577db9c0f37cc0dd51774e28e3b992",
+      "source_path": "src/com/thor/displaypowertest/IpcPeerPolicy.java",
+      "sha256": "f0b16bc682666233744f76afe463e48a7899415818168adb47e1285208d0e937"
+    },
+    {
+      "version": "1.7.3",
+      "source_commit": "ed2429581b577db9c0f37cc0dd51774e28e3b992",
+      "source_path": "src/com/thor/displaypowertest/DaemonLaunchModel.java",
+      "sha256": "d8d9de465333d6581c93de45bb72a59d13e22098636e1312c0a5b28cc09f94bd"
+    }
+  ],
+  "notice": "Exact own published source fixtures; not patched to invent protocol fields. GPL-3.0-only."
+}

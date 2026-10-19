@@ -17,10 +17,17 @@ public final class LiveHandoverPolicyTest {
     }
     public static void main(String[] args) {
         check(pid(H,Q)==12000, "exact code80 ready+BOTH+matching CPU is eligible");
+        String h83 = H.replace("1.7.2", "1.7.3");
+        String q83 = Q.replace("1.7.2", "1.7.3");
+        check(pid(h83,q83)==12000, "approved code83 ready+BOTH is eligible for the next release");
+        check(pid(h83,q83.replace(";runtime_version=1.7.3", ""))<0,
+                "code83 cannot borrow the code76 absent-runtime exception");
+        check(pid(h83,q83+";runtime_version=1.7.3")<0, "code83 duplicate runtime denied");
+        check(pid(h83+";pid=12000",q83)<0, "code83 duplicate identity denied");
         check(pid(H.replace("1.7.2","1.7.1"),Q.replace(";runtime_version=1.7.2",""))<0,
                 "published code76 lacks Q runtime identity and cannot authorize live stop");
         check(pid(H.replace("1.7.2","1.7.1"),Q)<0,"I/Q version mismatch denied");
-        for (String version : new String[]{"1.7.0","1.7.2-rc1","1.7.3",
+        for (String version : new String[]{"1.7.0","1.7.2-rc1","1.7.4",
                 "1.7.3-recovery","1.7.2-hijacked","unknown"}) {
             check(pid(H.replace("1.7.2",version),Q)<0,"unknown predecessor denied "+version);
         }
