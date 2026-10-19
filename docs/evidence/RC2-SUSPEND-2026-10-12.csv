@@ -1,0 +1,3 @@
+mode,elapsed_ms,suspend_lower_ms,suspend_upper_ms,suspend_pct_lower,suspend_pct_upper,method
+BOTH,845597,743229,743601,87.893997,87.937989,android_elapsed_minus_uptime_bounded
+TOP,803207,750554,751027,93.444654,93.503543,android_elapsed_minus_uptime_bounded

@@ -58,6 +58,7 @@ public final class DaemonState {
         String topCrtc = crtc[0];
         String bottomCrtc = crtc[1];
         return "ok=1"
+                + ";runtime_version=" + DaemonIdentity.RUNTIME_ID
                 + ";boot_phase=" + clean(BootSafety.phase()).replace(' ', '_')
                 + ";boot_phase_ms=" + BootSafety.phaseAgeMs()
                 + ";display_actions_held=" + (BootSafety.isHeld() ? "1" : "0")

@@ -59,11 +59,13 @@ final class DashboardLayout {
         backgroundImage = new ImageView(activity);
         backgroundImage.setImageResource(views.resource("drawable", "jesty_thor_background"));
         backgroundImage.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        backgroundImage.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         root.addView(backgroundImage, views.match());
 
         // BackgroundMediaController installs the surface listener.
         videoTexture = new TextureView(activity);
         videoTexture.setOpaque(false);
+        videoTexture.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         root.addView(videoTexture, views.match());
 
         View shade = new View(activity);
@@ -78,10 +80,10 @@ final class DashboardLayout {
         root.addView(scroll, new FrameLayout.LayoutParams(panelWidth,
                 ViewGroup.LayoutParams.MATCH_PARENT, Gravity.START));
 
-        // App diagnostics stays an on-demand action: a single accessible gear
-        // at the bottom-right replaces the large text button.
+        // Same diagnostics action as before, now in the top-right action row.
+        // Use a clean vector gear instead of the platform's wrench bitmap.
         ImageView diagnostics = new ImageView(activity);
-        diagnostics.setImageResource(android.R.drawable.ic_menu_manage);
+        diagnostics.setImageResource(views.resource("drawable", "jesty_diagnostics_gear"));
         diagnostics.setColorFilter(AMBER);
         diagnostics.setScaleType(ImageView.ScaleType.FIT_CENTER);
         diagnostics.setPadding(views.dp(12), views.dp(12), views.dp(12), views.dp(12));
@@ -95,10 +97,6 @@ final class DashboardLayout {
         diagnosticsBubble.setStroke(views.dp(1), 0xCCC45CFF);
         diagnostics.setBackground(diagnosticsBubble);
         diagnostics.setOnClickListener(v -> actions.onDiagnostics());
-        FrameLayout.LayoutParams diagnosticsParams = new FrameLayout.LayoutParams(
-                views.dp(48), views.dp(48), Gravity.BOTTOM | Gravity.END);
-        diagnosticsParams.setMargins(0, 0, views.dp(18), views.dp(16));
-        root.addView(diagnostics, diagnosticsParams);
 
         LinearLayout topActions = new LinearLayout(activity);
         topActions.setOrientation(LinearLayout.HORIZONTAL);
@@ -108,34 +106,51 @@ final class DashboardLayout {
         updateAction.setTextColor(Color.rgb(36, 19, 56));
         GradientDrawable highlight = new GradientDrawable();
         highlight.setColor(AMBER);
-        highlight.setCornerRadius(views.dp(21));
+        highlight.setCornerRadius(views.dp(24));
         updateAction.setBackground(highlight);
         updateAction.setVisibility(View.GONE);
+        updateAction.setContentDescription("View available software update");
         updateAction.setOnClickListener(v -> actions.onUpdate());
         LinearLayout.LayoutParams updateParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, views.dp(38));
+                ViewGroup.LayoutParams.WRAP_CONTENT, views.dp(48));
         updateParams.setMargins(0, 0, views.dp(8), 0);
         topActions.addView(updateAction, updateParams);
 
+        // Move diagnostics into the top position formerly occupied by Support/GitHub.
+        topActions.addView(diagnostics, new LinearLayout.LayoutParams(
+                views.dp(48), views.dp(48)));
+        FrameLayout.LayoutParams actionParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, views.dp(48), Gravity.TOP | Gravity.END);
+        actionParams.setMargins(0, views.dp(16), views.dp(18), 0);
+        root.addView(topActions, actionParams);
+
+        // Move the original Support and GitHub buttons to Diagnostics' former corner.
+        // Preserve labels and click/long-click handlers, with 48dp touch targets.
+        LinearLayout bottomActions = new LinearLayout(activity);
+        bottomActions.setOrientation(LinearLayout.HORIZONTAL);
+        bottomActions.setGravity(Gravity.CENTER_VERTICAL);
         TextView support = views.topAction("\u2615  SUPPORT");
         support.setOnClickListener(v -> actions.onSupport());
-        topActions.addView(support);
+        bottomActions.addView(support);
 
         TextView github = views.topAction("\u2605  GITHUB");
+        // The long-press settings shortcut remains a legacy affordance; let
+        // TalkBack users discover it without changing click/consent behavior.
+        github.setContentDescription("GitHub project. Long press for update settings");
         github.setOnClickListener(v -> actions.onGithub());
         github.setOnLongClickListener(v -> {
             actions.onGithubLongPress();
             return true;
         });
         LinearLayout.LayoutParams githubParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, views.dp(38));
+                ViewGroup.LayoutParams.WRAP_CONTENT, views.dp(48));
         githubParams.setMargins(views.dp(8), 0, 0, 0);
-        topActions.addView(github, githubParams);
+        bottomActions.addView(github, githubParams);
 
-        FrameLayout.LayoutParams actionParams = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, views.dp(42), Gravity.TOP | Gravity.END);
-        actionParams.setMargins(0, views.dp(16), views.dp(18), 0);
-        root.addView(topActions, actionParams);
+        FrameLayout.LayoutParams bottomParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, views.dp(48), Gravity.BOTTOM | Gravity.END);
+        bottomParams.setMargins(0, 0, views.dp(18), views.dp(16));
+        root.addView(bottomActions, bottomParams);
 
         LinearLayout content = new LinearLayout(activity);
         content.setOrientation(LinearLayout.VERTICAL);
@@ -161,7 +176,7 @@ final class DashboardLayout {
         LinearLayout controls = views.panel();
         fixToggle = views.makeSwitch("", Color.WHITE, 14f);
         controls.addView(views.featureToggleRow("TRUE BOTTOM SCREEN OFF",
-                "Actually powers off the lower screen in Top Only mode", fixToggle).row,
+                "Powers down the lower screen instead of just blacking it out", fixToggle).row,
                 new LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         View divider = new View(activity);
@@ -170,7 +185,7 @@ final class DashboardLayout {
 
         dashboardFixToggle = views.makeSwitch("", Color.WHITE, 14f);
         DashboardViews.ToggleRow cpuRow = views.featureToggleRow("AYN DASHBOARD CPU FIX",
-                "Restarts Android UI/display once to apply", dashboardFixToggle);
+                "Applies at startup. Manual activation restarts the Android UI, which may look like a reboot.", dashboardFixToggle);
         dashboardFixHelp = cpuRow.help;
         controls.addView(cpuRow.row,
                 new LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT));

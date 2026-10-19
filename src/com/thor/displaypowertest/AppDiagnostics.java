@@ -10,6 +10,8 @@ import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Build;
 import android.os.SystemClock;
+import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -27,6 +29,7 @@ final class AppDiagnostics {
     private final Activity activity;
     private final SharedPreferences storage;
     private final AppDiagnosticReport report;
+    private final PassiveSleepMonitor sleepMonitor;
     private String pendingExport;
     private boolean collecting;
     private volatile boolean closed;
@@ -35,6 +38,7 @@ final class AppDiagnostics {
         this.activity = activity;
         storage = activity.getSharedPreferences("diagnostics", Context.MODE_PRIVATE);
         report = new AppDiagnosticReport(storage.getString("events", ""));
+        sleepMonitor = new PassiveSleepMonitor(activity);
         this.pendingExport = pendingExport;
         record("APP_CREATED");
     }
@@ -59,6 +63,10 @@ final class AppDiagnostics {
             }
         }
     }
+
+    /** No battery read unless explicitly armed; only Activity boundary snapshots. */
+    void onPause() { if (!closed) sleepMonitor.onPause(); }
+    void onResume() { if (!closed) sleepMonitor.onResume(); }
 
     void show() {
         if (collecting || closed) return;
@@ -86,11 +94,14 @@ final class AppDiagnostics {
             String version = "unknown";
             try { version = activity.getPackageManager().getPackageInfo(activity.getPackageName(), 0).versionName; }
             catch (Exception ignored) {}
+            final PassiveSleepTrial.Result trial = sleepMonitor.result();
             final String text = report.export(System.currentTimeMillis(), SystemClock.elapsedRealtime(),
-                    version, Build.VERSION.SDK_INT, state, exits);
+                    version, Build.VERSION.SDK_INT, state, exits, trial);
             // Format once on this on-demand worker. The exported report stays
             // byte-for-byte identical for automated analysis and privacy checks.
-            final String preview = AppDiagnosticPreview.format(text);
+            final String preview = AppDiagnosticPreview.format(text)
+                    + (trial == null ? "" : "\nPASSIVE SLEEP TRIAL\n"
+                    + trial.describe() + "\nWhole-device interval, not panel energy.\n");
             activity.runOnUiThread(() -> {
                 collecting = false;
                 if (closed || activity.isFinishing() || activity.isDestroyed()) return;
@@ -101,13 +112,60 @@ final class AppDiagnostics {
                 body.setTextIsSelectable(true);
                 body.setTextSize(14);
                 body.setLineSpacing(padding / 4f, 1f);
+                // Keep only two native footer buttons: at large font scales,
+                // three stack beyond the dialog's visible area. The trial entry
+                // stays in the scrollable content without changing its handler.
+                LinearLayout content = new LinearLayout(activity);
+                content.setOrientation(LinearLayout.VERTICAL);
+                Button trialEntry = new Button(activity);
+                trialEntry.setText("Sleep trial");
+                trialEntry.setMinimumHeight((int) (48 * activity.getResources().getDisplayMetrics().density + .5f));
+                LinearLayout.LayoutParams trialParams = new LinearLayout.LayoutParams(-1, -2);
+                trialParams.setMargins(padding, padding, padding, 0);
+                content.addView(trialEntry, trialParams);
+                content.addView(body);
                 ScrollView scroll = new ScrollView(activity);
-                scroll.addView(body);
-                new AlertDialog.Builder(activity).setTitle("App diagnostics").setView(scroll)
+                scroll.addView(content);
+                AlertDialog dialog = new AlertDialog.Builder(activity).setTitle("App diagnostics").setView(scroll)
                         .setNegativeButton("Close", null)
-                        .setPositiveButton("Save report", (dialog, which) -> save(text)).show();
+                        .setPositiveButton("Save report", (d, which) -> save(text)).show();
+                trialEntry.setOnClickListener(v -> {
+                    dialog.dismiss();
+                    showSleepTrial();
+                });
+                // The selectable preview otherwise receives initial keyboard
+                // focus and scrolls the entry action out of view on opening.
+                dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus();
+                scroll.post(() -> scroll.scrollTo(0, 0));
             });
         }, "app-diagnostics").start();
+    }
+
+    private void showSleepTrial() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(activity)
+                .setTitle("Passive sleep trial")
+                .setMessage(sleepMonitor.description()
+                        + "\n\nTwo snapshots at Activity pause/resume only. Leave the app, "
+                        + "let the Thor sleep unplugged for at least five minutes, "
+                        + "then return. Any awake time around the sleep is included. "
+                        + "No timer, wakelock, sleep polling or panel power measurement.")
+                .setNegativeButton("Close", null);
+        if (sleepMonitor.running()) {
+            builder.setPositiveButton("Cancel trial", (dialog, which) -> {
+                if (!sleepMonitor.cancel()) {
+                    Toast.makeText(activity, "Could not save cancellation", Toast.LENGTH_SHORT).show();
+                }
+            });
+        } else {
+            builder.setPositiveButton("Start trial", (dialog, which) -> {
+                if (sleepMonitor.arm()) {
+                    Toast.makeText(activity, "Trial armed — leave the app to start", Toast.LENGTH_LONG).show();
+                } else {
+                    Toast.makeText(activity, "Could not arm trial", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+        builder.show();
     }
 
     private void save(String text) {

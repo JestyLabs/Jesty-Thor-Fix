@@ -3,7 +3,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repository = Split-Path -Parent $PSScriptRoot
-$output = Join-Path $env:TEMP 'jesty-thor-boot-lid-tests'
+$output = Join-Path ([IO.Path]::GetTempPath()) ('jesty-thor-boot-lid-' + [Guid]::NewGuid().ToString('N'))
 
 $manifest = Get-Content -LiteralPath (Join-Path $repository 'apk\AndroidManifest.xml') -Raw
 $identity = Get-Content -LiteralPath (Join-Path $repository 'src\com\thor\displaypowertest\DaemonIdentity.java') -Raw
@@ -97,6 +97,13 @@ if ($attemptStore -match '/data/local/tmp|/data/adb') {
 $cpuFixSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'CpuFixController.java') -Raw
 $commandSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'DaemonCommandHandler.java') -Raw
 $runtimeSource = Get-Content -LiteralPath (Join-Path $daemonPackage 'DaemonRuntime.java') -Raw
+$listenAt = $runtimeSource.IndexOf('SecureChannel.listen()')
+$adoptAt = $runtimeSource.IndexOf('cpuFix.adoptEarlyAttempt()')
+$hookAt = $runtimeSource.IndexOf('EarlyCpuBootHookManager.reconcile(')
+if ($listenAt -lt 0 -or $adoptAt -lt 0 -or $hookAt -lt 0 -or
+    $listenAt -ge $adoptAt -or $listenAt -ge $hookAt) {
+    throw 'Exclusive daemon lock must precede privileged CPU marker/hook writes.'
+}
 if ($cpuFixSource -notmatch 'observeHelper\(' -or $commandSource -notmatch '";phase_ms="') {
     throw 'The daemon must observe its compositor helper and report its phase age.'
 }
@@ -263,6 +270,81 @@ if ($watchStart -lt 0 -or $watchEnd -le $watchStart) {
     throw 'Could not isolate watcher coordinator method.'
 }
 $watchBody = $coordinator.Substring($watchStart, $watchEnd - $watchStart)
+# Lid Protection is optional: OFF must not run guard checks from the hot
+# display path or initiate a display probe from Q telemetry. The public
+# LidGuard entry points remain stable for daemon and smali callers.
+$lidFacade = Get-Content -LiteralPath (Join-Path $daemonPackage 'LidGuard.java') -Raw
+$lidRuntime = Get-Content -LiteralPath (Join-Path $daemonPackage 'LidProtectionRuntime.java') -Raw
+foreach ($method in @('setEnabled', 'isEnabled', 'lid', 'state', 'blockedWakes',
+        'lastAction', 'externalDisplay', 'externalDisplayCached', 'onWakeEvent',
+        'isSleepDecisionCurrent')) {
+    if ($lidFacade -notmatch [regex]::Escape($method + '(')) {
+        throw "Lid facade API is missing $method"
+    }
+}
+if ($watchBody -notmatch 'stableTopWake\s*&&\s*LidGuard\.isEnabled\(\)\s*&&\s*LidGuard\.onWakeEvent\(\)') {
+    throw 'Guard OFF must skip wake policy in the display sample hot path.'
+}
+if ($lidRuntime -match 'new ProcessBuilder\("(?:getevent|dumpsys)"' -or
+    $lidRuntime -notmatch 'new ProcessBuilder\("/system/bin/getevent"' -or
+    $lidRuntime -notmatch 'new ProcessBuilder\("/system/bin/dumpsys"') {
+    throw 'Hall and display probes must use trusted absolute Android binary paths.'
+}
+if ($lidRuntime -notmatch 'model\.evaluateSleep\(' -or
+    $lidRuntime -notmatch 'model\.recordSleepIfCurrent\(' -or
+    $lidRuntime -notmatch 'model\.isSleepDecisionCurrent\(epoch\)' -or
+    $lidRuntime -notmatch 'requestGuardSleep\(decision\.lidEpoch\)' -or
+    $coordinator -notmatch 'requestGuardSleep\(long authorizedLidEpoch\)' -or
+    $coordinator -notmatch 'LidGuard\.isSleepDecisionCurrent\(authorizedLidEpoch\)') {
+    throw 'Lid sleep requires atomic decision and epoch verification at command boundary.'
+}
+if ($lidRuntime -notmatch 'if \(enabled\) refreshExternalDisplay\(\);' -or
+    $lidRuntime -notmatch 'synchronized \(LidProtectionRuntime\.class\)' -or
+    $lidRuntime -notmatch 'if \(!enabled\) continue;' -or
+    $lidRuntime -notmatch 'model\.invalidateObservation\(\)' -or
+    $lidRuntime -notmatch 'resumeWakeRepair\(\);') {
+    throw 'Guard OFF must skip probes, invalidate Hall state and restore deferred wake repair.'
+}
+# External probe can take 2 seconds; NEVER authorize Guard sleep from
+# interactive/decision-time values captured before that blocking probe.
+# This narrows stale observations but does not eliminate a physical Hall race.
+$trySleepStart = $lidRuntime.IndexOf('private static void trySleep(')
+$trySleepEnd = $lidRuntime.IndexOf('private static synchronized void resumeWakeRepair(', $trySleepStart)
+if ($trySleepStart -lt 0 -or $trySleepEnd -le $trySleepStart) {
+    throw 'Could not isolate Lid trySleep for freshness contract.'
+}
+$trySleepBody = $lidRuntime.Substring($trySleepStart, $trySleepEnd - $trySleepStart)
+$externalProbeAt = $trySleepBody.IndexOf('Boolean external = externalDisplayConnected();')
+$interactiveAt = $trySleepBody.IndexOf('Boolean interactive = interactive();')
+$decisionClockAt = $trySleepBody.IndexOf('long now = SystemClock.elapsedRealtime();')
+if ($externalProbeAt -lt 0 -or $interactiveAt -le $externalProbeAt -or
+    $decisionClockAt -le $interactiveAt) {
+    throw 'Lid Guard interactivity/decision timestamp must follow slow external probe.'
+}
+if ($trySleepBody -notmatch 'requestGuardSleep\(decision\.lidEpoch\)' -or
+    $trySleepBody -notmatch 'epoch != activationEpoch') {
+    throw 'Late interactivity check must retain Hall/activation epoch guard.'
+}
+
+if ($lidRuntime -notmatch 'private static volatile long activationEpoch;' -or
+    $lidRuntime -notmatch 'epoch != activationEpoch' -or
+    $lidRuntime -notmatch 'trySleep\("sleep_after_close", false, epoch\)' -or
+    $lidRuntime -notmatch 'trySleep\("sleep_after_closed_wake", true, epoch\)') {
+    throw 'Queued Lid sleep must fail closed across OFF/ON activation transitions.'
+}
+if ($lidRuntime -notmatch 'final long probeEpoch = activationEpoch;' -or
+    $lidRuntime -notmatch 'probeEpoch != activationEpoch' -or
+    $lidRuntime -notmatch 'if \(!enabled \|\| epoch != activationEpoch\) return;' -or
+    $lidRuntime -notmatch 'externalCheckPending = false;' -or
+    $lidRuntime -notmatch 'externalDisplay = null;') {
+    throw 'Stale asynchronous/synchronous external-display probes must not restore OFF session state.'
+}
+$lidModel = Get-Content -LiteralPath (Join-Path $daemonPackage 'LidGuardModel.java') -Raw
+if ($lidModel -notmatch 'public synchronized void invalidateObservation\(\)' -or
+    $lidModel -notmatch 'lidEpoch\+\+;' -or
+    $lidModel -notmatch 'public synchronized boolean recordSleepIfCurrent\(') {
+    throw 'Lid model must invalidate stale observation and guard sleep completion.'
+}
 if ($watchBody -notmatch 'WatcherCadence\.beginDrmRead' -or
     $watchBody -notmatch 'Telemetry\.crtcActivePair\(\)' -or
     $watchBody -match 'Telemetry\.(?:top|bottom)CrtcActive\(\)') {
@@ -283,17 +365,11 @@ if ($bootReceiver -notmatch 'const-string v1, "android\.intent\.action\.BOOT_COM
     throw 'The exported BootReceiver must ignore any action other than BOOT_COMPLETED.'
 }
 
-if (Test-Path -LiteralPath $output) {
-    $resolved = [IO.Path]::GetFullPath((Resolve-Path -LiteralPath $output).Path)
-    $expected = [IO.Path]::GetFullPath($output)
-    if (-not [String]::Equals($resolved, $expected, [StringComparison]::OrdinalIgnoreCase)) {
-        throw "Refusing to clean unexpected test path: $resolved"
-    }
-    Remove-Item -LiteralPath $output -Recurse -Force
-}
 New-Item -ItemType Directory -Path $output | Out-Null
+try {
 
 $sources = @(
+    (Join-Path $repository 'src\com\thor\displaypowertest\BootTraceFieldPolicy.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\BootGateModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\DaemonLaunchModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\DaemonLaunchScript.java'),
@@ -302,8 +378,10 @@ $sources = @(
     (Join-Path $repository 'src\com\thor\displaypowertest\DisplayDecisionModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\DisplayGenerationModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\IpcPeerPolicy.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\DaemonResponsePolicy.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\LegacyDaemonIdentity.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\PreviousSecureDaemonIdentity.java'),
+    (Join-Path $repository 'src\com\thor\displaypowertest\LiveHandoverPolicy.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\PropertyState.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\ProcessWait.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\Telemetry.java'),
@@ -321,15 +399,21 @@ $sources = @(
     (Join-Path $repository 'src\com\thor\displaypowertest\EarlyCpuGateModel.java'),
     (Join-Path $repository 'src\com\thor\displaypowertest\WatcherCadenceModel.java'),
     (Join-Path $repository 'tests\BootAndLidModelTest.java'),
+    (Join-Path $repository 'tests\ExternalDisplayModelAdversarialTest.java'),
+    (Join-Path $repository 'tests\BootGateAdversarialTest.java'),
     (Join-Path $repository 'tests\BootLatencyTest.java'),
     (Join-Path $repository 'tests\DaemonLaunchModelTest.java'),
     (Join-Path $repository 'tests\DaemonLaunchScriptTest.java'),
     (Join-Path $repository 'tests\DisplayDecisionModelTest.java'),
     (Join-Path $repository 'tests\DisplayGenerationModelTest.java'),
     (Join-Path $repository 'tests\IpcPeerPolicyTest.java'),
+    (Join-Path $repository 'tests\DaemonResponsePolicyTest.java'),
     (Join-Path $repository 'tests\LegacyDaemonIdentityTest.java'),
     (Join-Path $repository 'tests\PreviousSecureDaemonIdentityTest.java'),
+    (Join-Path $repository 'tests\LiveHandoverPolicyTest.java'),
     (Join-Path $repository 'tests\PropertyStateTest.java'),
+    (Join-Path $repository 'tests\ProcessWaitTest.java'),
+    (Join-Path $repository 'tests\com\thor\displaypowertest\BootTraceFieldPolicyTest.java'),
     (Join-Path $repository 'tests\HallNodeModelTest.java'),
     (Join-Path $repository 'tests\BridgeFailureDiagnosticTest.java'),
     (Join-Path $repository 'tests\HandoffRecoveryModelTest.java'),
@@ -340,12 +424,17 @@ $sources = @(
     (Join-Path $repository 'tests\EarlyCpuBootHookScriptTest.java'),
     (Join-Path $repository 'tests\EarlyCpuAttemptImportModelTest.java'),
     (Join-Path $repository 'tests\EarlyCpuGateModelTest.java'),
+    (Join-Path $repository 'tests\EarlyCpuGateAdversarialTest.java'),
     (Join-Path $repository 'tests\WatcherCadenceModelTest.java')
 )
 & javac -source 8 -target 8 -d $output $sources
 if ($LASTEXITCODE -ne 0) { throw 'Boot/lid test compilation failed.' }
 & java -cp $output BootAndLidModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Boot/lid tests failed.' }
+& java -cp $output ExternalDisplayModelAdversarialTest
+if ($LASTEXITCODE -ne 0) { throw 'External-display fail-safe parser tests failed.' }
+& java -cp $output BootGateAdversarialTest
+if ($LASTEXITCODE -ne 0) { throw 'Boot gate adversarial matrix failed.' }
 & java -cp $output CpuBootAttemptModelTest
 if ($LASTEXITCODE -ne 0) { throw 'CPU boot attempt model tests failed.' }
 & java -cp $output PreComposerCpuProofModelTest
@@ -358,6 +447,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Early CPU boot-hook script tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Early CPU attempt import model tests failed.' }
 & java -cp $output EarlyCpuGateModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Early CPU gate model tests failed.' }
+& java -cp $output EarlyCpuGateAdversarialTest
+if ($LASTEXITCODE -ne 0) { throw 'Early CPU gate adversarial test failed.' }
 & java -cp $output WatcherCadenceModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Watcher cadence model tests failed.' }
 & java -cp $output BootLatencyTest
@@ -368,15 +459,24 @@ if ($LASTEXITCODE -ne 0) { throw 'Daemon launch model tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Daemon launch script tests failed.' }
 & java -cp $output PropertyStateTest
 if ($LASTEXITCODE -ne 0) { throw 'Property-state tests failed.' }
+& java -cp $output ProcessWaitTest
+if ($LASTEXITCODE -ne 0) { throw 'Bounded child-process wait tests failed.' }
+& java -cp $output com.thor.displaypowertest.BootTraceFieldPolicyTest
+if ($LASTEXITCODE -ne 0) { throw 'Boot trace sanitizer characterization failed.' }
 & java -cp $output DisplayDecisionModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Display decision tests failed.' }
 & java -cp $output DisplayGenerationModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Display generation tests failed.' }
 & java -cp $output IpcPeerPolicyTest
 if ($LASTEXITCODE -ne 0) { throw 'IPC peer policy tests failed.' }
+& java -cp $output DaemonResponsePolicyTest
+if ($LASTEXITCODE -ne 0) { throw 'IPC reply parsing tests failed.' }
 & java -cp $output LegacyDaemonIdentityTest
 if ($LASTEXITCODE -ne 0) { throw 'Legacy daemon identity tests failed.' }
 & java -cp $output PreviousSecureDaemonIdentityTest
+if ($LASTEXITCODE -ne 0) { throw 'Previous secure daemon tests failed.' }
+& java -cp $output LiveHandoverPolicyTest
+if ($LASTEXITCODE -ne 0) { throw 'Live handover policy tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Previous secure daemon identity tests failed.' }
 & java -cp $output HallNodeModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Hall node model tests failed.' }
@@ -386,3 +486,13 @@ if ($LASTEXITCODE -ne 0) { throw 'Handoff recovery model tests failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'PServer bridge diagnostic tests failed.' }
 & java -cp $output DaemonArgsTest
 if ($LASTEXITCODE -ne 0) { throw 'Daemon argument tests failed.' }
+& (Join-Path $PSScriptRoot 'test-ipc-server-host.ps1')
+& (Join-Path $PSScriptRoot 'test-secure-channel-host.ps1')
+& (Join-Path $PSScriptRoot 'test-reboot-activation-host.ps1')
+
+} finally {
+    # Per-invocation output cannot collide with another test run.
+    if (Test-Path -LiteralPath $output) {
+        Remove-Item -LiteralPath $output -Recurse -Force
+    }
+}

@@ -1,160 +1,43 @@
 # Current roadmap
 
-Last updated: 2026-10-08.
+Updated 2026-10-17. Current published stable: **[v1.7.3 / code83](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.3)** (after [v1.7.2 / code80](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.2)). PRs #67, #89, #90 and #91 are merged. The v1.7.3 safe in-place daemon handover passed host, CI and Android emulator checks; it only proceeds under verified predecessor and device conditions, with guarded fallback otherwise. Historical RC78 physical testing remains scoped to its exact candidate: **15 PASS / 1 historical FAIL**, with separate A1 BOTH acceptance PASS. See [physical results and limits](PR67-PHYSICAL-VALIDATION-2026-10-16.md). Earlier candidate and recovery records remain historical evidence.
 
-Stable release behaviour stays unchanged until a change is physically validated on hardware.
+See [physical validation evidence](VALIDATION-EVIDENCE.md) for completed test results. Historical investigations remain in their original, dated reports rather than being repeated here as future work.
 
-## Completed for v1.7.0: reduce watcher / DRM background work
+## Completed and hardware-validated
 
-Hardware A/B measured about 89% lower daemon CPU and 95% fewer voluntary watcher
-context switches in awake BOTH/TOP. The exact signed v1.7.0 APK passed guarded
-update, BOTH/TOP, two wakes and one supervised normal TOP reboot; the owner
-authorized stable promotion. Gameplay/battery studies and exact stable request
-count percentages remain deferred. The baseline facts and investigation plan
-below describe the completed research, not additional release gates.
+- **True Bottom Screen Off:** verified physical display-pipeline changes in TOP, BOTH restoration and normal post-wake repair.
+- **Dashboard CPU Fix:** reproduced and mitigated high-cluster-frequency pinning on the tested Thor.
+- **Watcher efficiency (v1.7.0):** approximately **89% lower daemon CPU** in controlled hardware A/B compared with the preceding implementation, with safe display recovery preserved.
+- **v1.7.0 signed candidate:** verified in-place handoff, physical mode transitions, wake repairs and supervised reboot.
+- **RC2 physical baseline (2026-10-12):** six repeatable CPU idle windows and successful sustained-suspend experiments in BOTH and TOP. [Dataset and calculations](evidence/RC2-PHYSICAL-BASELINE-2026-10-12.md).
+- **Code76 physical primary checks (2026-10-12):** installation, CPU Fix confirmation recovery, BOTH/TOP display, short sleep/wake, six CPU windows **and both long suspend trials PASS** with Guard OFF. Optional Guard ON normal-cycle regression subsequently **PASS** in BOTH/TOP; active closed-lid wake interception **NOT OBSERVED**. [Physical measurements](evidence/CODE76-PHYSICAL-VALIDATION-2026-10-12.md).
 
-Current v1.6.0 implementation facts:
+These tests support the named outcomes. They do not need to be rerun solely because their original work item was previously phrased as an investigation.
 
-- the hidden Settings-provider watcher samples `dual_screen_display_mode` every **20 ms** (up to ~50 provider calls/s);
-- while True Bottom Screen Off is enabled and the display is in a normal stable state, `DisplayActionCoordinator` throttles physical CRTC checks to at most once every **250 ms**;
-- those steady coordinator checks currently read TOP and BOTTOM separately, so that is up to **8 individual DRM debugfs opens/s** from the coordinator;
-- the visible dashboard adds its own once-per-second telemetry query while the Activity is open; that is not part of the closed-app background path;
-- urgent wake-repair logic intentionally bypasses the steady throttle when fast confirmation is needed.
+## Priority 1 — maintain v1.7.3 and monitor guarded upgrades
 
-These are code-path counts, **not evidence of a performance problem**. No micro-stutter claim should be made without measurement.
+- **Released:** PR #67 hardening, PR #89 verified same-kernel handover, PR #90 protected publisher correction and PR #91 public README update are integrated. The exact signed stable APK is linked in the [v1.7.3 release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.3).
+- **Guarded activation:** v1.7.3 may transfer from an authenticated v1.7.1/v1.7.2 daemon without a full reboot only when the checks permit it. Otherwise preserve the documented conservative restart/recovery route and user data. See [v1.7.3 release notes](RELEASE-NOTES-1.7.3.md) and [activation guide](ACTIVATION-RECOVERY-GUIDE.md).
+- **Preserved earlier evidence:** exact code80 hardware acceptance and the separate code81/code82 external recovery trial passed in their defined healthy-device scope; the RC78 T09 CPU FAIL and later A1/T10 PASS remain distinct historical results.
+- **Separate unresolved issues:** keep [#84 persistent TOP wake blackout](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/84) (with documentation draft [#82](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/82)) and [#65 brief BOTTOM brightness flash](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/65) in their issue trackers. Neither is an advertised v1.7.3 fix; retain [private captures outside Git](PUBLIC-EVIDENCE-POLICY.md).
 
-### Original investigation plan
+## Priority 2 — performance and battery evidence
 
-1. instrument a test candidate with counters for Settings samples, DRM opens and display callbacks;
-2. capture daemon process CPU time over fixed idle and gaming windows with the dashboard closed;
-3. record transition latency for BOTH↔TOP, sleep/wake and the known bottom-screen wake-repair case;
-4. prototype an adaptive policy:
-   - event/display callback starts a short fast burst;
-   - unknown/transition state uses a short fast cadence;
-   - known stable state falls back to a **500–1000 ms safety poll**;
-   - DRM is read on state changes / pending repair and at a slower safety cadence rather than on every mode sample;
-5. compare the candidate against v1.6.0 on the same Thor before changing release behavior.
+- Measure representative gameplay frame times (including upper-percentile frame times) under controlled matched conditions to quantify frame pacing.
+- Characterize energy usage using repeatable device/battery measurements, suitable resolution and stable workloads. Measure fix effects and background overhead separately.
+- Continue targeted optimizations only when hardware profiling identifies a worthwhile cost or a user-visible correctness issue. Preserve established wake-repair reliability.
 
-Go criterion: measurable reduction in daemon CPU/wakeups or I/O with no regression in display-state correctness or repair latency.
+## Separate research, outside RC3 acceptance
 
-No-go criterion: if the current cost is already negligible, or an event-driven replacement misses transitions, keep the existing implementation.
+- [#37](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/37): **pre-existing AYN Thor 120 Hz / mixed-refresh tearing**, not a regression introduced by Jesty. Investigation only: root cause and a safe fix remain unproven. Do not market this as a Jesty bug or resolved feature; no extra device capture without a separate approved protocol.
+- [PServerBinder lifecycle](PSERVERBINDER-LIFECYCLE-INVESTIGATION.md): read-only reliability research when a naturally occurring incident supplies evidence.
+- TOP-mode app focus/input routing; only advertise a fix when independently reproduced and verified.
+- Compatibility research for other devices, including Retroid Pocket Duo, without assuming AYN-specific logic generalizes.
+- Optional BOTTOM-only/dock and updater end-to-end coverage as hardware/time becomes available.
 
-See [hardware A/B](WATCHER-VALIDATION-2026-10-08.md) and
-[exact v1.7.0 validation](VALIDATION-1.7.0-PENDING.md).
+## Engineering constraints
 
-## Closed: CPU Fix startup recovery
+Where stock firmware prevents an earlier or atomic operation, prefer a bounded, verified app-controlled solution instead of speculative vendor modification. The one-time display-component recovery needed by CPU Fix is documented as a justified constraint of the supported configuration, not a failure of optimization.
 
-v1.6.0 closed the late-second-recovery problem for the supported stock Thor path.
-
-What is proven:
-
-- `vendor.display.disable_system_load_check` is consumed by Qualcomm `ResourceImpl::Init()` and cached by the running composer;
-- a late property change therefore needs a replacement composer before the fix becomes effective;
-- same-process TOP/BOTH recreation does not reload that state;
-- no supported same-process ResourceImpl reload path was found on the tested firmware;
-- the inspected stock Thor init tree exposes no safe app-controlled hook early enough to set the property before the first composer starts;
-- the stock `pservice -> /data/boot_start.sh` path starts slightly **after** the first composer, so it cannot provide a zero-restart first-composer proof;
-- v1.6.0 uses that stock pservice path to perform the one required recovery during the natural startup window, with durable restart provenance and no later second CPU-fix recovery.
-
-Therefore the current one-restart design is the best **safe app-only stock-firmware** solution established by the evidence. Eliminating the restart entirely would require one of:
-
-- AYN/Qualcomm firmware changing the early vendor init behavior for this hardware;
-- modifying/overlaying immutable vendor/init content;
-- or new evidence of a trusted privileged mechanism that executes before the first composer.
-
-The app intentionally does not spoof hardware subtype, patch `/vendor`, or install speculative system modifications to chase a zero-restart boot.
-
-Historical splash / second-boot experiments are archived in [recovery-splash research](archive/RECOVERY-SPLASH-RESEARCH.md).
-
-## Active research: PServerBinder lifecycle anomaly
-
-A physical setup run found stock `pservice` alive while `PServerBinder` was absent from
-ServiceManager. Restarting only `pservice` restored the Binder while composer and
-SurfaceFlinger PIDs stayed unchanged. This proves recovery, not cause.
-
-Current work is read-only and keeps these hypotheses separate:
-
-- initial registration did not complete or stick;
-- a previously registered Binder was later lost while pservice survived;
-- ServiceManager state was replaced/reset and pservice did not republish;
-- SELinux/service-manager policy affected add/find;
-- client lookup failed independently.
-
-Do not add aggressive retries or automatic service recovery. First capture boot ID,
-pservice/servicemanager PID + process start time, ServiceManager visibility and logs during a
-real recurrence, then use the hash-matched stock binary to reconstruct the exact registration
-path.
-
-See [PServerBinder lifecycle investigation](PSERVERBINDER-LIFECYCLE-INVESTIGATION.md).
-
-## Active research: TOP-mode focus / input
-
-Some dual-screen cases may lose focus to the inactive lower display.
-
-Jesty Thor Fix already powers the lower **physical** display off in TOP mode, but Android can still keep a logical display object around. We therefore do not claim this bug fixed yet.
-
-Test plan:
-
-1. reproduce the focus loss on stock TOP mode;
-2. repeat with True Bottom Screen Off enabled;
-3. compare focused display / input routing before and after;
-4. only advertise a fix if the A/B result is repeatable.
-
-## Next: 120 Hz screen tearing / mixed refresh
-
-The upper Thor panel supports 120 Hz while the lower panel is physically 60 Hz. AYN exposes a 120 Hz system mode for the dual-screen setup, so the first question is **where the lower display is made to look or behave like 120 Hz**.
-
-Read-only investigation should compare 60/60, 120/60 and the AYN 120 Hz dual-screen mode across:
-
-- SurfaceFlinger display configs and vsync periods;
-- Qualcomm HWC / SDM composition state;
-- DRM / CRTC timing and vblank evidence;
-- present fences and GPU composition.
-
-Do not tune vsync offsets blindly. First prove whether the mismatch is in Android scheduling, Qualcomm HWC/SDM, DRM/DSI timing, or the panel configuration.
-
-## P2: app diagnostics and separate energy research
-
-- **Structured event history:** bounded private Activity/telemetry event log,
-  using only existing foreground Q data; on-demand sanitized export.
-  The candidate displays a readable log through a bottom-right cogwheel;
-  the original machine-readable export remains unchanged. Merge and RC
-  publication are distinct gates; see [RC checklist](APP-DIAGNOSTICS-RC-VALIDATION.md).
-- **Crashes / process kills:** app-only Android exit history; Activity destruction
-  does not prove process death. Device validation remains partial.
-- **Passive sleep-energy trials:** a *separate, stacked research PR* based on
-  the diagnostics work. No sampling hooks, energy evaluator, battery collector,
-  sleep trial UI or energy comparison tool are added in this diagnostics PR.
-- **Watcher/CPU optimizations:** owned by PRs #57/#58 and a separate profiling
-  follow-up; do not conflate short daemon CPU observations with battery energy.
-
-See [app diagnostics design](APP-DIAGNOSTICS.md) and
-[diagnostics validation](APP-DIAGNOSTICS-VALIDATION-20261009.md).
-The diagnostics-only candidate adds no daemon commands, background polling
-or display policy changes.
-
-## Next: Retroid Pocket Duo compatibility
-
-Goal: make the codebase ready to support more than one dual-screen handheld without weakening Thor safety.
-
-Pocket Duo support is **not claimed yet**. Compatibility must be tested feature by feature:
-
-- True Bottom Screen Off;
-- display / CPU telemetry;
-- wake repair;
-- lid / hall behaviour;
-- focus / input routing;
-- whether the Thor-specific CPU Fix is needed at all.
-
-We are looking for Pocket Duo owners willing to run read-only probes and supervised test builds.
-
-See [Retroid SDM comparison](RETROID-SDM-COMPARISON.md) for the Qualcomm background.
-
-## Deferred but still open
-
-- physical BOTTOM ONLY and dock validation;
-- updater end-to-end install validation;
-- minor dashboard wording / unavailable-state cleanup;
-- continue removing Thor-specific assumptions behind explicit hardware profiles.
-
-Historical planning and timing notes remain in [ROADMAP-AFTER-1.5.17.md](ROADMAP-AFTER-1.5.17.md).
+See [architecture](ARCHITECTURE.md), [test records](VALIDATION-EVIDENCE.md) and [public evidence policy](PUBLIC-EVIDENCE-POLICY.md).

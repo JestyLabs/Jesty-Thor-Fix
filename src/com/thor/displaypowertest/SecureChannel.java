@@ -182,13 +182,26 @@ public final class SecureChannel {
             try {
                 probe.connect(address());
                 reachable = true;
-            } catch (IOException ignored) {
-                // Only an unreachable inode is eligible for stale cleanup.
+            } catch (IOException error) {
+                // Resource, permission and unclassified failures do not prove
+                // this inode stale. Preserve the pathname and fail closed.
+                if (!connectionRefused(error)) throw error;
             }
         }
         if (reachable) throw new IOException("Existing socket listener must not be replaced");
         if (!new File(SOCKET_PATH).delete()) {
             throw new IOException("Cannot remove stale secure socket");
         }
+    }
+
+    private static boolean connectionRefused(IOException error) {
+        Throwable cause = error.getCause();
+        if (cause instanceof ErrnoException) {
+            return ((ErrnoException) cause).errno == OsConstants.ECONNREFUSED;
+        }
+        // connectLocal can expose the canonical native error without a cause.
+        // Match that exact platform refusal, never substrings or other errors.
+        return cause == null && error.getClass() == IOException.class
+                && Os.strerror(OsConstants.ECONNREFUSED).equals(error.getMessage());
     }
 }

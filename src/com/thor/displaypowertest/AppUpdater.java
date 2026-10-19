@@ -1,5 +1,7 @@
 package com.thor.displaypowertest;
 
+import com.thor.displaypowertest.UpdateReleaseCatalog.Release;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.PendingIntent;
@@ -20,10 +22,6 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
-
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -33,7 +31,6 @@ import java.io.OutputStream;
 import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
@@ -61,10 +58,12 @@ final class AppUpdater {
 
     // Shared with UpdateInstallReceiver (same process, main thread).
     private static WeakReference<Activity> resumedActivity = new WeakReference<>(null);
-    private static Intent pendingConfirmation;
-    private static int pendingSessionId = -1;
+    private static final UpdateConfirmationStore<Intent> pendingConfirmations =
+            new UpdateConfirmationStore<>();
+    /** In-process generation and Android session binding; never authorize unknown callbacks. */
+    private static final UpdateSessionOwnership installSessions = new UpdateSessionOwnership();
 
-    static final String REPOSITORY = "JestyLabs/Jesty-Thor-Fix";
+    static final String REPOSITORY = UpdateReleaseCatalog.REPOSITORY;
     private static final String API = "https://api.github.com/repos/" + REPOSITORY;
     private static final String TAG = "ThorDisplayUpdate";
     private static final String PREFS = "updates";
@@ -73,40 +72,6 @@ final class AppUpdater {
     private static final String PREF_LAST_CHECK = "last_check";
     private static final String PREF_RELEASE = "release";
     private static final String PREF_PROMPTED = "prompted_tag";
-    private static final int MAX_RELEASE_JSON_BYTES = 1024 * 1024;
-    private static final long MAX_APK_BYTES = 64L * 1024L * 1024L;
-
-    private static final class Release {
-        final String tag;
-        final boolean prerelease;
-        final String notes;
-        final String assetName;
-        final String apkUrl;
-        final long apkSize;
-        final String sha256;
-
-        Release(String tag, boolean prerelease, String notes, String assetName, String apkUrl,
-                long apkSize, String sha256) {
-            this.tag = tag;
-            this.prerelease = prerelease;
-            this.notes = notes;
-            this.assetName = assetName;
-            this.apkUrl = apkUrl;
-            this.apkSize = apkSize;
-            this.sha256 = sha256;
-        }
-
-        String version() { return UpdateVersion.stripV(tag); }
-
-        /** Every field is revalidated, including a release read back from the cache. */
-        boolean valid() {
-            return UpdateVersion.parse(tag) != null
-                    && UpdateVersion.isExpectedAsset(assetName, tag)
-                    && UpdateVersion.isTrustedDownloadUrl(apkUrl, REPOSITORY, tag, assetName)
-                    && sha256 != null && UpdateVersion.sha256FromDigest("sha256:" + sha256) != null
-                    && apkSize > 0L && apkSize <= MAX_APK_BYTES;
-        }
-    }
 
     private final Activity activity;
     private final Host host;
@@ -119,6 +84,8 @@ final class AppUpdater {
     private Release available;
     private Release awaitingInstallPermission;
     private AlertDialog progressDialog;
+    /** UI-thread owner of the currently visible install reservation. */
+    private long uiReservationAttempt = -1L;
     private boolean resumed;
 
     AppUpdater(Activity activity, Host host) {
@@ -135,7 +102,7 @@ final class AppUpdater {
     /** Shows a cached update immediately; network checks happen from onResume. */
     void start() {
         if (!supported()) return;
-        if (!busy.get()) {
+        if (!busy.get() && !installSessions.transferInProgress()) {
             clearDownloads(activity);
             abandonStaleSessions(activity);
         }
@@ -151,12 +118,9 @@ final class AppUpdater {
     void onResume() {
         resumed = true;
         resumedActivity = new WeakReference<>(activity);
-        Intent confirmation = pendingConfirmation;
-        if (confirmation != null) {
-            int sessionId = pendingSessionId;
-            pendingConfirmation = null;
-            pendingSessionId = -1;
-            showConfirmation(activity, confirmation, sessionId);
+        UpdateConfirmationStore.Pending<Intent> pending = pendingConfirmations.take();
+        if (pending != null && installSessions.ownsSession(pending.sessionId)) {
+            showConfirmation(activity, pending.confirmation, pending.sessionId);
             return;
         }
         Release release = awaitingInstallPermission;
@@ -185,7 +149,18 @@ final class AppUpdater {
         if (commitGate.cancel()) cancelled.set(true);
         if (progressDialog != null) dismiss(progressDialog);
         progressDialog = null;
-        worker.shutdownNow();
+        // shutdownNow may remove a successfully submitted install task before run().
+        // Such a task will never enter its worker finally: reclaim only returned,
+        // unstarted tasks; running workers keep ownership of their cleanup.
+        for (Runnable drained : worker.shutdownNow()) {
+            if (drained instanceof UpdateTaskDispatch) {
+                try {
+                    ((UpdateTaskDispatch) drained).abortIfQueued();
+                } catch (Throwable error) {
+                    Log.w(TAG, "could not recover queued update during shutdown", error);
+                }
+            }
+        }
     }
 
     /**
@@ -195,27 +170,45 @@ final class AppUpdater {
      * for the next onResume.
      */
     static void deliverConfirmation(Context context, Intent confirmation, int sessionId) {
+        if (!installSessions.ownsSession(sessionId)) return;
         Activity visible = resumedActivity.get();
         if (visible != null && !visible.isFinishing() && !visible.isDestroyed()) {
             showConfirmation(visible, confirmation, sessionId);
             return;
         }
-        pendingConfirmation = confirmation;
-        pendingSessionId = sessionId;
-        Toast.makeText(context, "Open Jesty Thor Fix to finish the update",
-                Toast.LENGTH_LONG).show();
+        if (pendingConfirmations.defer(confirmation, sessionId)) {
+            Toast.makeText(context, "Open Jesty Thor Fix to finish the update",
+                    Toast.LENGTH_LONG).show();
+        }
     }
 
     private static void showConfirmation(Activity visible, Intent confirmation, int sessionId) {
+        if (!installSessions.ownsSession(sessionId)) return;
+        if (!pendingConfirmations.claimLaunch(sessionId)) return;
         try {
             visible.startActivity(confirmation);
         } catch (Throwable error) {
             Log.w(TAG, "could not show the install confirmation", error);
-            abandonSession(visible, sessionId);
-            clearDownloads(visible);
-            Toast.makeText(visible, "Update failed: could not show Android's confirmation",
-                    Toast.LENGTH_LONG).show();
+            finishInstallSession(visible, sessionId, false,
+                    "Update failed: could not show Android's confirmation");
         }
+    }
+
+    static boolean isActiveInstallSession(int sessionId) {
+        return installSessions.ownsSession(sessionId);
+    }
+
+    /**
+     * Only the current Android session may invalidate a deferred confirmation
+     * or clean shared downloads. Duplicate/old callbacks are inert.
+     */
+    static void finishInstallSession(Context context, int sessionId, boolean success,
+            String message) {
+        if (!installSessions.finishSession(sessionId)) return;
+        pendingConfirmations.discardSession(sessionId);
+        if (!success) abandonSession(context, sessionId);
+        clearDownloads(context);
+        if (!success) Toast.makeText(context, message, Toast.LENGTH_LONG).show();
     }
 
     static void abandonSession(Context context, int sessionId) {
@@ -232,7 +225,7 @@ final class AppUpdater {
         try {
             PackageInstaller installer = context.getPackageManager().getPackageInstaller();
             for (PackageInstaller.SessionInfo session : installer.getMySessions()) {
-                if (session.getSessionId() != pendingSessionId) {
+                if (session.getSessionId() != installSessions.currentSessionId()) {
                     abandonSession(context, session.getSessionId());
                 }
             }
@@ -303,7 +296,7 @@ final class AppUpdater {
                 SharedPreferences.Editor edit = prefs.edit()
                         .putLong(PREF_LAST_CHECK, System.currentTimeMillis());
                 if (release == null) edit.remove(PREF_RELEASE);
-                else edit.putString(PREF_RELEASE, toCache(release));
+                else edit.putString(PREF_RELEASE, UpdateReleaseCatalog.toCache(release));
                 edit.apply();
                 onUi(() -> {
                     if (release != null) {
@@ -413,69 +406,142 @@ final class AppUpdater {
             busy.set(false);
             return;
         }
-        cancelled.set(false);
-        host.setInstallReserved(true);
-
-        int padding = Math.round(24 * activity.getResources().getDisplayMetrics().density);
-        LinearLayout box = new LinearLayout(activity);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(padding, padding / 2, padding, 0);
-        TextView label = new TextView(activity);
-        label.setText("Downloading v" + release.version() + "...");
-        box.addView(label);
-        ProgressBar bar = new ProgressBar(activity, null,
-                android.R.attr.progressBarStyleHorizontal);
-        bar.setMax(100);
-        box.addView(bar);
-        AlertDialog progress = dialog().setTitle("Updating")
-                .setView(box)
-                .setCancelable(false)
-                // Builder button listeners auto-dismiss even when cancellation loses
-                // the commit race. Install our own click listener after showing.
-                .setNegativeButton("Cancel", null)
-                .show();
-        progress.getButton(android.content.DialogInterface.BUTTON_NEGATIVE)
-                .setOnClickListener(v -> {
-                    if (commitGate.cancel()) {
-                        // The gate is changed first: even before this flag is
-                        // observed, the worker cannot cross the commit boundary.
-                        cancelled.set(true);
-                        label.setText("Cancelling update...");
-                    } else {
-                        label.setText("Waiting for Android's installer...");
-                        toast("Android install confirmation is already being prepared");
-                    }
-                    // Keep progress visible until the worker performs cleanup.
-                    // A second Cancel must not imply cancellation was accepted.
-                    v.setEnabled(false);
-                });
-        progressDialog = progress;
-
-        worker.execute(() -> {
-            try {
-                File apk = downloadVerified(release, percent -> onUi(() -> bar.setProgress(percent)));
-                onUi(() -> label.setText("Checking the update..."));
-                verifyArchive(apk, release);
-                install(apk);
-                // The committed session holds its own copy of the APK.
-                clearDownloads(activity);
-                onUi(() -> toast("Confirm the update in Android's installer"));
-            } catch (Throwable error) {
-                Log.w(TAG, "update failed", error);
-                clearDownloads(activity);
-                String message = cancelled.get() ? "Update cancelled"
-                        : "Update failed: " + reason(error);
-                onUi(() -> toast(message));
-            } finally {
-                commitGate.finish();
-                busy.set(false);
-                onUi(() -> {
-                    dismiss(progress);
-                    if (progressDialog == progress) progressDialog = null;
-                    host.setInstallReserved(false);
-                });
+        // Session ownership is process-local but Android's native sessions may
+        // survive a process restart. Before starting a new attempt, reconcile
+        // ALL our native sessions and confirm Android no longer reports them.
+        // Keep this check and the new generation atomic relative to callbacks
+        // and any other Activity's attempt. Failure preserves the old prompt,
+        // shared downloads, install reservation and current session identity.
+        final long attempt;
+        synchronized (installSessions) {
+            if (installSessions.transferInProgress()) {
+                attempt = -1L;
+            } else {
+                final boolean nativeReady = ReplacementSessionPolicy.canBeginTransfer(
+                        new ReplacementSessionPolicy.NativeSessions() {
+                            
+                            @Override public int[] ids() {
+                                List<PackageInstaller.SessionInfo> sessions = activity.getPackageManager().getPackageInstaller().getMySessions();
+                                if (sessions == null) return null;
+                                int[] ids = new int[sessions.size()];
+                                for (int i = 0; i < ids.length; i++) {
+                                    ids[i] = sessions.get(i).getSessionId();
+                                }
+                                return ids;
+                            }
+                            @Override public void abandon(int id) {
+                                activity.getPackageManager().getPackageInstaller().abandonSession(id);
+                            }
+                        });
+                attempt = nativeReady ? installSessions.beginTransfer() : -2L;
             }
+        }
+        if (attempt < 0L) {
+            commitGate.finish();
+            busy.set(false);
+            toast(attempt == -2L
+                    ? "Update not started: Android could not release the previous install session"
+                    : "An update is already being prepared");
+            return;
+        }
+        // Invalidate old callbacks only AFTER native ownership is resolved.
+        // Never discard a usable old prompt on an unconfirmed abandonment.
+        AlertDialog setupProgress = null;
+        try {
+            pendingConfirmations.discardAll();
+            cancelled.set(false);
+            uiReservationAttempt = attempt;
+            host.setInstallReserved(true);
+
+            int padding = Math.round(24 * activity.getResources().getDisplayMetrics().density);
+            LinearLayout box = new LinearLayout(activity);
+            box.setOrientation(LinearLayout.VERTICAL);
+            box.setPadding(padding, padding / 2, padding, 0);
+            TextView label = new TextView(activity);
+            label.setText("Downloading v" + release.version() + "...");
+            box.addView(label);
+            ProgressBar bar = new ProgressBar(activity, null,
+                    android.R.attr.progressBarStyleHorizontal);
+            bar.setMax(100);
+            box.addView(bar);
+            AlertDialog progress = dialog().setTitle("Updating")
+                    .setView(box)
+                    .setCancelable(false)
+                    .setNegativeButton("Cancel", null)
+                    .show();
+            setupProgress = progress;
+            progressDialog = progress;
+            progress.getButton(android.content.DialogInterface.BUTTON_NEGATIVE)
+                    .setOnClickListener(v -> {
+                        if (commitGate.cancel()) {
+                            cancelled.set(true);
+                            label.setText("Cancelling update...");
+                        } else {
+                            label.setText("Waiting for Android's installer...");
+                            toast("Android install confirmation is already being prepared");
+                        }
+                        v.setEnabled(false);
+                    });
+            worker.execute(new UpdateTaskDispatch(() -> {
+                try {
+                    File apk = downloadVerified(release, percent -> onUi(() -> bar.setProgress(percent)));
+                    onUi(() -> label.setText("Checking the update..."));
+                    verifyArchive(apk, release);
+                    install(apk, attempt);
+                    if (installSessions.ownsTransfer(attempt)) clearDownloads(activity);
+                    onUi(() -> toast("Confirm the update in Android's installer"));
+                } catch (Throwable error) {
+                    Log.w(TAG, "update failed", error);
+                    if (installSessions.ownsTransfer(attempt)) clearDownloads(activity);
+                    String message = cancelled.get() ? "Update cancelled"
+                            : "Update failed: " + reason(error);
+                    onUi(() -> toast(message));
+                } finally {
+                    finishTransferAttempt(attempt, progress);
+                }
+            }, () -> finishTransferAttempt(attempt, progress)));
+        } catch (Throwable error) {
+            recoverPreparation(attempt, setupProgress, error);
+        }
+    }
+
+    /** A rejected task has no worker; restore only this attempt's local state. */
+    private void recoverPreparation(long attempt, AlertDialog prepared, Throwable error) {
+        Log.w(TAG, "update preparation failed", error);
+        commitGate.finish();
+        installSessions.finishTransfer(attempt);
+        busy.set(false);
+        if (prepared != null) dismiss(prepared);
+        if (progressDialog == prepared) progressDialog = null;
+        releaseInstallReservation(attempt);
+        try {
+            toast("Update not started: " + reason(error));
+        } catch (Throwable notificationError) {
+            Log.w(TAG, "could not report update preparation failure", notificationError);
+        }
+    }
+
+    /** Exactly one owner: either the executing worker or a drained, unstarted task. */
+    private void finishTransferAttempt(long attempt, AlertDialog progress) {
+        commitGate.finish();
+        installSessions.finishTransfer(attempt);
+        busy.set(false);
+        onUi(() -> {
+            dismiss(progress);
+            if (progressDialog == progress) progressDialog = null;
+            releaseInstallReservation(attempt);
         });
+    }
+
+    /** UI thread: an obsolete completion cannot release the next attempt's reservation. */
+    private void releaseInstallReservation(long attempt) {
+        if (uiReservationAttempt != attempt) return;
+        uiReservationAttempt = -1L;
+        try {
+            host.setInstallReserved(false);
+        } catch (Throwable releaseError) {
+            Log.w(TAG, "could not release update UI reservation", releaseError);
+        }
     }
 
     /** Worker thread: waits briefly for a fresh dashboard sample, then gives the reason or null. */
@@ -585,7 +651,7 @@ final class AppUpdater {
         return result;
     }
 
-    private void install(File apk) throws Exception {
+    private void install(File apk, long attempt) throws Exception {
         PackageInstaller installer = activity.getPackageManager().getPackageInstaller();
         PackageInstaller.SessionParams params = new PackageInstaller.SessionParams(
                 PackageInstaller.SessionParams.MODE_FULL_INSTALL);
@@ -595,6 +661,10 @@ final class AppUpdater {
             params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_REQUIRED);
         }
         int sessionId = installer.createSession(params);
+        if (!installSessions.registerSession(attempt, sessionId)) {
+            abandonSession(activity, sessionId);
+            throw new IOException("install session no longer belongs to this attempt");
+        }
         try (PackageInstaller.Session session = installer.openSession(sessionId)) {
             try (InputStream input = new FileInputStream(apk);
                  OutputStream output = session.openWrite("base.apk", 0, apk.length())) {
@@ -625,80 +695,20 @@ final class AppUpdater {
             }
             session.commit(pending.getIntentSender());
         } catch (Exception error) {
+            installSessions.revokeSession(attempt, sessionId);
+            pendingConfirmations.discardSession(sessionId);
             abandonSession(activity, sessionId);
             throw error;
         }
     }
 
     private Release fetchBest(boolean includePre, String installed) throws Exception {
-        List<JSONObject> objects = new ArrayList<>();
-        if (includePre) {
-            JSONArray releases = new JSONArray(fetchJson(API + "/releases?per_page=20"));
-            for (int i = 0; i < releases.length(); i++) {
-                JSONObject release = releases.optJSONObject(i);
-                if (release != null) objects.add(release);
-            }
-        } else {
-            objects.add(new JSONObject(fetchJson(API + "/releases/latest")));
-        }
-        List<Release> parsed = new ArrayList<>();
-        List<UpdateVersion.Candidate> candidates = new ArrayList<>();
-        for (JSONObject object : objects) {
-            Release release = parseRelease(object);
-            parsed.add(release);
-            candidates.add(new UpdateVersion.Candidate(object.optString("tag_name", ""),
-                    object.optBoolean("draft"), object.optBoolean("prerelease"),
-                    release != null));
-        }
-        int index = UpdateVersion.best(candidates, installed, includePre);
-        return index < 0 ? null : parsed.get(index);
-    }
-
-    private static Release parseRelease(JSONObject release) {
-        String tag = release.optString("tag_name", "");
-        if (release.optBoolean("draft") || UpdateVersion.parse(tag) == null) return null;
-        JSONArray assets = release.optJSONArray("assets");
-        if (assets == null) return null;
-        for (int i = 0; i < assets.length(); i++) {
-            JSONObject asset = assets.optJSONObject(i);
-            if (asset == null || !UpdateVersion.isExpectedAsset(asset.optString("name"), tag)) {
-                continue;
-            }
-            Release candidate = new Release(tag, release.optBoolean("prerelease"),
-                    release.optString("body", ""), asset.optString("name"),
-                    asset.optString("browser_download_url", ""), asset.optLong("size", 0L),
-                    UpdateVersion.sha256FromDigest(
-                            asset.isNull("digest") ? null : asset.optString("digest")));
-            return candidate.valid() ? candidate : null;
-        }
-        return null;
-    }
-
-    private static String toCache(Release release) throws Exception {
-        return new JSONObject()
-                .put("tag", release.tag)
-                .put("prerelease", release.prerelease)
-                .put("notes", release.notes)
-                .put("asset", release.assetName)
-                .put("url", release.apkUrl)
-                .put("size", release.apkSize)
-                .put("sha256", release.sha256)
-                .toString();
+        String endpoint = API + (includePre ? "/releases?per_page=20" : "/releases/latest");
+        return UpdateReleaseCatalog.select(fetchJson(endpoint), includePre, installed);
     }
 
     private Release readCached() {
-        String json = prefs.getString(PREF_RELEASE, null);
-        if (json == null) return null;
-        try {
-            JSONObject cached = new JSONObject(json);
-            Release release = new Release(cached.optString("tag"),
-                    cached.optBoolean("prerelease"), cached.optString("notes"),
-                    cached.optString("asset"), cached.optString("url"),
-                    cached.optLong("size"), cached.optString("sha256"));
-            return release.valid() ? release : null;
-        } catch (Throwable error) {
-            return null;
-        }
+        return UpdateReleaseCatalog.readCached(prefs.getString(PREF_RELEASE, null));
     }
 
     private static String fetchJson(String url) throws Exception {
@@ -707,16 +717,7 @@ final class AppUpdater {
             int code = connection.getResponseCode();
             if (code != HttpURLConnection.HTTP_OK) throw new IOException("HTTP " + code);
             try (InputStream input = connection.getInputStream()) {
-                ByteArrayOutputStream body = new ByteArrayOutputStream();
-                byte[] buffer = new byte[16 * 1024];
-                int read;
-                while ((read = input.read(buffer)) >= 0) {
-                    body.write(buffer, 0, read);
-                    if (body.size() > MAX_RELEASE_JSON_BYTES) {
-                        throw new IOException("release response is too large");
-                    }
-                }
-                return new String(body.toByteArray(), StandardCharsets.UTF_8);
+                return UpdateReleaseCatalog.readResponse(input);
             }
         } finally {
             connection.disconnect();

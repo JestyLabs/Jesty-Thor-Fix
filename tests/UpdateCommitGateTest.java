@@ -2,6 +2,7 @@ import com.thor.displaypowertest.UpdateCommitGate;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class UpdateCommitGateTest {
     public static void main(String[] args) throws Exception {
@@ -62,6 +63,11 @@ public final class UpdateCommitGateTest {
             checkOrderedHandoff(true);
             checkOrderedHandoff(false);
         }
+        // A burst of competing clicks/workers must never accept two handoffs,
+        // and a lost Cancel must not poison the next install attempt.
+        for (int iteration = 0; iteration < 30; iteration++) {
+            checkManyContenders(iteration);
+        }
         System.out.println("UpdateCommitGateTest passed");
     }
 
@@ -96,6 +102,48 @@ public final class UpdateCommitGateTest {
         check(gate.start(), "cleanup permits a fresh attempt");
         check(gate.cancel(), "fresh attempt may be cancelled");
         check(!gate.beginCommit(), "fresh cancellation still blocks commit");
+        gate.finish();
+    }
+
+    private static void checkManyContenders(int iteration) throws Exception {
+        final int contenders = 12;
+        UpdateCommitGate gate = new UpdateCommitGate();
+        check(gate.start(), "contended attempt starts");
+        CountDownLatch ready = new CountDownLatch(contenders);
+        CountDownLatch release = new CountDownLatch(1);
+        AtomicInteger cancels = new AtomicInteger();
+        AtomicInteger commits = new AtomicInteger();
+        Thread[] threads = new Thread[contenders];
+        for (int i = 0; i < contenders; i++) {
+            final boolean tryCancel = (i & 1) == 0;
+            threads[i] = new Thread(() -> {
+                ready.countDown();
+                await(release);
+                if (tryCancel ? gate.cancel() : gate.beginCommit()) {
+                    if (tryCancel) cancels.incrementAndGet();
+                    else commits.incrementAndGet();
+                }
+            }, "update-boundary-" + iteration + "-" + i);
+            threads[i].start();
+        }
+        check(ready.await(5, java.util.concurrent.TimeUnit.SECONDS),
+                "all concurrent calls reach the barrier");
+        release.countDown();
+        for (Thread thread : threads) {
+            thread.join(5000L);
+            check(!thread.isAlive(), "no contender remains blocked");
+        }
+        check(cancels.get() + commits.get() == 1,
+                "exactly one Cancel/Commit wins across all contending workers");
+        check(gate.wasCancelled() == (cancels.get() == 1),
+                "cancelled state reflects the sole accepted decision");
+        check(!gate.start() && !gate.beginCommit() && !gate.cancel(),
+                "no additional action is accepted before owning-worker finish");
+        gate.finish();
+        check(gate.start(), "clean reuse after a contended attempt");
+        check(gate.beginCommit(), "new attempt is independent of old Cancel");
+        check(!gate.cancel() && !gate.wasCancelled(),
+                "old Cancel cannot affect the next commit");
         gate.finish();
     }
 

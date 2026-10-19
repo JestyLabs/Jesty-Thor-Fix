@@ -48,6 +48,7 @@ final class DashboardSettingsController {
     private volatile boolean dashboardCommandInFlight;
     private volatile boolean lidCommandInFlight;
     private volatile boolean installReserved;
+    private volatile boolean activationPending = true;
 
     DashboardSettingsController(Activity activity, SharedPreferences preferences,
             DashboardLayout layout, Feedback feedback) {
@@ -58,6 +59,15 @@ final class DashboardSettingsController {
         this.lidGuardToggle = layout.lidGuardToggle;
         this.dashboardFixHelp = layout.dashboardFixHelp;
         this.feedback = feedback;
+    }
+
+    void setActivationPending(boolean pending) {
+        activationPending = pending;
+        if (pending) {
+            fixToggle.setEnabled(false);
+            dashboardFixToggle.setEnabled(false);
+            lidGuardToggle.setEnabled(false);
+        }
     }
 
     /** Shows the saved settings, then starts listening for user changes. */
@@ -82,6 +92,7 @@ final class DashboardSettingsController {
         lidGuardToggle.setOnCheckedChangeListener((button, checked) -> {
             if (!suppressLidToggle) setLidGuardEnabled(checked);
         });
+        setActivationPending(true);
     }
 
     boolean desiredDisplayFix() { return preferences.getBoolean(DISPLAY_FIX, true); }
@@ -120,10 +131,10 @@ final class DashboardSettingsController {
                 suppressLidToggle = false;
             }
         }
-        fixToggle.setEnabled(!bootHeld && watcherReady && !commandInFlight && !installReserved);
-        dashboardFixToggle.setEnabled(!bootHeld && watcherReady && !dashboardCommandInFlight
+        fixToggle.setEnabled(!activationPending && !bootHeld && watcherReady && !commandInFlight && !installReserved);
+        dashboardFixToggle.setEnabled(!activationPending && !bootHeld && watcherReady && !dashboardCommandInFlight
                 && !installReserved);
-        lidGuardToggle.setEnabled(!bootHeld && !lidCommandInFlight && !installReserved);
+        lidGuardToggle.setEnabled(!activationPending && !bootHeld && !lidCommandInFlight && !installReserved);
     }
 
     void shutdown() {
@@ -153,9 +164,9 @@ final class DashboardSettingsController {
 
     private void setDashboardCpuFixEnabled(boolean requested) {
         if (dashboardCommandInFlight) return;
-        if (installReserved) {
+        if (installReserved || activationPending) {
             restoreDashboardToggle();
-            toast("Update in progress", Toast.LENGTH_SHORT);
+            toast(activationPending ? "Background service activation pending" : "Update in progress", Toast.LENGTH_SHORT);
             return;
         }
         final boolean previous = desiredCpuFix();
@@ -186,7 +197,7 @@ final class DashboardSettingsController {
                 final boolean restart = "scheduled_once".equals(result.get("composer_restart"));
                 activity.runOnUiThread(() -> {
                     dashboardCommandInFlight = false;
-                    dashboardFixToggle.setEnabled(true);
+                    dashboardFixToggle.setEnabled(!activationPending && !installReserved);
                     updateDashboardFixHelp(requested);
                     toast(restart ? "Android restart pending"
                             : "CPU Fix confirmed without restart", Toast.LENGTH_LONG);
@@ -204,7 +215,7 @@ final class DashboardSettingsController {
                 }
                 activity.runOnUiThread(() -> {
                     dashboardCommandInFlight = false;
-                    dashboardFixToggle.setEnabled(true);
+                    dashboardFixToggle.setEnabled(!activationPending && !installReserved);
                     restoreDashboardToggle();
                     toast(rejected ? "CPU Fix change rejected"
                             : "CPU Fix status unknown; checking again", Toast.LENGTH_LONG);
@@ -215,11 +226,11 @@ final class DashboardSettingsController {
 
     private void setFixEnabled(final boolean requested) {
         if (commandInFlight) return;
-        if (installReserved) {
+        if (installReserved || activationPending) {
             suppressToggle = true;
             fixToggle.setChecked(desiredDisplayFix());
             suppressToggle = false;
-            toast("Update in progress", Toast.LENGTH_SHORT);
+            toast(activationPending ? "Background service activation pending" : "Update in progress", Toast.LENGTH_SHORT);
             return;
         }
         final boolean previous = desiredDisplayFix();
@@ -246,11 +257,11 @@ final class DashboardSettingsController {
 
     private void setLidGuardEnabled(final boolean requested) {
         if (lidCommandInFlight) return;
-        if (installReserved) {
+        if (installReserved || activationPending) {
             suppressLidToggle = true;
             lidGuardToggle.setChecked(desiredLidGuard());
             suppressLidToggle = false;
-            toast("Update in progress", Toast.LENGTH_SHORT);
+            toast(activationPending ? "Background service activation pending" : "Update in progress", Toast.LENGTH_SHORT);
             return;
         }
         final boolean previous = desiredLidGuard();
@@ -264,7 +275,7 @@ final class DashboardSettingsController {
                 SocketClient.request(requested ? 'G' : 'H', 1800);
                 activity.runOnUiThread(() -> {
                     lidCommandInFlight = false;
-                    lidGuardToggle.setEnabled(true);
+                    lidGuardToggle.setEnabled(!activationPending && !installReserved);
                 });
             } catch (Throwable error) {
                 final boolean rejected = rejected(error);
@@ -273,7 +284,7 @@ final class DashboardSettingsController {
                 }
                 activity.runOnUiThread(() -> {
                     lidCommandInFlight = false;
-                    lidGuardToggle.setEnabled(true);
+                    lidGuardToggle.setEnabled(!activationPending && !installReserved);
                     suppressLidToggle = true;
                     lidGuardToggle.setChecked(rejected ? previous : requested);
                     suppressLidToggle = false;
@@ -288,7 +299,7 @@ final class DashboardSettingsController {
         suppressToggle = true;
         fixToggle.setChecked(desired);
         suppressToggle = false;
-        fixToggle.setEnabled(true);
+        fixToggle.setEnabled(!activationPending && !installReserved);
         commandInFlight = false;
         feedback.displayCommandFinished(error, uncertain);
         if (error != null) {
@@ -300,8 +311,8 @@ final class DashboardSettingsController {
     private void updateDashboardFixHelp(boolean enabled) {
         if (dashboardFixHelp == null) return;
         dashboardFixHelp.setText(enabled
-                ? "Applies during startup; a slightly longer black boot phase is normal"
-                : "Restarts Android UI/display once to apply");
+                ? "Applies at startup. Manual activation restarts the Android UI, which may look like a reboot."
+                : "Applies at startup. Manual activation restarts the Android UI, which may look like a reboot.");
         dashboardFixHelp.setTextColor(enabled ? AMBER : MUTED);
     }
 

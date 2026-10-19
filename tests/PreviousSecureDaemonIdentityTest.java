@@ -1,11 +1,25 @@
 import com.thor.displaypowertest.PreviousSecureDaemonIdentity;
 
 public final class PreviousSecureDaemonIdentityTest {
+    private static int checks;
     private static final String HEALTH = "ok=1;protocol=2;version=1.5.3;pid=11398;"
             + "boot_phase=BOOT_SAFETY_TIMEOUT;fix=1;watcher=RUNNING";
     private static final String BOTH = "ok=1;mode=0;top_crtc=1;bottom_crtc=1";
 
     public static void main(String[] args) {
+        for (String version : new String[]{"1.7.1-rc2", "1.7.1-rc3", "1.7.1-rc4"}) {
+            String health = HEALTH.replace("1.5.3", version);
+            check(PreviousSecureDaemonIdentity.safePid(health, BOTH) == 11398,
+                    "forward candidate accepts authenticated prior daemon " + version);
+            check(PreviousSecureDaemonIdentity.safePid(health, BOTH.replace("mode=0", "mode=1")) < 0,
+                    "prior candidate still requires BOTH " + version);
+            check(PreviousSecureDaemonIdentity.safePid(health,
+                    BOTH.replace("bottom_crtc=1", "bottom_crtc=0")) < 0,
+                    "prior candidate still requires bottom active " + version);
+            check(PreviousSecureDaemonIdentity.safePid(
+                    health.replace("watcher=RUNNING", "watcher=FAILED"), BOTH) < 0,
+                    "prior candidate still requires healthy watcher " + version);
+        }
         check(PreviousSecureDaemonIdentity.safePid(HEALTH, BOTH) == 11398,
                 "authenticated prior version in BOTH can be replaced");
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.5.5"), BOTH) == 11398,
@@ -100,9 +114,42 @@ public final class PreviousSecureDaemonIdentityTest {
         check(PreviousSecureDaemonIdentity.safePid(
                 HEALTH.replace("1.5.3", "1.7.1-rc1-experimental"), BOTH) < 0,
                 "similar but unrecognized rc1 identities remain rejected");
+
+        String gate_2 = HEALTH.replace("1.5.3", "1.7.1-rc2");
+        check(PreviousSecureDaemonIdentity.safePid(gate_2, BOTH) == 11398,
+                "exact prior 1.7.1-rc2 handoff allowed");
+        for (String unsafe : new String[] {
+                BOTH.replace("mode=0", "mode=1"),
+                BOTH.replace("mode=0", "mode=2"),
+                BOTH.replace("top_crtc=1", "top_crtc=0"),
+                BOTH.replace("bottom_crtc=1", "bottom_crtc=0") }) {
+            check(PreviousSecureDaemonIdentity.safePid(gate_2, unsafe) < 0,
+                    "prior 1.7.1-rc2 requires BOTH and active CRTCs");
+        }
+        for (String unsafeHealth : new String[] {
+                gate_2.replace("ok=1", "ok=0"),
+                gate_2.replace("protocol=2", "protocol=1"),
+                gate_2.replace("watcher=RUNNING", "watcher=FAILED"),
+                gate_2.replace("pid=11398", "pid=1"),
+                gate_2.replace("pid=11398", "pid=invalid"),
+                gate_2.replace("1.7.1-rc2", "1.7.1-rc2-unknown") }) {
+            check(PreviousSecureDaemonIdentity.safePid(unsafeHealth, BOTH) < 0,
+                    "prior 1.7.1-rc2 retains identity/health/PID gates");
+        }
+
+        // Apply the same negative gates to a future stable predecessor entry.
+        // A positive allowlist decision alone cannot establish safe replacement.
+        for (String version : new String[]{"1.7.0", "1.7.1-rc4", "1.7.1"}) {
+            checkSafetyGates(version);
+        }
+
         check(PreviousSecureDaemonIdentity.safePid(
-                HEALTH.replace("1.5.3", "1.7.1-rc2"), BOTH) < 0,
-                "current rc2 identity is not a previous-daemon allowance");
+                HEALTH.replace("1.5.3", "1.7.1"), BOTH) == 11398,
+                "published code76 is an exact older daemon identity");
+        check(PreviousSecureDaemonIdentity.safePid(
+                HEALTH.replace("1.5.3", "1.7.2"), BOTH) == 11398,
+                "published code80 is an exact older daemon identity");
+
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.5.4"), BOTH) < 0,
                 "unknown version must not be killed");
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("pid=11398", "pid=1;bad=x"), BOTH) < 0,
@@ -115,10 +162,42 @@ public final class PreviousSecureDaemonIdentityTest {
                 "bottom display must be visibly on");
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("watcher=RUNNING", "watcher=FAILED"), BOTH) < 0,
                 "unhealthy watcher fails closed");
-        System.out.println("PreviousSecureDaemonIdentityTest passed");
+        System.out.println("PreviousSecureDaemonIdentityTest passed: " + checks + " assertions");
+    }
+
+    private static void checkSafetyGates(String version) {
+        String health = HEALTH.replace("1.5.3", version);
+        for (String unsafeHealth : new String[]{
+                health.replace("protocol=2", "protocol=1"),
+                health.replace("watcher=RUNNING", "watcher=STOPPED"),
+                health.replace("watcher=RUNNING", "watcher=FAILED"),
+                health.replace("pid=11398", "pid=99"),
+                health.replace("pid=11398", "pid=100"),
+                health.replace("pid=11398", "pid=0"),
+                health.replace("pid=11398", "pid=abc"),
+                health.replace("pid=11398", "pid=+11398"),
+                health.replace("pid=11398", "pid=9999999999"),
+                health.replace("ok=1;", "ok=10;")}) {
+            check(PreviousSecureDaemonIdentity.safePid(unsafeHealth, BOTH) < 0,
+                    version + " retains protocol/watcher/PID/ACK safety gates");
+        }
+        for (String unsafeSnapshot : new String[]{
+                BOTH.replace("mode=0", "mode=1"),
+                BOTH.replace("mode=0", "mode=2"),
+                BOTH.replace("top_crtc=1", "top_crtc=0"),
+                BOTH.replace("bottom_crtc=1", "bottom_crtc=0"),
+                BOTH.replace("ok=1;", "ok=10;")}) {
+            check(PreviousSecureDaemonIdentity.safePid(health, unsafeSnapshot) < 0,
+                    version + " retains BOTH/CRTC/ACK safety gates");
+        }
+        check(PreviousSecureDaemonIdentity.safePid(null, BOTH) < 0,
+                version + " rejects missing health");
+        check(PreviousSecureDaemonIdentity.safePid(health, null) < 0,
+                version + " rejects missing display snapshot");
     }
 
     private static void check(boolean condition, String message) {
+        checks++;
         if (!condition) throw new AssertionError(message);
     }
 }
