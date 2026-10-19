@@ -130,7 +130,8 @@ public final class DisplayActionCoordinatorHostTest {
         DisplayHardware.property = "1";
         Telemetry.bottom = "1";
         DisplayActionCoordinator.onWatcherSample("1");
-        equal(1, DisplayHardware.markCount, "stable TOP wake marks pending");
+        equal("1", DisplayHardware.property, "stable TOP wake preserves firmware property");
+        equal(0, DisplayHardware.markCount, "stable TOP wake uses internal pending state");
         equal(1, WakeRepairScheduler.schedules, "stable wake schedules only one repair");
         yes(WakeRepairScheduler.pending, "repair pending after wake");
         equal(1, WatcherCadence.repairSchedules, "cadence informed of wake repair");

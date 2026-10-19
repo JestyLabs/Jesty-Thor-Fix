@@ -12,6 +12,7 @@ try {
     $fixture = Join-Path $repo 'tests/coordinator'
     $sources = @(
         (Join-Path $src 'DisplayActionCoordinator.java'),
+        (Join-Path $src 'DisplayModeReader.java'),
         (Join-Path $src 'DisplayDecisionModel.java'),
         (Join-Path $src 'DisplayGenerationModel.java'),
         (Join-Path $fixture 'android/os/SystemClock.java'),
@@ -23,6 +24,31 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'S1 coordinator host compilation failed' }
     & java -cp $out com.thor.displaypowertest.DisplayActionCoordinatorHostTest
     if ($LASTEXITCODE -ne 0) { throw 'S1 real coordinator characterization failed' }
+
+    # Main #82 deliberately removed the firmware-property pending marker.
+    # Reinserting that old write must fail the retained stable-wake case.
+    $coordinator = [IO.File]::ReadAllText((Join-Path $src 'DisplayActionCoordinator.java'))
+    $schedule = 'private static void scheduleRepairLocked() {'
+    if ([regex]::Matches($coordinator, [regex]::Escape($schedule)).Count -ne 1) {
+        throw 'Wake marker negative control target changed'
+    }
+    $wakeDir = Join-Path $out 'wake-marker-source'
+    $wakeClasses = Join-Path $out 'wake-marker-classes'
+    New-Item -ItemType Directory -Path $wakeDir, $wakeClasses | Out-Null
+    $wakeSource = Join-Path $wakeDir 'DisplayActionCoordinator.java'
+    [IO.File]::WriteAllText($wakeSource,
+        $coordinator.Replace($schedule, $schedule + ' DisplayHardware.markWakePending();'),
+        [Text.UTF8Encoding]::new($false))
+    $wakeSources = @($sources | Where-Object { $_ -ne (Join-Path $src 'DisplayActionCoordinator.java') }) + @($wakeSource)
+    & javac -encoding UTF-8 -source 8 -target 8 -d $wakeClasses @wakeSources
+    if ($LASTEXITCODE -ne 0) { throw 'Wake marker negative control must compile' }
+    $PSNativeCommandUseErrorActionPreference = $false
+    $observed = (& java -cp $wakeClasses com.thor.displaypowertest.DisplayActionCoordinatorHostTest 2>&1 |
+        ForEach-Object { "$_" }) -join "`n"
+    if ($LASTEXITCODE -eq 0 -or -not $observed.Contains('stable TOP wake preserves firmware property')) {
+        throw "Wake marker negative control not detected: $observed"
+    }
+    Write-Host 'S1 NEGATIVE_CONTROL PASS: old firmware pending write rejected by preserved-property assertion'
 
     # The unchanged suite above deliberately cannot reach Settings on a host.
     # For S1-09/10, replace that OS process-read boundary in a temporary copy.
@@ -40,7 +66,7 @@ try {
         if ($original[$end] -eq '}') { $depth-- }
         $end++
     }
-    if ($depth -ne 0 -or $original.Substring($start, $end - $start) -notmatch 'new ProcessBuilder\("settings"') {
+    if ($depth -ne 0 -or $original.Substring($start, $end - $start) -notmatch 'return DisplayModeReader\.current\(\);') {
         throw 'Settings adapter boundary changed; review before adapting'
     }
     $adapted = $original.Substring(0, $start) +
