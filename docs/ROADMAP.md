@@ -1,6 +1,6 @@
 # Current roadmap
 
-Updated 2026-10-12. Stable release: **v1.7.0**. The completed control baseline is **RC2 / code73**. The corrected integrated **code76 [PR #68](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/68)** is undergoing supervised physical acceptance; the original code74 [PR #63](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/63) remains a separate historical candidate.
+Updated 2026-10-17. Current published stable: **[v1.7.3 / code83](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.3)** (after [v1.7.2 / code80](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.2)). PRs #67, #89, #90 and #91 are merged. The v1.7.3 safe in-place daemon handover passed host, CI and Android emulator checks; it only proceeds under verified predecessor and device conditions, with guarded fallback otherwise. Historical RC78 physical testing remains scoped to its exact candidate: **15 PASS / 1 historical FAIL**, with separate A1 BOTH acceptance PASS. See [physical results and limits](PR67-PHYSICAL-VALIDATION-2026-10-16.md). Earlier candidate and recovery records remain historical evidence.
 
 See [physical validation evidence](VALIDATION-EVIDENCE.md) for completed test results. Historical investigations remain in their original, dated reports rather than being repeated here as future work.
 
@@ -15,15 +15,12 @@ See [physical validation evidence](VALIDATION-EVIDENCE.md) for completed test re
 
 These tests support the named outcomes. They do not need to be rerun solely because their original work item was previously phrased as an investigation.
 
-## Priority 1 — finish code76 release acceptance
+## Priority 1 — maintain v1.7.3 and monitor guarded upgrades
 
-- **Completed:** code76 signed in-place installation, authenticated daemon handoff, restored CPU Fix confirmation, BOTH/TOP and short sleep/wake smoke.
-- **Completed:** matched ~182 s daemon CPU windows (three in BOTH, three in TOP); both mode budgets **PASS**. The RC2 control is preserved and does **not** need repeating.
-- **Completed:** unplugged long quiet-suspend BOTH and TOP trials, with final bounded Android clock endpoints and normal wake; both mode budgets **PASS**.
-- **Completed:** isolated Lid Guard ON normal close/Power/open smoke in BOTH and TOP, with normal recovery, no confirmed active wake block, and final Guard OFF restoration.
-- **Remaining scope decision:** active closed-lid wake interception was not observed (blocked counter 0); decide whether dedicated reproduction is needed for release claims. Do **not** convert it into a PASS by assumption.
-- **Prepared recovery:** signed code77 [PR #69](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/69), not installed. Code75 [PR #64](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/64) is historical and is not a normal downgrade after code76.
-- **Next release steps:** include the scoped [UI-only PR #73](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/73), establish exact release-eligible signed APK identity, review release scope and obtain owner approval. Keep [private captures out of Git](PUBLIC-EVIDENCE-POLICY.md).
+- **Released:** PR #67 hardening, PR #89 verified same-kernel handover, PR #90 protected publisher correction and PR #91 public README update are integrated. The exact signed stable APK is linked in the [v1.7.3 release](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.3).
+- **Guarded activation:** v1.7.3 may transfer from an authenticated v1.7.1/v1.7.2 daemon without a full reboot only when the checks permit it. Otherwise preserve the documented conservative restart/recovery route and user data. See [v1.7.3 release notes](RELEASE-NOTES-1.7.3.md) and [activation guide](ACTIVATION-RECOVERY-GUIDE.md).
+- **Preserved earlier evidence:** exact code80 hardware acceptance and the separate code81/code82 external recovery trial passed in their defined healthy-device scope; the RC78 T09 CPU FAIL and later A1/T10 PASS remain distinct historical results.
+- **Separate unresolved issues:** keep [#84 persistent TOP wake blackout](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/84) (with documentation draft [#82](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/82)) and [#65 brief BOTTOM brightness flash](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/65) in their issue trackers. Neither is an advertised v1.7.3 fix; retain [private captures outside Git](PUBLIC-EVIDENCE-POLICY.md).
 
 ## Priority 2 — performance and battery evidence
 
@@ -33,7 +30,7 @@ These tests support the named outcomes. They do not need to be rerun solely beca
 
 ## Separate research, outside RC3 acceptance
 
-- [#37](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/37): mixed-refresh / 120 Hz behavior; investigation retained for later without forcing additional device capture now.
+- [#37](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/37): **pre-existing AYN Thor 120 Hz / mixed-refresh tearing**, not a regression introduced by Jesty. Investigation only: root cause and a safe fix remain unproven. Do not market this as a Jesty bug or resolved feature; no extra device capture without a separate approved protocol.
 - [PServerBinder lifecycle](PSERVERBINDER-LIFECYCLE-INVESTIGATION.md): read-only reliability research when a naturally occurring incident supplies evidence.
 - TOP-mode app focus/input routing; only advertise a fix when independently reproduced and verified.
 - Compatibility research for other devices, including Retroid Pocket Duo, without assuming AYN-specific logic generalizes.

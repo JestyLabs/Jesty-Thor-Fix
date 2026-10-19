@@ -26,6 +26,15 @@ public final class AutoService extends Service {
         if (workerRunning) return START_NOT_STICKY;
         workerRunning = true;
         final android.content.SharedPreferences state = getSharedPreferences("state", MODE_PRIVATE);
+        final RebootActivation.Ticket activation = RebootActivation.ticket(this, state);
+        final boolean bootAuthorized = RebootActivation.allowStart(this, state);
+        if (!bootAuthorized && activation.evidence() != RebootActivation.Evidence.RESTART_REQUIRED) {
+            workerRunning = false;
+            Log.w(TAG, "activation blocked: missing durable identity or storage proof");
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+        final boolean liveHandover = !bootAuthorized;
         final boolean enabled = state.getBoolean("fix_enabled", true);
         final boolean dashboardFixEnabled = state.getBoolean("dashboard_cpu_fix_enabled", false);
         try {
@@ -41,7 +50,23 @@ public final class AutoService extends Service {
                     Log.d(TAG, "start worker fromBoot=" + fromBoot
                             + " receiver_ms=" + receiverAt + " service_ms=" + serviceAt);
                     boolean protocolMigration = !state.getBoolean("daemon_protocol_unix_v2", false);
-                    boolean replacingSecureDaemon = false;
+                    if (liveHandover) {
+                        // Only the two exact published predecessors with confirmed BOTH,
+                        // CPU/display/lid state may be retired; no blind process kills.
+                        int previousPid = PServer.stopLivePredecessorIfSafe(enabled,
+                                dashboardFixEnabled, state.getBoolean("lid_guard_enabled", false));
+                        if (previousPid < 1) {
+                            Log.w(TAG, "live handover held; safe predecessor not verified");
+                            return;
+                        }
+                        for (int poll = 0; poll < 50 && PServer.reachable(); poll++) {
+                            if (!pause()) return;
+                        }
+                        if (PServer.reachable()) {
+                            Log.e(TAG, "predecessor still responding; successor launch forbidden");
+                            return;
+                        }
+                    }
                     String socketState = "NOT_CHECKED";
                     Probe probe = PServer.probe(enabled);
                     if (probe == Probe.UNREACHABLE) {
@@ -72,7 +97,6 @@ public final class AutoService extends Service {
                             return;
                         }
                         Log.w(TAG, "held same-version daemon stopped; relaunching in hold");
-                        replacingSecureDaemon = true;
                         probe = Probe.UNREACHABLE;
                     }
                     if (probe == Probe.UNHEALTHY) {
@@ -81,33 +105,17 @@ public final class AutoService extends Service {
                             probe = PServer.probe(enabled);
                         }
                         if (probe == Probe.UNHEALTHY) {
-                            if (!PServer.stopPreviousSecureDaemonIfSafe()) {
-                                PServer.logHealthFailure();
-                                Log.e(TAG, "existing trusted daemon is unhealthy; launch held");
-                                return;
-                            }
-                            for (int poll = 0; poll < 25 && PServer.reachable(); poll++) {
-                                if (!pause()) return;
-                            }
-                            if (PServer.reachable()) {
-                                Log.e(TAG, "older daemon still listening; replacement held");
-                                return;
-                            }
-                            replacingSecureDaemon = true;
-                            probe = Probe.UNREACHABLE;
-                        }
-                    }
-                    if (protocolMigration && probe == Probe.UNREACHABLE) {
-                        PServer.stopLegacyDaemon();
-                        for (int attempt = 0; attempt < 25 && PServer.legacyTcpOpen(); attempt++) {
-                            if (!pause()) return;
+                            PServer.logHealthFailure();
+                            Log.e(TAG, "existing daemon cannot activate this package; normal reboot required");
+                            return;
                         }
                     }
                     if (PServer.legacyTcpOpen()) {
-                        Log.e(TAG, "legacy TCP listener still present; migration held");
+                        Log.e(TAG, "legacy listener present; normal reboot required");
                         return;
                     }
-                    boolean held = fromBoot || protocolMigration || replacingSecureDaemon;
+                    // Foreground recovery after a missed broadcast also enters the boot coordinator.
+                    boolean held = true;
                     for (int launch = 0; launch < 2 && probe == Probe.UNREACHABLE; launch++) {
                         long launchWait = SystemClock.elapsedRealtime() - serviceAt;
                         Log.d(TAG, "launching daemon socket=" + socketState
@@ -130,7 +138,11 @@ public final class AutoService extends Service {
                         return;
                     }
                     // STARTING is an authenticated same-version, same-intent daemon
-                    // inside its boot coordinator; it owns the remaining transition.
+                    // inside its boot coordinator; its actions remain held until READY.
+                    if (liveHandover && !activation.confirmLiveHandover()) {
+                        Log.e(TAG, "live handover identity found but durable proof failed");
+                        return;
+                    }
                     if (protocolMigration && !state.edit()
                             .putBoolean("daemon_protocol_unix_v2", true).commit()) {
                         Log.e(TAG, "migration marker could not be saved");

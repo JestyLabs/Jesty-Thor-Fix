@@ -1,5 +1,7 @@
 # v1.7.1 release readiness — owner checklist
 
+> **Historical pre-publication snapshot (opened 2026-10-12).** Stable v1.7.1 was subsequently [published on 2026-10-12](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.1), via [workflow 38322379696](https://github.com/JestyLabs/Jesty-Thor-Fix/actions/runs/38322379696). The release's public asset digest, source commit, signed-candidate CI run and verification boundaries are now summarized in [release integrity](RELEASE-INTEGRITY.md#171-stable-publication--verifiable-public-metadata-2026-10-12). The below checkboxes and statements are retained as a **dated preparation record**; incomplete individual observations (including active Lid Guard interception and the final APK's independent physical visual smoke) are **not** retroactively marked PASS by publication. This checklist must not be reused as an up-to-date unpublished-release gate.
+
 **Status:** PREPARATION ONLY · not permission to publish, merge product code, install another APK or operate the Thor.  
 **Date opened:** 2026-10-12  
 **Planned version:** `1.7.1` / Android versionCode `76` · candidate [PR #68](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/68)

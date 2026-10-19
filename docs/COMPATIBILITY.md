@@ -17,10 +17,11 @@ TKQ1.231222.001
 | Sleep/wake repair | ✅ Tested | Focused TOP sleep/wake checks return the lower display to true-off |
 | AYN Dashboard CPU Fix | ✅ Tested | Qualcomm property/restart path verified on hardware; low-load clock pinning no longer reproduced with the fix active |
 | Cold-boot restore | ✅ Tested | Saved fixes restored on the tested Thor with the expected one-time framework/compositor recovery |
-| Closed-Lid Wake Guard | ✅ Focused checks | Optional feature; available closed-lid checks passed on the tested device |
+| Closed-Lid Wake Guard | ⚠️ Partial physical coverage | Optional, OFF by default. Owner-observed Guard ON **normal** BOTH/TOP close/Power/open recovery passed; **actual blocking of an unintended closed-lid wake was NOT OBSERVED** (0 blocked-wake events). Do not infer active-blocking effectiveness from a normal-cycle smoke test. |
 | BOTTOM-only mode | ⚠️ Limited | Not part of the current stable validation scope |
 | Dock / external-display use | ⚠️ Limited | Safety exclusions exist, but physical dock coverage is still deferred |
 | Other Thor firmware / revisions | 🧪 Test first | Hardware IDs and vendor behavior must be checked before making compatibility claims |
+| 120 Hz mixed-refresh / tearing | 🔍 Stock Thor issue, investigation only | Pre-existing device/firmware problem: no Jesty 120 Hz fix is available or claimed. [Research #37](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/37) |
 
 See [device validation](DEVICE-VALIDATION.md), [benchmarks](BENCHMARKS.md) and [release integrity](RELEASE-INTEGRITY.md) for the underlying evidence.
 

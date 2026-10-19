@@ -39,3 +39,7 @@ screen-timeout-wake.txt
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Generated Python bytecode
+__pycache__/
+*.py[cod]

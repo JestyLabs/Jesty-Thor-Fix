@@ -59,6 +59,28 @@ public final class PServer {
         return send(command, "uniquely identified legacy daemon stop submitted");
     }
 
+    /** A verified, narrow candidate for a same-boot replacement. No root operation here. */
+    public static int safeLivePredecessor(boolean displayFix, boolean cpuFix, boolean lidGuard) {
+        try {
+            String health = SocketClient.request('I', 700);
+            String snapshot = SocketClient.request('Q', 2500);
+            return LiveHandoverPolicy.safePid(health, snapshot, displayFix, cpuFix, lidGuard);
+        } catch (Throwable error) {
+            Log.w(TAG, "live predecessor could not be verified");
+            return -1;
+        }
+    }
+
+    /** A bridge submission is not kill acknowledgement: caller must verify socket exit. */
+    public static int stopLivePredecessorIfSafe(boolean displayFix, boolean cpuFix,
+            boolean lidGuard) {
+        int pid = safeLivePredecessor(displayFix, cpuFix, lidGuard);
+        if (pid < 1 || safeLivePredecessor(displayFix, cpuFix, lidGuard) != pid) return -1;
+        // Confirm twice: a changed PID or snapshot must never reach the bridge.
+        return send(identifiedDaemonKill(pid), "approved predecessor stop submitted pid=" + pid)
+                ? pid : -1;
+    }
+
     /** Replaces only known older authenticated daemons while BOTH is physically ON. */
     public static boolean stopPreviousSecureDaemonIfSafe() {
         try {
