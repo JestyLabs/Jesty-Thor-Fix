@@ -10,7 +10,7 @@ final class DisplayModeReader {
     static String current() {
         Process process = null;
         try {
-            process = new ProcessBuilder("settings", "get", "system",
+            process = new ProcessBuilder("/system/bin/settings", "get", "system",
                     "dual_screen_display_mode").start();
             if (!ProcessWait.exited(process, 2000L) || process.exitValue() != 0) return "?";
             try (BufferedReader reader = new BufferedReader(

@@ -49,7 +49,8 @@ from the persistent blackout.
   wake starts a fresh interval; cancellation never forces a global wake flag.
 - Actual lower-panel power operations retain their existing write, rollback,
   fresh-mode check and confirmation behavior. The mode reader is extracted
-  unchanged to make that command boundary testable.
+  to make that command boundary testable and pins `/system/bin/settings`
+  rather than resolving the command through the process environment.
 
 The existing 700 ms wake delay and 400 ms display-confirmation minimum are
 unchanged. There is no blanket retry, forced ON on every sample, low-power write,

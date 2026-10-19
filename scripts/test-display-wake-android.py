@@ -12,6 +12,7 @@ from pathlib import Path
 import re
 import subprocess
 import time
+import xml.etree.ElementTree as ET
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -53,8 +54,13 @@ def build(args):
     execute([tools / ('d8' + bat), '--min-api', '28', '--lib', jar, '--output', dex,
              *sorted(classes.rglob('*.class'))], env)
     raw = out / 'raw.apk'
+    # run-as is needed only for this disposable test APK, built outside Git.
+    manifest = ET.parse(fixture / 'AndroidManifest.xml')
+    manifest.getroot().find('application').set('{http://schemas.android.com/apk/res/android}debuggable', 'true')
+    test_manifest = out / 'AndroidManifest.xml'
+    manifest.write(test_manifest, encoding='utf-8', xml_declaration=True)
     execute([tools / ('aapt2' + exe), 'link', '-o', raw, '-I', jar,
-             '--manifest', fixture / 'AndroidManifest.xml'], env)
+             '--manifest', test_manifest], env)
     with zipfile.ZipFile(raw, 'a') as archive:
         archive.write(dex / 'classes.dex', 'classes.dex', compress_type=zipfile.ZIP_STORED)
     execute([tools / ('zipalign' + exe), '-f', '4', raw, out / 'aligned.apk'], env)
