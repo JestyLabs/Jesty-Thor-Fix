@@ -73,3 +73,23 @@ HOST source/fixture evidence only. Exact source and combined CI/CodeQL are
 recorded on the PR and #95. Native transport, process retirement, code80 real
 handover and successor acceptance remain UNKNOWN/NOT RUN at this tier. #84/#65
 remain separate. No main merge, signing, release, APK install or Thor contact.
+
+## Exact-reader comparison and documented fallback — 2026-10-19
+
+The existing producer probe was rerun against exact main
+`98ab7c342a028eaea8e43fb867900c0f9a3b5152` and candidate
+`d9d304b284d07c42a78d44c13efaab15b6f3dab3`, varying only its pinned reader
+revision. Both published producers emitted identical replies and admission
+results under both readers: code76 denied, code80 admitted in the matching
+synthetic READY/BOTH state, with unique fields throughout. The source hashes,
+commands and outputs remain owner-local. No new fixture fields were invented.
+
+The activation guide and v1.7.3 release notes now state the actual contract:
+published v1.7.1 uses preparation followed by a normal restart; v1.7.2 can use
+the guarded transfer when all checks pass. This reconciles the public claim with
+the existing implementation, without changing runtime or authorizing a broader
+predecessor set. Existing activation and negative-control suites are reused.
+
+This is a HOST source-format comparison and documentation correction. Independent
+privileged-boundary review, installed-artifact provenance and native/physical
+handover acceptance remain separate gates on #101.
