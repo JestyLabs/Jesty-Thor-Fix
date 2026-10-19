@@ -1,3 +1,5 @@
+**Historical protocol (2026-10-11), inactive.** Retained for research provenance. It grants no current device access or collection authorization. See [the completed investigation](BOTTOM-BRIGHT-FLASH-AFTER-LID-WAKE-20261011.md) for the 19 October findings and closure disposition.
+
 # RC2 opportunistic wake observation — safe Codex handoff
 
 **Scope:** Use the owner's already-running, authorized, corrected RC2

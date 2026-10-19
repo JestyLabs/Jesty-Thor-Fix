@@ -6,6 +6,7 @@ on:
       - 'scripts/analyze-bottom-wake-flash.py'
       - 'tests/test_bottom_wake_flash.py'
       - 'research/wake/**'
+      - 'src/com/thor/displaypowertest/DisplayDecisionModel.java'
       - 'docs/BOTTOM-BRIGHT-FLASH-AFTER-LID-WAKE-20261011.md'
       - '.github/workflows/bottom-wake-flash-research.yml'
   workflow_dispatch:
@@ -21,14 +22,14 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Synthetic-only analyzer/privacy tests
         run: python -m unittest discover -s tests -p 'test_bottom_wake_flash.py' -v
       - name: Parser compilation
         run: python -m py_compile scripts/analyze-bottom-wake-flash.py
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'

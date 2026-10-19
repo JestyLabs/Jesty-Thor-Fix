@@ -1,217 +1,61 @@
-# Research: transient BOTTOM bright flash after lid-open in BOTH
+# BOTTOM bright flash after wake — investigation conclusion
 
-**Status: INVESTIGATION ONLY / no fix proposed / no additional physical test authorized.**
-Related: [#37 mixed-refresh research](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/37). This report investigates a different observed symptom; do not conflate black refresh blinks, tearing and an apparent bright flash.
+PR #62 closes the research phase for [issue #65](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/65), on top of the TOP cancellation correction integrated in PR #82. No new runtime brightness or display-power workaround is justified by the available evidence. A concrete defect in the archived firmware's secondary-display brightness conversion was identified; its contribution to the observed physical flash remains unmeasured.
 
-## One observed incident (owner report, 2026-10-11)
+## Observations and rechecked timing
 
-- **Software:** Jesty Thor Fix v1.7.1-rc2 / versionCode 73, AYN Thor firmware `.377`.
-- **Selected settings:** BOTH, 120 Hz selected, Display Fix ON, CPU Fix ON, Lid Guard OFF.
-- **Conditions:** USB attached after performance measurements; no fix or performance-profile setting was changed.
-- **Action:** second ordinary close -> open lid cycle while in BOTH.
-- **Visual report:** at opening, BOTTOM briefly appeared much brighter than normal; then recovered. Neither actual brightness level nor duration was instrumented. The terms "maximum" and "millisecond" are subjective descriptions, not measurements.
-- **Afterwards:** both CRTCs active, both panels appeared recovered; same boot and observed service processes. This validates eventual recovery, not transient backlight behavior.
-- **Unavailable evidence:** no synchronized event-time video, actual brightness register measurement or aligned per-cycle daemon/vendor log proving the trigger.
+The original RC2 observation was a brief BOTTOM-only brightness increase on the second BOTH lid-open cycle, with firmware .377, 120 Hz selected, Display Fix/CPU Fix ON, Guard OFF and USB attached. Both displays recovered. A separate 16 October report describes approximately one second of extra BOTTOM brightness after a hardware-button wake, then normal appearance without reboot. The later report does not establish exact installed version, refresh, toggles or transport.
 
-120 Hz **selected** is not proof of physical BOTTOM 120 Hz or of a refresh-mode change during the lid event. The lower panel's distinct optical cadence was not measured.
+Rechecked owner-local inputs against their archive hashes and replayed the original relative intervals:
 
-## New finding — offline review of the owner's private RC2 evidence ZIP
+| RC2 cycle | App ON after recorded sleep | App ON before recorded wake | Visual observation |
+| --- | ---: | ---: | --- |
+| First | 836 ms | 35.060 s | No flash reported |
+| Second | 850 ms | 41.822 s | Brief bright BOTTOM on opening |
 
-**2026-10-11, derived evidence only; source ZIP and raw Android logs remain private.**
-The exact signed corrected v1.7.1-rc2/73 candidate was installed. PowerManager
-`dumpsys power` recorded `mLastSleepReason=lid_switch` for two successive
-BOTH + Lid Guard OFF close/open cycles. The retained Android logcat timeline
-(boot-relative timestamps) includes matching successful
-`ThorDisplayDaemon: WATCH_BOTH ON` messages:
+These are software-clock intervals, not optical timing. The ON message follows the platform call's return; it does not report its start, actual scanout or brightness. The same closing-time ON pattern occurred without a reported flash on the first cycle. It is therefore insufficient to identify the later flash's cause. No matching wake-time ON is observed in that retained filtered log, which also cannot prove all operations absent.
 
-| BOTH lid cycle | PowerManager sleep | Jesty `WATCH_BOTH ON` | Delta after sleep | PowerManager wake | ON before wake |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| First (normal visually) | 66867.512 s | 66868.348 s | **+0.836 s** | 66903.408 s | 35.060 s |
-| Second (owner-observed flash on opening) | 66946.285 s | 66947.135 s | **+0.850 s** | 66988.957 s | 41.822 s |
+A later full log contains 90 brightness-reason messages split equally between the two logical display controllers, ten brightness-synchronizer messages and one access-control message. These are not 101 optical measurements or 101 flashes. They come from a later collection and do not recover the missing brightness trace at the original event.
 
-A separate TOP wake in this capture anchors clock compatibility: PowerManager
-last wake at 66833.239 s, `WAKE REPAIR SCHEDULED` at 66833.556 s and
-`WAKE_REPAIR_RESULT OFF_OK` at 66834.522 s. Clock/source uncertainty and
-capture completeness still apply.
+## Firmware finding
 
-**What this proves, within the captured software observations:** the running
-Display Fix successfully issued a lower-panel ON command approximately
-850 ms **after Android recorded a lid-triggered sleep**, on both cycles.
-The source emits `WATCH_BOTH ON` *after*
-`SurfaceControl.setDisplayPowerMode(bottomToken, 2)` returns.
-It is no longer merely hypothetical that the ON code path executed
-around lid-driven sleep. Note that the `WATCH_BOTH` log does not capture an
-independent contemporaneous backlight level or a per-CRTC snapshot.
+The archived firmware has a separate brightness conversion for the internal secondary display. Static call-path inspection establishes:
 
-**What it does NOT prove:** the visual brightness spike happened **on lid
-opening**, roughly 42 seconds *after* the second ON entry. There is no
-`WATCH_BOTH ON` **at that opening** in the retained filtered logcat; this
-weakens a direct wake-time ON hypothesis but does not rule out earlier
-power-state interference or a vendor-only flash. A single normal first wake
-also demonstrates that the observed ON during sleep is not sufficient
-to produce a visible flash every time. No brightness/fade entries were present
-in the captured filtered source; no synchronized optical/driver brightness
-measurement exists. No root-daemon restart, new app crash or lost CRTC
-steady-state recovery was evidenced by the endpoint checks.
+1. The power-state update uses the special OFF brightness value while the display is OFF or its fade level is zero.
+2. The display manager preserves that value through its request/clamp path.
+3. The secondary-display branch applies a brightness curve before the downstream helper tests for the OFF sentinel. The primary-display branch goes directly to that helper.
+4. The curve converts the OFF value into a positive normalized input of approximately **0.505**. The sentinel check can no longer recognize it. That result then enters the device-specific backlight mapping and dispatch path.
 
-**Version attribution:** independently compared public `v1.7.0` with
-the current `main`. `DisplayDecisionModel.java` and
-`DisplayHardware.java` are byte-identical; the entire
-`DisplayActionCoordinator.onWatcherSample()` routine, including the
-automatic `WATCH_BOTH ON` decision, is also identical. Thus the #58 PR
-did **not** add this automatic ON code path, although changed read timing
-and firmware interactions have not been experimentally excluded.
+A restricted, owner-local interpreter of the extracted arithmetic instructions confirms the conversion. This is a demonstrated firmware-side loss of sentinel semantics, not a measured 50.5% luminance, a proof of maximum brightness, or execution of the vendor HAL/panel. Panel-enable gates, downstream mapping, cached brightness, compositor content/fade and restore ordering can still affect what becomes visible.
 
-**Specific safety-gap candidate:** `DisplayDecisionModel.reconcile("0",
-"1", "0", true, false, false)` can select ON while Android is in a lid
-sleep transition because that pure model and the coordinator's `WATCH_BOTH`
-path do not gate this automatic ON on the device's *interactive/wake* state.
-This is a source-derived risk, not proof that the transient DRM observation
-was wrong. A blanket suppress/delay of ON might break recovery: first design
-a conservative awake-eligibility or transition-epoch guard, with host
-state-machine tests, unknown-state fail safety, and confirmed wake recovery,
-then test separately on the exact authorized Thor build.
+The firmware also has a separate lower-panel brightness fade around refresh-setting changes. Its observer requires the relevant refresh-setting path; a lid wake or low-power event alone does not prove that fade ran. It is not selected as this incident's cause. Kernel inspection confirms independent panel-enable checks and distinct power/brightness paths, without establishing the actual register values or timing at the flash.
 
-**Triage:** prioritize this ON-during-lid-sleep behavior before intentional
-new lid-cycle reproductions. Do not silently merge a speculative runtime
-fix into the tested RC2. This is not proof of flash root cause.
+This makes firmware brightness restoration a stronger supported candidate than before. The exact physical causal chain still lacks a synchronized command/brightness/optical trace. App-triggered power interactions are not excluded merely because the app never sets a brightness value.
 
-## Concrete source-backed hypothesis to test
+## Our app and the new production-class characterization
 
-At the current main source, `DisplayDecisionModel.reconcile()` returns `Action.ON` for **BOTH + TOP CRTC 1 + BOTTOM CRTC 0**, with Display Fix enabled, action gate clear and no pending wake repair. `DisplayActionCoordinator.onWatcherSample()` then calls `attempt(true, "WATCH_BOTH", mode)` (with a short duplicate-attempt throttle). The implementation gates unknown modes and boot hold, reads the paired DRM CRTC state and serializes display actions.
+The app's `DisplayHardware` requests panel power and maintains its power flag; it does not set brightness, panel calibration, refresh policy or backlight registers. Guard OFF does not disable ordinary BOTH reconciliation.
 
-`DisplayHardware.apply(true, "WATCH_BOTH")` sets `display.power.state=1` and uses hidden `SurfaceControl.setDisplayPowerMode(bottomToken, 2)`. It **does not set a brightness level**. The vendor framework/panel may still implement a backlight or initialization transition when the panel is brought on. A short wake-stage 1/0 observation followed by this ON request is therefore a **plausible contribution**, not evidence that this command happened in the reported cycle or caused the flash.
+The production coordinator and hardware, compiled with synthetic Android observations, now cover these additional cases:
 
-The #58 paired DRM read changes how CRTC state is observed but introduce no brightness-setting call. The #57 Lid refactor was *not* part of the tested RC2. Lid Guard OFF does not disable the unrelated Display Fix BOTH reconciliation path.
+- TOP -> BOTH restores a dark lower panel even when the previous TOP OFF left the flag at0.
+- Subsequent BOTH1/1 samples do not repeatedly issue ON.
+- Both CRTCs inactive does not request ON; firmware-restored BOTH needs no extra app command.
+- Mixed CRTC1/0 can request ON. This observation alone cannot distinguish legitimate recovery from a system sleep transition.
+- Boot hold, disabled fix, unknown mode/CRTC, BOTTOM ONLY and a fresh-mode mismatch do not authorize that automatic ON.
 
-A separate plausible explanation is **stock vendor panel/backlight/lid-open handling**, potentially influenced by selected refresh policy. The #37 exact-firmware research documented vendor brightness/fade and PASS/BYPASS-RAM logic for **refresh policy changes**, but no evidence currently ties that particular path to this lid-open incident. We should not extrapolate those traces to a lid event.
+There are **17 new assertions**, alongside the **29 TOP cancellation assertions** from PR #82. These execute our production classes with synthetic platform boundaries. They do not reproduce optical brightness or validate the vendor bridge.
 
-## Evidence discriminators (minimum read-only collection)
+## Why no additional app workaround is integrated
 
-Use only already-authorized device evidence or a **new separately approved read-only capture**. Do **not** intentionally reproduce the flash by cycling the lid; the owner is currently testing a different RC.
+Using the power flag as a blanket awake gate would suppress legitimate TOP -> BOTH recovery: that flag also represents the lower panel's OFF state while Android is awake. Suppressing all mixed-CRTC ON requests has the same problem.
 
-1. Record the exact app APK SHA-256/source and daemon identity, mode and Fix/Lid flags, selected Android refresh policy, and relevant boot/session identity **privately**.
-2. Prefer an existing logcat `-v epoch` export with at least a short before/after interval and the owner's approximate flash timestamp. Optionally sample existing read-only `Q` and DRM endpoints **only if already permitted**. Do not write display settings, backlight, `bypass_ram`, DSI, CPU governor or refresh policy.
-3. Identify a `ThorDisplayDaemon: WATCH_BOTH ON` operation and/or `WATCH_BOTH:ON` action status **near the observed lid opening**; check whether a transient BOTH 1/0 source condition actually occurred, and if a second writer (vendor framework) was active. When a log is absent, report **NOT OBSERVED IN AVAILABLE LOGS**, not "did not happen".
-4. Compare the time of any `WATCH_BOTH ON` with relevant vendor backlight/brightness/SurfaceFlinger logs, acknowledging that basic logcat may not contain actual driver transitions. A same-time association is **not causation**.
-5. Record if the flash occurs in BOTH while both CRTCs are already 1/1 and without any Jesty ON request. This would weaken the particular WATCH_BOTH hypothesis (given complete reliable logs), not prove a vendor-only cause.
-6. Use safe synthetic model tests to verify the branch condition. The existing Display Decision model *deliberately* handles BOTH 1/0 by requesting ON; do not "fix" it by suppressing all wake-on work.
+The earlier interactive-state and deferred-recovery models remain research-only. A host model's AWAKE/UNKNOWN input does not establish a reliable privileged signal on this firmware; permanent UNKNOWN can strand recovery, and a software check does not make a later platform transition atomic. The model is not imported into `src/` or the APK.
 
-## Offline tooling and privacy
+Clamping or restoring brightness from the app would compete with the system's independent brightness writers and introduce new policy. No supported app-side correction for the firmware conversion is established. The PR #82 pending-state correction remains integrated unchanged; it is not presented as a brightness fix.
 
-`scripts/analyze-bottom-wake-flash.py` accepts a **local** `adb logcat -v epoch` or `-v monotonic` text file and produces only recognized event categories and relative-time offsets. It never runs ADB, opens sysfs, changes Android properties, or exports original log text. The input can contain private details, so keep it outside GitHub, Actions artifacts and PR comments. Do **not** automatically upload an anonymized-looking raw log: sanitization must be reviewed.
+## Validation, privacy and closure
 
-Example from previously collected evidence (do not interpret as permission to start capture):
+The offline parser tests preserve provenance/timebase/privacy constraints. Their process identifiers and clocks are synthetic. Historical collection guidance is retained separately as an inactive protocol; no Thor session is authorized or executed here. Exact firmware, disassembly, original logs, hashes and private replay tools remain owner-local outside Git.
 
-```powershell
-python scripts/analyze-bottom-wake-flash.py --input "C:\Temp\thor-private\existing-logcat-epoch.txt"
-# Optional only if the observer supplied an accurate logcat-clock timestamp:
-python scripts/analyze-bottom-wake-flash.py --input "C:\Temp\thor-private\existing-logcat-epoch.txt" --observed-at 1791740000.5 --window-seconds 6
-# For the actual retained RC2 evidence, use the boot-relative clock, without
-# claiming an independently measured visual flash timestamp:
-python scripts/analyze-bottom-wake-flash.py --input "C:\\Temp\\thor-private\\existing-monotonic-logcat.txt" --json
-python -m unittest discover -s tests -p "test_bottom_wake_flash.py"
-```
-
-The tool rejects mixed epoch/monotonic clocks: for `-v monotonic`, an `--observed-at` value must use boot-relative seconds, not Unix time. The tool's time alignment is only as good as the source clock and visual timestamp. If exact time is unknown, review chronological categories without suggesting alignment.
-
-**Offline parser provenance check (2026-10-11 review):** the analyzer now
-attributes `WATCH_BOTH ON` to Jesty only if **the actual logcat tag**
-is `ThorDisplayDaemon` or `ThorLidGuard`. A message emitted by another
-app that merely *quotes* `ThorDisplayDaemon: WATCH_BOTH ON` must not count
-as an app-issued power-on event. Synthetic regression coverage added.
-No real device logs or new wake captures were uploaded.
-
-## Decision matrix before implementing a fix
-
-| Evidence | Interpretation | Next action |
-|---|---|---|
-| Jesty `WATCH_BOTH ON` at same wake + proof of transient BOTH 1/0 | App-issued power-ON is plausible contributor | Investigate timing vs vendor backlight; derive narrow state-machine guard and host tests separately |
-| No ON request in a sufficiently complete, time-aligned capture | Specific app ON hypothesis weakened | Investigate vendor lid / backlight paths read-only |
-| Both app ON and vendor brightness/fade logged together | Temporal correlation, not proof of brightness cause | Investigate causal sequence before code changes |
-| Log missing, visual time uncertain, or no CRTC samples during flash | INCONCLUSIVE | Preserve hypothesis; do not change wake policy |
-| A repeat without explicit authorization | Not permitted | Stop; request a separate supervised plan |
-
-## Offline wake-gate policy prototype (2026-10-11)
-
-`research/wake/AutomaticBottomOnPolicy.java` and
-`AutomaticBottomOnPolicyTest.java` are **pure-Java, not linked into the APK**.
-The prototype consumes the **current production** `DisplayDecisionModel`
-rather than inventing a replacement baseline. Local Java 17 execution passed **885 assertions** (21 directed
-regressions plus 864 combinations of mode, CRTC, awake, Fix, hold and
-repair-pending states), exercising asleep/awake/unknown, BOTH recovery, TOP fix,
-display-fix OFF, pending repair, changed state/epoch and wake revalidation.
-GitHub CI additionally runs the same model fixtures; CI result must be checked
-on the exact draft HEAD.
-
-**Additional model-only edge case:** the pure
-`DisplayDecisionModel.reconcile("0", "1", "0", true, false, true)`
-returns `ON` even if `wakeRepairPending=true`. However, the production
-coordinator cancels TOP wake repair on a mode transition to BOTH, and
-`scheduleWakeRepair()` itself requires TOP mode. Therefore the synthetic
-combination BOTH + pending repair is **not established as reachable during
-normal runtime operation**. Do not classify it as the observed defect.
-The direct, observed risk is an ON during an Android lid-sleep transition.
-
-The proposed gate is **not a proven production fix**:
-
-1. Automatic `WATCH_BOTH ON` should only be considered when power state
-   is freshly **confirmed interactive** (and both panel/mode evidence is
-   valid); asleep/unknown cases suppress the candidate. Unrelated
-   manual/boot reconciles and TOP OFF/wake-repair paths must not be changed.
-2. A second freshness/interactive/epoch check near `SurfaceControl` is
-   needed; a software observation **cannot close** the tiny final race
-   before the physical command, because Android may start sleeping again.
-3. Firmware `.377` support for the root daemon's effective
-   `IPowerManager.isInteractive()` reflection path is **not established**
-   during the lid sleep transition. Android's value at +850 ms was NOT
-   captured, and it may not be the right signal for panel readiness.
-4. Returning UNKNOWN indefinitely would starve a legitimate BOTH BOTTOM
-   recovery after wake. Before considering a runtime integration, prove the
-   probe reliably returns awake after normal wake, that watcher events
-   resample state, and that the known-good recovery path remains available.
-5. Deferred repair and event ordering with #57's independent lid refactor
-   need integration review, but #57 code was not present in this observed RC2.
-
-**No production Java class, daemon, Android manifest, APK, display action,
-watcher frequency or wake logic has been modified by this PR.**
-Host model success is **not** validation that suppressing ON is safe on
-the actual Thor. Keep a runtime-fix proposal in a separate PR after
-reviewing existing trace completeness and obtaining owner permission for
-a measured guarded physical test.
-
-## Modeled deferred-ON recovery — research only (2026-10-11)
-
-New host-only `research/wake/AutomaticBottomWakeRecoveryModel` and its test
-exercise a **fail-closed but recoverable** candidate protocol:
-
-1. On BOTH TOP1/BOTTOM0 while power is ASLEEP or UNKNOWN, hold the
-   automatic ON candidate, without replaying a stale queued hardware command.
-2. Require two **fresh, consecutive** confirmed-AWAKE watcher observations
-   before reconsidering a deferred ON. This is a proposed mitigation against
-   quick suspend/resume flicker, **not a measured optimum**. Re-check the
-   display mode, CRTC flags, generation and interactive status immediately
-   at the command boundary.
-3. If interactivity remains UNKNOWN for ten independent watcher observations,
-   surface `NEEDS_MANUAL_REVIEW` in the *model*: **never** make an ON by
-   timeout or an assumed awake fallback. A later valid awake pair still
-   permits a fresh candidate, and non-BOTH/already-on/Fix-off clears deferral.
-4. Model tests cover asleep→unknown→awake, repeated unknown, awake↔sleep,
-   changing generation, TOP mode and OFF Fix. Existing production code
-   remains untouched.
-
-**Conditional liveness, not a proof on Thor:** successful automatic recovery
-requires that the privileged daemon can actually obtain reliable
-`isInteractive()` observations and that the existing watcher continues to
-produce samples after wake. On .377 **neither assumption was captured at the
-850 ms ON instant**; a false AWAKE could still authorize ON and permanent
-UNKNOWN could prevent automatic recovery. The manual user reconcile path
-also requires separate UX/accessibility checks. This research model cannot
-prove physical flash elimination or recovery timing; stop short of production
-integration until trace-backed signal validity and physical acceptance.
-
-## No-production-change guardrails
-
-This draft should change **only** documentation, read-only local analysis scripts and synthetic tests. No new watcher polling, permanent runtime tracing, added daemon threads, display-power calls, CPU frequency/refresh writes, property changes, sleep/lid automation or modified firmware. In particular, do **not** add a blanket debounce that could delay True Bottom Screen Off / recovery.
-
-After evidence review, any corrective runtime code must be **a new, separately reviewed PR**, with normal BOTH/TOP, sleep/wake and CPU Fix gates and owner-approved hardware tests before any merge.
+At the owner's request, issue #65 is to close after integration of this investigation. Closure records the firmware-side finding and the absence of a validated additional application workaround. It does not claim the physical flash was reproduced or fixed. There is no release/version/signing change. Any future release containing PR #82 still requires its scoped physical acceptance; this investigation adds no second runtime patch to that candidate.

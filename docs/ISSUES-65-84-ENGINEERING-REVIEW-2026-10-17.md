@@ -1,3 +1,5 @@
+**Historical review, superseded for current disposition.** PR #82 subsequently integrated TOP cancellation hardening and issue #84 was closed. For issue #65, see [the completed brightness investigation](BOTTOM-BRIGHT-FLASH-AFTER-LID-WAKE-20261011.md). The dated statuses and source descriptions below describe 17 October.
+
 # Open display investigations — evidence review (2026-10-17)
 
 **Status:** bounded desk review of the published source and issue records, **not** a device test, reproduction, root-cause finding or shipping fix. No Thor was available for this review. Both issues remain OPEN. The public stable version is [v1.7.3](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.3); its successful release and emulator checks do not prove either symptom fixed.

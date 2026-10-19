@@ -13,7 +13,7 @@ classify = MODULE["category_of"]
 human_report = MODULE["human_report"]
 main = MODULE["main"]
 
-BASE = 1791740000.0
+BASE = 1900000000.0  # Synthetic epoch, unrelated to device evidence.
 
 
 def log(delta, tag, message):
@@ -75,22 +75,22 @@ class WakeFlashOfflineTest(unittest.TestCase):
         self.assertEqual(data["timeline"][0]["offset_ms"], 0)
         self.assertIn("NOT visual time", human_report(data))
 
-    def test_actual_monotonic_logcat_clock_and_lid_sleep_proximity(self):
+    def test_synthetic_monotonic_sleep_and_later_wake_are_distinct(self):
+        # Preserve only relative intervals; these are synthetic clocks and process IDs.
         lines = [
-            "66833.556 23204 23221 D ThorDisplayDaemon: WAKE REPAIR SCHEDULED +700ms\n",
-            "66868.348 23204 23221 D ThorDisplayDaemon: WATCH_BOTH ON\n",
-            "66947.135 23204 23221 D ThorDisplayDaemon: WATCH_BOTH ON\n",
+            "966.044 12345 6789 D ThorDisplayDaemon: WAKE REPAIR SCHEDULED +700ms\n",
+            "1000.836 12345 6789 D ThorDisplayDaemon: WATCH_BOTH ON\n",
+            "1079.623 12345 6789 D ThorDisplayDaemon: WATCH_BOTH ON\n",
         ]
-        first = analyse(lines, observed_at=66867.512, window_seconds=2)
-        second = analyse(lines, observed_at=66946.285, window_seconds=2)
+        first = analyse(lines, observed_at=1000.0, window_seconds=2)
+        second = analyse(lines, observed_at=1078.773, window_seconds=2)
         self.assertEqual(first["log_clock"], "monotonic")
         self.assertEqual(second["window_event_count"], 1)
         self.assertEqual(first["timeline"][0]["offset_ms"], 836)
         self.assertEqual(second["timeline"][0]["offset_ms"], 850)
         # A prior ON during closing must never be presented as an ON at opening.
-        # Wake time below is a synthetic fixture anchored to existing RC2
-        # derived PowerManager timestamps, not a measured brightness timestamp.
-        at_open = analyse(lines, observed_at=66988.957, window_seconds=6)
+        # The synthetic later wake preserves the interval, not the original clock.
+        at_open = analyse(lines, observed_at=1121.445, window_seconds=6)
         self.assertEqual(at_open["classification"], "INCONCLUSIVE")
         self.assertEqual(at_open["window_event_count"], 0)
         self.assertEqual(at_open["recognized_counts_all"]["jesty_watch_both_on"], 2)
@@ -100,7 +100,7 @@ class WakeFlashOfflineTest(unittest.TestCase):
     def test_mixed_clock_rejected_not_silently_correlated(self):
         lines = [
             log(0, "ThorDisplayDaemon", "WATCH_BOTH ON"),
-            "66947.135 23204 23221 D ThorDisplayDaemon: WATCH_BOTH ON\n",
+            "1079.623 12345 6789 D ThorDisplayDaemon: WATCH_BOTH ON\n",
         ]
         with self.assertRaisesRegex(ValueError, "mixed logcat clock"):
             analyse(lines)
