@@ -18,6 +18,8 @@ public final class BottomIdleRuntime {
     private static final String TAG = "ThorBottomIdle";
     private static final Object LOCK = new Object();
     private static final BottomIdlePolicy POLICY = new BottomIdlePolicy();
+    private static volatile boolean active;
+    private static long monitorEpoch;
     private static HandlerThread thread;
     private static Handler handler;
     private static BottomIdleTouchMonitor receiver;
@@ -38,11 +40,13 @@ public final class BottomIdleRuntime {
         synchronized (LOCK) {
             restore = POLICY.suppressNativeRestore();
             POLICY.configure(minutes);
+            active = minutes != 0;
             if (minutes == 0) {
                 prior = handler;
                 priorThread = thread;
                 handler = null;
                 thread = null;
+                monitorEpoch++;
                 oldReceiver = receiver;
                 oldMonitor = monitor;
                 receiver = null;
@@ -59,12 +63,16 @@ public final class BottomIdleRuntime {
                     thread.start();
                     handler = new Handler(thread.getLooper());
                     inputState = "CONNECTING";
-                    handler.post(BottomIdleRuntime::attachMonitor);
+                    long epoch = ++monitorEpoch;
+                    handler.post(() -> attachMonitor(epoch));
                 } else {
                     inputState = receiver == null ? "UNAVAILABLE" : "WAITING_FOR_TOUCH";
                     handler.removeCallbacks(TIMEOUT);
                 }
             }
+        }
+        if (restore && minutes != 0 && handler != null) {
+            handler.post(DisplayActionCoordinator::restoreIdleBottom);
         }
         if (minutes == 0 && prior != null) {
             prior.removeCallbacks(TIMEOUT);
@@ -80,6 +88,7 @@ public final class BottomIdleRuntime {
     }
 
     public static void onModeSample(String mode) {
+        if (!active) return;
         synchronized (LOCK) {
             if (!POLICY.enabled()) return;
             if (POLICY.mode(mode)) {
@@ -91,6 +100,7 @@ public final class BottomIdleRuntime {
 
     /** A display-on notification invalidates pre-sleep evidence and timers. */
     public static void onDisplayWake() {
+        if (!active) return;
         synchronized (LOCK) {
             if (!POLICY.enabled()) return;
             POLICY.wake();
@@ -99,11 +109,12 @@ public final class BottomIdleRuntime {
         }
     }
 
-    public static void onBottomTouch(long now) {
+    public static void onBottomTouch(long now, long epoch) {
         final Handler active;
         final boolean restore;
         synchronized (LOCK) {
-            if (receiver == null || !POLICY.enabled() || !DaemonState.isEnabled()) return;
+            if (receiver == null || epoch != monitorEpoch || !POLICY.enabled()
+                    || "UNAVAILABLE".equals(inputState) || !DaemonState.isEnabled()) return;
             restore = POLICY.touch(now);
             if (!POLICY.inputVerified()) return;
             inputState = "OBSERVED";
@@ -114,20 +125,26 @@ public final class BottomIdleRuntime {
     }
 
     /** Revoke earlier touch proof if hidden display-id decoding stops working. */
-    public static void onInputFailure() {
+    public static void onInputFailure(long epoch) {
+        final boolean restore;
         synchronized (LOCK) {
+            if (epoch != monitorEpoch || !POLICY.enabled()) return;
+            restore = POLICY.suppressNativeRestore();
             POLICY.wake();
             if (handler != null) handler.removeCallbacks(TIMEOUT);
             inputState = "UNAVAILABLE";
-            final Handler active = handler;
-            if (active != null) active.post(() -> {
+            final Handler owner = handler;
+            if (owner != null) owner.post(() -> {
                 synchronized (LOCK) {
-                    if (handler == active && "UNAVAILABLE".equals(inputState)) {
+                    if (handler == owner && epoch == monitorEpoch
+                            && "UNAVAILABLE".equals(inputState)) {
                         closeMonitor();
                     }
                 }
             });
         }
+        // Never abandon physical ownership of a darkened panel silently.
+        if (restore) DisplayActionCoordinator.restoreIdleBottom();
     }
 
     private static void scheduleLocked(long now) {
@@ -163,7 +180,11 @@ public final class BottomIdleRuntime {
         }
     }
 
+    private static final String INACTIVE_SNAPSHOT =
+            ";idle_enabled=0;idle_minutes=0;idle_input=OFF;idle_off=0";
+
     public static String snapshotFields() {
+        if (!active) return INACTIVE_SNAPSHOT;
         synchronized (LOCK) {
             return ";idle_enabled=" + (POLICY.enabled() ? "1" : "0")
                     + ";idle_minutes=" + POLICY.minutes()
@@ -172,7 +193,7 @@ public final class BottomIdleRuntime {
         }
     }
 
-    private static void attachMonitor() {
+    private static void attachMonitor(long epoch) {
         Object created = null;
         BottomIdleTouchMonitor createdReceiver = null;
         try {
@@ -190,9 +211,9 @@ public final class BottomIdleRuntime {
             channel.setAccessible(true);
             InputChannel input = (InputChannel) channel.invoke(created);
             if (input == null) throw new IllegalStateException("channel unavailable");
-            createdReceiver = new BottomIdleTouchMonitor(input, android.os.Looper.myLooper());
+            createdReceiver = new BottomIdleTouchMonitor(input, android.os.Looper.myLooper(), epoch);
             synchronized (LOCK) {
-                if (handler != null && POLICY.enabled()
+                if (handler != null && POLICY.enabled() && epoch == monitorEpoch
                         && handler.getLooper() == android.os.Looper.myLooper()) {
                     monitor = created;
                     receiver = createdReceiver;
@@ -202,7 +223,9 @@ public final class BottomIdleRuntime {
             }
         } catch (Throwable error) {
             Log.w(TAG, "bottom input monitor unavailable; auto-off remains disarmed", error);
-            synchronized (LOCK) { if (POLICY.enabled()) inputState = "UNAVAILABLE"; }
+            synchronized (LOCK) {
+                if (POLICY.enabled() && epoch == monitorEpoch) inputState = "UNAVAILABLE";
+            }
         }
         if (createdReceiver != null) createdReceiver.dispose();
         disposeMonitor(created);

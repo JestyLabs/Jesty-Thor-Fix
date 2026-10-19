@@ -77,7 +77,6 @@ public final class AutoService extends Service {
                         int grace = DaemonLaunchModel.unreachableGracePolls(socket);
                         Log.d(TAG, "secure socket " + socket + "; grace_polls=" + grace
                                 + " elapsed_ms=" + SystemClock.elapsedRealtime());
-                    reconcileBottomIdle(state);
                         if (socket == DaemonLaunchModel.SocketState.ALIVE) {
                             probe = PServer.probe(enabled);
                         }
@@ -154,6 +153,7 @@ public final class AutoService extends Service {
                             : "trusted daemon healthy") + " enabled=" + enabled
                             + " fromBoot=" + fromBoot
                             + " elapsed_ms=" + SystemClock.elapsedRealtime());
+                    reconcileBottomIdle(state);
                 } finally {
                     workerRunning = false;
                     stopSelf();
@@ -169,17 +169,25 @@ public final class AutoService extends Service {
      */
     private static void reconcileBottomIdle(android.content.SharedPreferences prefs) {
         boolean desired = prefs.getBoolean("bottom_idle_enabled", false);
+        // Default-off is a strict fast path: no daemon query, retry, thread,
+        // timer or additional IPC when this optional feature is not selected.
+        if (!desired) return;
         int minutes = prefs.getInt("bottom_idle_minutes",
                 BottomIdleSettings.minutesAt(BottomIdleSettings.DEFAULT_INDEX));
         if (!BottomIdleSettings.validMinutes(minutes)) minutes =
                 BottomIdleSettings.minutesAt(BottomIdleSettings.DEFAULT_INDEX);
-        char command = desired ? BottomIdleSettings.commandFor(minutes)
-                : BottomIdleSettings.DISABLE_COMMAND;
-        int attempts = desired ? 30 : 1;
+        char command = BottomIdleSettings.commandFor(minutes);
+        int attempts = 30;
         for (int i = 0; i < attempts; i++) {
             try {
                 String identity = SocketClient.request('I', 800);
                 if (identity.contains(";boot_phase=READY;")) {
+                    // A dashboard open must not reset a running idle deadline.
+                    String current = SocketClient.request('Q', 2300);
+                    java.util.Map<String, String> live = TelemetryValues.parse(current);
+                    if ("1".equals(live.get("idle_enabled"))
+                            && Integer.toString(minutes).equals(live.get("idle_minutes")))
+                        return;
                     SocketClient.request(command, 1800);
                     return;
                 }

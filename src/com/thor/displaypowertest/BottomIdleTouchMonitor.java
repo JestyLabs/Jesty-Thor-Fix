@@ -15,10 +15,12 @@ import java.lang.reflect.Method;
  */
 final class BottomIdleTouchMonitor extends InputEventReceiver {
     private final Method displayIdMethod;
+    private final long monitorEpoch;
     private long lastMoveAt = -1L;
 
-    BottomIdleTouchMonitor(InputChannel channel, Looper looper) {
+    BottomIdleTouchMonitor(InputChannel channel, Looper looper, long epoch) {
         super(channel, looper);
+        monitorEpoch = epoch;
         try {
             Method found;
             try {
@@ -50,10 +52,10 @@ final class BottomIdleTouchMonitor extends InputEventReceiver {
                     || ((Integer) displayId).intValue()
                             != ThorHardwareProfile.BOTTOM_LOGICAL_DISPLAY_ID) return;
             if (action == MotionEvent.ACTION_MOVE) lastMoveAt = now;
-            BottomIdleRuntime.onBottomTouch(now);
+            BottomIdleRuntime.onBottomTouch(now, monitorEpoch);
         } catch (Throwable failure) {
             // A failed reflective read may never count as proof of inactivity.
-            BottomIdleRuntime.onInputFailure();
+            BottomIdleRuntime.onInputFailure(monitorEpoch);
         } finally {
             finishInputEvent(event, false);
         }
