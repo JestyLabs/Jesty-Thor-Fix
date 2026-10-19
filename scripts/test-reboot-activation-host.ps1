@@ -28,7 +28,7 @@ try {
     $package = Join-Path $src 'com/thor/displaypowertest'
     foreach ($name in @('AutoService','PServer','RebootActivation','RebootActivationPolicy',
             'PreviousSecureDaemonIdentity','LiveHandoverPolicy','DaemonLaunchModel','DashboardRenderer',
-            'DashboardStateModel','CpuWarningModel','TelemetryValues')) {
+            'DashboardStateModel','CpuWarningModel','TelemetryValues','BottomIdleSettings')) {
         $source = [IO.File]::ReadAllText((Join-Path $root "src/com/thor/displaypowertest/$name.java"))
         if ($name -eq 'AutoService') { $source = $source.Replace('Thread.sleep(200L);', 'Thread.sleep(0L);') }
         if ($name -eq 'PServer') {
