@@ -13,6 +13,27 @@ RETIRE_SPEC.loader.exec_module(retirement)
 
 
 class AdmissionTest(unittest.TestCase):
+    def test_retirement_cleanup_requires_uninstall_and_package_absence(self):
+        for uninstall, packages, failure in [('Success\n', '', None),
+                                               ('Failure [DELETE_FAILED_INTERNAL_ERROR]', '', None),
+                                               ('Success\n', 'package:org.example.rfixture\n', None),
+                                               ('Success\n', '', 'package manager unavailable')]:
+            calls = []
+            def call(*command):
+                calls.append(command)
+                if command[0] == 'uninstall':
+                    return SimpleNamespace(stdout=uninstall)
+                if failure:
+                    raise RuntimeError(failure)
+                return SimpleNamespace(stdout=packages)
+            with self.subTest(uninstall=uninstall, packages=packages, failure=failure):
+                if uninstall == 'Success\n' and not packages and not failure:
+                    retirement.remove_disposable_package(call)
+                    self.assertEqual(2, len(calls))
+                else:
+                    with self.assertRaises(RuntimeError):
+                        retirement.remove_disposable_package(call)
+
     def test_retirement_rejects_physical_or_foreign_target_before_any_execution(self):
         original = retirement.execute
         def forbidden(*args, **kwargs):

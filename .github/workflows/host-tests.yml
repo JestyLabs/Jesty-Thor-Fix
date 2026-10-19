@@ -158,7 +158,7 @@ jobs:
       - name: Build unsigned APK
         shell: pwsh
         run: |
-          ./build.ps1 -ArtifactBaseName "Jesty-Thor-Fix-${{ steps.app.outputs.version }}"
+          ./build.ps1 -AndroidNdk (Join-Path $env:ANDROID_SDK_ROOT 'ndk\27.2.12479018') -ArtifactBaseName "Jesty-Thor-Fix-${{ steps.app.outputs.version }}"
 
       - name: Upload unsigned APK
         uses: actions/upload-artifact@v7

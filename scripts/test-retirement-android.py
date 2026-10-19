@@ -34,6 +34,14 @@ def execute(command, timeout=120, check=True):
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
+def remove_disposable_package(adb_call):
+    result = adb_call('uninstall', PACKAGE)
+    if result.stdout.strip() != 'Success':
+        raise RuntimeError('Disposable package uninstall was not confirmed')
+    remaining = adb_call('shell', 'pm', 'list', 'packages', PACKAGE)
+    if remaining.stdout.strip():
+        raise RuntimeError('Disposable package absence was not confirmed')
+
 def build(args):
     out = args.build.resolve()
     if out.is_relative_to(ROOT) or (out.exists() and any(out.iterdir())):
@@ -245,7 +253,7 @@ def run(args):
                 if children:
                     wait_text(remote + '/old.exit')
                 shell('rm -rf ' + shlex.quote(remote))  # Fresh, regex-shaped task-owned emulator path only.
-                adb_call('uninstall', PACKAGE, check=False)
+                remove_disposable_package(adb_call)
     report = {'result': 'PASS', 'tier': 'ANDROID_API33_X86_64_INSTALLED_APP_REAL_JNI',
               'cases': results, 'vendor_binder': 'ABSENT_NOT_TESTED', 'physical': 'NOT_RUN',
               'cleanup': 'OWNED_CHILDREN_WAITED_AND_DISPOSABLE_PACKAGE_REMOVED', 'provenance': provenance}
