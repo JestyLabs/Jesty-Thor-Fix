@@ -64,18 +64,6 @@ public final class DisplayHardware {
         catch (Throwable error) { Log.e(TAG, "display property realignment failed", error); }
     }
 
-    /** Records a pending TOP wake; the delayed repair performs the hardware OFF. */
-    public static synchronized boolean markWakePending() {
-        try {
-            setProperty("0");
-            return true;
-        } catch (Throwable error) {
-            Log.e(TAG, "could not record pending wake repair", error);
-            DaemonState.setLastAction("WAKE_PENDING_PROPERTY_ERROR");
-            return false;
-        }
-    }
-
     private static void setProperty(String value) throws Exception {
         Class<?> properties = Class.forName("android.os.SystemProperties");
         Method set = properties.getDeclaredMethod("set", String.class, String.class);

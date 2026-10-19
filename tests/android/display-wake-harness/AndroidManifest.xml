@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.jestylabs.thorfix.displaywakeharness" android:versionCode="1" android:versionName="1.0">
+  <uses-sdk android:minSdkVersion="28" android:targetSdkVersion="33"/>
+  <application android:debuggable="true" android:allowBackup="false" android:label="Display wake fixture" android:theme="@android:style/Theme.Material.Light">
+    <activity android:name="com.thor.displaypowertest.DisplayWakeActivity" android:exported="true"
+              android:configChanges="uiMode|orientation|screenSize|keyboardHidden"/>
+    <receiver android:name="com.thor.displaypowertest.DisplayWakeControl" android:exported="true"/>
+  </application>
+</manifest>

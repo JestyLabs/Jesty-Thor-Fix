@@ -1,8 +1,11 @@
 # Long TOP sleep: persistent black screens during wake and lower-screen activation
 
-Status: owner-reported physical incident on the published v1.7.1/code76;
-cause unconfirmed, fix and controlled reproduction not yet established.
-This record is independent of the engineering-hardening PR #67.
+Status updated 19 October: investigation and coordinator hardening are included
+in PR #82. A cancellation defect is reproduced and corrected in host and Android
+emulator fixtures. The physical incident's causal transition remains uncaptured.
+See [investigation results](TOP-WAKE-INVESTIGATION-RESULTS.md) for findings,
+validation boundaries and the owner's requested closure disposition.
+This record concerns a different incident from the engineering-hardening PR #67.
 
 ## Verified release and reported conditions
 
@@ -13,8 +16,10 @@ The currently reviewed PR #67 artifact was not installed on this device.
 
 The owner reports TOP mode before opening the lid after a prolonged sleep.
 Jesty Thor Fix's Closed-Lid Wake Guard was OFF. Separate sleep automation was
-active during the incident and disabled afterward. Its activity is a condition
-to investigate, not evidence that it caused the failure.
+active during the incident and disabled afterward. The owner reports no further
+persistent blackout after disabling it and attributes the incident to that
+interaction. This is an observed association; the lost transition prevents
+confirming which operation caused both screens to lose presentation.
 
 The post-reboot app diagnostic sample reports display fix and CPU fix requested,
 Guard OFF, BOTH mode and CRTCs1/1. This is a recovery snapshot, not confirmation
@@ -60,7 +65,7 @@ Reports, full traces, identifiers, application inventory and device-specific
 details remain owner-local outside Git. This document is a sanitized engineering
 record; it contains no raw captures or signing material.
 
-## Investigation questions and next gate
+## Original investigation questions
 
 - Distinguish renewed global sleep from black presentation while the device is
   awake, using evidence at the transition itself rather than post-reboot state.
@@ -69,9 +74,9 @@ record; it contains no raw captures or signing material.
   temporal proximity alone does not prove which component wrote the final state.
 - Verify the actual runtime Guard state and sleep-request source if the failure
   occurs again; preserve mode, panel/CRTC, wake/sleep and daemon/compositor evidence.
-- Keep any correction separate, narrow and supported by a failing meaningful
-  test or a demonstrated mechanism. No speculative runtime change follows from
-  this incident record.
+- Keep corrections narrow and supported by meaningful failing tests or
+  demonstrated mechanisms. PR #82 now includes the demonstrated coordinator
+  correction and its regression coverage.
 
 Collection was read-only after recovery. No new lid/sleep cycle, install, mode
 change, privileged signal or reboot was performed by the investigator. Any
@@ -79,6 +84,6 @@ future device reproduction requires a separately agreed capture plan, stop
 conditions and data-preserving recovery. Existing historical short-sleep PASS
 results remain historical; they do not close this reported long-sleep incident.
 
-This documentation PR does not change the published app or the scope of PR67.
-The incident's implications for any future physical session require an explicit
-safety assessment; offline review may continue independently.
+PR #82 now includes source changes as well as this incident record. No new
+physical session or release is implied. Display-power changes still require
+physical acceptance before release under the contributing policy.
