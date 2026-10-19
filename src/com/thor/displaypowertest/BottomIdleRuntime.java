@@ -33,6 +33,8 @@ public final class BottomIdleRuntime {
         final Handler prior;
         final HandlerThread priorThread;
         final boolean restore;
+        final BottomIdleTouchMonitor oldReceiver;
+        final Object oldMonitor;
         synchronized (LOCK) {
             restore = POLICY.suppressNativeRestore();
             POLICY.configure(minutes);
@@ -41,10 +43,16 @@ public final class BottomIdleRuntime {
                 priorThread = thread;
                 handler = null;
                 thread = null;
+                oldReceiver = receiver;
+                oldMonitor = monitor;
+                receiver = null;
+                monitor = null;
                 inputState = "OFF";
             } else {
                 prior = null;
                 priorThread = null;
+                oldReceiver = null;
+                oldMonitor = null;
                 POLICY.mode(DaemonState.getMode());
                 if (handler == null) {
                     thread = new HandlerThread("thor-bottom-idle");
@@ -62,7 +70,9 @@ public final class BottomIdleRuntime {
             prior.removeCallbacks(TIMEOUT);
             prior.post(() -> {
                 if (restore) DisplayActionCoordinator.restoreIdleBottom();
-                closeMonitor();
+                // Cleanup only this generation: never dispose a newer session.
+                if (oldReceiver != null) oldReceiver.dispose();
+                disposeMonitor(oldMonitor);
                 if (priorThread != null) priorThread.quitSafely();
             });
         }
@@ -109,6 +119,14 @@ public final class BottomIdleRuntime {
             POLICY.wake();
             if (handler != null) handler.removeCallbacks(TIMEOUT);
             inputState = "UNAVAILABLE";
+            final Handler active = handler;
+            if (active != null) active.post(() -> {
+                synchronized (LOCK) {
+                    if (handler == active && "UNAVAILABLE".equals(inputState)) {
+                        closeMonitor();
+                    }
+                }
+            });
         }
     }
 

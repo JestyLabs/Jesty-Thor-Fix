@@ -18,6 +18,10 @@ public final class BottomIdlePolicyTest {
         check(p.beginOff(900000) == -1, "never turn off without bottom touch");
         p.touch(1000);
         check(p.delayMs(1000) == 300000, "five minutes");
+        p.touch(6000);
+        check(p.delayMs(6000) == 300000, "fresh touch resets deadline");
+        p.touch(1000); // deterministic clock fixture for the remaining boundary assertions
+        check(p.delayMs(1000) == 300000, "clock still monotonic in fixture");
         check(p.beginOff(300999) == -1, "not early");
         long token = p.beginOff(301000);
         check(token > 0 && p.isPending(token), "exact deadline");

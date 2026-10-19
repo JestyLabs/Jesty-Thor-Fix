@@ -154,7 +154,9 @@ public final class DisplayActionCoordinator {
         }
     }
     public static void noteDisplayOn() {
-        BottomIdleRuntime.onDisplayWake();
+        // The display-manager ON callback may also accompany our own OFF.
+        // Never revoke a confirmed auto-off based only on a logical ON event.
+        if (!BottomIdleRuntime.isOffOrPending()) BottomIdleRuntime.onDisplayWake();
         synchronized (DisplayHardware.class) {
             if (generations.isRepairCurrent() && WakeRepairScheduler.isPending())
                 WakeRepairScheduler.noteDisplayOn();

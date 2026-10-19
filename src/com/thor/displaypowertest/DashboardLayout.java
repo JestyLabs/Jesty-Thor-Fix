@@ -1,6 +1,7 @@
 package com.thor.displaypowertest;
 
 import android.app.Activity;
+import android.content.res.ColorStateList;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
@@ -201,6 +202,9 @@ final class DashboardLayout {
         controls.addView(bottomIdleValue);
         bottomIdleSlider = new SeekBar(activity);
         bottomIdleSlider.setMax(BottomIdleSettings.count() - 1);
+        bottomIdleSlider.setThumbTintList(ColorStateList.valueOf(AMBER));
+        bottomIdleSlider.setProgressTintList(ColorStateList.valueOf(AMBER));
+        bottomIdleSlider.setProgressBackgroundTintList(ColorStateList.valueOf(0x88684C85));
         bottomIdleSlider.setMinimumHeight(views.dp(48));
         bottomIdleSlider.setContentDescription("Auto Bottom Off timeout in minutes");
         controls.addView(bottomIdleSlider, new LinearLayout.LayoutParams(-1, views.dp(48)));
