@@ -1,6 +1,7 @@
 package com.thor.displaypowertest;
 
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
@@ -46,11 +47,20 @@ public final class BottomIdleTileService extends TileService {
                 Log.w(TAG, "Quick Settings change not acknowledged; rolled back", failure);
             } finally {
                 CHANGING.set(false);
-                TileService.requestListeningState(getApplicationContext(),
-                        new ComponentName(getApplicationContext(), BottomIdleTileService.class));
+                requestRefresh(getApplicationContext());
                 new Handler(Looper.getMainLooper()).post(this::refresh);
             }
         }, "thor-idle-tile").start();
+    }
+
+    /** Keep an already-visible tile in sync after dashboard changes. */
+    static void requestRefresh(Context context) {
+        try {
+            TileService.requestListeningState(context.getApplicationContext(),
+                    new ComponentName(context, BottomIdleTileService.class));
+        } catch (RuntimeException error) {
+            Log.w(TAG, "Quick Settings refresh unavailable", error);
+        }
     }
 
     private void refresh() {

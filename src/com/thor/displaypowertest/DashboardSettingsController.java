@@ -56,6 +56,11 @@ final class DashboardSettingsController {
     private volatile boolean dashboardCommandInFlight;
     private volatile boolean lidCommandInFlight;
     private volatile boolean idleCommandInFlight;
+    private final Runnable commitIdleSlider = () -> {
+        int minutes = BottomIdleSettings.minutesAt(bottomIdleSlider.getProgress());
+        if (minutes != desiredBottomIdleMinutes())
+            changeIdle(desiredBottomIdle(), minutes);
+    };
     private volatile boolean installReserved;
     private volatile boolean activationPending = true;
 
@@ -118,13 +123,17 @@ final class DashboardSettingsController {
         bottomIdleSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
                 setIdleValue(progress);
+                // D-pad/accessibility adjustments have no stop-tracking callback.
+                // Coalesce them without sending IPC for every slider increment.
+                if (fromUser && !suppressIdleControls && !bar.isPressed()) {
+                    bar.removeCallbacks(commitIdleSlider);
+                    bar.postDelayed(commitIdleSlider, 350L);
+                }
             }
             @Override public void onStartTrackingTouch(SeekBar bar) {}
             @Override public void onStopTrackingTouch(SeekBar bar) {
-                if (!suppressIdleControls) {
-                    int requested = BottomIdleSettings.minutesAt(bar.getProgress());
-                    if (requested != desiredBottomIdleMinutes()) changeIdle(desiredBottomIdle(), requested);
-                }
+                bar.removeCallbacks(commitIdleSlider);
+                if (!suppressIdleControls) commitIdleSlider.run();
             }
         });
         setActivationPending(true);
@@ -210,6 +219,7 @@ final class DashboardSettingsController {
     }
 
     void shutdown() {
+        bottomIdleSlider.removeCallbacks(commitIdleSlider);
         commandExecutor.shutdown();
     }
 
@@ -231,6 +241,7 @@ final class DashboardSettingsController {
 
     /** Only one IPC change when the user releases the slider, never per tick. */
     private void changeIdle(boolean enabled, int minutes) {
+        bottomIdleSlider.removeCallbacks(commitIdleSlider);
         if (idleCommandInFlight || activationPending || installReserved) {
             restoreIdleControls();
             return;
@@ -268,6 +279,7 @@ final class DashboardSettingsController {
         boolean ready = !activationPending && !installReserved;
         bottomIdleToggle.setEnabled(ready);
         bottomIdleSlider.setEnabled(ready);
+        BottomIdleTileService.requestRefresh(activity);
         if (message != null) toast(message, Toast.LENGTH_LONG);
     }
 
