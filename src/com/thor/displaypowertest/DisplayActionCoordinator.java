@@ -62,6 +62,10 @@ public final class DisplayActionCoordinator {
             WatcherCadence.completeDrmRead(readGeneration);
             String top = crtc[0];
             String bottom = crtc[1];
+            // Physical observation wins over an obsolete idle-off ownership claim.
+            if ("0".equals(mode) && "1".equals(bottom) && BottomIdleRuntime.isOff()) {
+                BottomIdleRuntime.onDisplayWake();
+            }
             if (stableTopWake && "1".equals(top) && "1".equals(bottom)) {
                 if (deferredByLid) return;
                 if (DisplayHardware.markWakePending()) scheduleRepairLocked();

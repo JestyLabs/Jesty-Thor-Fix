@@ -103,7 +103,7 @@ public final class BottomIdleRuntime {
         final Handler active;
         final boolean restore;
         synchronized (LOCK) {
-            if (receiver == null || !POLICY.enabled()) return;
+            if (receiver == null || !POLICY.enabled() || !DaemonState.isEnabled()) return;
             restore = POLICY.touch(now);
             if (!POLICY.inputVerified()) return;
             inputState = "OBSERVED";
@@ -145,6 +145,10 @@ public final class BottomIdleRuntime {
 
     public static boolean isOffOrPending() {
         synchronized (LOCK) { return POLICY.suppressNativeRestore(); }
+    }
+
+    public static boolean isOff() {
+        synchronized (LOCK) { return POLICY.isOff(); }
     }
 
     public static boolean isPending(long ticket) {
