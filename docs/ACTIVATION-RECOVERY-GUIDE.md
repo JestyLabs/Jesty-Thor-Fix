@@ -1,5 +1,11 @@
 # Activation and external recovery
 
+**Unreleased offline candidate (2026-10-19):** a proposed process-bound adapter
+for the exact published 1.7.1/1.7.2 producers is described in
+[the S2 implementation note](quality/S2-PROCESS-BOUND-RETIREMENT.md).
+Its native loading, Android and device gates are not accepted. The public
+release guidance below is unchanged; normal restart remains the fallback.
+
 **Current public release: [v1.7.3 / code83](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.3).** Install normally over the existing version without uninstalling or clearing data, then open the app. A guarded same-kernel handover can activate the updated service automatically when the known v1.7.2 predecessor and current BOTH/display/CPU/Guard state are verified safe. Wait for **ACTIVE** or **STOCK**. If the handover is unavailable, follow the app's conservative restart/recovery guidance; it will not blindly stop an unknown or unsafe process. See [v1.7.3 release notes](RELEASE-NOTES-1.7.3.md).
 
 **Updating from published v1.7.1 uses the normal-restart path.** Its service is not eligible for automatic transfer. Install the update without clearing data, open the updated app to prepare activation, restart the Thor normally, then reopen the app and verify **ACTIVE** or **STOCK**. Sleep/wake does not replace that restart.

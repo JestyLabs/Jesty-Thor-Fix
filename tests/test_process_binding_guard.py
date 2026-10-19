@@ -2,13 +2,30 @@
 import importlib.util
 from pathlib import Path
 import unittest
+from types import SimpleNamespace
 
 SPEC = importlib.util.spec_from_file_location("process_binding", Path(__file__).resolve().parents[1] / "scripts/test-process-binding-android.py")
 controller = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(controller)
+RETIRE_SPEC = importlib.util.spec_from_file_location("retirement_android", Path(__file__).resolve().parents[1] / "scripts/test-retirement-android.py")
+retirement = importlib.util.module_from_spec(RETIRE_SPEC)
+RETIRE_SPEC.loader.exec_module(retirement)
 
 
 class AdmissionTest(unittest.TestCase):
+    def test_retirement_rejects_physical_or_foreign_target_before_any_execution(self):
+        original = retirement.execute
+        def forbidden(*args, **kwargs):
+            raise AssertionError("No command may execute before target admission")
+        retirement.execute = forbidden
+        try:
+            for serial, avd in [(None, "pr67-ci-api33"), ("synthetic-physical", "pr67-ci-api33"),
+                                ("emulator-5554 shell", "pr67-ci-api33"), ("emulator-5554", "personal-avd")]:
+                with self.subTest(serial=serial, avd=avd), self.assertRaises(ValueError):
+                    retirement.run(SimpleNamespace(serial=serial, avd=avd))
+        finally:
+            retirement.execute = original
+
     def fake(self, change=None):
         calls = []
         answers = {("emu", "avd", "name"): "pr67-ci-api33\nOK\n",

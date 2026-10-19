@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.example.rfixture" android:versionCode="84" android:versionName="1.7.4">
+    <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="25"/>
+    <application android:label="Disposable retirement fixture"
+        android:debuggable="true" android:allowBackup="false"
+        android:extractNativeLibs="true"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+        <activity android:name=".RetirementFixtureActivity" android:exported="false"/>
+        <service android:name=".AutoService" android:exported="false"/>
+    </application>
+    <instrumentation android:name=".RetirementFixtureInstrumentation"
+        android:targetPackage="org.example.rfixture"
+        android:label="Owner-only retirement fixture"/>
+</manifest>
