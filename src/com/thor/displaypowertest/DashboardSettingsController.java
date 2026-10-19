@@ -56,11 +56,7 @@ final class DashboardSettingsController {
     private volatile boolean dashboardCommandInFlight;
     private volatile boolean lidCommandInFlight;
     private volatile boolean idleCommandInFlight;
-    private final Runnable commitIdleSlider = () -> {
-        int minutes = BottomIdleSettings.minutesAt(bottomIdleSlider.getProgress());
-        if (minutes != desiredBottomIdleMinutes())
-            changeIdle(desiredBottomIdle(), minutes);
-    };
+    private final Runnable commitIdleSlider;
     private volatile boolean installReserved;
     private volatile boolean activationPending = true;
 
@@ -73,6 +69,11 @@ final class DashboardSettingsController {
         this.lidGuardToggle = layout.lidGuardToggle;
         this.bottomIdleToggle = layout.bottomIdleToggle;
         this.bottomIdleSlider = layout.bottomIdleSlider;
+        this.commitIdleSlider = () -> {
+            int minutes = BottomIdleSettings.minutesAt(bottomIdleSlider.getProgress());
+            if (minutes != desiredBottomIdleMinutes())
+                changeIdle(desiredBottomIdle(), minutes);
+        };
         this.bottomIdleValue = layout.bottomIdleValue;
         this.bottomIdleHelp = layout.bottomIdleHelp;
         this.dashboardFixHelp = layout.dashboardFixHelp;
