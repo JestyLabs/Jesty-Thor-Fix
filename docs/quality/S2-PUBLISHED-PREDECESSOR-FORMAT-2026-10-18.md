@@ -1,3 +1,5 @@
+**20 October status:** this dated finding describes the original unbound policy. [v1.7.4](../VALIDATION-1.7.4.md) ships the separately verified [process-bound adapter](S2-PROCESS-BOUND-RETIREMENT.md) for published 1.7.1/1.7.2/1.7.3; it does not fabricate the missing field or weaken the original policy. Physical acceptance remains pending.
+
 # S2 — published predecessor response compatibility
 
 Programme **JTF-QUALITY-2026-10-17**, S2. This corrects a fixture assumption,

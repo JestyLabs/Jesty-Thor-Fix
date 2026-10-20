@@ -1,8 +1,6 @@
 # S2: proposed process-bound published-predecessor retirement
 
-Offline candidate increment, 2026-10-19. **Not integrated or released.**
-The isolated release candidate is 1.7.4/code84; publication remains gated.
-Historical published-release documentation remains historical.
+Implementation increment prepared 2026-10-19 and **released in v1.7.4/code84 on 20 October**. [Final release validation](../VALIDATION-1.7.4.md) records host, installed generic Android/JNI, CodeQL, signing and publication PASS. Exact released-APK Thor/vendor-bridge acceptance remains NOT RUN. The architecture and residual device gates below retain their stated limits.
 
 ## Scope and ownership
 

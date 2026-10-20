@@ -12,7 +12,7 @@ This is the entry point for human contributors and coding agents (including Code
 4. [S1 offline test matrix](docs/quality/S1-SLEEP-WAKE-OFFLINE-MATRIX.md) when touching sleep, mode transitions or display repair.
 5. Existing [ROADMAP](docs/ROADMAP.md), [CONTRIBUTING](CONTRIBUTING.md), [security publication policy](SECURITY-PUBLICATION.md) and [physical validation evidence](docs/VALIDATION-EVIDENCE.md).
 
-Historical PR #67 hardening notes are historical, not the active execution plan. Current stable **v1.7.3/code83** remains the reference until explicitly changed by an accepted release.
+Historical PR #67 hardening notes are historical, not the active execution plan. Current stable is **v1.7.4/code84**; [the release record](docs/VALIDATION-1.7.4.md) explicitly separates passed software gates from pending physical acceptance. The original v1.7.3 programme baseline remains historical.
 
 ## Hard rules
 

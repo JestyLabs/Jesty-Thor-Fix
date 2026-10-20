@@ -1,3 +1,5 @@
+**20 October 2026 status update:** [v1.7.4 release record](VALIDATION-1.7.4.md) supersedes current-status statements below. New live captures led to display-stall containment; physical acceptance is pending. #84 is closed as delivered software mitigation at the maintainer's request; physical follow-up remains in #95/S6. Earlier closure/automation attribution and integration gates are historical, not proof of the later incident's cause. The maintainer explicitly authorized release after software gates, with physical checks afterwards.
+
 # TOP wake: investigation and coordinator hardening
 
 PR #82 addresses a demonstrated cancellation defect found while investigating
