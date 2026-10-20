@@ -1,3 +1,5 @@
+**v1.7.5 update (20 October 2026):** the exact published 1.7.4 predecessor is also admitted under the same guards. Four-origin host and eight installed generic Android/JNI cases passed. [Release record](../VALIDATION-1.7.5.md). Physical acceptance remains NOT RUN. The v1.7.4 implementation record below retains its original three-origin scope.
+
 # S2: proposed process-bound published-predecessor retirement
 
 Implementation increment prepared 2026-10-19 and **released in v1.7.4/code84 on 20 October**. [Final release validation](../VALIDATION-1.7.4.md) records host, installed generic Android/JNI, CodeQL, signing and publication PASS. Exact released-APK Thor/vendor-bridge acceptance remains NOT RUN. The architecture and residual device gates below retain their stated limits.

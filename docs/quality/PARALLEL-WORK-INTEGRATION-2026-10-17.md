@@ -1,3 +1,5 @@
+**v1.7.5 status (20 October 2026):** [release validation](../VALIDATION-1.7.5.md) records current containment-status correction and exact 1.7.4 upgrade support. All software gates passed; physical acceptance remains NOT RUN under explicit owner timing approval. S4/AppUpdater and #95/S6 remain pending; other workstreams are not certified complete by publication.
+
 **20 October 2026 status update:** [v1.7.4 release record](../VALIDATION-1.7.4.md) supersedes current-status statements below. New live captures led to display-stall containment; physical acceptance is pending. #84 is closed as delivered software mitigation at the maintainer's request; physical follow-up remains in #95/S6. Earlier closure/automation attribution and integration gates are historical, not proof of the later incident's cause. The maintainer explicitly authorized release after software gates, with physical checks afterwards.
 
 # Parallel-work integration ledger — 2026-10-17
