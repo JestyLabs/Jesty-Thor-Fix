@@ -54,19 +54,13 @@
 | **AYN Dashboard CPU Fix** | Corrects the reproduced **LITTLE/BIG CPU clock pinning** associated with AYN Dashboard, including in BOTH/single-screen use. It is a separate fix: no manual clock, voltage or governor tuning. |
 | **Closed-Lid Wake Guard (optional)** | A guarded attempt to return the Thor to sleep after an unexpected closed-lid wake. **OFF by default**; normal Guard-ON wake recovery was tested, but active unwanted-wake interception has not yet been observed. |
 
-**What makes Jesty different?** To our knowledge, Jesty Thor Fix is **the only publicly documented AYN Thor utility that verifies a hardware-level lower-display-off state and also fixes the Dashboard CPU clock-pinning problem**. Selecting native TOP Only or merely showing a black image is not the same as deactivating the lower display pipeline. Both main fixes have [physical validation](docs/VALIDATION-EVIDENCE.md); we do not claim an exhaustive audit of unpublished/private tools. [How the two fixes differ from stock behaviour](docs/WHAT-JESTY-FIXES.md).
-
-The two main fixes are independently selectable and continue working with the dashboard closed.
-
 ---
 
 ### Measured on a real Thor
 
-**This is a hardware-state change, not a black overlay.** On the tested Thor, TOP true-off was confirmed by the vendor power flag and an inactive lower DRM CRTC; BOTH restored the normal active pipeline. The independent CPU Fix was also tested with both displays active. These observations establish the documented hardware states, not zero measured electrical consumption inside every panel component.
+**This is a hardware-state change, not a black overlay.** On the tested Thor, TOP true-off was confirmed by the vendor power flag and an inactive lower DRM CRTC; BOTH restored the normal active pipeline.
 
 #### Controlled A/B/A benchmark
-
-The September 2026 test used repeated, logged 1-second samples under matched conditions. The results below are **system-power proxy** measurements, not a direct battery-life test.
 
 <p align="center">
   <img src="assets/charts/thor-top-mode-power.svg" alt="Controlled TOP-mode comparison: native mode showed about 2.03 W of estimated system-power proxy; True Bottom Screen Off showed about 1.24 W, roughly 39 percent lower in this test." width="880">
@@ -78,7 +72,7 @@ The September 2026 test used repeated, logged 1-second samples under matched con
   <img src="assets/charts/thor-top-mode-cpu.svg" alt="High-performance CPU cluster: 2.707 GHz average in native TOP mode versus 1.654 GHz with True Bottom Screen Off; near-maximum CPU readings changed from 75 of 75 samples to 0 of 45." width="880">
 </p>
 
-**From stuck-near-maximum to normal clock behaviour in the measured configurations:** **75/75** native TOP samples were near the performance cluster's maximum speed, versus **0/45** in true-off. The separately validated Dashboard CPU Fix also resolved pinning with BOTH active; do not read this historical TOP A/B/A chart as a CPU-Fix-only benchmark.
+**From stuck-near-maximum to normal clock behaviour in the measured configurations:** **75/75** native TOP samples were near the performance cluster's maximum speed, versus **0/45** in true-off.
 
 #### v1.7.1: the difference at a glance
 
@@ -100,10 +94,6 @@ The app's own CPU usage stays tiny, too. In separate physical idle tests, daemon
 
 ---
 
-### Updating to v1.7.3
-
-Updates can now transfer the background service automatically **without a device reboot when the existing service and device state can be verified as safe**. If the transfer cannot be completed safely, the app keeps the guarded restart/recovery path instead of forcing a process replacement. Install over the existing version without clearing data, open the app, and wait for **ACTIVE** or **STOCK**. For more information, see [What changed in v1.7.3](docs/RELEASE-NOTES-1.7.3.md).
-
 ### Current investigations
 
 We are still looking into the following areas. **These are research, not advertised fixes in v1.7.3.**
@@ -111,7 +101,6 @@ We are still looking into the following areas. **These are research, not adverti
 - **🖥️ Pre-existing Thor 120 Hz / screen tearing** — A device/firmware mixed-refresh problem **not introduced by Jesty Thor Fix**. We are investigating it, **not claiming a fix**. The physical cause and any safe remedy remain unproven. [Research #37](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/37).
 - **🔌 Device-service reliability** — Investigating rare cases where Android temporarily loses access to a built-in device service.
 - **🎮 TOP-mode game focus** — Checking reports of games losing focus when the bottom screen is off.
-- **⚡ Further efficiency and reliability** — More hardware edge cases, safer recovery and precise profiling. [Engineering hardening PR #67](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/67) is merged and included in the current release.
 
 Interested in future device support, including Retroid Pocket Duo? That's **research only** and requires separate volunteer hardware testing — it is **not supported** today. [Full roadmap](docs/ROADMAP.md).
 
@@ -136,7 +125,7 @@ The app uses the Thor’s own privileged bridge. No Magisk or root required.
 
 - **No CPU or thermal tuning:** does not write CPU frequencies, voltages or thermal limits.
 - **Verified changes:** checks the hardware display state after applying the fix.
-- **Guarded display reconciliation:** verifies the lower CRTC and recovers from tested normal wake transitions; [rare persistent TOP wake black screens](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/84) are still under investigation.
+- **Guarded display reconciliation:** verifies the lower CRTC and recovers from tested normal wake transitions.
 - **Optional protection:** Closed-Lid Wake Guard is OFF by default; its active interception of an unintended wake is not yet physically demonstrated.
 
 The safety mechanisms, physical tests and known limitations are documented in the [validation evidence](docs/VALIDATION-EVIDENCE.md) and [architecture](docs/ARCHITECTURE.md).
