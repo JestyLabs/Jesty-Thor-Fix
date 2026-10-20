@@ -132,7 +132,10 @@ public final class DisplayActionCoordinator {
             // Owner-accepted BOTH degrade: after a measured compositor stall the lower
             // panel is turned OFF, the only action observed to end the vendor reset loop.
             if (lowerOnBackoff && "0".equals(mode) && "1".equals(bottom)) {
-                if (attempt(false, "BOTH_DEGRADE", mode)) bothDegraded = true;
+                // A new active-lower observation invalidates the prior isolation result.
+                // Preserve a current error/readback failure instead of historical success.
+                status = "BOTH_ON_BACKOFF";
+                bothDegraded = attempt(false, "BOTH_DEGRADE", mode);
                 if (bothDegraded) status = "BOTH_DEGRADED";
                 return;
             }

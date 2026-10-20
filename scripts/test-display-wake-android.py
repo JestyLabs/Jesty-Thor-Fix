@@ -184,6 +184,27 @@ def run(args):
             results.append({'scenario': scenario, 'result': final})
             (args.output / 'results.json').write_text(json.dumps(results, indent=2), encoding='utf-8')
             print('PASS: ' + scenario + '; real Android power query, synthetic panels', flush=True)
+        for unconfirmed in (False, True):
+            scenario = 'containment-status-unconfirmed' if unconfirmed else 'containment-status-failed'
+            time.sleep(1.6)
+            shell('am', 'broadcast', '--receiver-foreground', '-n', COMPONENT + 'DisplayWakeControl',
+                  '--ez', 'status_unconfirmed', str(unconfirmed).lower())
+            expected = 'UNCONFIRMED' if unconfirmed else 'APPLY_FAILED'
+            final = wait_for(lambda: state() if state().get('statusScenario') == expected
+                             and state()['finished'] else None, scenario + ' settled')
+            rejected = [e for e in final['events'] if e['event'] == 'STATUS_RETRY_RESULT']
+            assert len(rejected) == 1 and rejected[0]['actionStatus'] == expected, final
+            assert rejected[0]['hardwareCalls'] == 3, final
+            if not unconfirmed:
+                waiting = [e for e in final['events'] if e['event'] == 'STATUS_RETRY_WAITING']
+                assert len(waiting) == 1 and waiting[0]['actionStatus'] == 'BOTH_ON_BACKOFF', final
+                assert waiting[0]['hardwareCalls'] == rejected[0]['hardwareCalls'], final
+                assert waiting[0]['propertyWrites'] == rejected[0]['propertyWrites'], final
+            assert final['backoff'] and final['actionStatus'] == 'BOTH_DEGRADED', final
+            assert final['hardwareCalls'] == 4 and final['property'] == '0', final
+            results.append({'scenario': scenario, 'result': final})
+            (args.output / 'results.json').write_text(json.dumps(results, indent=2), encoding='utf-8')
+            print('PASS: ' + scenario + '; current status, retry gate and recovery', flush=True)
     finally:
         try:
             (args.output / 'last-state.json').write_text(json.dumps(state(), indent=2), encoding='utf-8')

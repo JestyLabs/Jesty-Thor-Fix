@@ -16,5 +16,11 @@
     "sourceRevision": "b0cf1cdac5180b0acd533da6c6f53b6a449bc6c9",
     "sourcePath": "src/com/thor/displaypowertest/DisplayActionCoordinator.java",
     "sha256": "fdce2b6d2285b964312ffecb186f102d14663259e9fab7efd29268be1722ab09"
+  },
+  {
+    "file": "v174-coordinator.java.txt",
+    "sourceRevision": "8fb93cbd67f0fde4b35859fb7ddc4eab067ab24c",
+    "sourcePath": "src/com/thor/displaypowertest/DisplayActionCoordinator.java",
+    "sha256": "f944f7e411f123e718caab2de2d2228ae68f40255c334d472b650dd65f2a2091"
   }
 ]

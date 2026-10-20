@@ -24,6 +24,7 @@ public final class DisplayWakeActivity extends Activity {
     private int epoch;
     private boolean armed, offSeen, onSeen, finished;
     private boolean backoffTest;
+    private String statusScenario = "";
     private String pendingProperty = "?";
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
@@ -83,6 +84,7 @@ public final class DisplayWakeActivity extends Activity {
     void arm() {
         epoch++;
         backoffTest = false;
+        statusScenario = "";
         TestDisplayState.baseline();
         events = new JSONArray();
         offSeen = false; onSeen = false; finished = false; armed = true;
@@ -103,6 +105,36 @@ public final class DisplayWakeActivity extends Activity {
         if (!failCall) DisplayActionCoordinator.onWatcherSample("0");
         record("BACKOFF_ARMED");
     }
+    void armStatusRegression(boolean unconfirmed) {
+        armBackoff(false);
+        armed = false;
+        statusScenario = unconfirmed ? "UNCONFIRMED" : "APPLY_FAILED";
+        final int statusEpoch = epoch;
+        // Honor existing retry admission. Return the broadcast before this phase,
+        // avoiding a long foreground receiver while the synthetic call settles.
+        handler.postDelayed(() -> {
+            if (statusEpoch != epoch) return;
+            TestDisplayState.bottom = "1";
+            TestDisplayState.property = "1";
+            TestDisplayState.vendorGate = unconfirmed;
+            TestDisplayState.powerFailure = !unconfirmed;
+            DisplayActionCoordinator.onWatcherSample("0");
+            record("STATUS_RETRY_RESULT");
+            if (!unconfirmed) {
+                DisplayActionCoordinator.onWatcherSample("0");
+                record("STATUS_RETRY_WAITING");
+            }
+            TestDisplayState.vendorGate = false;
+            TestDisplayState.powerFailure = false;
+            handler.postDelayed(() -> {
+                if (statusEpoch != epoch) return;
+                DisplayActionCoordinator.onWatcherSample("0");
+                finished = true;
+                record("STATUS_RETRY_RECOVERED");
+            }, 1600L);
+        }, 1600L);
+        record("STATUS_TEST_ARMED");
+    }
     private void record(String action) {
         try {
             JSONObject event = new JSONObject();
@@ -110,6 +142,9 @@ public final class DisplayWakeActivity extends Activity {
             event.put("interactive", power.isInteractive());
             event.put("batterySaver", power.isPowerSaveMode());
             event.put("elapsed", android.os.SystemClock.elapsedRealtime());
+            event.put("actionStatus", DisplayActionCoordinator.status());
+            event.put("hardwareCalls", TestDisplayState.hardwareCalls);
+            event.put("propertyWrites", TestDisplayState.propertyWrites);
             events.put(event);
             JSONObject state = new JSONObject();
             state.put("events", events);
@@ -120,6 +155,7 @@ public final class DisplayWakeActivity extends Activity {
             state.put("hardwareCalls", TestDisplayState.hardwareCalls);
             state.put("pending", WakeRepairScheduler.isPending());
             state.put("backoffTest", backoffTest);
+            state.put("statusScenario", statusScenario);
             state.put("backoff", DisplayActionCoordinator.isLowerOnBackoff());
             state.put("actionStatus", DisplayActionCoordinator.status());
             try (FileOutputStream output = new FileOutputStream(new File(getFilesDir(), "result.json"))) {

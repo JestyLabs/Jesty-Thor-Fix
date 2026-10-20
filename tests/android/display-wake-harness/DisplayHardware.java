@@ -14,6 +14,8 @@ public final class DisplayHardware {
             android.os.SystemClock.sleep(TestDisplayState.callAdvanceMs);
         }
         if (TestDisplayState.powerFailure) return false;
+        // Synthetic successful submission whose panel readback remains active.
+        if (TestDisplayState.vendorGate) return true;
         TestDisplayState.bottom = on ? "1" : "0";
         set(TestDisplayState.bottom);
         return true;

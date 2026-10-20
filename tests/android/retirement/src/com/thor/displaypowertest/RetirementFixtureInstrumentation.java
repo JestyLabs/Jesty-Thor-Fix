@@ -48,7 +48,7 @@ public final class RetirementFixtureInstrumentation extends Instrumentation {
                     "Owner must separately approve the exact disposable candidate/trial");
             String version = arguments.getString("predecessor", "");
             require("1.7.1".equals(version) || "1.7.2".equals(version)
-                    || "1.7.3".equals(version), "Exact predecessor required");
+                    || "1.7.3".equals(version) || "1.7.4".equals(version), "Exact predecessor required");
             context.getFilesDir();
             SharedPreferences preferences = context.getSharedPreferences("state", Context.MODE_PRIVATE);
             String stage = arguments.getString("stage", "");

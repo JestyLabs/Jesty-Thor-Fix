@@ -39,7 +39,7 @@ public final class LiveHandoverPolicy {
         if (pid < 1) return -1;
         // Exact published predecessors only; never a broad version comparison.
         String version = field(health, "version");
-        if (!"1.7.3".equals(version) && !"1.7.2".equals(version)
+        if (!"1.7.4".equals(version) && !"1.7.3".equals(version) && !"1.7.2".equals(version)
                 && !"1.7.1".equals(version)) return -1;
         // I and Q must describe the same process generation, not a socket takeover.
         String runtimeVersion = field(snapshot, "runtime_version");

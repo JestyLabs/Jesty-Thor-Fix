@@ -6,7 +6,7 @@ public final class RebootDashboardHostTest {
     private static int checks;
     private static void check(boolean b,String m){checks++;if(!b)throw new AssertionError(m);}
     private static Map<String,String> sample(){
-        Map<String,String> q=new HashMap<>();q.put("runtime_version","1.7.4");
+        Map<String,String> q=new HashMap<>();q.put("runtime_version","1.7.5");
         q.put("boot_phase","READY");q.put("display_actions_held","0");q.put("watcher_health","RUNNING");
         q.put("fix","1");q.put("display_effective","CONFIRMED");q.put("mode","0");q.put("top_crtc","1");q.put("bottom_crtc","1");return q;
     }
