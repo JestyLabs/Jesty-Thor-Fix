@@ -91,8 +91,8 @@ try {
     Test-Scenario 'missing-published-link' -Version '1.7.2' -Code '77' -Mutate {
         param($caseRoot)
         $path = Join-Path $caseRoot 'README.md'
-        (Get-Content -LiteralPath $path -Raw).Replace('/releases/tag/v1.7.3', '/releases/tag/v1.7.2') | Set-Content -LiteralPath $path -Encoding utf8
-    } -ExpectedError 'README must point to public v1.7.3 while integrity/evidence retain the pinned historical v1.7.1'
+        (Get-Content -LiteralPath $path -Raw).Replace('/releases/tag/v1.7.4', '/releases/tag/v1.7.3') | Set-Content -LiteralPath $path -Encoding utf8
+    } -ExpectedError 'README must point to public v1.7.4 while integrity/evidence retain the pinned historical v1.7.1'
     Test-Scenario 'missing-published-digest' -Version '1.7.2' -Code '77' -Mutate {
         param($caseRoot)
         $path = Join-Path $caseRoot 'docs/RELEASE-INTEGRITY.md'
