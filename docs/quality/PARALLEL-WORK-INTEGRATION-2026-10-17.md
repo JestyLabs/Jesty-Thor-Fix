@@ -1,3 +1,5 @@
+**20 October 2026 status update:** [v1.7.4 release record](../VALIDATION-1.7.4.md) supersedes current-status statements below. New live captures led to display-stall containment; physical acceptance is pending and #84 remains open. Earlier closure/automation attribution and integration gates are historical, not proof of the later incident's cause. The maintainer explicitly authorized release after software gates, with physical checks afterwards.
+
 # Parallel-work integration ledger — 2026-10-17
 
 **Programme:** JTF-QUALITY-2026-10-17. **Single central tracker:** https://github.com/JestyLabs/Jesty-Thor-Fix/issues/95.  

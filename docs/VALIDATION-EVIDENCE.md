@@ -1,5 +1,10 @@
 # Physical validation & performance evidence
 
+## Current release: v1.7.4 / code84 (20 October 2026)
+
+[Release validation and artifact identity](VALIDATION-1.7.4.md) record host, generic Android, CodeQL, signing and downloaded-asset checks as PASS. **Physical acceptance of this revision is NOT RUN at publication**, under an explicit maintainer timing exception. [Blackout containment](BLACKOUT-CONTAINMENT-1.7.4.md) is a tested software mitigation awaiting device acceptance; the earlier physical results below retain their original version boundaries.
+
+
 ## RC78 hardening session — 15–16 October 2026
 
 The [scoped physical closure](PR67-PHYSICAL-VALIDATION-2026-10-16.md) records **15 PASS / 1 historical FAIL** in T00–T15, plus separate A1 BOTH CPU acceptance PASS. A1 median was **0.088457127% of one core** (ceiling **0.188455954%**); T10 TOP median **0.324422937%** (ceiling **0.424110373%**). Original T09 BOTH remains **FAIL**, median **0.285730014%**; variability is unexplained. [Sanitized RC78 window inputs](evidence/PR67-CPU-WINDOWS-2026-10-16.csv) preserve the separate series.

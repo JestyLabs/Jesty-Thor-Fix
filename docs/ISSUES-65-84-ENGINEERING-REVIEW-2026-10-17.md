@@ -1,3 +1,5 @@
+**20 October 2026 status update:** [v1.7.4 release record](VALIDATION-1.7.4.md) supersedes current-status statements below. New live captures led to display-stall containment; physical acceptance is pending and #84 remains open. Earlier closure/automation attribution and integration gates are historical, not proof of the later incident's cause. The maintainer explicitly authorized release after software gates, with physical checks afterwards.
+
 **Historical review, superseded for current disposition.** PR #82 subsequently integrated TOP cancellation hardening and issue #84 was closed. For issue #65, see [the completed brightness investigation](BOTTOM-BRIGHT-FLASH-AFTER-LID-WAKE-20261011.md). The dated statuses and source descriptions below describe 17 October.
 
 # Open display investigations — evidence review (2026-10-17)
