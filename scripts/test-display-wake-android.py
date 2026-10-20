@@ -160,6 +160,9 @@ def run(args):
         # only panel calls are synthetic. CRTC 0/0 alone is covered separately on host.
         for fail_call in (True, False):
             scenario = 'backoff-failed-call-power-cycle' if fail_call else 'degrade-power-cycle'
+            # The preceding wake may just have completed WATCH_BOTH ON. Baseline
+            # fixture reset must not bypass the real 1.5 s retry admission.
+            time.sleep(1.6)
             shell('am', 'broadcast', '--receiver-foreground', '-n', COMPONENT + 'DisplayWakeControl',
                   '--ez', 'backoff', 'true', '--ez', 'fail_call', str(fail_call).lower())
             armed = wait_for(lambda: state() if state().get('backoffTest') and state().get('backoff') else None,
