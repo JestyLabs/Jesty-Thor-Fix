@@ -24,7 +24,7 @@ These tests support the named outcomes. They do not need to be rerun solely beca
 - **Released:** safe process-bound service transfer from published 1.7.1–1.7.3, TOP repair cancellation correction, display-stall containment and the scoped quality-programme changes. [Release notes](RELEASE-NOTES-1.7.4.md).
 - **Physical gate:** owner observation, then supervised exact-APK health, preference retention, BOTH/TOP/BOTH and normal sleep/wake checks. Do not force repeated blackouts or infer a rare failure resolved from one quiet night.
 - **Containment:** lower OFF may be attempted in BOTH after a slow call returns; the lower screen can remain off until protection clears. It cannot interrupt an already blocked call. [Investigation and limits](BLACKOUT-CONTAINMENT-1.7.4.md).
-- **Separate follow-up:** [#84 persistent blackout](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/84) remains open; [#65 brightness flash](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/65) retains its separate investigation. No brightness/framework modification is included.
+- **Separate follow-up:** [#84 containment delivered](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/84) is closed by maintainer decision; [#95/S6](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/95) retains physical acceptance; [#65 brightness flash](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/65) retains its separate investigation. No brightness/framework modification is included.
 - **Preserved historical evidence:** code80/81/82 trials, RC78 T09 FAIL and later A1/T10 PASS are unchanged; none validate the code84 mitigation.
 
 ## Priority 2 — performance and battery evidence

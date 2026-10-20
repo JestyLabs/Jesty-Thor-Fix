@@ -1,5 +1,7 @@
 # Display blackout investigation and 1.7.4 containment
 
+[Sanitized incident cases and regression mapping](evidence/DISPLAY-STALL-CASES-2026-10-20.md) preserve the observed ordering without publishing raw traces.
+
 ## Observations and attribution
 
 Owner-local captures from naturally occurring TOP sleep/wake incidents include kernel logs, display/binder snapshots and native/Java stacks. The lower display path failed to complete a commit after wake. During the captured reset loop the vendor compositor held shared command/display locks while waiting for lower-display completion; presentation on the upper display was also affected. The app watcher was observed waiting in its synchronous display-power call.
@@ -31,7 +33,7 @@ The production coordinator/hardware run against synthetic platform boundaries. T
 
 Commands: `python scripts/test-display-backoff-host.py --output <fresh-directory>`; `scripts/test-display-wake-coordinator.ps1`; existing full CI host suites. The Android fixture uses the real PowerManager query and real Android sleep/wake, with synthetic panels and a disposable key. Full-app lifecycle, updater, dashboard and published predecessor/JNI tests retain their separate generic-emulator evidence.
 
-[The final release record](VALIDATION-1.7.4.md) links the exact successful main CI, CodeQL, protected signature and publication. All five Android display-wake cases passed, including failed slow-call protection and degraded-BOTH sleep/wake restoration. The six installed predecessor cases passed for 1.7.1, 1.7.2 and 1.7.3, including refusal when the native retirement facility is unavailable. Physical acceptance of this mitigation is NOT RUN before this owner-directed release; overnight observation and supervised checks follow. The issue remains open until attributable hardware acceptance. Earlier physical passes belong to their original versions and do not validate this patch.
+[The final release record](VALIDATION-1.7.4.md) links the exact successful main CI, CodeQL, protected signature and publication. All five Android display-wake cases passed, including failed slow-call protection and degraded-BOTH sleep/wake restoration. The six installed predecessor cases passed for 1.7.1, 1.7.2 and 1.7.3, including refusal when the native retirement facility is unavailable. Physical acceptance of this mitigation is NOT RUN before this owner-directed release; overnight observation and supervised checks follow. Issue #84 is closed at the maintainer's request as delivery of the implemented software mitigation, not as proof of hardware root-cause resolution. Exact-APK physical acceptance remains tracked in #95/S6. Earlier physical passes belong to their original versions and do not validate this patch.
 
 ## Separate issues
 
