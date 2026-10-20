@@ -4,7 +4,7 @@ on:
   push:
     branches: ["main"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "integration/quality-v173-offline-20261017"]
   schedule:
     - cron: "29 3 * * 2"
 

@@ -227,32 +227,8 @@ public final class CpuFixController {
     public void resumePersistedAttempt() {
         CpuBootAttemptStore.ReadResult initial = CpuBootAttemptStore.read();
         if (initial.state == CpuBootAttemptStore.State.ABSENT) return;
-        Thread resume = new Thread(() -> {
-            for (int poll = 0; poll < 130; poll++) {
-                String result = apply(desired);
-                if (result.startsWith("ok=1")) {
-                    // A predecessor may have died while holding the named
-                    // transition wake lock. A newly scheduled restart still
-                    // owns it; any other terminal success may release it.
-                    releaseWakeLockUnlessRestartScheduled();
-                    return;
-                }
-                if (!retryableAttemptResult(result)) {
-                    // Terminal recovery failure also releases a predecessor's
-                    // named lock when no restart is currently scheduled.
-                    releaseWakeLockUnlessRestartScheduled();
-                    Log.e("ThorDisplayDaemon", "CPU attempt resume stopped: " + result);
-                    return;
-                }
-                try {
-                    Thread.sleep(200L);
-                } catch (InterruptedException ignored) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
-            }
-            Log.e("ThorDisplayDaemon", "CPU attempt resume exceeded bounded wait");
-        }, "cpu-fix-attempt-resume");
+        Thread resume = new Thread(new CpuAttemptResumer(() -> apply(desired),
+                () -> releaseWakeLockUnlessRestartScheduled()), "cpu-fix-attempt-resume");
         resume.setDaemon(true);
         resume.start();
     }
@@ -611,13 +587,7 @@ public final class CpuFixController {
     }
 
     static boolean retryableAttemptResult(String result) {
-        return result != null && (result.contains("WATCHER_NOT_READY")
-                || result.contains("COMPOSER_NOT_READY")
-                || result.contains("COMPOSER_PID_UNKNOWN")
-                || result.contains("CPU_FIX_STATE_UNKNOWN")
-                || result.contains("BOOT_ID_UNKNOWN")
-                || result.contains("COMPOSER_RESTART_PENDING")
-                || result.contains("COMPOSER_RESTART_BUSY"));
+        return CpuAttemptResumer.retryableAttemptResult(result);
     }
 
     private boolean persistAttempt(CpuBootAttemptModel.Attempt attempt,

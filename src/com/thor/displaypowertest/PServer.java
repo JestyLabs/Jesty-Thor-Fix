@@ -71,14 +71,16 @@ public final class PServer {
         }
     }
 
-    /** A bridge submission is not kill acknowledgement: caller must verify socket exit. */
-    public static int stopLivePredecessorIfSafe(boolean displayFix, boolean cpuFix,
+    /** Returns only a fresh descriptor-confirmed exit receipt, never a bridge ACK. */
+    public static synchronized int stopLivePredecessorIfSafe(boolean displayFix, boolean cpuFix,
             boolean lidGuard) {
-        int pid = safeLivePredecessor(displayFix, cpuFix, lidGuard);
-        if (pid < 1 || safeLivePredecessor(displayFix, cpuFix, lidGuard) != pid) return -1;
-        // Confirm twice: a changed PID or snapshot must never reach the bridge.
-        return send(identifiedDaemonKill(pid), "approved predecessor stop submitted pid=" + pid)
-                ? pid : -1;
+        try {
+            return LiveRetirement.retire(displayFix, cpuFix, lidGuard,
+                    command -> send(command, "retirement helper submitted; exit unconfirmed"));
+        } catch (java.io.IOException | IllegalArgumentException | SecurityException | LinkageError error) {
+            Log.w(TAG, "live retirement unavailable; normal restart required", error);
+            return -1;
+        }
     }
 
     /** Replaces only known older authenticated daemons while BOTH is physically ON. */

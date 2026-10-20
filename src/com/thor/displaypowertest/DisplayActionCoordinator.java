@@ -12,6 +12,19 @@ public final class DisplayActionCoordinator {
     private static long lastHardwareReadAt = -1L;
     private static long lastAttemptAt;
     private static String lastAttemptKey = "";
+    private static String lastObservedCrtc = "";
+    /**
+     * A display power call that stays blocked longer than this was observed only while
+     * the vendor composer power-reset loop held its locks (7.2-70 s); every completed
+     * transition in the same traces took <= 1.71 s. Classification only, not a delay.
+     */
+    private static final long STALLED_CALL_MS = 5000L;
+    private static volatile boolean lowerOnBackoff;
+    /** Rate limit for the interactive query, which runs only while the back-off is set. */
+    private static final long INTERACTIVE_QUERY_MS = 1000L;
+    private static long lastInteractiveQueryAt = Long.MIN_VALUE / 2; // watcher thread only
+    private static boolean sawNonInteractive;
+    private static boolean bothDegraded;
 
     private DisplayActionCoordinator() {}
     public static String status() { return status; }
@@ -30,11 +43,29 @@ public final class DisplayActionCoordinator {
         // Avoid an inverted lock order with LidGuard's synchronized methods.
         boolean deferredByLid = stableTopWake && LidGuard.isEnabled()
                 && LidGuard.onWakeEvent();
+        // Binder query outside the coordinator lock, only while the back-off is set.
+        String interactive = "?";
+        if (lowerOnBackoff) {
+            long queryAt = SystemClock.elapsedRealtime();
+            if (queryAt - lastInteractiveQueryAt >= INTERACTIVE_QUERY_MS) {
+                lastInteractiveQueryAt = queryAt;
+                interactive = readInteractive();
+            }
+        }
         synchronized (DisplayHardware.class) {
+            // A real sleep/wake (interactive false -> true) ends the back-off; CRTC 0/0
+            // is not used because the vendor reset loop passes through it every cycle.
+            if ("0".equals(interactive)) sawNonInteractive = true;
+            else if ("1".equals(interactive) && sawNonInteractive) clearLowerOnBackoffLocked("POWER_CYCLE");
             boolean changed = !mode.equals(lastMode);
             if (changed) {
                 generations.invalidate();
                 cancelRepairLocked();
+                // Observation only: mode edges are otherwise visible only as status.
+                Log.d(TAG, "MODE_OBSERVED mode=" + mode + ";previous=" + lastMode);
+                // Leaving BOTH ends the back-off; entering BOTH must not (the stall can
+                // span the mode switch, as in the 2026-10-20 recurrence).
+                if ("1".equals(mode) || "2".equals(mode)) clearLowerOnBackoffLocked("MODE_" + mode);
                 lastMode = mode;
                 status = "MODE_CHANGED";
                 WatcherCadence.onModeChanged();
@@ -59,6 +90,14 @@ public final class DisplayActionCoordinator {
             WatcherCadence.completeDrmRead(readGeneration);
             String top = crtc[0];
             String bottom = crtc[1];
+            // Observation only: edge-log the paired DRM snapshot the watcher already
+            // took, so a later blackout can be placed against CRTC state.
+            String observedCrtc = top + bottom;
+            if (!observedCrtc.equals(lastObservedCrtc)) {
+                lastObservedCrtc = observedCrtc;
+                Log.d(TAG, "CRTC_OBSERVED top=" + top + ";bottom=" + bottom + ";mode=" + mode
+                        + ";property=" + DisplayHardware.getProperty());
+            }
             if ("0".equals(top) && "0".equals(bottom)) {
                 if (WakeRepairScheduler.isPending()) generations.invalidate();
                 cancelRepairLocked();
@@ -68,6 +107,7 @@ public final class DisplayActionCoordinator {
             if (stableTopWake && "1".equals(top) && "1".equals(bottom)
                     && !WakeRepairScheduler.isPending()) {
                 if (deferredByLid) return;
+                clearLowerOnBackoffLocked("TOP_WAKE");
                 scheduleRepairLocked();
                 return;
             }
@@ -89,9 +129,21 @@ public final class DisplayActionCoordinator {
                     return;
                 }
             }
+            // Owner-accepted BOTH degrade: after a measured compositor stall the lower
+            // panel is turned OFF, the only action observed to end the vendor reset loop.
+            if (lowerOnBackoff && "0".equals(mode) && "1".equals(bottom)) {
+                if (attempt(false, "BOTH_DEGRADE", mode)) bothDegraded = true;
+                if (bothDegraded) status = "BOTH_DEGRADED";
+                return;
+            }
             DisplayDecisionModel.Action action = DisplayDecisionModel.reconcile(
                     mode, top, bottom, true, false, WakeRepairScheduler.isPending());
             if (action == DisplayDecisionModel.Action.OFF) attempt(false, "WATCH_TOP", mode);
+            else if (action == DisplayDecisionModel.Action.ON && lowerOnBackoff) {
+                String held = bothDegraded ? "BOTH_DEGRADED" : "BOTH_ON_BACKOFF";
+                if (!held.equals(status)) Log.d(TAG, "WATCH_BOTH_SUPPRESSED backoff=1;degraded=" + (bothDegraded ? "1" : "0"));
+                status = held;
+            }
             else if (action == DisplayDecisionModel.Action.ON) attempt(true, "WATCH_BOTH", mode);
             else if (!WakeRepairScheduler.isPending()) status =
                     DisplayDecisionModel.effective(mode, top, bottom, true, false);
@@ -118,6 +170,7 @@ public final class DisplayActionCoordinator {
                 return "ok=0;error=DISPLAY_UNCONFIRMED";
             generations.invalidate();
             cancelRepairLocked();
+            clearLowerOnBackoffLocked("USER_RECONCILE");
             DaemonState.setEnabled(requested);
             status = "CONFIRMED";
             return "ok=1;fix=" + (requested ? "1" : "0") + ";display=confirmed";
@@ -191,6 +244,39 @@ public final class DisplayActionCoordinator {
         }
     }
 
+    /** True while automatic lower-panel ON in BOTH is suppressed after a stalled call. */
+    public static boolean isLowerOnBackoff() {
+        synchronized (DisplayHardware.class) { return lowerOnBackoff; }
+    }
+    private static void noteHardwareCallLocked(String reason, long blockedMs) {
+        if (blockedMs <= STALLED_CALL_MS || lowerOnBackoff) return;
+        lowerOnBackoff = true;
+        sawNonInteractive = false;
+        Log.d(TAG, "LOWER_ON_BACKOFF set reason=" + reason + ";call_ms=" + blockedMs);
+    }
+    private static void clearLowerOnBackoffLocked(String cause) {
+        if (!lowerOnBackoff) return;
+        lowerOnBackoff = false;
+        sawNonInteractive = false;
+        bothDegraded = false;
+        Log.d(TAG, "LOWER_ON_BACKOFF cleared cause=" + cause);
+    }
+    /** "1"/"0" from IPowerManager.isInteractive(); "?" when unavailable (never clears). */
+    private static String readInteractive() {
+        try {
+            Object binder = Class.forName("android.os.ServiceManager")
+                    .getMethod("getService", String.class).invoke(null, "power");
+            if (binder == null) return "?";
+            Object power = Class.forName("android.os.IPowerManager$Stub")
+                    .getMethod("asInterface", Class.forName("android.os.IBinder")).invoke(null, binder);
+            if (power == null) return "?";
+            Object value = Class.forName("android.os.IPowerManager")
+                    .getMethod("isInteractive").invoke(power);
+            return Boolean.TRUE.equals(value) ? "1" : Boolean.FALSE.equals(value) ? "0" : "?";
+        } catch (Throwable error) {
+            return "?";
+        }
+    }
     private static void scheduleRepairLocked() {
         generations.scheduleRepair();
         WakeRepairScheduler.scheduleFromWake();
@@ -226,10 +312,15 @@ public final class DisplayActionCoordinator {
             status = "HARDWARE_UNKNOWN";
             return false;
         }
+        long hardwareStartedAt = SystemClock.elapsedRealtime();
         if (!expected.equals(before) && !DisplayHardware.apply(on, reason)) {
+            // A stalled call that ends in an error is the same compositor evidence.
+            noteHardwareCallLocked(reason, SystemClock.elapsedRealtime() - hardwareStartedAt);
             status = "APPLY_FAILED";
             return false;
         }
+        if (!expected.equals(before))
+            noteHardwareCallLocked(reason, SystemClock.elapsedRealtime() - hardwareStartedAt);
         long deadline = SystemClock.elapsedRealtime() + 1200L;
         while (!expected.equals(Telemetry.bottomCrtcActive())
                 && SystemClock.elapsedRealtime() < deadline) {
@@ -244,7 +335,12 @@ public final class DisplayActionCoordinator {
         boolean confirmed = expectedMode.equals(readCurrentMode())
                 && expected.equals(finalBottom)
                 && DisplayDecisionModel.topCompatible(expectedMode, finalPair[0]);
-        if (!confirmed) DisplayHardware.alignPropertyWithCrtc(finalBottom);
+        if (!confirmed) {
+            // Observation only: an issued action whose readback did not confirm.
+            Log.d(TAG, "APPLY_UNCONFIRMED reason=" + reason + ";target=" + expected
+                    + ";top=" + finalPair[0] + ";bottom=" + finalBottom);
+            DisplayHardware.alignPropertyWithCrtc(finalBottom);
+        }
         status = confirmed ? "CONFIRMED" : "UNCONFIRMED";
         return confirmed;
     }

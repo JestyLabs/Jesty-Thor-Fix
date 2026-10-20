@@ -9,6 +9,11 @@ public final class DisplayHardware {
     }
     public static synchronized boolean apply(boolean on, String reason) {
         TestDisplayState.hardwareCalls++;
+        if (TestDisplayState.callAdvanceMs > 0) {
+            // Real elapsed Android time, synthetic panel boundary. Never calls SurfaceControl.
+            android.os.SystemClock.sleep(TestDisplayState.callAdvanceMs);
+        }
+        if (TestDisplayState.powerFailure) return false;
         TestDisplayState.bottom = on ? "1" : "0";
         set(TestDisplayState.bottom);
         return true;

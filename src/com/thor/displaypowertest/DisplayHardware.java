@@ -29,9 +29,16 @@ public final class DisplayHardware {
             // display exists. A missing token used to leave this property wrong.
             setProperty(on ? "1" : "0");
             propertyChanged = true;
+            long callStartedNs = System.nanoTime();
             powerMethod.invoke(null, token, on ? 2 : 0);
+            long callMs = (System.nanoTime() - callStartedNs) / 1000000L;
             DaemonState.setLastAction(reason + (on ? ":ON" : ":OFF"));
             Log.d(TAG, reason + (on ? " ON" : " OFF"));
+            // Observation only: a normal return does not prove the compositor applied
+            // the request. Record how long the synchronous call blocked and whether
+            // the shared flag was rewritten by the platform before it returned.
+            Log.d(TAG, "HW_CALL_OBSERVED reason=" + reason + ";target=" + (on ? "1" : "0")
+                    + ";call_ms=" + callMs + ";property_after=" + getProperty());
             return true;
         } catch (Throwable error) {
             if (propertyChanged && ("0".equals(previousProperty) || "1".equals(previousProperty))) {
