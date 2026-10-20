@@ -1,8 +1,8 @@
 # Physical validation & performance evidence
 
-## Current release: v1.7.4 / code84 (20 October 2026)
+## Current release: v1.7.5 / code85 (20 October 2026)
 
-[Release validation and artifact identity](VALIDATION-1.7.4.md) record host, generic Android, CodeQL, signing and downloaded-asset checks as PASS. **Physical acceptance of this revision is NOT RUN at publication**, under an explicit maintainer timing exception. [Blackout containment](BLACKOUT-CONTAINMENT-1.7.4.md) is a tested software mitigation awaiting device acceptance; the earlier physical results below retain their original version boundaries.
+[Release validation and artifact identity](VALIDATION-1.7.5.md) record host, generic Android, CodeQL, signing and downloaded-asset checks as PASS. **Physical acceptance of this revision is NOT RUN at publication**, under an explicit maintainer timing exception. [Blackout containment](BLACKOUT-CONTAINMENT-1.7.4.md) is a tested software mitigation awaiting device acceptance; the earlier physical results below retain their original version boundaries.
 
 
 ## RC78 hardening session — 15–16 October 2026

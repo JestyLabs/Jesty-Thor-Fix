@@ -1,10 +1,10 @@
 # Activation and external recovery
 
-**Current public release: [v1.7.4 / code84](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.4).** Install over the existing version without uninstalling or clearing app data, then open the app and wait for ACTIVE or STOCK. Verified safe transfer from exact published 1.7.1, 1.7.2 and 1.7.3 services can proceed without a device reboot.
+**Current public release: [v1.7.5 / code85](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.5).** Install over the existing version without uninstalling or clearing app data, then open the app and wait for ACTIVE or STOCK. Verified safe transfer from exact published 1.7.1, 1.7.2, 1.7.3 and 1.7.4 services can proceed without a device reboot.
 
-The process-bound adapter verifies the predecessor instance, waits for its confirmed exit and separately verifies successor READY. It does not weaken authentication, kill an unverified PID or promise transfer under every mode/device state. See [the implementation contract](quality/S2-PROCESS-BOUND-RETIREMENT.md) and [release validation](VALIDATION-1.7.4.md). Android/JNI coverage passed; exact released-APK Thor acceptance remains pending.
+The process-bound adapter verifies the predecessor instance, waits for its confirmed exit and separately verifies successor READY. It does not weaken authentication, kill an unverified PID or promise transfer under every mode/device state. See [the implementation contract](quality/S2-PROCESS-BOUND-RETIREMENT.md) and [release validation](VALIDATION-1.7.5.md). Android/JNI coverage passed; exact released-APK Thor acceptance remains pending.
 
-If the app requests a normal restart because safe transfer or activation cannot be verified, follow that guidance. Do not clear data, force process replacement, change activation markers or loop through restarts after an ACTIVATION BLOCKED identity error. Save available diagnostics and seek support. The older code81/code82 recovery packages below cannot normally be installed over code84; they are not a public rollback route.
+If the app requests a normal restart because safe transfer or activation cannot be verified, follow that guidance. Do not clear data, force process replacement, change activation markers or loop through restarts after an ACTIVATION BLOCKED identity error. Save available diagnostics and seek support. The older code81/code82 recovery packages below cannot normally be installed over code85; they are not a public rollback route.
 
 ## Historical v1.7.3 upgrade limitation
 
