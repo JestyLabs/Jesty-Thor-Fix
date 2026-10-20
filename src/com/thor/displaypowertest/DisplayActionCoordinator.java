@@ -24,6 +24,7 @@ public final class DisplayActionCoordinator {
     private static final long INTERACTIVE_QUERY_MS = 1000L;
     private static long lastInteractiveQueryAt = Long.MIN_VALUE / 2; // watcher thread only
     private static boolean sawNonInteractive;
+    private static boolean bothDegraded;
 
     private DisplayActionCoordinator() {}
     public static String status() { return status; }
@@ -128,12 +129,20 @@ public final class DisplayActionCoordinator {
                     return;
                 }
             }
+            // Owner-accepted BOTH degrade: after a measured compositor stall the lower
+            // panel is turned OFF, the only action observed to end the vendor reset loop.
+            if (lowerOnBackoff && "0".equals(mode) && "1".equals(bottom)) {
+                if (attempt(false, "BOTH_DEGRADE", mode)) bothDegraded = true;
+                if (bothDegraded) status = "BOTH_DEGRADED";
+                return;
+            }
             DisplayDecisionModel.Action action = DisplayDecisionModel.reconcile(
                     mode, top, bottom, true, false, WakeRepairScheduler.isPending());
             if (action == DisplayDecisionModel.Action.OFF) attempt(false, "WATCH_TOP", mode);
             else if (action == DisplayDecisionModel.Action.ON && lowerOnBackoff) {
-                if (!"BOTH_ON_BACKOFF".equals(status)) Log.d(TAG, "WATCH_BOTH_SUPPRESSED backoff=1");
-                status = "BOTH_ON_BACKOFF";
+                String held = bothDegraded ? "BOTH_DEGRADED" : "BOTH_ON_BACKOFF";
+                if (!held.equals(status)) Log.d(TAG, "WATCH_BOTH_SUPPRESSED backoff=1;degraded=" + (bothDegraded ? "1" : "0"));
+                status = held;
             }
             else if (action == DisplayDecisionModel.Action.ON) attempt(true, "WATCH_BOTH", mode);
             else if (!WakeRepairScheduler.isPending()) status =
@@ -249,6 +258,7 @@ public final class DisplayActionCoordinator {
         if (!lowerOnBackoff) return;
         lowerOnBackoff = false;
         sawNonInteractive = false;
+        bothDegraded = false;
         Log.d(TAG, "LOWER_ON_BACKOFF cleared cause=" + cause);
     }
     /** "1"/"0" from IPowerManager.isInteractive(); "?" when unavailable (never clears). */

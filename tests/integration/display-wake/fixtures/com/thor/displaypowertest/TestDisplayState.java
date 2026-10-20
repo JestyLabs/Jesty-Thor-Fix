@@ -18,12 +18,14 @@ public final class TestDisplayState {
     public static boolean interactive = true, powerServiceMissing;
     public static int powerQueries;
     public static int gateRefusals;
+    public static java.util.concurrent.CountDownLatch callEntered, callRelease;
     public static void baseline() {
         DisplayActionCoordinator.cancelWakeRepair();
         DisplayActionCoordinator.onWatcherSample("?");
         enabled = true; held = false; guard = false;
         noToken = false; powerFailure = false; guardDefers = false;
         vendorGate = false; platformPropertyDuringCall = null; modeDuringCall = null; callSleepMs = 0L; callAdvanceMs = 0L; gateRefusals = 0;
+        callEntered = null; callRelease = null;
         interactive = true; powerServiceMissing = false; powerQueries = 0;
         mode = "1"; top = "1"; bottom = "0"; property = "0";
         propertyWrites = 0; hardwareCalls = 0;

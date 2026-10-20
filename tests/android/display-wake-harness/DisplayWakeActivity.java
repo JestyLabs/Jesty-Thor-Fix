@@ -89,17 +89,18 @@ public final class DisplayWakeActivity extends Activity {
         pendingProperty = "?";
         record("ARMED");
     }
-    void armBackoff() {
+    void armBackoff(boolean failCall) {
         arm();
         backoffTest = true;
         TestDisplayState.mode = "0";
         TestDisplayState.top = "1";
         TestDisplayState.bottom = "0";
         TestDisplayState.callAdvanceMs = 5300L;
-        TestDisplayState.powerFailure = true;
+        TestDisplayState.powerFailure = failCall;
         DisplayActionCoordinator.onWatcherSample("0");
         TestDisplayState.callAdvanceMs = 0L;
         TestDisplayState.powerFailure = false;
+        if (!failCall) DisplayActionCoordinator.onWatcherSample("0");
         record("BACKOFF_ARMED");
     }
     private void record(String action) {

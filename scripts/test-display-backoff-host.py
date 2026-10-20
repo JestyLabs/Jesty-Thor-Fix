@@ -3,6 +3,7 @@
 from pathlib import Path
 import argparse
 import json
+import hashlib
 import subprocess
 import tempfile
 
@@ -21,19 +22,23 @@ def main():
     source = ROOT / 'src/com/thor/displaypowertest'
     fixture = ROOT / 'tests/integration/display-wake'
     core = {name: (source / name).read_text(encoding='utf-8') for name in CORE}
+    frozen = fixture / 'baseline'
+    for item in json.loads((frozen / 'manifest.json').read_text(encoding='utf-8')):
+        assert hashlib.sha256((frozen / item['file']).read_bytes()).hexdigest() == item['sha256']
     tests = ['DisplayWakeCoordinatorTest', 'BottomWakeCharacterizationTest',
              'ResumeStallObservationTest', 'BothBackoffTest']
     results = []
 
-    def run(name, changed=None, case=None, expected=None, baseline=False):
+    def run(name, changed=None, case=None, expected=None, baseline=None):
         work = output / name
         work.mkdir()
         inputs = []
         for file, content in core.items():
-            if baseline:
-                content = subprocess.check_output(['git', 'show',
-                    '705fb76e12c0f0a404e5e87dc46d94ca36481e20:src/com/thor/displaypowertest/' + file],
-                    cwd=ROOT, encoding='utf-8')
+            if baseline == 'original' and file in ('DisplayActionCoordinator.java', 'DisplayHardware.java'):
+                content = (frozen / ('original-coordinator.java.txt' if file == 'DisplayActionCoordinator.java'
+                                     else 'original-hardware.java.txt')).read_text(encoding='utf-8')
+            elif baseline == 'backoff' and file == 'DisplayActionCoordinator.java':
+                content = (frozen / 'backoff-coordinator.java.txt').read_text(encoding='utf-8')
             elif changed and file == 'DisplayActionCoordinator.java':
                 before, after = changed
                 assert content.count(before) == 1, (name, content.count(before))
@@ -58,7 +63,9 @@ def main():
         print(name + ': PASS' + (' (compiled mutant/baseline rejected: ' + expected + ')' if expected else ''), flush=True)
 
     run('production')
-    run('baseline', case='trace', expected='BO-02', baseline=True)
+    run('baseline', case='trace', expected='BO-02', baseline='original')
+    run('baseline-threaded-replay', case='replay', expected='REPLAY-04', baseline='original')
+    run('backoff-before-degrade', case='degrade', expected='DG-01', baseline='backoff')
     mutations = [
         ('no-arm', 'if (blockedMs <= STALLED_CALL_MS || lowerOnBackoff) return;', 'if (true) return;', 'trace', 'BO-02'),
         ('no-suppression', 'action == DisplayDecisionModel.Action.ON && lowerOnBackoff', 'action == DisplayDecisionModel.Action.ON && false', 'trace', 'BO-02'),
@@ -71,6 +78,11 @@ def main():
         ('unconditional-power-clear', '"1".equals(interactive) && sawNonInteractive', '"1".equals(interactive)', 'trace', 'BO-02'),
         ('no-query-rate-limit', 'queryAt - lastInteractiveQueryAt >= INTERACTIVE_QUERY_MS', 'true', 'unknown', 'UN-02'),
         ('query-without-backoff', 'if (lowerOnBackoff) {', 'if (true) {', 'control', 'CT-03'),
+        ('no-degrade', 'if (lowerOnBackoff && "0".equals(mode) && "1".equals(bottom)) {', 'if (false) {', 'degrade', 'DG-01'),
+        ('degrade-without-stall', 'if (lowerOnBackoff && "0".equals(mode) && "1".equals(bottom)) {', 'if ("0".equals(mode) && "1".equals(bottom)) {', 'nodegrade', 'ND-01'),
+        ('no-degrade-clear', 'bothDegraded = false;', '/* mutant: retain previous degraded label */', 'restore', 'RS-02'),
+        ('bypass-boot-hold', 'if (!BootSafety.knownMode(mode) || BootSafety.isHeld()) {', 'if (!BootSafety.knownMode(mode)) {', 'gates', 'SAFE-01'),
+        ('bypass-disabled-fix', 'if (!DaemonState.isEnabled()) {', 'if (false) {', 'gates', 'SAFE-01'),
     ]
     for name, before, after, case, expected in mutations:
         run(name, (before, after), case, expected)

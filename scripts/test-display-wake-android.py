@@ -158,26 +158,29 @@ def run(args):
             print('PASS: ' + order + '; property=' + final['property'] + '; hardwareCalls=0', flush=True)
         # Actual hidden PowerManager Binder read in the production coordinator;
         # only panel calls are synthetic. CRTC 0/0 alone is covered separately on host.
-        shell('am', 'broadcast', '--receiver-foreground', '-n', COMPONENT + 'DisplayWakeControl',
-              '--ez', 'backoff', 'true')
-        armed = wait_for(lambda: state() if state().get('backoffTest') and state().get('backoff') else None,
-                         'slow failed synthetic call arms back-off')
-        assert armed['hardwareCalls'] == 1 and armed['actionStatus'] == 'APPLY_FAILED', armed
-        # Leave the one-second query budget available for SCREEN_OFF.
-        time.sleep(1.2)
-        shell('input', 'keyevent', '223')
-        wait_for(lambda: state()['offSeen'], 'real back-off SCREEN_OFF')
-        asleep = state()
-        assert asleep['backoff'] and asleep['hardwareCalls'] == 1, asleep
-        assert any(e['event'] == 'android.intent.action.SCREEN_OFF' and not e['interactive']
-                   for e in asleep['events']), asleep
-        time.sleep(1.2)
-        shell('input', 'keyevent', '224')
-        final = wait_for(lambda: state() if state()['finished'] else None, 'real back-off wake settled')
-        assert not final['backoff'] and final['hardwareCalls'] == 2 and final['property'] == '1', final
-        results.append({'scenario': 'backoff-real-power-cycle', 'result': final})
-        (args.output / 'results.json').write_text(json.dumps(results, indent=2), encoding='utf-8')
-        print('PASS: backoff-real-power-cycle; real Android power query, synthetic panels', flush=True)
+        for fail_call in (True, False):
+            scenario = 'backoff-failed-call-power-cycle' if fail_call else 'degrade-power-cycle'
+            shell('am', 'broadcast', '--receiver-foreground', '-n', COMPONENT + 'DisplayWakeControl',
+                  '--ez', 'backoff', 'true', '--ez', 'fail_call', str(fail_call).lower())
+            armed = wait_for(lambda: state() if state().get('backoffTest') and state().get('backoff') else None,
+                             'slow synthetic call arms back-off')
+            assert armed['hardwareCalls'] == (1 if fail_call else 2), armed
+            assert armed['actionStatus'] == ('APPLY_FAILED' if fail_call else 'BOTH_DEGRADED'), armed
+            # Leave the one-second query budget available for SCREEN_OFF.
+            time.sleep(1.2)
+            shell('input', 'keyevent', '223')
+            wait_for(lambda: state()['offSeen'], 'real back-off SCREEN_OFF')
+            asleep = state()
+            assert asleep['backoff'] and asleep['hardwareCalls'] == armed['hardwareCalls'], asleep
+            assert any(e['event'] == 'android.intent.action.SCREEN_OFF' and not e['interactive']
+                       for e in asleep['events']), asleep
+            time.sleep(1.2)
+            shell('input', 'keyevent', '224')
+            final = wait_for(lambda: state() if state()['finished'] else None, 'real back-off wake settled')
+            assert not final['backoff'] and final['hardwareCalls'] == armed['hardwareCalls'] + 1 and final['property'] == '1', final
+            results.append({'scenario': scenario, 'result': final})
+            (args.output / 'results.json').write_text(json.dumps(results, indent=2), encoding='utf-8')
+            print('PASS: ' + scenario + '; real Android power query, synthetic panels', flush=True)
     finally:
         shell('cmd', 'power', 'set-mode', '0')
         shell('input', 'keyevent', '224')

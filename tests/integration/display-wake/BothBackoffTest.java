@@ -10,7 +10,7 @@ import android.util.Log;
  * BOTH reconciliation re-powered the failing lower panel. Not a physical reproduction.
  * Uses only APIs present in B so that running it on B is a meaningful negative control.
  * Arguments: none = all, or one of "trace", "control", "threshold", "clear", "topoff",
- * "failure", "bothwake", "powercycle", "unknown".
+ * "failure", "bothwake", "powercycle", "unknown", "degrade", "nodegrade", "gate", "restore".
  */
 public final class BothBackoffTest {
     private static int checks;
@@ -123,17 +123,17 @@ public final class BothBackoffTest {
      * vendor loop passes through 0/0 every cycle. At wake the platform powers both panels.
      */
     private static void bothwake() {
-        // CRTC 0/0 without an observed non-interactive state (vendor loop phases).
+        // CRTC 0/0 then 1/1 without an observed non-interactive state (vendor loop phases).
         staleOff(29600L);
         TestDisplayState.top = "0"; TestDisplayState.bottom = "0";
         for (int i = 0; i < 3; i++) { SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0"); }
-        TestDisplayState.top = "1"; TestDisplayState.bottom = "1";      // platform wake in BOTH
+        TestDisplayState.top = "1"; TestDisplayState.bottom = "1";      // loop restores the lower panel
         SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0");
-        check(TestDisplayState.hardwareCalls == 1, "BW-01 platform wake needs no app action");
-        check(count("ThorDisplayDaemon: LOWER_ON_BACKOFF cleared") == 0, "BW-02 BOTH sleep/wake (CRTC 0/0) does not clear");
-        TestDisplayState.bottom = "0";
+        check(TestDisplayState.hardwareCalls == 2 && "0".equals(TestDisplayState.bottom),
+                "BW-01 without an interactive transition 0/0 -> 1/1 is treated as the loop: degrade OFF");
+        check(count("ThorDisplayDaemon: LOWER_ON_BACKOFF cleared") == 0, "BW-02 CRTC 0/0 alone does not clear");
         SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0");
-        check(TestDisplayState.hardwareCalls == 1, "BW-03 later lower drop in BOTH still not re-powered by the app");
+        check(TestDisplayState.hardwareCalls == 2, "BW-03 degraded lower panel is not re-powered by the app");
     }
     /** Real sleep/wake while staying in BOTH: interactive false then true clears. */
     private static void powercycle() {
@@ -163,6 +163,127 @@ public final class BothBackoffTest {
         for (int i = 0; i < 10; i++) { SystemClock.now += 100L; DisplayActionCoordinator.onWatcherSample("0"); }
         check(TestDisplayState.powerQueries - before <= 1, "UN-02 at most one query per second: " + (TestDisplayState.powerQueries - before));
     }
+    /** Pure BOTH loop: platform keeps the lower ON; the app's ON probe stalls. */
+    private static void loopProbe(long callMs) {
+        reset();
+        TestDisplayState.mode = "0"; TestDisplayState.top = "1"; TestDisplayState.bottom = "0";
+        TestDisplayState.property = "1";
+        TestDisplayState.callAdvanceMs = callMs;
+        SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0");   // WATCH_BOTH ON
+        TestDisplayState.callAdvanceMs = 0L;
+        check(TestDisplayState.hardwareCalls == 1 && "1".equals(TestDisplayState.bottom), "DG-00 ON probe executed");
+        SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0");   // loop phase: lower active
+    }
+    private static void degrade() {
+        loopProbe(21000L);
+        check(TestDisplayState.hardwareCalls == 2 && "0".equals(TestDisplayState.bottom),
+                "DG-01 after a stalled call the lower panel is turned OFF in BOTH: calls=" + TestDisplayState.hardwareCalls);
+        check("BOTH_DEGRADED".equals(DisplayActionCoordinator.status()) && count("ThorDisplayDaemon: BOTH_DEGRADE OFF") == 1,
+                "DG-02 degrade recorded: " + DisplayActionCoordinator.status() + " " + Log.LINES);
+        for (int i = 0; i < 5; i++) { SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0"); }
+        check(TestDisplayState.hardwareCalls == 2 && "BOTH_DEGRADED".equals(DisplayActionCoordinator.status()),
+                "DG-03 degraded state is stable: no ON, no further OFF");
+    }
+    private static void nodegrade() {
+        loopProbe(0L);
+        for (int i = 0; i < 3; i++) { SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0"); }
+        check(TestDisplayState.hardwareCalls == 1 && "1".equals(TestDisplayState.bottom),
+                "ND-01 without a stall BOTH keeps the lower panel ON (contract kept)");
+    }
+    private static void gate() {
+        reset();
+        TestDisplayState.mode = "0"; TestDisplayState.top = "1"; TestDisplayState.bottom = "0";
+        TestDisplayState.callAdvanceMs = 21000L;
+        SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0");
+        TestDisplayState.callAdvanceMs = 0L;
+        TestDisplayState.vendorGate = true; TestDisplayState.platformPropertyDuringCall = "1";
+        SystemClock.autoAdvanceMs = 700L;
+        SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0");
+        SystemClock.autoAdvanceMs = 0L;
+        TestDisplayState.vendorGate = false; TestDisplayState.platformPropertyDuringCall = null;
+        check(TestDisplayState.gateRefusals == 1 && "1".equals(TestDisplayState.bottom), "GT-01 first degrade OFF skipped by the compositor gate");
+        SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0");
+        check(TestDisplayState.hardwareCalls == 3 && "0".equals(TestDisplayState.bottom), "GT-02 degrade OFF retried after the existing 1.5 s admission");
+    }
+    private static void restore() {
+        loopProbe(21000L);
+        check("0".equals(TestDisplayState.bottom), "RS-00 degraded");
+        TestDisplayState.interactive = false; TestDisplayState.top = "0";
+        SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0");
+        TestDisplayState.interactive = true; TestDisplayState.top = "1";
+        SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0");
+        SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0");
+        check(count("ThorDisplayDaemon: LOWER_ON_BACKOFF cleared cause=POWER_CYCLE") == 1 && "1".equals(TestDisplayState.bottom),
+                "RS-01 a real sleep/wake ends the degrade and BOTH powers the lower panel again: " + Log.LINES);
+        staleOff(29600L);
+        check("BOTH_ON_BACKOFF".equals(DisplayActionCoordinator.status()),
+                "RS-02 a new back-off episode does not inherit the degraded label: " + DisplayActionCoordinator.status());
+    }
+    /** App-specific gates must still hold after the long call has returned. */
+    private static void gates() {
+        for (String boundary : new String[]{"boot", "disabled", "stale-bottom", "unknown-top", "unknown-bottom"}) {
+            staleOff(29600L);
+            TestDisplayState.bottom = "1";
+            if ("boot".equals(boundary)) TestDisplayState.held = true;
+            if ("disabled".equals(boundary)) TestDisplayState.enabled = false;
+            if ("stale-bottom".equals(boundary)) TestDisplayState.mode = "2";
+            if ("unknown-top".equals(boundary)) TestDisplayState.top = "?";
+            if ("unknown-bottom".equals(boundary)) TestDisplayState.bottom = "?";
+            SystemClock.now += 2000L;
+            DisplayActionCoordinator.onWatcherSample("0");
+            check(TestDisplayState.hardwareCalls == 1, "SAFE-01 no degrade across " + boundary);
+        }
+    }
+    /** Refusal is not confirmation and cannot cause an immediate command flood. */
+    private static void retry() {
+        loopProbe(21000L); // lower OFF already confirmed once
+        TestDisplayState.bottom = "1";
+        TestDisplayState.powerFailure = true;
+        SystemClock.now += 2000L;
+        DisplayActionCoordinator.onWatcherSample("0");
+        int before = TestDisplayState.hardwareCalls;
+        for (int i = 0; i < 14; i++) {
+            SystemClock.now += 100L;
+            DisplayActionCoordinator.onWatcherSample("0");
+        }
+        check(TestDisplayState.hardwareCalls == before, "RETRY-01 no OFF within retry interval");
+        SystemClock.now += 100L;
+        DisplayActionCoordinator.onWatcherSample("0");
+        check(TestDisplayState.hardwareCalls == before + 1, "RETRY-02 admitted only after interval");
+        check("1".equals(TestDisplayState.bottom), "RETRY-03 failed OFF did not change observed hardware");
+    }
+    /** Real JVM blocked call; platform changes mode while the watcher is inside it. */
+    private static void replay() {
+        reset();
+        TestDisplayState.wakeTop();
+        SystemClock.now = WakeRepairScheduler.deadline;
+        TestDisplayState.callEntered = new java.util.concurrent.CountDownLatch(1);
+        TestDisplayState.callRelease = new java.util.concurrent.CountDownLatch(1);
+        final Throwable[] failure = {null};
+        Thread watcher = new Thread(() -> {
+            try { DisplayActionCoordinator.onWatcherSample("1"); }
+            catch (Throwable error) { failure[0] = error; }
+        });
+        watcher.setDaemon(true);
+        watcher.start();
+        try {
+            check(TestDisplayState.callEntered.await(3, java.util.concurrent.TimeUnit.SECONDS),
+                    "REPLAY-01 watcher reached the synthetic blocked call");
+            // Platform mode change, not a fabricated second watcher/coordinator caller.
+            TestDisplayState.mode = "0";
+            SystemClock.now += 29600L;
+            TestDisplayState.callRelease.countDown();
+            watcher.join(3000L);
+        } catch (InterruptedException error) { throw new AssertionError(error); }
+        check(!watcher.isAlive() && failure[0] == null, "REPLAY-02 caller returned normally");
+        TestDisplayState.callEntered = null; TestDisplayState.callRelease = null;
+        check(TestDisplayState.hardwareCalls == 1 && "0".equals(TestDisplayState.bottom),
+                "REPLAY-03 late admitted TOP OFF completed under platform BOTH");
+        SystemClock.now += 2000L;
+        DisplayActionCoordinator.onWatcherSample("0");
+        check(TestDisplayState.hardwareCalls == 1 && "BOTH_ON_BACKOFF".equals(DisplayActionCoordinator.status()),
+                "REPLAY-04 late OFF cannot be followed by automatic re-ON");
+    }
     public static void main(String[] args) {
         String only = args.length > 0 ? args[0] : "all";
         if ("all".equals(only) || "trace".equals(only)) trace();
@@ -174,6 +295,13 @@ public final class BothBackoffTest {
         if ("all".equals(only) || "bothwake".equals(only)) bothwake();
         if ("all".equals(only) || "powercycle".equals(only)) powercycle();
         if ("all".equals(only) || "unknown".equals(only)) unknown();
+        if ("all".equals(only) || "degrade".equals(only)) degrade();
+        if ("all".equals(only) || "nodegrade".equals(only)) nodegrade();
+        if ("all".equals(only) || "gate".equals(only)) gate();
+        if ("all".equals(only) || "restore".equals(only)) restore();
+        if ("all".equals(only) || "gates".equals(only)) gates();
+        if ("all".equals(only) || "retry".equals(only)) retry();
+        if ("all".equals(only) || "replay".equals(only)) replay();
         System.out.println("BothBackoffTest passed (" + only + "): " + checks + " assertions (host contract + simulated stall)");
     }
 }
