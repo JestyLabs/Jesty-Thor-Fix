@@ -4,7 +4,7 @@
 
 <p align="center">
   <strong>Two verified AYN Thor fixes. One lightweight app.</strong><br>
-  Really turn off the lower display hardware in TOP mode instead of leaving it black,<br>
+  Turn off the lower display hardware in TOP mode instead of leaving it black,<br>
   and stop the AYN Dashboard CPU clock-pinning bug. Optional closed-lid protection included.
 </p>
 
@@ -26,7 +26,7 @@
 </p>
 
 <p align="center">
-  <sub>Signed releases · Tested on a physical Thor · Works with the app closed</sub>
+  <sub>Performance-oriented · Tested on a physical Thor · Easy to revert · Doesn't damge the device</sub>
 </p>
 
 <table>
@@ -42,8 +42,6 @@
 
 <p align="center"><sub>v1.7.1 screenshots from the same Thor: both fixes OFF, about 1.72 W; both fixes ON, about 0.95 W. These are on-screen snapshots of two different configurations, not an isolated battery-life measurement or a claim that either switch alone caused the full difference.</sub></p>
 
-<p align="center"><strong>Lightweight and safety-focused.</strong> In physical idle tests, the daemon used around <strong>0.09% of one CPU core in BOTH</strong> and <strong>0.32% in TOP</strong> (tested v1.7.1 candidate). It does not change CPU frequencies, voltages, thermal limits or firmware, and verifies the display state after applying a fix. <a href="docs/evidence/CODE76-PHYSICAL-VALIDATION-2026-10-12.md">Performance evidence</a> · <a href="docs/VALIDATION-EVIDENCE.md">Safety and validation</a>.</p>
-
 ---
 
 ### What it fixes
@@ -54,11 +52,15 @@
 | **AYN Dashboard CPU Fix** | Corrects the reproduced **LITTLE/BIG CPU clock pinning** associated with AYN Dashboard, including in BOTH/single-screen use. It is a separate fix: no manual clock, voltage or governor tuning. |
 | **Closed-Lid Wake Guard (optional)** | A guarded attempt to return the Thor to sleep after an unexpected closed-lid wake. **OFF by default**; normal Guard-ON wake recovery was tested, but active unwanted-wake interception has not yet been observed. |
 
+<p align="center"><strong>Lightweight and safety-focused.</strong> In physical idle tests, the daemon used around <strong>0.09% of one CPU core in BOTH</strong> and <strong>0.32% in TOP</strong> . It does not change CPU frequencies, voltages, thermal limits or firmware, and verifies the display state after applying a fix. <a href="docs/evidence/CODE76-PHYSICAL-VALIDATION-2026-10-12.md">Performance evidence</a> · <a href="docs/VALIDATION-EVIDENCE.md">Safety and validation</a>.</p>
+
+[View the full hardware validation dossier](docs/VALIDATION-EVIDENCE.md) · [CPU and sleep measurements](docs/evidence/CODE76-PHYSICAL-VALIDATION-2026-10-12.md)
+
 ---
 
 ### Measured on a real Thor
 
-**This is a hardware-state change, not a black overlay.** On the tested Thor, TOP true-off was confirmed by the vendor power flag and an inactive lower DRM CRTC; BOTH restored the normal active pipeline.
+**This is a hardware-state change, not a black overlay.** On the tests, TOP true-off was confirmed by the vendor power flag and an inactive lower DRM CRTC.
 
 #### Controlled A/B/A benchmark
 
@@ -66,7 +68,7 @@
   <img src="assets/charts/thor-top-mode-power.svg" alt="Controlled TOP-mode comparison: native mode showed about 2.03 W of estimated system-power proxy; True Bottom Screen Off showed about 1.24 W, roughly 39 percent lower in this test." width="880">
 </p>
 
-**About 39% lower estimated system-power draw in this short A/B/A comparison** of native TOP versus Jesty true-off. This is a *power proxy* from the Thor's hardware readings, **not** a direct battery-life measurement, a universal saving or an isolated measurement of the Dashboard CPU switch. Brightness, workload and charging conditions affect real-world results.
+**About 39% lower estimated system-power draw in this short A/B/A comparison** of native TOP versus Jesty true-off. This is a *power proxy* from the Thor's hardware readings, **not** a direct battery-life measuremen. Brightness, workload and charging conditions affect real-world results.
 
 <p align="center">
   <img src="assets/charts/thor-top-mode-cpu.svg" alt="High-performance CPU cluster: 2.707 GHz average in native TOP mode versus 1.654 GHz with True Bottom Screen Off; near-maximum CPU readings changed from 75 of 75 samples to 0 of 45." width="880">
@@ -74,23 +76,13 @@
 
 **From stuck-near-maximum to normal clock behaviour in the measured configurations:** **75/75** native TOP samples were near the performance cluster's maximum speed, versus **0/45** in true-off.
 
-#### v1.7.1: the difference at a glance
-
-A simpler look at the **battery-draw readings visible in nine TOP-mode photographs**. The bars show the average of the on-screen values in each configuration, with the observed ranges beneath.
+A simpler look at the **battery-draw readings visible in nine TOP-mode**. The bars show the average of the on-screen values in each configuration, with the observed ranges beneath.
 
 <p align="center">
   <img src="assets/charts/thor-v171-photo-readings.svg" alt="Easy-to-read comparison of photographed app values: native TOP with fixes OFF averages 1.86 W across five snapshots (range 1.43 to 2.27 W); True Off plus CPU Fix ON averages 0.97 W across four snapshots (range 0.95 to 0.98 W)." width="880">
 </p>
 
-<sub>These are snapshots of different fix configurations, not a controlled battery-life test. The separately documented A/B/A benchmark above provides the controlled comparison.</sub>
-
 **[Full A/B/A benchmark and raw measurements](docs/BENCHMARKS.md)** · [How display power-off was validated](docs/DEVICE-VALIDATION.md)
-
-### Lightweight in the background
-
-The app's own CPU usage stays tiny, too. In separate physical idle tests, daemon CPU use with **both screens active** fell from about **0.29% to 0.09% of one CPU core** — around **70% less than the earlier RC2 candidate**. In TOP mode it remained around **0.32% of a core**.
-
-[View the full hardware validation dossier](docs/VALIDATION-EVIDENCE.md) · [CPU and sleep measurements](docs/evidence/CODE76-PHYSICAL-VALIDATION-2026-10-12.md)
 
 ---
 
@@ -99,8 +91,8 @@ The app's own CPU usage stays tiny, too. In separate physical idle tests, daemon
 We are still looking into the following areas. **These are research, not advertised fixes in v1.7.3.**
 
 - **🖥️ Pre-existing Thor 120 Hz / screen tearing** — A device/firmware mixed-refresh problem **not introduced by Jesty Thor Fix**. We are investigating it, **not claiming a fix**. The physical cause and any safe remedy remain unproven. [Research #37](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/37).
-- **🔌 Device-service reliability** — Investigating rare cases where Android temporarily loses access to a built-in device service.
-- **🎮 TOP-mode game focus** — Checking reports of games losing focus when the bottom screen is off.
+- **🔌 Device-service reliability** — Investigating rare cases where Android temporarily loses access to a built-in device service, and ways to use this app to improve them.
+- **🎮 TOP-mode game focus** — Checking reports of games losing focus when the bottom screen is off - this app should fix that.
 
 Interested in future device support, including Retroid Pocket Duo? That's **research only** and requires separate volunteer hardware testing — it is **not supported** today. [Full roadmap](docs/ROADMAP.md).
 
