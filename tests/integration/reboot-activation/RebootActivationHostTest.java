@@ -44,7 +44,7 @@ public final class RebootActivationHostTest {
         FixtureState.boot=C;FixtureState.version=null;run("later-kernel-no-broadcast",0,1,true);
         check(prepared.equals(FixtureState.saved.get(KEY)),"verified boots do not replace original baseline");
 
-        FixtureState.reset("1.7.4");run("current-version-without-proof-not-authorized",0,0,false);
+        FixtureState.reset("1.7.5");run("current-version-without-proof-not-authorized",0,0,false);
         FixtureState.reset(null);FixtureState.fromBoot=true;run("first-observation-is-boot-not-authority",0,0,false);
         FixtureState.boot=B;run("second-boot-receiver-can-start",0,1,true);
 
@@ -70,6 +70,8 @@ public final class RebootActivationHostTest {
         verifiedExitBeforeLaunch("code80");
         FixtureState.reset("1.7.3");run("code83-same-kernel-handover",1,1,true);
         verifiedExitBeforeLaunch("code83");
+        FixtureState.reset("1.7.4");run("code84-same-kernel-handover",1,1,true);
+        verifiedExitBeforeLaunch("code84");
         check(FixtureState.saved.containsKey("activation_v3_live_handover"),
                 "live proof is durable only after new runtime identity");
         run("live-proven-repeat-open-no-kill",0,0,true);
@@ -77,7 +79,7 @@ public final class RebootActivationHostTest {
         verifiedExitBeforeLaunch("code76");
         FixtureState.reset("1.7.1");FixtureState.snapshotSuffix=";runtime_version=";
         run("code76-present-empty-Q-version-is-not-absence",0,0,false);
-        for(String old:new String[]{"1.7.1","1.7.2","1.7.3"}){
+        for(String old:new String[]{"1.7.1","1.7.2","1.7.3","1.7.4"}){
             FixtureState.reset(old);RetirementNative.available=false;
             run("native-unavailable-reboot-fallback-"+old,0,0,false);
             check(FixtureState.helperSubmissions==0,"unsupported native never submits helper");
@@ -190,10 +192,10 @@ public final class RebootActivationHostTest {
         run("already-persisted-proof-needs-no-new-write",0,1,true);
         FixtureState.reset(null);prepareThenReboot();FixtureState.legacyPresent=true;
         run("legacy-occupant-no-stop",0,0,true);
-        FixtureState.reset("1.7.4");prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";
+        FixtureState.reset("1.7.5");prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";
         run("same-version-held-recovery-retained",1,1,true);
         check(FixtureState.lastHeld,"same-version recovery remains held");
-        FixtureState.reset("1.7.4");prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";FixtureState.stopEffective=false;
+        FixtureState.reset("1.7.5");prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";FixtureState.stopEffective=false;
         run("same-version-stop-no-effect-no-duplicate",1,0,true);
         FixtureState.reset(null);prepareThenReboot();FixtureState.afterLaunchPhase="WAITING_FOR_ANDROID";
         run("starting-not-ready",0,1,true);

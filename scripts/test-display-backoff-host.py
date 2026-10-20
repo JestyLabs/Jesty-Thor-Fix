@@ -4,6 +4,7 @@ from pathlib import Path
 import argparse
 import json
 import hashlib
+import re
 import subprocess
 import tempfile
 
@@ -29,7 +30,7 @@ def main():
              'ResumeStallObservationTest', 'BothBackoffTest']
     results = []
 
-    def run(name, changed=None, case=None, expected=None, baseline=None):
+    def run(name, changed=None, case=None, expected=None, baseline=None, test_class=None):
         work = output / name
         work.mkdir()
         inputs = []
@@ -37,6 +38,8 @@ def main():
             if baseline == 'original' and file in ('DisplayActionCoordinator.java', 'DisplayHardware.java'):
                 content = (frozen / ('original-coordinator.java.txt' if file == 'DisplayActionCoordinator.java'
                                      else 'original-hardware.java.txt')).read_text(encoding='utf-8')
+            elif baseline == 'v174' and file == 'DisplayActionCoordinator.java':
+                content = (frozen / 'v174-coordinator.java.txt').read_text(encoding='utf-8')
             elif baseline == 'backoff' and file == 'DisplayActionCoordinator.java':
                 content = (frozen / 'backoff-coordinator.java.txt').read_text(encoding='utf-8')
             elif changed and file == 'DisplayActionCoordinator.java':
@@ -48,12 +51,17 @@ def main():
             inputs.append(path)
         inputs += sorted((fixture / 'fixtures').rglob('*.java'))
         inputs += [fixture / (test + '.java') for test in tests]
+        if test_class or not case:
+            inputs.append(fixture / 'ContainmentStatusRegression.java')
         compiled = subprocess.run(['javac', '-encoding', 'UTF-8', '-d', str(work),
                                    *map(str, inputs)], capture_output=True, text=True, timeout=60)
         log = compiled.stdout + compiled.stderr
         assert compiled.returncode == 0, log
-        for test in (['BothBackoffTest'] if case else tests):
-            proc = subprocess.run(['java', '-cp', str(work), PKG + test] + ([case] if case else []),
+        selected = [(test_class or 'BothBackoffTest', case)] if case else (
+            [(test, None) for test in tests] + [('ContainmentStatusRegression', value)
+                                              for value in ('failure', 'unconfirmed', 'mode-changed')])
+        for test, selected_case in selected:
+            proc = subprocess.run(['java', '-cp', str(work), PKG + test] + ([selected_case] if selected_case else []),
                                   capture_output=True, text=True, timeout=30)
             text = proc.stdout + proc.stderr
             log += text
@@ -61,8 +69,24 @@ def main():
             assert (proc.returncode != 0 and expected in text) if expected else proc.returncode == 0, log
         results.append({'id': name, 'result': 'PASS', 'expectedRejection': expected})
         print(name + ': PASS' + (' (compiled mutant/baseline rejected: ' + expected + ')' if expected else ''), flush=True)
+        return log
 
-    run('production')
+    production_log = run('production')
+    for value in ('failure', 'unconfirmed', 'mode-changed'):
+        before_log = run('v174-status-' + value, case=value, expected='REG-04',
+                         baseline='v174', test_class='ContainmentStatusRegression')
+        pattern = r'case=' + value + r';bottom=1;status=[A-Z_]+;hardware_calls=(\d+);property_writes=(\d+)'
+        before = re.search(pattern, before_log)
+        after = re.search(pattern, production_log)
+        assert before and after and before.groups() == after.groups(), 'Command effects changed: ' + value
+    run('status-retain-old-success',
+        ('bothDegraded = attempt(false, "BOTH_DEGRADE", mode);',
+         'if (attempt(false, "BOTH_DEGRADE", mode)) bothDegraded = true;'),
+        case='failure', expected='REG-04', test_class='ContainmentStatusRegression')
+    run('status-false-waiting-label',
+        ('status = "BOTH_ON_BACKOFF";\n                bothDegraded = attempt',
+         'status = "BOTH_DEGRADED";\n                bothDegraded = attempt'),
+        case='failure', expected='REG-07', test_class='ContainmentStatusRegression')
     run('baseline', case='trace', expected='BO-02', baseline='original')
     run('baseline-threaded-replay', case='replay', expected='REPLAY-04', baseline='original')
     run('backoff-before-degrade', case='degrade', expected='DG-01', baseline='backoff')

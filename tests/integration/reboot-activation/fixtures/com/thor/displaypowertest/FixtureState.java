@@ -10,7 +10,7 @@ public final class FixtureState {
  public static List<String> events;public static int helperSubmissions;public static boolean liveCommitFailure;
  public static void reset(String v){version=v;phase="READY";protocol="2";watcher="RUNNING";mode="0";top="1";bottom="1";
  pid="12000";afterLaunchPhase="READY";probes=kills=launches=disappearAfter=commits=0;stopEffective=bridgeAccept=true;lastHeld=false;
- appVersion="1.7.4";appCode=84;updateTime=123;boot="00000000-0000-0000-0000-000000000001";
+ appVersion="1.7.5";appCode=85;updateTime=123;boot="00000000-0000-0000-0000-000000000001";
  fromBoot=packageFailure=commitFailure=commitThrows=corruptRead=legacyPresent=bootReadThrows=commitUpdatesMemory=false;
  saved=new HashMap<>();durable=new HashMap<>();
  scriptedReplies=null;replyIndex=0;requests=new StringBuilder();helperSubmissions=0;liveCommitFailure=false;snapshotSuffix="";
@@ -23,4 +23,4 @@ public final class FixtureState {
  if(cmd.contains(" app_process / R ")){helperSubmissions++;events.add("BRIDGE_SUBMIT");
  if(!bridgeAccept)return false;events.add("BRIDGE_ACK");RetirementNative.submit(cmd);return true;}
  if(cmd.startsWith("P=")){kills++;if(!bridgeAccept)return false;if(stopEffective)version=null;return true;}
- if(cmd.equals("fixture-launch")){events.add("LAUNCH");launches++;version="1.7.4";phase=afterLaunchPhase;return true;}throw new AssertionError("unexpected command");}}
+ if(cmd.equals("fixture-launch")){events.add("LAUNCH");launches++;version="1.7.5";phase=afterLaunchPhase;return true;}throw new AssertionError("unexpected command");}}

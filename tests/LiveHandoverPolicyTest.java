@@ -17,6 +17,16 @@ public final class LiveHandoverPolicyTest {
     }
     public static void main(String[] args) {
         check(pid(H,Q)==12000, "exact code80 ready+BOTH+matching CPU is eligible");
+        String h84 = H.replace("1.7.2", "1.7.4");
+        String q84 = Q.replace("1.7.2", "1.7.4");
+        check(pid(h84,q84)==12000, "published code84 ready+BOTH is eligible");
+        check(pid(h84,q84.replace(";runtime_version=1.7.4", ""))<0,
+                "code84 cannot borrow the code76 absent-runtime exception");
+        check(pid(h84,q84+";runtime_version=1.7.4")<0, "code84 duplicate runtime denied");
+        check(pid(h84+";pid=12000",q84)<0, "code84 duplicate identity denied");
+        check(pid(h84,q84.replace("mode=0","mode=1"))<0, "code84 TOP remains denied");
+        check(pid(h84,q84.replace("bottom_crtc=1","bottom_crtc=0"))<0,
+                "code84 unconfirmed lower screen remains denied");
         String h83 = H.replace("1.7.2", "1.7.3");
         String q83 = Q.replace("1.7.2", "1.7.3");
         check(pid(h83,q83)==12000, "approved code83 ready+BOTH is eligible for the next release");
@@ -27,9 +37,9 @@ public final class LiveHandoverPolicyTest {
         check(pid(H.replace("1.7.2","1.7.1"),Q.replace(";runtime_version=1.7.2",""))<0,
                 "published code76 lacks Q runtime identity and cannot authorize live stop");
         check(pid(H.replace("1.7.2","1.7.1"),Q)<0,"I/Q version mismatch denied");
-        for (String version : new String[]{"1.7.0","1.7.2-rc1","1.7.4",
+        for (String version : new String[]{"1.7.0","1.7.2-rc1","1.7.5","1.7.4-rc1","1.7.4-recovery","1.7.40",
                 "1.7.3-recovery","1.7.2-hijacked","unknown"}) {
-            check(pid(H.replace("1.7.2",version),Q)<0,"unknown predecessor denied "+version);
+            check(pid(H.replace("1.7.2",version),Q.replace("1.7.2",version))<0,"unknown predecessor denied "+version);
         }
         for (String h : new String[]{
                 H.replace("boot_phase=READY","boot_phase=HANDOFF_FAILED"),

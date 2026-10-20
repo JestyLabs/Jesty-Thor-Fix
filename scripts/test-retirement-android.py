@@ -22,7 +22,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = 'org.example.rfixture'
 AVD = 'pr67-ci-api33'
-VERSIONS = ('1.7.1', '1.7.2', '1.7.3')
+VERSIONS = ('1.7.1', '1.7.2', '1.7.3', '1.7.4')
 
 def execute(command, timeout=120, check=True):
     p = subprocess.run(list(map(str, command)), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,

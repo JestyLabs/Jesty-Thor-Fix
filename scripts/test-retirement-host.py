@@ -26,11 +26,12 @@ def execute(command, expected=None):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--negative-controls", action="store_true")
+    parser.add_argument('--predecessor', choices=('1.7.1', '1.7.2', '1.7.3', '1.7.4'))
     args = parser.parse_args()
     if not shutil.which("javac") or not shutil.which("java"):
         print("NOT RUN: existing JDK unavailable; no installation permitted")
         return 2
-    for version in ("1.7.1", "1.7.2", "1.7.3"):
+    for version in ((args.predecessor,) if args.predecessor else ('1.7.1', '1.7.2', '1.7.3', '1.7.4')):
         with tempfile.TemporaryDirectory(prefix="retirement-host-") as tmp:
             root = Path(tmp)
             source = root / "src"
