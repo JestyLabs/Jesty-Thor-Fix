@@ -182,6 +182,10 @@ def run(args):
             (args.output / 'results.json').write_text(json.dumps(results, indent=2), encoding='utf-8')
             print('PASS: ' + scenario + '; real Android power query, synthetic panels', flush=True)
     finally:
+        try:
+            (args.output / 'last-state.json').write_text(json.dumps(state(), indent=2), encoding='utf-8')
+        except (ValueError, RuntimeError):
+            print('Final synthetic fixture state unavailable; original test outcome is unchanged', flush=True)
         shell('cmd', 'power', 'set-mode', '0')
         shell('input', 'keyevent', '224')
         shell('dumpsys', 'battery', 'reset')

@@ -437,5 +437,6 @@ jobs:
             ${{ runner.temp }}/retirement-android/provenance.json
             ${{ runner.temp }}/retirement-android/results.json
             ${{ runner.temp }}/retirement-android/*/*-runtime.txt
+            ${{ runner.temp }}/display-wake-results/*.json
           if-no-files-found: warn
           retention-days: 14
