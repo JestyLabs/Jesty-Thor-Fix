@@ -118,7 +118,7 @@ def build(args):
                         'unavailable_apk_sha256': digest(trial / 'unavailable.apk')})
     (out / 'provenance.json').write_text(json.dumps({'ndk': '27.2.12479018', 'api': 33, 'abi': 'x86_64',
          'production_signing': False, 'fixtures': records}, indent=2) + '\n', encoding='utf-8')
-    print('RETIREMENT_ANDROID_BUILD: three frozen producers + actual JNI + disposable APKs built')
+    print(f'RETIREMENT_ANDROID_BUILD: {len(VERSIONS)} frozen producers + actual JNI + disposable APKs built')
 
 def run(args):
     if not re.fullmatch(r'emulator-[0-9]+', args.serial or '') or args.avd != AVD:
@@ -265,7 +265,7 @@ def run(args):
               'cases': results, 'vendor_binder': 'ABSENT_NOT_TESTED', 'physical': 'NOT_RUN',
               'cleanup': 'OWNED_CHILDREN_WAITED_AND_DISPOSABLE_PACKAGE_REMOVED', 'provenance': provenance}
     (out / 'results.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
-    print('RETIREMENT_ANDROID: 6 cases PASS; real JNI + frozen producer + exit + READY; vendor/physical NOT RUN')
+    print(f'RETIREMENT_ANDROID: {len(results)} cases PASS; real JNI + frozen producer + exit + READY; vendor/physical NOT RUN')
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
