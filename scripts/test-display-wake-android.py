@@ -156,6 +156,28 @@ def run(args):
             results.append({'scenario': order, 'result': final})
             (args.output / 'results.json').write_text(json.dumps(results, indent=2), encoding='utf-8')
             print('PASS: ' + order + '; property=' + final['property'] + '; hardwareCalls=0', flush=True)
+        # Actual hidden PowerManager Binder read in the production coordinator;
+        # only panel calls are synthetic. CRTC 0/0 alone is covered separately on host.
+        shell('am', 'broadcast', '--receiver-foreground', '-n', COMPONENT + 'DisplayWakeControl',
+              '--ez', 'backoff', 'true')
+        armed = wait_for(lambda: state() if state().get('backoffTest') and state().get('backoff') else None,
+                         'slow failed synthetic call arms back-off')
+        assert armed['hardwareCalls'] == 1 and armed['actionStatus'] == 'APPLY_FAILED', armed
+        # Leave the one-second query budget available for SCREEN_OFF.
+        time.sleep(1.2)
+        shell('input', 'keyevent', '223')
+        wait_for(lambda: state()['offSeen'], 'real back-off SCREEN_OFF')
+        asleep = state()
+        assert asleep['backoff'] and asleep['hardwareCalls'] == 1, asleep
+        assert any(e['event'] == 'android.intent.action.SCREEN_OFF' and not e['interactive']
+                   for e in asleep['events']), asleep
+        time.sleep(1.2)
+        shell('input', 'keyevent', '224')
+        final = wait_for(lambda: state() if state()['finished'] else None, 'real back-off wake settled')
+        assert not final['backoff'] and final['hardwareCalls'] == 2 and final['property'] == '1', final
+        results.append({'scenario': 'backoff-real-power-cycle', 'result': final})
+        (args.output / 'results.json').write_text(json.dumps(results, indent=2), encoding='utf-8')
+        print('PASS: backoff-real-power-cycle; real Android power query, synthetic panels', flush=True)
     finally:
         shell('cmd', 'power', 'set-mode', '0')
         shell('input', 'keyevent', '224')

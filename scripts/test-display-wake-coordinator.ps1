@@ -24,3 +24,6 @@ if ($LASTEXITCODE -ne 0) { throw 'Coordinator host compilation failed' }
 if ($LASTEXITCODE -ne 0) { throw 'Coordinator host regression failed' }
 & java -cp $OutputDirectory com.thor.displaypowertest.BottomWakeCharacterizationTest
 if ($LASTEXITCODE -ne 0) { throw 'BOTH coordinator characterization failed' }
+
+& python (Join-Path $PSScriptRoot 'test-display-backoff-host.py')
+if ($LASTEXITCODE -ne 0) { throw 'Display back-off regressions or negative controls failed' }

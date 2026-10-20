@@ -6,6 +6,7 @@ import android.content.Intent;
 public final class DisplayWakeControl extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         if (DisplayWakeActivity.instance == null) throw new IllegalStateException("Start fixture activity first");
-        DisplayWakeActivity.instance.arm();
+        if (intent.getBooleanExtra("backoff", false)) DisplayWakeActivity.instance.armBackoff();
+        else DisplayWakeActivity.instance.arm();
     }
 }

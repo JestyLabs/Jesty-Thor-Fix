@@ -23,6 +23,7 @@ public final class DisplayWakeActivity extends Activity {
     private PowerManager power;
     private int epoch;
     private boolean armed, offSeen, onSeen, finished;
+    private boolean backoffTest;
     private String pendingProperty = "?";
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
@@ -32,6 +33,20 @@ public final class DisplayWakeActivity extends Activity {
                 TestDisplayState.sleep();
             } else if (armed && offSeen && Intent.ACTION_SCREEN_ON.equals(action)) {
                 onSeen = true;
+                if (backoffTest) {
+                    final int wakeEpoch = epoch;
+                    handler.postDelayed(() -> {
+                        if (wakeEpoch != epoch) return;
+                        TestDisplayState.mode = "0";
+                        TestDisplayState.top = "1";
+                        TestDisplayState.bottom = "0";
+                        DisplayActionCoordinator.onWatcherSample("0");
+                        finished = true;
+                        record("BACKOFF_WAKE_SETTLED");
+                    }, 1500L);
+                    record(action);
+                    return;
+                }
                 TestDisplayState.wakeTop();
                 pendingProperty = TestDisplayState.property;
                 DisplayActionCoordinator.noteDisplayOn();
@@ -67,11 +82,25 @@ public final class DisplayWakeActivity extends Activity {
     }
     void arm() {
         epoch++;
+        backoffTest = false;
         TestDisplayState.baseline();
         events = new JSONArray();
         offSeen = false; onSeen = false; finished = false; armed = true;
         pendingProperty = "?";
         record("ARMED");
+    }
+    void armBackoff() {
+        arm();
+        backoffTest = true;
+        TestDisplayState.mode = "0";
+        TestDisplayState.top = "1";
+        TestDisplayState.bottom = "0";
+        TestDisplayState.callAdvanceMs = 5300L;
+        TestDisplayState.powerFailure = true;
+        DisplayActionCoordinator.onWatcherSample("0");
+        TestDisplayState.callAdvanceMs = 0L;
+        TestDisplayState.powerFailure = false;
+        record("BACKOFF_ARMED");
     }
     private void record(String action) {
         try {
@@ -89,6 +118,9 @@ public final class DisplayWakeActivity extends Activity {
             state.put("propertyWrites", TestDisplayState.propertyWrites);
             state.put("hardwareCalls", TestDisplayState.hardwareCalls);
             state.put("pending", WakeRepairScheduler.isPending());
+            state.put("backoffTest", backoffTest);
+            state.put("backoff", DisplayActionCoordinator.isLowerOnBackoff());
+            state.put("actionStatus", DisplayActionCoordinator.status());
             try (FileOutputStream output = new FileOutputStream(new File(getFilesDir(), "result.json"))) {
                 output.write(state.toString(2).getBytes(StandardCharsets.UTF_8));
             }
