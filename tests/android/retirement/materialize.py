@@ -79,6 +79,8 @@ def materialize(version, destination):
         # Deliberately inert boundary: this test exercises retirement, not display power.
         copy(HERE / "src" / PACKAGE / "BottomIdleRuntime.java",
              Path("candidate/src") / output_package / "BottomIdleRuntime.java")
+        copy(HERE / "src" / PACKAGE / "BottomIdleTileService.java",
+             Path("candidate/src") / output_package / "BottomIdleTileService.java")
         copy(HERE / "src" / PACKAGE / "RetirementFixtureHardware.java",
              Path("predecessor/src") / output_package / "RetirementFixtureHardware.java")
         for name in ("RetirementFixtureHardware", "RetirementFixtureActivity", "RetirementFixtureMailbox",
