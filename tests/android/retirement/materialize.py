@@ -32,6 +32,7 @@ APP = (
     "DaemonResponsePolicy", "LegacyDaemonIdentity", "BridgeFailureDiagnostic",
     "DashboardRenderer", "DashboardStateModel", "CpuWarningModel", "TelemetryValues",
     "DashboardLayout", "DashboardViews", "DashboardStyle", "DashboardSettingsController",
+    "BottomIdleSettings",
 )
 
 
@@ -75,6 +76,9 @@ def materialize(version, destination):
         copy(WORK / "src/R.java", Path("candidate/src/R.java"))
         copy(HERE / "src/D.java", Path("candidate/src/D.java"))
         copy(HERE / "src/D.java", Path("predecessor/src/D.java"))
+        # Deliberately inert boundary: this test exercises retirement, not display power.
+        copy(HERE / "src" / PACKAGE / "BottomIdleRuntime.java",
+             Path("candidate/src") / output_package / "BottomIdleRuntime.java")
         copy(HERE / "src" / PACKAGE / "RetirementFixtureHardware.java",
              Path("predecessor/src") / output_package / "RetirementFixtureHardware.java")
         for name in ("RetirementFixtureHardware", "RetirementFixtureActivity", "RetirementFixtureMailbox",
