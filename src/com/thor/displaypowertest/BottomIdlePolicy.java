@@ -39,6 +39,41 @@ public final class BottomIdlePolicy {
         return true;
     }
 
+    /**
+     * Atomically check admission and process a mode sample. -1 means disabled,
+     * 0 means unchanged, and 1 means a mode edge invalidated previous touch.
+     * A single policy monitor covers the entire decision and mutation.
+     */
+    public synchronized int sampleModeIfEnabled(String actual) {
+        if (!enabled) return -1;
+        boolean nextBoth = "0".equals(actual);
+        if (nextBoth == both) return 0;
+        both = nextBoth;
+        clear();
+        return 1;
+    }
+
+    /** Explicitly invalidate touch evidence only while the feature is enabled. */
+    public synchronized boolean wakeIfEnabled() {
+        if (!enabled) return false;
+        clear();
+        return true;
+    }
+
+    /**
+     * On input monitor failure, revoke all touch proof and atomically return
+     * a new exact restoration lease, if a prior OFF/restore may still be owned.
+     * No separate check/read/wake steps are exposed to the caller.
+     */
+    public synchronized long inputUnavailableRestoreLease() {
+        if (!enabled) return REJECTED_TOUCH;
+        boolean restore = off || pending || restorePending;
+        clear();
+        if (!restore) return -1L;
+        restorePending = true;
+        return ++generation;
+    }
+
     /** Resets stale timers after a display wake without guessing if it was interactive. */
     public synchronized void wake() { clear(); }
 
