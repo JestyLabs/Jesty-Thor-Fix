@@ -39,11 +39,17 @@ public final class BottomIdlePolicyTest {
         p.touch(306001);
         check(!p.isPending(token), "touch cancels stale timeout");
         check(!p.completeOff(token, true, 306002), "stale completion cannot claim off");
+        long cancelledRestore = p.generation();
+        check(p.completeRestore(cancelledRestore, true),
+                "cancelled pending OFF requires confirmed restore before rearm");
         long second = p.beginOff(606001);
         check(p.completeOff(second, true, 606001), "confirmed auto-off");
         check(p.isOff() && p.suppressNativeRestore(), "preserve intentional off");
         check(p.touch(606002), "touch requests restoration");
-        check(!p.isOff() && p.delayMs(606002) == 300000, "rearm after touch");
+        check(!p.isOff() && p.delayMs(606002) == -1,
+                "a pending restore must block a new timeout");
+        check(p.completeRestore(p.generation(), true), "confirmed restore clears guard");
+        check(p.delayMs(606002) == 300000, "rearm after confirmed restore");
         p.mode("1");
         check(p.delayMs(999999) == -1, "TOP never arms");
         p.mode("0");
