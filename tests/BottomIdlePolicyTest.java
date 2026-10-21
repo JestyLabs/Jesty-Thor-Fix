@@ -89,9 +89,18 @@ public final class BottomIdlePolicyTest {
         check(firstOff > 0L, "first timed OFF admitted");
         check(restore.completeOff(firstOff, true, 60100), "physical confirmation owned");
         check(restore.touch(60101), "OFF touch requests restoration");
+        // Mirror the real callback: touch() followed by the pointer DOWN transition.
+        long prematureLease = restore.generation();
+        restore.pointerDown(true);
         long oldLease = restore.generation();
+        check(!restore.canRestore(prematureLease),
+                "TOCTOU: a lease captured before pointer DOWN is already invalid");
         check(restore.canRestore(oldLease), "current restore lease valid");
         check(restore.touch(60102), "ACTION_UP must retain restore pending");
+        long staleBeforeUp = restore.generation();
+        restore.pointerDown(false);
+        check(!restore.canRestore(staleBeforeUp),
+                "TOCTOU: ACTION_UP pointer transition also advances the lease");
         check(!restore.canRestore(oldLease), "ACTION_UP invalidates only the old callback");
         long freshLease = restore.generation();
         check(restore.canRestore(freshLease), "ACTION_UP re-issues current restore");
