@@ -165,7 +165,6 @@ public final class BottomIdleRuntime {
             if (receiver == null || epoch != monitorEpoch || !POLICY.enabled()
                     || "UNAVAILABLE".equals(inputState) || !DaemonState.isEnabled()) return;
             restore = POLICY.touch(now);
-            restoreLease = restore ? POLICY.generation() : -1L;
             if (!POLICY.inputVerified()) return;
             if (action == android.view.MotionEvent.ACTION_DOWN
                     || action == android.view.MotionEvent.ACTION_POINTER_DOWN
@@ -175,6 +174,9 @@ public final class BottomIdleRuntime {
                     || action == android.view.MotionEvent.ACTION_CANCEL) {
                 POLICY.pointerDown(false);
             }
+            // pointerDown() can advance the generation on DOWN/UP. Mint the
+            // queued restore lease only after all event policy mutations.
+            restoreLease = restore ? POLICY.generation() : -1L;
             inputState = "OBSERVED";
             active = handler;
             scheduleLocked(now);
