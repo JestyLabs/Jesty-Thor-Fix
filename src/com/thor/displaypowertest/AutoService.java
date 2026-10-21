@@ -27,6 +27,12 @@ public final class AutoService extends Service {
         workerRunning = true;
         final android.content.SharedPreferences state = getSharedPreferences("state", MODE_PRIVATE);
         final RebootActivation.Ticket activation = RebootActivation.ticket(this, state);
+        if (activation.recoveryBlocked()) {
+            workerRunning = false;
+            Log.w(TAG, "unconfirmed recovery requires an independently observed new kernel boot");
+            stopSelf();
+            return START_NOT_STICKY;
+        }
         final boolean bootAuthorized = RebootActivation.allowStart(this, state);
         if (!bootAuthorized && activation.evidence() != RebootActivation.Evidence.RESTART_REQUIRED) {
             workerRunning = false;
@@ -51,8 +57,8 @@ public final class AutoService extends Service {
                             + " receiver_ms=" + receiverAt + " service_ms=" + serviceAt);
                     boolean protocolMigration = !state.getBoolean("daemon_protocol_unix_v2", false);
                     if (liveHandover) {
-                        // Only the two exact published predecessors with confirmed BOTH,
-                        // CPU/display/lid state may be retired; no blind process kills.
+                        // Only exact published predecessors with confirmed retained
+                        // display/CPU/Guard state may be retired.
                         int previousPid = PServer.stopLivePredecessorIfSafe(enabled,
                                 dashboardFixEnabled, state.getBoolean("lid_guard_enabled", false));
                         if (previousPid < 1) {
@@ -85,8 +91,14 @@ public final class AutoService extends Service {
                             probe = PServer.probe(enabled);
                         }
                     }
-                    if ((probe == Probe.STARTING || probe == Probe.UNHEALTHY)
-                            && PServer.stopReplaceableSecureDaemonIfSafe(enabled)) {
+                    boolean recoveryAttempted = probe == Probe.STARTING || probe == Probe.UNHEALTHY;
+                    boolean recoveryConfirmed = recoveryAttempted
+                            && PServer.stopReplaceableSecureDaemonIfSafe(enabled, activation::beginRecovery);
+                    if (recoveryConfirmed) {
+                        if (!activation.completeRecoveryExit()) {
+                            Log.e(TAG, "recovery exit fence could not be cleared; replacement held");
+                            return;
+                        }
                         // A failed handover or a stalled boot phase would
                         // otherwise hold display actions until the next reboot.
                         for (int poll = 0; poll < 25 && PServer.reachable(); poll++) {
@@ -114,9 +126,14 @@ public final class AutoService extends Service {
                         Log.e(TAG, "legacy listener present; normal reboot required");
                         return;
                     }
+                    if (probe == Probe.UNREACHABLE && recoveryAttempted && !recoveryConfirmed) {
+                        Log.e(TAG, "recovery exit receipt unavailable; replacement held");
+                        return;
+                    }
                     // Foreground recovery after a missed broadcast also enters the boot coordinator.
                     boolean held = true;
                     for (int launch = 0; launch < 2 && probe == Probe.UNREACHABLE; launch++) {
+                        if (!liveHandover && !activation.isAuthorized()) return;
                         long launchWait = SystemClock.elapsedRealtime() - serviceAt;
                         Log.d(TAG, "launching daemon socket=" + socketState
                                 + " launch_wait_ms=" + launchWait);

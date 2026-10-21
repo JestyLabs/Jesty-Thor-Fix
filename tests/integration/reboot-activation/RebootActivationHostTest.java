@@ -205,7 +205,18 @@ public final class RebootActivationHostTest {
         run("same-version-held-recovery-retained",1,1,true);
         check(FixtureState.lastHeld,"same-version recovery remains held");
         FixtureState.reset("1.7.5");prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";FixtureState.stopEffective=false;
-        run("same-version-stop-no-effect-no-duplicate",1,0,true);
+        run("same-version-stop-no-effect-no-duplicate",1,0,false);
+        for(String fault:new String[]{"stale","malformed","missing","oversized"}){
+            FixtureState.reset("1.7.5");prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";
+            RetirementNative.receiptFault=fault;
+            run("same-version-receipt-"+fault+"-no-successor",1,0,false);
+            run("same-version-receipt-"+fault+"-reopen-still-held",0,0,false);
+            FixtureState.saved=new java.util.HashMap<>(FixtureState.durable);
+            FixtureState.clearRecoveryProcessCache();
+            run("same-version-receipt-"+fault+"-new-app-process-still-held",0,0,false);
+            FixtureState.boot=C;
+            run("same-version-receipt-"+fault+"-new-boot-allows-held-launch",0,1,true);
+        }
         FixtureState.reset(null);prepareThenReboot();FixtureState.afterLaunchPhase="WAITING_FOR_ANDROID";
         run("starting-not-ready",0,1,true);
         check(FixtureState.phase.equals("WAITING_FOR_ANDROID"),"STARTING is not relabeled READY");

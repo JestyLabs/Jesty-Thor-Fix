@@ -26,7 +26,7 @@ SERVER = (
     "DaemonIpcServer", "SecureChannel", "IpcPeerPolicy", "DaemonLaunchModel",
 )
 APP = (
-    "AutoService", "PServer", "LiveRetirement", "RetirementNative",
+    "AutoService", "PServer", "LiveRetirement", "RetirementNative", "FailedStartRetirementPolicy",
     "LiveHandoverPolicy", "PreviousSecureDaemonIdentity", "RebootActivation",
     "RebootActivationPolicy", "DaemonLaunchScript", "SocketClient",
     "DaemonResponsePolicy", "LegacyDaemonIdentity", "BridgeFailureDiagnostic",

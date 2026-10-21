@@ -17,8 +17,10 @@ public final class RetirementFixtureHardware {
     static final File READY = new File(DIRECTORY, "retirement-fixture-ready");
     static final File STOP = new File(DIRECTORY, "retirement-fixture-stop");
     static final File MODE = new File(DIRECTORY, "retirement-fixture-mode");
+    static final File FAILED = new File(DIRECTORY, "retirement-fixture-failed");
     static String selectedMode = "0";
     static boolean predecessor;
+    static boolean failedStart;
     static long began;
 
     private RetirementFixtureHardware() {}
@@ -36,6 +38,8 @@ public final class RetirementFixtureHardware {
             throw new IllegalStateException("Wrong predecessor or non-fresh fixture");
         }
         predecessor = old;
+        failedStart = FAILED.isFile();
+        if (failedStart && old) throw new IllegalStateException("Recovery uses the current real producer");
         selectedMode = new String(Files.readAllBytes(MODE.toPath()), StandardCharsets.US_ASCII);
         if (!"0".equals(selectedMode) && !"1".equals(selectedMode)) {
             throw new IllegalStateException("Prepared fixture mode is invalid");
@@ -70,7 +74,10 @@ final class BootSafety {
     static boolean isHeld() {
         return !RetirementFixtureHardware.predecessor && !RetirementFixtureHardware.READY.isFile();
     }
-    static String phase() { return isHeld() ? "WAITING_FOR_ANDROID" : "READY"; }
+    static String phase() {
+        return RetirementFixtureHardware.failedStart ? "HANDOFF_FAILED"
+                : isHeld() ? "WAITING_FOR_ANDROID" : "READY";
+    }
     static long phaseAgeMs() {
         return SystemClock.elapsedRealtime() - RetirementFixtureHardware.began;
     }

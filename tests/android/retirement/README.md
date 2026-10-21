@@ -33,11 +33,21 @@ Before mutation, the driver requires an emulator-shaped serial, the exact owned
 AVD `pr67-ci-api33`, qemu=1, API33, x86_64 and absent PServerBinder. It recertifies
 after root; every ADB command is serial-specific. Physical/foreign targets fail.
 
-Eight cases cover native support and deliberately omitted native support for all
-four origins. The `transport` route invokes actual LiveRetirement/JNI/fixed R:
+Sixteen update cases cover native support and deliberately omitted support in
+BOTH/TOP for all four origins. Four additional recovery cases use the current
+real producer in BOTH/TOP with either native variant and a synthetic failed-start
+phase. The `transport` route invokes actual LiveRetirement/JNI/fixed R:
 app-opened descriptors, both I/Q rounds, kernel peer identity, retained process,
 image guard, COMMIT, confirmed exit and fresh receipt remain product logic.
 There is no caller-selected PID or numeric-PID signaling fallback.
+
+Recovery shares that mechanism, with two authenticated I observations and its
+separate same-version failed-start policy; it does not require a READY predecessor
+or read Q for authorization. The fixture explicitly seeds prior activation, then
+uses the actual durable preferences fence before COMMIT and clears it only after
+the clean exit receipt. This synthetic setup is not a published-version upgrade
+or real firmware failed-start acceptance. Exact-head retained results establish
+which of the twenty cases actually passed.
 
 The image lacks vendor Binder. An external process-owning supervisor replaces
 only submission with two fixed operations: launch the validated R helper nonce,
@@ -53,7 +63,8 @@ base APK; a host library, arbitrary path or Java native stub is not equivalent.
 
 Candidate STARTING must remain ACTIVATION PENDING. Only after the synthetic READY
 marker may authenticated I/Q yield ACTIVE. Kernel boot must remain unchanged.
-Missing JNI must preserve the old peer and deny helper, successor and activation.
+Missing JNI must preserve the old peer, deny helper/successor and preserve only
+the activation permission that existed before the trial.
 Panels, CPU, Guard, watcher and boot readiness are synthetic; hardware-changing
 requests throw. Generic Android does not prove vendor launch, firmware readiness
 or physical display behavior. No firmware/framework changes belong here.

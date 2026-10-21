@@ -26,6 +26,7 @@ public final class RetirementFixtureInstrumentation extends Instrumentation {
     private Bundle arguments;
     private RetirementFixtureActivity activity;
     private String lastPeerPid;
+    private boolean recovery;
 
     @Override public void onCreate(Bundle args) {
         super.onCreate(args);
@@ -48,6 +49,9 @@ public final class RetirementFixtureInstrumentation extends Instrumentation {
                     "Owner must separately approve the exact disposable candidate/trial");
             String version = arguments.getString("predecessor", "");
             String mode = arguments.getString("mode", "both");
+            String purpose = arguments.getString("purpose", "update");
+            require("update".equals(purpose) || "recovery".equals(purpose), "Exact purpose required");
+            recovery = "recovery".equals(purpose);
             require("both".equals(mode) || "top".equals(mode), "Exact fixture mode required");
             require("1.7.1".equals(version) || "1.7.2".equals(version)
                     || "1.7.3".equals(version) || "1.7.4".equals(version), "Exact predecessor required");
@@ -63,6 +67,7 @@ public final class RetirementFixtureInstrumentation extends Instrumentation {
             }
             result.putString("hardware", "MODELLED_NO_PHYSICAL_ACCEPTANCE");
             result.putString("display_mode", mode);
+            result.putString("purpose", purpose);
             result.putString("exit_observation", "PRODUCT_DESCRIPTOR_RECEIPT_NOT_INDEPENDENT_SUPERVISOR");
             result.putString("acceptance", "OWNER_SUPERVISOR_AND_CLEANUP_VALIDATION_REQUIRED");
         } catch (Throwable failure) {
@@ -87,7 +92,8 @@ public final class RetirementFixtureInstrumentation extends Instrumentation {
         require(!RetirementFixtureHardware.ARMED.exists()
                 && !RetirementFixtureHardware.READY.exists()
                 && !RetirementFixtureHardware.STOP.exists()
-                && !RetirementFixtureHardware.MODE.exists(), "Refuse stale fixture markers");
+                && !RetirementFixtureHardware.MODE.exists()
+                && !RetirementFixtureHardware.FAILED.exists(), "Refuse stale fixture markers");
         require(preferences.edit().putBoolean("fix_enabled", true)
                 .putBoolean("dashboard_cpu_fix_enabled", false)
                 .putBoolean("lid_guard_enabled", false)
@@ -96,6 +102,11 @@ public final class RetirementFixtureInstrumentation extends Instrumentation {
                 == RebootActivation.Evidence.RESTART_REQUIRED, "Preparation cannot authorize same boot");
         marker(RetirementFixtureHardware.ARMED, version);
         marker(RetirementFixtureHardware.MODE, "top".equals(mode) ? "1" : "0");
+        if (recovery) {
+            marker(RetirementFixtureHardware.FAILED, "synthetic-failed-start");
+            require(RebootActivation.ticket(context, preferences).confirmLiveHandover(),
+                    "Recovery fixture seeds prior activation; not a product handover proof");
+        }
     }
 
     private void activate(Context context, SharedPreferences preferences, String version, String mode,
@@ -109,17 +120,20 @@ public final class RetirementFixtureInstrumentation extends Instrumentation {
         require(!RetirementFixtureHardware.READY.exists() && !RetirementFixtureHardware.STOP.exists(),
                 "Refuse replayed READY/STOP markers");
         RebootActivation.Ticket ticket = RebootActivation.ticket(context, preferences);
-        require(ticket.evidence() == RebootActivation.Evidence.RESTART_REQUIRED,
-                "Native trial must not bypass retirement with reboot/live authorization");
+        require(recovery ? ticket.isAuthorized()
+                : ticket.evidence() == RebootActivation.Evidence.RESTART_REQUIRED,
+                "Trial must have the declared prior activation state");
         Map<String, String> health = authenticatedIdentity();
-        require(version.equals(health.get("version")), "Real frozen predecessor must already be listening");
+        String oldVersion = recovery ? DaemonIdentity.RUNTIME_ID : version;
+        require(oldVersion.equals(health.get("version")), "Exact real producer must already be listening");
+        if (recovery) require("HANDOFF_FAILED".equals(health.get("boot_phase")), "Synthetic failed phase required");
         String oldPid = health.get("pid");
         Map<String, String> oldSnapshot = TelemetryValues.parse(SocketClient.request('Q', 2500));
         require(expectedMode.equals(oldSnapshot.get("mode")) && "1".equals(oldSnapshot.get("top_crtc"))
                 && ("top".equals(mode) ? "0" : "1").equals(oldSnapshot.get("bottom_crtc")),
                 "Actual predecessor mode and synthetic CRTC state match the trial");
-        require("1.7.1".equals(version) ? !oldSnapshot.containsKey("runtime_version")
-                : version.equals(oldSnapshot.get("runtime_version")), "Exact actual published Q format");
+        require("1.7.1".equals(oldVersion) ? !oldSnapshot.containsKey("runtime_version")
+                : oldVersion.equals(oldSnapshot.get("runtime_version")), "Exact actual Q format");
         activity = (RetirementFixtureActivity) startActivitySync(new Intent(context,
                 RetirementFixtureActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         require(!"ACTIVE".equals(render(oldSnapshot)), "Old identity must not be ACTIVE");
@@ -127,6 +141,7 @@ public final class RetirementFixtureInstrumentation extends Instrumentation {
         require("service".equals(route) || "adapter".equals(route) || "transport".equals(route),
                 "Fixed service, adapter or emulator transport route only");
         boolean transport = "transport".equals(route);
+        require(!recovery || transport, "Recovery requires the fixed owned transport");
         if (transport) result.putString("vendor_bridge", "NOT_EXECUTED_EXTERNAL_FIXED_SUPERVISOR");
         String expectation = arguments.getString("expect", "success");
         require("success".equals(expectation) || "unavailable".equals(expectation),
@@ -142,7 +157,9 @@ public final class RetirementFixtureInstrumentation extends Instrumentation {
             int receipt;
             if (transport) {
                 try {
-                    receipt = LiveRetirement.retire(true, false, false, RetirementFixtureMailbox::submitHelper);
+                    receipt = recovery
+                            ? LiveRetirement.recover(true, ticket::beginRecovery, RetirementFixtureMailbox::submitHelper)
+                            : LiveRetirement.retire(true, false, false, RetirementFixtureMailbox::submitHelper);
                 } catch (java.io.IOException | LinkageError rejected) {
                     result.putString("retirement_error", rejected.toString());
                     receipt = -1;
@@ -152,6 +169,12 @@ public final class RetirementFixtureInstrumentation extends Instrumentation {
                 require(receipt > 100 && Integer.toString(receipt).equals(oldPid),
                         "Actual descriptor-confirmed product receipt for the authenticated old peer");
                 result.putString("retirement_receipt", "FRESH_AUTHENTICATED_EXIT");
+                if (recovery) {
+                    require(ticket.recoveryBlocked(), "Real durable fence must precede the clean exit receipt");
+                    require(ticket.completeRecoveryExit(), "Clean receipt permits actual durable fence clear");
+                    result.putString("recovery_fence", "REAL_PREFS_MARKED_BEFORE_COMMIT_CLEARED_AFTER_EXIT");
+                    require(RetirementFixtureHardware.FAILED.delete(), "Remove owned synthetic failure marker");
+                }
                 require(transport ? RetirementFixtureMailbox.launchSuccessor()
                         : PServer.startDaemon(true, true, false, false), "Held successor launch");
             } else require(receipt < 0, "Unavailable native cannot return a retirement receipt");
@@ -161,10 +184,10 @@ public final class RetirementFixtureInstrumentation extends Instrumentation {
         if (unavailable) {
             SystemClock.sleep(1000L);
             Map<String, String> unchanged = authenticatedIdentity();
-            require(version.equals(unchanged.get("version")) && oldPid.equals(unchanged.get("pid")),
+            require(oldVersion.equals(unchanged.get("version")) && oldPid.equals(unchanged.get("pid")),
                     "Unavailable support preserves the same old root peer");
-            require(!RebootActivation.ticket(context, preferences).isAuthorized(),
-                    "Unavailable support retains reboot fallback, not live permission");
+            require(RebootActivation.ticket(context, preferences).isAuthorized() == recovery,
+                    "Unavailable support preserves prior activation without granting new permission");
             require(!"ACTIVE".equals(render(oldSnapshot)), "Unavailable route cannot show ACTIVE");
             result.putString("outcome", "PASS_CLOSED_NATIVE_UNAVAILABLE");
             return;
@@ -176,7 +199,7 @@ public final class RetirementFixtureInstrumentation extends Instrumentation {
         if ("adapter".equals(route) || transport) {
             require(PServer.probe(true) == DaemonLaunchModel.Probe.STARTING,
                     "Authenticated same-intent STARTING before durable permission");
-            require(ticket.confirmLiveHandover(), "Actual durable live marker");
+            if (!recovery) require(ticket.confirmLiveHandover(), "Actual durable live marker");
         }
         long deadline = SystemClock.elapsedRealtime() + 5000L;
         while (!RebootActivation.ticket(context, preferences).isAuthorized()

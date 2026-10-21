@@ -24,7 +24,7 @@ PACKAGE = Path("com/thor/displaypowertest")
 PRODUCT = (
     "AutoService", "PServer", "LiveRetirement", "RebootActivation",
     "RebootActivationPolicy", "PreviousSecureDaemonIdentity", "LiveHandoverPolicy",
-    "DaemonLaunchModel", "DashboardRenderer", "DashboardStateModel",
+    "DaemonLaunchModel", "FailedStartRetirementPolicy", "DashboardRenderer", "DashboardStateModel",
     "CpuWarningModel", "TelemetryValues",
 )
 TESTS = (
@@ -33,13 +33,16 @@ TESTS = (
     "RebootActivationPolicyTest",
     "LiveHandoverPolicyTest",
     "com.thor.displaypowertest.PredecessorRecheckHostTest",
+    "com.thor.displaypowertest.RecoveryRetirementHostTest",
+    "com.thor.displaypowertest.RecoveryFenceHostTest",
 )
 MUTANTS = (
     ("same-kernel-authorized", "RebootActivationPolicy.java",
      "!boot.equalsIgnoreCase(savedBoot)", "true",
      "RebootActivationPolicyTest", (), "same kernel cannot authorize"),
-    ("service-gate-bypassed", "RebootActivation.java",
-     "return ticket(context, preferences).isAuthorized();", "return true;",
+    ("activation-authorization-bypassed", "RebootActivation.java",
+     "Evidence result = evidence();\n"
+     "            return result == Evidence.BOOT_VERIFIED || result == Evidence.LIVE_VERIFIED;", "return true;",
      TESTS[0], (), "first-open-prepares-only: launches"),
     ("retained-second-snapshot-guard-removed", "LiveRetirement.java",
      "requireUnchangedEligible(firstHealth, firstSnapshot, response,\n"
@@ -50,6 +53,16 @@ MUTANTS = (
      '"1.7.1".equals(version) ? "" : ";runtime_version=" + version',
      '";runtime_version=" + version',
      TESTS[4], ("raw-code76",), "raw-code76 must not fabricate runtime identity"),
+    ("recovery-exit-proof-removed", "LiveRetirement.java",
+     "io.signalAndAwaitExit(processFd, control.fd, deadline.remaining(3000));", "",
+     TESTS[5], ("no-effect",), "no-effect: recovery result requires confirmed exit"),
+    ("recovery-second-phase-guard-removed", "FailedStartRetirementPolicy.java",
+     'a.get("boot_phase").equals(b.get("boot_phase"))', 'true',
+     TESTS[5], (), "changed-failed-phase: recovery result requires confirmed exit"),
+    ("recovery-durable-fence-removed", "RebootActivation.java",
+     'boot.equalsIgnoreCase(unconfirmedRecoveryBoot)\n'
+     '                            || boot.equalsIgnoreCase(pending)', 'false',
+     TESTS[6], (), "same boot pending blocks subsequent ticket"),
 )
 
 
@@ -121,8 +134,6 @@ def main():
                 if "stopPreviousSecureDaemonIfSafe" in source or "stopLegacyDaemon" in source:
                     raise RuntimeError("reboot activation must not stop an earlier/legacy daemon")
             if name == "PServer":
-                source = replace_body(source, "private static boolean legacyProtocolSeen()",
-                                      " return false; ")
                 source = replace_body(source, "public static boolean legacyTcpOpen()",
                                       " return FixtureState.legacyPresent; ")
             (src / PACKAGE / (name + ".java")).write_text(source, encoding="utf-8")

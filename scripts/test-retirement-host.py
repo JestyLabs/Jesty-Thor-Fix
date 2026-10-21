@@ -39,7 +39,7 @@ def main():
             product = WORK / "src/com/thor/displaypowertest"
             sources = []
             for name in ("LiveRetirement", "LiveHandoverPolicy", "PreviousSecureDaemonIdentity",
-                         "DaemonLaunchScript", "RetirementNative"):
+                         "DaemonLaunchScript", "DaemonLaunchModel", "FailedStartRetirementPolicy", "RetirementNative"):
                 dest = source / (name + ".java")
                 shutil.copyfile(product / dest.name, dest)
                 sources.append(str(dest))

@@ -9,10 +9,12 @@ import android.os.Build;
 final class RebootActivation {
     private static final String BASELINE = "activation_v3_baseline";
     private static final String LIVE_PROOF = "activation_v3_live_handover";
+    private static final String RECOVERY_PENDING = "activation_v3_recovery_pending";
     private static final Object LOCK = new Object();
     // commit(false) may still change the process-local preferences cache.
     private static String unconfirmedRecord;
     private static String unconfirmedLiveRecord;
+    private static String unconfirmedRecoveryBoot;
 
     enum Evidence { RESTART_REQUIRED, BOOT_VERIFIED, LIVE_VERIFIED, STORAGE_UNAVAILABLE, IDENTITY_UNAVAILABLE }
 
@@ -55,6 +57,8 @@ final class RebootActivation {
             synchronized (LOCK) {
                 if (failure != null) return failure;
                 try {
+                    Evidence recovery = recoveryFailure();
+                    if (recovery != null) return recovery;
                     String record = preferences.getString(BASELINE, "");
                     if (record.equals(unconfirmedRecord)) return Evidence.STORAGE_UNAVAILABLE;
                     String baseline = RebootActivationPolicy.baselineBoot(record, stamp);
@@ -74,6 +78,53 @@ final class RebootActivation {
         boolean isAuthorized() {
             Evidence result = evidence();
             return result == Evidence.BOOT_VERIFIED || result == Evidence.LIVE_VERIFIED;
+        }
+
+        /** An ambiguous stop remains held across app/package changes in this kernel boot. */
+        boolean recoveryBlocked() {
+            return recoveryFailure() != null;
+        }
+
+        private Evidence recoveryFailure() {
+            synchronized (LOCK) {
+                if (!RebootActivationPolicy.validBoot(boot)) return Evidence.IDENTITY_UNAVAILABLE;
+                try {
+                    String pending = preferences.getString(RECOVERY_PENDING, "");
+                    if (!pending.isEmpty() && !RebootActivationPolicy.validBoot(pending)) {
+                        return Evidence.STORAGE_UNAVAILABLE;
+                    }
+                    if (boot.equalsIgnoreCase(unconfirmedRecoveryBoot)
+                            || boot.equalsIgnoreCase(pending)) return Evidence.RESTART_REQUIRED;
+                    return null;
+                } catch (RuntimeException unavailable) { return Evidence.STORAGE_UNAVAILABLE; }
+            }
+        }
+
+        /** Durable failure fence BEFORE the helper receives permission to signal. */
+        boolean beginRecovery() {
+            synchronized (LOCK) {
+                if (!isAuthorized()) return false;
+                try {
+                    if (!boot.equalsIgnoreCase(SecureChannel.currentBootId())) return false;
+                    unconfirmedRecoveryBoot = boot;
+                    return preferences.edit().putString(RECOVERY_PENDING, boot).commit();
+                } catch (RuntimeException unavailable) { return false; }
+            }
+        }
+
+        /** Only a clean, descriptor-confirmed receipt permits removing the fence. */
+        boolean completeRecoveryExit() {
+            synchronized (LOCK) {
+                try {
+                    if (!RebootActivationPolicy.validBoot(boot)
+                            || !boot.equalsIgnoreCase(SecureChannel.currentBootId())
+                            || !boot.equalsIgnoreCase(preferences.getString(RECOVERY_PENDING, ""))) return false;
+                    unconfirmedRecoveryBoot = boot;
+                    if (!preferences.edit().putString(RECOVERY_PENDING, "").commit()) return false;
+                    unconfirmedRecoveryBoot = null;
+                    return isAuthorized();
+                } catch (RuntimeException unavailable) { return false; }
+            }
         }
 
         /** Called only after a safe predecessor stop and authenticated new runtime STARTING/READY. */

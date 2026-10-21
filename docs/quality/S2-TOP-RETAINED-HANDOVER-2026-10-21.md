@@ -25,3 +25,31 @@ Descriptor-bound identity, confirmed old exit, held successor, durable activatio
 The requested notice is shorter, says “contact Jesty” and removes the final uninstall/data sentence from the ordinary transfer notice. Storage/identity-failure guidance is unchanged. Detail text increases12sp→13sp; no layout/activation decision is redesigned.
 
 Independent boundary review, full candidate CI/CodeQL and the affected physical TOP-upgrade gate must be recorded separately. No production signing, release, installation on Thor or physical PASS is implied. A future release needs its own exact artifact/version and currently available upgrade-origin decision; do not re-sign the published code85 or downgrade a device to manufacture a trial.
+
+## Same-version failed-start recovery
+
+The same S2 increment also shares the retained-process transport with the existing
+same-version failed-start recovery. Authorization stays separate: an update needs
+the healthy exact published predecessor and both I/Q rounds; recovery needs the
+current version, matching display intent and an unchanged explicitly replaceable
+failed/stalled boot phase across two I observations. READY is not a failed-start
+state. Duplicate or insufficient identity, unsupported native operations and
+unconfirmed exit remain denials, with no numeric-PID fallback.
+
+Recovery durably holds activation before its COMMIT and clears that hold only
+after the confirmed exit receipt and successful transport cleanup. Interrupted or
+unconfirmed work remains conservative across reopening and package identity
+changes in the same kernel boot. Existing baseline/live activation record formats
+and ordinary restart recovery are preserved. Unused historical numeric stop
+helpers have no runtime callers and are removed; the read-only public predecessor
+policy remains BOTH-only.
+
+HOST validation exercises the actual service, app/helper controllers and durable
+activation machinery: 107 activation scenarios/588 assertions, 38 recovery cases,
+28 storage/boot checks and seven compiled negative controls. The four frozen
+producer suites and TOP successor boot controls remain separate evidence. The
+Android fixture now requests sixteen update plus four recovery cases, using the
+real current producer/JNI/preferences with synthetic failed-start/readiness and
+prior activation inputs. New-head Android/CodeQL execution and independent review
+must be verified before integration; earlier baseline PASS does not qualify this
+changed implementation. Physical Thor acceptance remains NOT RUN.
