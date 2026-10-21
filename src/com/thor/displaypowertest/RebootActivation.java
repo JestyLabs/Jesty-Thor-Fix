@@ -103,11 +103,9 @@ final class RebootActivation {
                         + "Use owner-approved external recovery; do not uninstall or clear app data.";
             }
             if (state == Evidence.RESTART_REQUIRED) {
-                return "The app is checking whether it can safely switch the background service without a reboot. "
-                        + "If the device is in TOP mode, switch to BOTH and reopen the app. "
-                        + "If automatic activation remains unavailable, restart normally. "
-                        + "If activation remains blocked afterward, "
-                        + "use owner-approved external recovery; do not uninstall or clear app data.";
+                return "Switch to BOTH and keep the app open to update the background service. "
+                        + "If it stays pending, restart the Thor once. Still stuck? "
+                        + "Save diagnostics and contact support. Don't uninstall the app or clear its data.";
             }
             return RebootActivationPolicy.restartMessage();
         }

@@ -21,7 +21,7 @@ public final class RebootDashboardHostTest {
         DashboardSettingsController settings=new DashboardSettingsController();int[] requests={0};
         DashboardRenderer ui=renderer(views,requests);ui.render(sample(),settings);
         check(views.stateText.text.equals("SERVICE TRANSFER PENDING")&&settings.pending,"current telemetry cannot bypass same-boot baseline");
-        check(views.stateDetail.text.contains("safely switch"),"successful baseline preparation visible");
+        check(views.stateDetail.text.contains("Switch to BOTH"),"successful baseline preparation visible");
         Map<String,String> beforeBoot=sample();beforeBoot.put("runtime_version","1.7.1");ui.render(beforeBoot,settings);
         check(views.stateText.text.equals("SERVICE TRANSFER PENDING")&&settings.pending,"old runtime cannot skip the first required reboot");
         check(views.displayValue.text.equals("ACTIVATION PENDING"),"prepared baseline is not yet a post-boot mismatch");

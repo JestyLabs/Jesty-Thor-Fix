@@ -164,7 +164,7 @@ final class DashboardLayout {
         subtitle.setPadding(0, 0, 0, views.dp(8));
         content.addView(subtitle);
 
-        stateDetail = views.text("", 12f, MUTED, false);
+        stateDetail = views.text("", 13f, MUTED, false);
         stateDetail.setPadding(0, views.dp(2), 0, views.dp(5));
         stateDetail.setVisibility(View.GONE);
         content.addView(stateDetail);
