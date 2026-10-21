@@ -48,7 +48,7 @@ The host Java suite and the real Android 13 emulator suite exercise **different 
 ./build.ps1 -AndroidSdk $env:ANDROID_SDK_ROOT -ApktoolJar $env:APKTOOL_JAR -JavaHome $env:JAVA_HOME
 ```
 
-The builder compiles Android hidden-API compatibility stubs from `stubs/`, compiles `src/` with Java source/target 8 against Android 34 and those stubs, merges classes with the Apktool/Smali base and D8, then zipaligns the result. The expected unsigned output for this source version is `dist/Jesty-Thor-Fix-1.7.1-unsigned.apk`. **Do not install it as an in-place update**, rename it as a signed release, or upload it to GitHub Releases.
+The builder compiles Android hidden-API compatibility stubs from `stubs/`, compiles `src/` with Java source/target 8 against Android 34 and those stubs, merges classes with the Apktool/Smali base and D8, then zipaligns the result. The unsigned output is `dist/<ArtifactBaseName>-unsigned.apk`. The current default `ArtifactBaseName` is declared at the top of `build.ps1`; use that value rather than assuming a historical release version. A custom name may be supplied through the build script's `-ArtifactBaseName` option. **Do not install it as an in-place update**, rename it as a signed release, or upload it to GitHub Releases.
 
 If a clean build fails, report the exact failing command and dependency versions, not your full environment or private paths. Prefer a minimal, sanitized diagnostic excerpt. CI uses the same checked-in Windows build script and public-source tests. The exact published stable APK is produced only via the separately protected signing and release workflow.
 

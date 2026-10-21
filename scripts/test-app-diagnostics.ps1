@@ -56,6 +56,7 @@ if ($compilers.Count -ne 2 -or @($compilers | Where-Object {
     (Join-Path $repository 'src/com/thor/displaypowertest/PassiveSleepSession.java') `
     (Join-Path $repository 'src/com/thor/displaypowertest/PassiveSleepInstallEpoch.java') `
         (Join-Path $repository 'tests/AppDiagnosticReportTest.java') `
+    (Join-Path $repository 'tests/S1PassiveDiagnosticsEvidenceTest.java') `
     (Join-Path $repository 'tests/AppDiagnosticPreviewTest.java') `
     (Join-Path $repository 'tests/PassiveSleepTrialTest.java') `
     (Join-Path $repository 'tests/PassiveSleepReportCompatibilityTest.java') `
@@ -65,6 +66,8 @@ if ($compilers.Count -ne 2 -or @($compilers | Where-Object {
 if ($LASTEXITCODE -ne 0) { throw 'Diagnostics tests did not compile.' }
 & java -cp $output AppDiagnosticReportTest
 if ($LASTEXITCODE -ne 0) { throw 'Diagnostics tests failed.' }
+& java -cp $output S1PassiveDiagnosticsEvidenceTest
+if ($LASTEXITCODE -ne 0) { throw 'S1 passive evidence regression failed.' }
 & java -cp $output AppDiagnosticPreviewTest
 if ($LASTEXITCODE -ne 0) { throw 'Diagnostics preview tests failed.' }
 

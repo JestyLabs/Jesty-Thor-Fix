@@ -76,6 +76,35 @@ public final class BottomIdlePolicyTest {
         }
         try { p.configure(7); throw new AssertionError("unlisted timeout"); }
         catch (IllegalArgumentException expected) {}
+        BottomIdlePolicy restore = new BottomIdlePolicy();
+        restore.configure(1); restore.mode("0");
+        restore.touch(100);
+        long firstOff = restore.beginOff(60100);
+        check(firstOff > 0L, "first timed OFF admitted");
+        check(restore.completeOff(firstOff, true, 60100), "physical confirmation owned");
+        check(restore.touch(60101), "OFF touch requests restoration");
+        long oldLease = restore.generation();
+        check(restore.canRestore(oldLease), "current restore lease valid");
+        check(restore.touch(60102), "ACTION_UP must retain restore pending");
+        check(!restore.canRestore(oldLease), "ACTION_UP invalidates only the old callback");
+        long freshLease = restore.generation();
+        check(restore.canRestore(freshLease), "ACTION_UP re-issues current restore");
+        check(restore.delayMs(60200) == -1L, "do not rearm while restore is pending");
+        check(!restore.completeRestore(oldLease, true), "stale restore ACK rejected");
+        check(restore.completeRestore(freshLease, true), "fresh confirmed restore clears pending");
+        check(!restore.canRestore(freshLease), "completed restore lease consumed");
+        long nextOff = restore.beginOff(120102);
+        check(nextOff > 0L, "new OFF allowed after restore confirmation");
+        check(!restore.canRestore(freshLease), "new OFF invalidates previous restore");
+        restore.touch(120103);
+        long pendingRestore = restore.generation();
+        restore.mode("1");
+        check(!restore.canRestore(pendingRestore), "TOP mode invalidates queued restore");
+        restore.configure(0);
+        long disabledLease = restore.requireRestore();
+        check(restore.canRestore(disabledLease), "disable can own a restore lease");
+        restore.configure(1);
+        check(!restore.canRestore(disabledLease), "reenable revokes queued disable restore");
         System.out.println("BottomIdlePolicyTest passed");
     }
 }

@@ -406,6 +406,7 @@ $sources = @(
     (Join-Path $repository 'tests\DaemonLaunchScriptTest.java'),
     (Join-Path $repository 'tests\DisplayDecisionModelTest.java'),
     (Join-Path $repository 'tests\DisplayGenerationModelTest.java'),
+    (Join-Path $repository 'tests\DisplayTransitionSafetyMatrixTest.java'),
     (Join-Path $repository 'tests\IpcPeerPolicyTest.java'),
     (Join-Path $repository 'tests\DaemonResponsePolicyTest.java'),
     (Join-Path $repository 'tests\LegacyDaemonIdentityTest.java'),
@@ -467,6 +468,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Boot trace sanitizer characterization failed.'
 if ($LASTEXITCODE -ne 0) { throw 'Display decision tests failed.' }
 & java -cp $output DisplayGenerationModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Display generation tests failed.' }
+& java -cp $output DisplayTransitionSafetyMatrixTest
+if ($LASTEXITCODE -ne 0) { throw 'S1 production-model transition matrix failed.' }
 & java -cp $output IpcPeerPolicyTest
 if ($LASTEXITCODE -ne 0) { throw 'IPC peer policy tests failed.' }
 & java -cp $output DaemonResponsePolicyTest
@@ -489,6 +492,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Daemon argument tests failed.' }
 & (Join-Path $PSScriptRoot 'test-ipc-server-host.ps1')
 & (Join-Path $PSScriptRoot 'test-secure-channel-host.ps1')
 & (Join-Path $PSScriptRoot 'test-reboot-activation-host.ps1')
+& (Join-Path $PSScriptRoot 'test-cpu-resume-host.ps1') -RunNegativeControls
 
 } finally {
     # Per-invocation output cannot collide with another test run.

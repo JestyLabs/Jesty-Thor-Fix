@@ -1,0 +1,26 @@
+[
+  {
+    "file": "original-coordinator.java.txt",
+    "sourceRevision": "705fb76e12c0f0a404e5e87dc46d94ca36481e20",
+    "sourcePath": "src/com/thor/displaypowertest/DisplayActionCoordinator.java",
+    "sha256": "d64367de929e44f929990e420035ebff469dcfc52cd20ec34f3e7b7d6ed8ff11"
+  },
+  {
+    "file": "original-hardware.java.txt",
+    "sourceRevision": "705fb76e12c0f0a404e5e87dc46d94ca36481e20",
+    "sourcePath": "src/com/thor/displaypowertest/DisplayHardware.java",
+    "sha256": "8156f303938ccac60b06d211e8acc184cef4d9989c5ef52762a6d2caba7c5e1a"
+  },
+  {
+    "file": "backoff-coordinator.java.txt",
+    "sourceRevision": "b0cf1cdac5180b0acd533da6c6f53b6a449bc6c9",
+    "sourcePath": "src/com/thor/displaypowertest/DisplayActionCoordinator.java",
+    "sha256": "fdce2b6d2285b964312ffecb186f102d14663259e9fab7efd29268be1722ab09"
+  },
+  {
+    "file": "v174-coordinator.java.txt",
+    "sourceRevision": "8fb93cbd67f0fde4b35859fb7ddc4eab067ab24c",
+    "sourcePath": "src/com/thor/displaypowertest/DisplayActionCoordinator.java",
+    "sha256": "f944f7e411f123e718caab2de2d2228ae68f40255c334d472b650dd65f2a2091"
+  }
+]

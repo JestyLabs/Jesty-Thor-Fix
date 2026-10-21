@@ -1,5 +1,22 @@
 # Release integrity
 
+## 1.7.5 stable publication — 20 October 2026
+
+- Source/tag: `576919815bc1f0c54e5d399a8db8fcba507bfded`; package `com.thor.displaypowertest`, version 1.7.5/code85.
+- Official APK: [`Jesty-Thor-Fix-1.7.5.apk`](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/download/v1.7.5/Jesty-Thor-Fix-1.7.5.apk), 9,303,515 bytes.
+- SHA-256: `0be026c9e81c81c33edbf655fe8b639dc907406933aa96ecd608f9e3797dfff6`. Established signer verified; signing preserves all unsigned payload entries and independent release download matches the signed candidate.
+- [Full main CI/signing](https://github.com/JestyLabs/Jesty-Thor-Fix/actions/runs/39432417954), [CodeQL](https://github.com/JestyLabs/Jesty-Thor-Fix/actions/runs/39432367783) and [protected publication](https://github.com/JestyLabs/Jesty-Thor-Fix/actions/runs/39452119887) passed.
+- [Validation and physical timing exception](VALIDATION-1.7.5.md): physical acceptance is NOT RUN. This corrects diagnostic status; the underlying panel/compositor limitations remain.
+
+## 1.7.4 stable publication — 20 October 2026
+
+- Source/tag: `8fb93cbd67f0fde4b35859fb7ddc4eab067ab24c`; package `com.thor.displaypowertest`, version 1.7.4/code84.
+- Official APK: [`Jesty-Thor-Fix-1.7.4.apk`](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/download/v1.7.4/Jesty-Thor-Fix-1.7.4.apk), 9,303,515 bytes.
+- SHA-256: `895f2e980c193c520afe5426e7a8bdda6a14b2f24e84cf22344d63f29b29da9d`. Established signer verified; signed payload and independent downloaded release hash match the tested artifact.
+- [Full main CI/signing](https://github.com/JestyLabs/Jesty-Thor-Fix/actions/runs/39366170358), [CodeQL](https://github.com/JestyLabs/Jesty-Thor-Fix/actions/runs/39366169047) and [protected publication](https://github.com/JestyLabs/Jesty-Thor-Fix/actions/runs/39368033874) passed.
+- Physical acceptance of this revision was NOT RUN before the maintainer-directed publication. See [validation and timing exception](VALIDATION-1.7.4.md); the display-stall containment is not a demonstrated hardware root-cause fix.
+
+
 ## 1.7.1 stable publication — verifiable public metadata (2026-10-12)
 
 - GitHub stable release: [v1.7.1](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.1) (published `2026-10-12T23:30:05Z`; not marked pre-release).

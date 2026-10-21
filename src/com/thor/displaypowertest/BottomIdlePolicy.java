@@ -12,6 +12,7 @@ public final class BottomIdlePolicy {
     private boolean off;
     private boolean pending;
     private boolean pointerDown;
+    private boolean restorePending;
     private int minutes;
     private long lastTouchAt = -1L;
     private long generation;
@@ -44,7 +45,8 @@ public final class BottomIdlePolicy {
     /** Returns true if the auto-off panel needs a best-effort restore. */
     public synchronized boolean touch(long nowMs) {
         if (!enabled || !both || nowMs < 0L) return false;
-        boolean restore = off || pending;
+        boolean restore = off || pending || restorePending;
+        restorePending = restore;
         touchVerified = true;
         off = false;
         pending = false;
@@ -83,7 +85,8 @@ public final class BottomIdlePolicy {
 
     /** -1 means not armed; 0 means due; otherwise milliseconds until due. */
     public synchronized long delayMs(long nowMs) {
-        if (!enabled || !both || !touchVerified || pointerDown || off || pending || lastTouchAt < 0L)
+        if (!enabled || !both || !touchVerified || pointerDown || off || pending
+                || restorePending || lastTouchAt < 0L)
             return -1L;
         if (nowMs < lastTouchAt) return -1L;
         return Math.max(0L, minutes * 60000L - (nowMs - lastTouchAt));
@@ -95,10 +98,24 @@ public final class BottomIdlePolicy {
     public synchronized int minutes() { return minutes; }
     public synchronized boolean inputVerified() { return touchVerified; }
     public synchronized long generation() { return generation; }
+    /** Outdated restores must not wake a newer pending/confirmed OFF. */
+    public synchronized long requireRestore() {
+        restorePending = true;
+        return ++generation;
+    }
+    public synchronized boolean canRestore(long lease) {
+        return restorePending && lease == generation && !off && !pending;
+    }
+    public synchronized boolean completeRestore(long lease, boolean confirmed) {
+        if (!canRestore(lease) || !confirmed) return false;
+        restorePending = false;
+        return true;
+    }
 
     private void clear() {
         touchVerified = false;
         pointerDown = false;
+        restorePending = false;
         off = false;
         pending = false;
         lastTouchAt = -1L;

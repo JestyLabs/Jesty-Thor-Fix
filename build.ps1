@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string] $AndroidSdk = $env:ANDROID_SDK_ROOT,
+    [string] $AndroidNdk = $env:ANDROID_NDK_ROOT,
     [string] $BuildToolsVersion = '35.0.0',
     [string] $ApktoolJar = $env:APKTOOL_JAR,
     [string] $JavaHome = $env:JAVA_HOME,
@@ -8,7 +9,7 @@ param(
     [string] $KeystorePath = $env:JESTY_KEYSTORE,
     [string] $PasswordFile,
     [string] $KeyAlias = 'thor-display-power-auto',
-    [string] $ArtifactBaseName = 'Jesty-Thor-Fix-1.7.3'
+    [string] $ArtifactBaseName = 'Jesty-Thor-Fix-1.7.5'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -27,6 +28,9 @@ if (-not $AndroidSdk) {
 }
 if (-not $ApktoolJar) {
     $ApktoolJar = Join-Path $project 'tools\apktool.jar'
+}
+if (-not $AndroidNdk) {
+    $AndroidNdk = Join-Path $AndroidSdk 'ndk\27.2.12479018'
 }
 
 $javaBin = if ($JavaHome) { Join-Path $JavaHome 'bin' } else { $null }
@@ -63,7 +67,17 @@ New-Item -ItemType Directory -Path $work, $dist -Force | Out-Null
 $baseApk = Join-Path $work 'base.apk'
 $frameworkPath = Join-Path $work 'apktool-framework'
 New-Item -ItemType Directory -Path $frameworkPath -Force | Out-Null
-& $java -jar $ApktoolJar b $apkSource -p $frameworkPath -o $baseApk
+$nativeLibraries = Join-Path $work 'native-libs'
+& (Join-Path $project 'scripts\build-retirement-native.ps1') `
+    -NdkPath $AndroidNdk -OutputDirectory $nativeLibraries
+$apkStaging = Join-Path $work 'apk-staging'
+Copy-Item -LiteralPath $apkSource -Destination $apkStaging -Recurse
+$stagedLibraries = Join-Path $apkStaging 'lib'
+New-Item -ItemType Directory -Path $stagedLibraries -Force | Out-Null
+Get-ChildItem -LiteralPath $nativeLibraries -Directory | ForEach-Object {
+    Copy-Item -LiteralPath $_.FullName -Destination $stagedLibraries -Recurse -Force
+}
+& $java -jar $ApktoolJar b $apkStaging -p $frameworkPath -o $baseApk
 if ($LASTEXITCODE -ne 0) { throw 'apktool build failed' }
 
 $stubClasses = Join-Path $work 'stub-classes'

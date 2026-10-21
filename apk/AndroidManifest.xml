@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.thor.displaypowertest"
-    android:versionCode="83"
-    android:versionName="1.7.3">
+    android:versionCode="85"
+    android:versionName="1.7.5">
     <uses-sdk android:targetSdkVersion="25"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.INTERNET"/>
@@ -12,6 +12,7 @@
         android:icon="@drawable/jesty_thor_icon"
         android:roundIcon="@drawable/jesty_thor_icon"
         android:theme="@android:style/Theme.Material.NoActionBar"
+        android:extractNativeLibs="true"
         android:allowBackup="false">
         <activity
             android:name="com.thor.displaypowertest.MainActivity"

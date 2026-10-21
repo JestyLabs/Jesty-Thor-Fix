@@ -8,7 +8,7 @@ New-Item -ItemType Directory -Path $output | Out-Null
 try {
 
 # The updater is an ordinary app install; it must never reach the root daemon or a shell.
-$updaterSources = @('AppUpdater.java', 'UpdateReleaseCatalog.java', 'UpdateInstallReceiver.java', 'UpdateVersion.java',
+$updaterSources = @('AppUpdater.java', 'UpdateArchiveVerifier.java', 'UpdateReleaseCatalog.java', 'UpdateInstallReceiver.java', 'UpdateVersion.java',
     'UpdateCommitGate.java') |
     ForEach-Object { Get-Content -LiteralPath (Join-Path $repository "src\com\thor\displaypowertest\$_") -Raw }
 if (($updaterSources -join "`n") -match 'SocketClient|PServer|Runtime\.getRuntime|ProcessBuilder|"su"') {
@@ -21,11 +21,11 @@ if ($activity -match 'SocketClient|new (TextView|LinearLayout|Switch|MediaPlayer
     throw 'MainActivity must delegate daemon commands, telemetry, layout and media.'
 }
 
-$model = Join-Path $repository 'src\com\thor\displaypowertest\DashboardStateModel.java'
-$test = Join-Path $repository 'tests\DashboardStateModelTest.java'
 $idleSettings = Join-Path $repository 'src\com\thor\displaypowertest\BottomIdleSettings.java'
 $idlePolicy = Join-Path $repository 'src\com\thor\displaypowertest\BottomIdlePolicy.java'
 $idleTest = Join-Path $repository 'tests\BottomIdlePolicyTest.java'
+$model = Join-Path $repository 'src\com\thor\displaypowertest\DashboardStateModel.java'
+$test = Join-Path $repository 'tests\DashboardStateModelTest.java'
 $warningModel = Join-Path $repository 'src\com\thor\displaypowertest\CpuWarningModel.java'
 $warningTest = Join-Path $repository 'tests\CpuWarningModelTest.java'
 $updateModel = Join-Path $repository 'src\com\thor\displaypowertest\UpdateVersion.java'

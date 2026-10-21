@@ -16,7 +16,7 @@ $publishedCode = 76
 $publishedSource = 'f929ff910bfa8e5179a2c6a63948a18fc3d6b252'
 # The historical code76 publication evidence above remains pinned independently
 # of the latest public download advertised in the README.
-$latestPublicVersion = '1.7.3'
+$latestPublicVersion = '1.7.5'
 
 $versionMatches = [regex]::Matches($manifest, 'android:versionName="([^"]+)"')
 $codeMatches = [regex]::Matches($manifest, 'android:versionCode="([0-9]+)"')

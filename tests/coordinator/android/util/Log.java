@@ -1,0 +1,9 @@
+package android.util;
+
+/** No Android runtime or log export in the host harness. */
+public final class Log {
+    private Log() {}
+    public static int d(String tag, String message) { return 0; }
+    public static int e(String tag, String message) { return 0; }
+    public static int e(String tag, String message, Throwable error) { return 0; }
+}

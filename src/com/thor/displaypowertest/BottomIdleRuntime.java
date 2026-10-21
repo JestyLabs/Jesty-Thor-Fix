@@ -36,6 +36,7 @@ public final class BottomIdleRuntime {
         final Handler prior;
         final HandlerThread priorThread;
         final boolean restore;
+        final long restoreLease;
         final BottomIdleTouchMonitor oldReceiver;
         final Object oldMonitor;
         synchronized (LOCK) {
@@ -71,14 +72,17 @@ public final class BottomIdleRuntime {
                 }
                 reconcileMonitoringLocked(DaemonState.getMode());
             }
+            // Mint the restore lease only after configure/mode have invalidated
+            // previous generations, including a disable/re-enable edge.
+            restoreLease = restore ? POLICY.requireRestore() : -1L;
         }
         if (restore && minutes != 0 && handler != null) {
-            handler.post(DisplayActionCoordinator::restoreIdleBottom);
+            handler.post(() -> DisplayActionCoordinator.restoreIdleBottom(restoreLease));
         }
         if (minutes == 0 && prior != null) {
             prior.removeCallbacks(TIMEOUT);
             prior.post(() -> {
-                if (restore) DisplayActionCoordinator.restoreIdleBottom();
+                if (restore) DisplayActionCoordinator.restoreIdleBottom(restoreLease);
                 // Cleanup only this generation: never dispose a newer session.
                 if (oldReceiver != null) oldReceiver.dispose();
                 disposeMonitor(oldMonitor);
@@ -156,10 +160,12 @@ public final class BottomIdleRuntime {
     public static void onBottomTouch(long now, long epoch, int action) {
         final Handler active;
         final boolean restore;
+        final long restoreLease;
         synchronized (LOCK) {
             if (receiver == null || epoch != monitorEpoch || !POLICY.enabled()
                     || "UNAVAILABLE".equals(inputState) || !DaemonState.isEnabled()) return;
             restore = POLICY.touch(now);
+            restoreLease = restore ? POLICY.generation() : -1L;
             if (!POLICY.inputVerified()) return;
             if (action == android.view.MotionEvent.ACTION_DOWN
                     || action == android.view.MotionEvent.ACTION_POINTER_DOWN
@@ -173,16 +179,19 @@ public final class BottomIdleRuntime {
             active = handler;
             scheduleLocked(now);
         }
-        if (restore && active != null) active.post(DisplayActionCoordinator::restoreIdleBottom);
+        if (restore && active != null)
+            active.post(() -> DisplayActionCoordinator.restoreIdleBottom(restoreLease));
     }
 
     /** Revoke earlier touch proof if hidden display-id decoding stops working. */
     public static void onInputFailure(long epoch) {
         final boolean restore;
+        final long restoreLease;
         synchronized (LOCK) {
             if (epoch != monitorEpoch || !POLICY.enabled()) return;
             restore = POLICY.suppressNativeRestore();
             POLICY.wake();
+            restoreLease = restore ? POLICY.requireRestore() : -1L;
             if (handler != null) handler.removeCallbacks(TIMEOUT);
             inputState = "UNAVAILABLE";
             final Handler owner = handler;
@@ -199,7 +208,8 @@ public final class BottomIdleRuntime {
         // display reconciliation; do not hold the input-dispatch callback.
         if (restore) {
             final Handler owner = handler;
-            if (owner != null) owner.post(DisplayActionCoordinator::restoreIdleBottom);
+            if (owner != null)
+                owner.post(() -> DisplayActionCoordinator.restoreIdleBottom(restoreLease));
         }
     }
 
@@ -213,7 +223,12 @@ public final class BottomIdleRuntime {
     private static void onTimeout() {
         long ticket;
         synchronized (LOCK) { ticket = POLICY.beginOff(SystemClock.elapsedRealtime()); }
-        if (ticket >= 0L) DisplayActionCoordinator.requestIdleBottomOff(ticket);
+        if (ticket >= 0L) {
+            // A vendor power call may block for seconds. Keep the input Looper responsive.
+            // The pending policy lease prevents concurrent timeout workers.
+            new Thread(() -> DisplayActionCoordinator.requestIdleBottomOff(ticket),
+                    "thor-idle-power").start();
+        }
     }
 
     public static boolean isOffOrPending() {
@@ -222,6 +237,14 @@ public final class BottomIdleRuntime {
 
     public static boolean isOff() {
         synchronized (LOCK) { return POLICY.isOff(); }
+    }
+
+    public static boolean canRestore(long lease) {
+        synchronized (LOCK) { return POLICY.canRestore(lease); }
+    }
+
+    public static void completeRestore(long lease, boolean confirmed) {
+        synchronized (LOCK) { POLICY.completeRestore(lease, confirmed); }
     }
 
     public static boolean isPending(long ticket) {

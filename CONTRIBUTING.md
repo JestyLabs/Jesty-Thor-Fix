@@ -20,6 +20,10 @@ Remove device serials, account names, email addresses, local computer paths, tok
 
 For an unsigned, credential-free Windows development environment, follow the [clean-checkout quick start](docs/CONTRIBUTOR-QUICKSTART.md). It documents JDK 17, Android SDK/Apktool prerequisites, host suites, and the difference between an unsigned build, CI emulator evidence and signed device acceptance.
 
+## Quality programme (post-v1.7.3)
+
+Contributors and coding agents working on the active quality programme must first read [AGENTS.md](AGENTS.md), the [quality roadmap](docs/ENGINEERING-QUALITY-ROADMAP-2026-10-17.md), and the [execution contract](docs/ENGINEERING-QUALITY-EXECUTION-CONTRACT.md). Scope every implementation PR to one named workstream, preserve security/physical gates and mark tests NOT RUN when applicable. These documents do not themselves authorize merging, signing or device tests.
+
 ## Pull requests
 
 - Preserve the validated wake-repair timings unless new device traces justify a change.

@@ -1,5 +1,14 @@
 # Build and release (maintainer quick guide)
 
+**Offline S2 candidate:** the new retirement library is source-built using the
+existing reference NDK pin **27.2.12479018**, for arm64-v8a, armeabi-v7a, x86 and
+x86_64. The owner must provide that toolchain and validate extraction, JNI
+loading and helper execution on the actual installed package before integration.
+No SDK/NDK/APK build or signing was performed for the offline assignment.
+See [the candidate boundary and fallback](quality/S2-PROCESS-BOUND-RETIREMENT.md)
+and the returned owner-validation instructions; the historical commands below
+are not authorization to sign, install or publish.
+
 The primary CI candidate and manual publication flow is documented in
 [GITHUB-ACTIONS.md](GITHUB-ACTIONS.md). It signs a candidate on `main`, stores
 the exact APK as an Actions artifact, and publishes that same file only after

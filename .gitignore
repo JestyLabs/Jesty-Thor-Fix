@@ -43,3 +43,5 @@ desktop.ini
 # Generated Python bytecode
 __pycache__/
 *.py[cod]
+/.owner-retirement-source-*/
+/.owner-retirement-sdk-check/

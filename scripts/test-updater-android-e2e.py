@@ -18,9 +18,81 @@ import zipfile
 
 PACKAGE = 'org.jestylabs.thorfix.updatere2e'
 ACTIVITY = PACKAGE + '/com.thor.displaypowertest.UpdaterTestActivity'
-SOURCES = ['AppUpdater', 'UpdateReleaseCatalog', 'UpdateInstallReceiver', 'UpdateVersion', 'UpdateCommitGate',
+SOURCES = ['AppUpdater', 'UpdateArchiveVerifier', 'UpdateReleaseCatalog', 'UpdateInstallReceiver', 'UpdateVersion', 'UpdateCommitGate',
            'UpdateConfirmationStore', 'UpdateSessionOwnership', 'ReplacementSessionPolicy', 'UpdateTaskDispatch']
 ROOT = Path(__file__).resolve().parents[1]
+
+# A failed disposable-emulator test may expose only this fixed, benign schema.
+# Never print arbitrary state.json keys, Android dumpsys output or logcat to CI.
+SETTLEMENT_STATE_KEYS = ('version', 'transfer', 'reserved', 'session',
+                         'nativeSessions', 'pending', 'launches', 'launchAttempts')
+
+
+def settlement_timeout_evidence(state, *, installed_version=None,
+                                running_pid=None, installer_focused=None):
+    """Classify a native installer settlement timeout without exposing raw data."""
+    evidence = {'failure': 'native-updater-settlement-timeout',
+                'expected': 'transfer=false,reserved=false,session=-1,nativeSessions=0'}
+    if not isinstance(state, dict):
+        evidence['snapshot_available'] = False
+    else:
+        evidence['snapshot_available'] = True
+        # Strictly type-check EVERY emitted value, including allowlisted keys.
+        # A corrupted or unexpected fixture state must never print arbitrary text.
+        sanitized = {}
+        for key in SETTLEMENT_STATE_KEYS:
+            value = state.get(key)
+            if key == 'version':
+                sanitized[key] = (value if isinstance(value, str) and
+                                  re.fullmatch(r'[0-9A-Za-z.+-]{1,48}', value) else None)
+            elif key in ('transfer', 'reserved'):
+                sanitized[key] = value if type(value) is bool else None
+            else:
+                sanitized[key] = (value if type(value) is int
+                                  and -1 <= value <= 1000000000 else None)
+        evidence['fixture_state'] = sanitized
+        expected = {'transfer': False, 'reserved': False, 'session': -1,
+                    'nativeSessions': 0}
+        evidence['unsettled_fields'] = [key for key, value in expected.items()
+                                        if state.get(key) != value]
+        snapshot_pid = state.get('pid')
+        evidence['running_process_matches_snapshot'] = (
+            running_pid == snapshot_pid if type(running_pid) is int
+            and type(snapshot_pid) is int else None)
+    evidence['installed_version'] = (installed_version if isinstance(installed_version, str)
+                                     and re.fullmatch(r'[0-9A-Za-z.+-]{1,48}', installed_version)
+                                     else None)
+    evidence['system_installer_focused'] = (installer_focused
+                                             if type(installer_focused) is bool else None)
+    return evidence
+
+
+def diagnostic_failure_evidence(diagnostics):
+    """Fixed failure-only schema; never expose raw log lines or exception text."""
+    text = diagnostics if isinstance(diagnostics, str) else ''
+    exception_types = (
+        'java.lang.IllegalStateException', 'java.lang.IllegalArgumentException',
+        'java.lang.NullPointerException', 'java.lang.RuntimeException',
+        'java.lang.SecurityException', 'java.lang.ClassCastException',
+        'java.io.FileNotFoundException', 'java.io.IOException',
+        'java.net.SocketTimeoutException', 'org.json.JSONException',
+        'android.os.DeadObjectException', 'android.os.RemoteException',
+    )
+    frames = []
+    for name in ('UpdaterTestActivity', 'UpdaterTestControlReceiver', 'AppUpdater',
+                 'UpdateInstallReceiver', 'UpdateSessionOwnership'):
+        for line in re.findall(r'\(' + re.escape(name) + r'\.java:([0-9]{1,6})\)', text):
+            frame = name + '.java:' + line
+            if frame not in frames:
+                frames.append(frame)
+    return {
+        'failure': 'native-updater-diagnostic-assertion',
+        'markers': {key: key in text for key in
+                    ('TEST_ERROR', 'SNAPSHOT_ERROR', 'FATAL EXCEPTION')},
+        'exception_types': [name for name in exception_types
+                            if re.search(r'(?<![\w.$])' + re.escape(name) + r'(?![\w.$])', text)],
+        'fixture_frames': frames[:8],
+    }
 
 
 def execute(args, *, env=None, timeout=90):
@@ -183,7 +255,38 @@ class Suite:
         def check():
             state = self.state()
             return state if not state['transfer'] and not state['reserved'] and state['session'] == -1 and state['nativeSessions'] == 0 else False
-        return self.wait(check, timeout=timeout)
+        try:
+            return self.wait(check, timeout=timeout)
+        except AssertionError as failure:
+            # Read-only, fail-path-only observations; never change app state,
+            # extend the acceptance timeout or hide the failed assertion.
+            try:
+                snapshot = self.state()
+            except (RuntimeError, ValueError, OSError):
+                snapshot = None
+            try:
+                installed = self.call('shell', 'dumpsys', 'package', PACKAGE)
+                match = re.search(r'\bversionName=([0-9A-Za-z.+-]+)', installed)
+                version = match.group(1) if match else None
+            except (RuntimeError, ValueError, OSError):
+                version = None
+            try:
+                pid_text = self.call('shell', 'pidof', PACKAGE).strip()
+                running_pid = int(pid_text) if re.fullmatch(r'\d+', pid_text) else None
+            except (RuntimeError, ValueError, OSError):
+                running_pid = None
+            try:
+                windows = self.call('shell', 'dumpsys', 'window')
+                focused = next((line for line in windows.splitlines()
+                                if 'mCurrentFocus=' in line), '')
+                installer_focused = 'com.android.packageinstaller' in focused
+            except (RuntimeError, ValueError, OSError):
+                installer_focused = None
+            evidence = settlement_timeout_evidence(
+                snapshot, installed_version=version, running_pid=running_pid,
+                installer_focused=installer_focused)
+            raise AssertionError('Timed out waiting for Android state; synthetic fixture evidence: '
+                                 + json.dumps(evidence, sort_keys=True)) from failure
 
     def case(self, name, action):
         if self.args.case and name not in self.args.case:
@@ -191,7 +294,9 @@ class Suite:
         try:
             action()
             diagnostics = self.call('logcat', '-d', '-s', 'UpdaterE2E:V', 'AndroidRuntime:E', '*:S')
-            assert 'TEST_ERROR' not in diagnostics and 'SNAPSHOT_ERROR' not in diagnostics and 'FATAL EXCEPTION' not in diagnostics
+            assert 'TEST_ERROR' not in diagnostics and 'SNAPSHOT_ERROR' not in diagnostics and 'FATAL EXCEPTION' not in diagnostics, (
+                'Android diagnostic failure; redacted fixture evidence: '
+                + json.dumps(diagnostic_failure_evidence(diagnostics), sort_keys=True))
             self.results.append({'case': name, 'result': 'PASS'})
             print('PASS: ' + name, flush=True)
         except Exception as error:

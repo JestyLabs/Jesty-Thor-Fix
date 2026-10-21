@@ -29,9 +29,16 @@ public final class DisplayHardware {
             // display exists. A missing token used to leave this property wrong.
             setProperty(on ? "1" : "0");
             propertyChanged = true;
+            long callStartedNs = System.nanoTime();
             powerMethod.invoke(null, token, on ? 2 : 0);
+            long callMs = (System.nanoTime() - callStartedNs) / 1000000L;
             DaemonState.setLastAction(reason + (on ? ":ON" : ":OFF"));
             Log.d(TAG, reason + (on ? " ON" : " OFF"));
+            // Observation only: a normal return does not prove the compositor applied
+            // the request. Record how long the synchronous call blocked and whether
+            // the shared flag was rewritten by the platform before it returned.
+            Log.d(TAG, "HW_CALL_OBSERVED reason=" + reason + ";target=" + (on ? "1" : "0")
+                    + ";call_ms=" + callMs + ";property_after=" + getProperty());
             return true;
         } catch (Throwable error) {
             if (propertyChanged && ("0".equals(previousProperty) || "1".equals(previousProperty))) {
@@ -62,18 +69,6 @@ public final class DisplayHardware {
         if (!"0".equals(bottomCrtc) && !"1".equals(bottomCrtc)) return;
         try { setProperty(bottomCrtc); }
         catch (Throwable error) { Log.e(TAG, "display property realignment failed", error); }
-    }
-
-    /** Records a pending TOP wake; the delayed repair performs the hardware OFF. */
-    public static synchronized boolean markWakePending() {
-        try {
-            setProperty("0");
-            return true;
-        } catch (Throwable error) {
-            Log.e(TAG, "could not record pending wake repair", error);
-            DaemonState.setLastAction("WAKE_PENDING_PROPERTY_ERROR");
-            return false;
-        }
     }
 
     private static void setProperty(String value) throws Exception {

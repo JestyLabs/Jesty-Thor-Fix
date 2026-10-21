@@ -1,6 +1,14 @@
 # Activation and external recovery
 
-**Current public release: [v1.7.3 / code83](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.3).** Install normally over the existing version without uninstalling or clearing data, then open the app. A guarded same-kernel handover can activate the updated service automatically when the known predecessor (v1.7.1 or v1.7.2) and current BOTH/display/CPU/Guard state are verified safe. Wait for **ACTIVE** or **STOCK**. If the handover is unavailable, follow the app's conservative restart/recovery guidance; it will not blindly stop an unknown or unsafe process. See [v1.7.3 release notes](RELEASE-NOTES-1.7.3.md).
+**Current public release: [v1.7.5 / code85](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.5).** Install over the existing version without uninstalling or clearing app data, then open the app and wait for ACTIVE or STOCK. Verified safe transfer from exact published 1.7.1, 1.7.2, 1.7.3 and 1.7.4 services can proceed without a device reboot.
+
+The process-bound adapter verifies the predecessor instance, waits for its confirmed exit and separately verifies successor READY. It does not weaken authentication, kill an unverified PID or promise transfer under every mode/device state. See [the implementation contract](quality/S2-PROCESS-BOUND-RETIREMENT.md) and [release validation](VALIDATION-1.7.5.md). Android/JNI coverage passed; exact released-APK Thor acceptance remains pending.
+
+If the app requests a normal restart because safe transfer or activation cannot be verified, follow that guidance. Do not clear data, force process replacement, change activation markers or loop through restarts after an ACTIVATION BLOCKED identity error. Save available diagnostics and seek support. The older code81/code82 recovery packages below cannot normally be installed over code85; they are not a public rollback route.
+
+## Historical v1.7.3 upgrade limitation
+
+v1.7.3/code83 did not admit the published v1.7.1 daemon to automatic handover; that particular upgrade used the guarded normal-restart route. v1.7.4 adds the separately tested process-bound adapter. Earlier release wording and tests do not establish physical acceptance of the new adapter.
 
 ## Historical v1.7.2 / code80 reboot activation
 

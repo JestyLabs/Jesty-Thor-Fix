@@ -6,3 +6,10 @@
 /scripts/test-release-policy.ps1 @SirJesty
 /docs/GITHUB-ACTIONS.md @SirJesty
 /docs/BUILD-AND-RELEASE.md @SirJesty
+
+# Quality programme governance: effective code-owner enforcement requires branch protection.
+/AGENTS.md @SirJesty
+/docs/ENGINEERING-QUALITY-ROADMAP-2026-10-17.md @SirJesty
+/docs/ENGINEERING-QUALITY-EXECUTION-CONTRACT.md @SirJesty
+/docs/quality/S1-SLEEP-WAKE-OFFLINE-MATRIX.md @SirJesty
+/scripts/test-engineering-roadmap.ps1 @SirJesty

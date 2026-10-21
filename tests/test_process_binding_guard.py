@@ -1,0 +1,98 @@
+"""Admission tests for the actual Android fixture controller; no ADB calls."""
+import importlib.util
+from pathlib import Path
+import unittest
+from types import SimpleNamespace
+
+SPEC = importlib.util.spec_from_file_location("process_binding", Path(__file__).resolve().parents[1] / "scripts/test-process-binding-android.py")
+controller = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(controller)
+RETIRE_SPEC = importlib.util.spec_from_file_location("retirement_android", Path(__file__).resolve().parents[1] / "scripts/test-retirement-android.py")
+retirement = importlib.util.module_from_spec(RETIRE_SPEC)
+RETIRE_SPEC.loader.exec_module(retirement)
+
+
+class AdmissionTest(unittest.TestCase):
+    def test_retirement_cleanup_requires_uninstall_and_package_absence(self):
+        for uninstall, packages, failure in [('Success\n', '', None),
+                                               ('Failure [DELETE_FAILED_INTERNAL_ERROR]', '', None),
+                                               ('Success\n', 'package:org.example.rfixture\n', None),
+                                               ('Success\n', '', 'package manager unavailable')]:
+            calls = []
+            def call(*command):
+                calls.append(command)
+                if command[0] == 'uninstall':
+                    return SimpleNamespace(stdout=uninstall)
+                if failure:
+                    raise RuntimeError(failure)
+                return SimpleNamespace(stdout=packages)
+            with self.subTest(uninstall=uninstall, packages=packages, failure=failure):
+                if uninstall == 'Success\n' and not packages and not failure:
+                    retirement.remove_disposable_package(call)
+                    self.assertEqual(2, len(calls))
+                else:
+                    with self.assertRaises(RuntimeError):
+                        retirement.remove_disposable_package(call)
+
+    def test_retirement_rejects_physical_or_foreign_target_before_any_execution(self):
+        original = retirement.execute
+        def forbidden(*args, **kwargs):
+            raise AssertionError("No command may execute before target admission")
+        retirement.execute = forbidden
+        try:
+            for serial, avd in [(None, "pr67-ci-api33"), ("synthetic-physical", "pr67-ci-api33"),
+                                ("emulator-5554 shell", "pr67-ci-api33"), ("emulator-5554", "personal-avd")]:
+                with self.subTest(serial=serial, avd=avd), self.assertRaises(ValueError):
+                    retirement.run(SimpleNamespace(serial=serial, avd=avd))
+        finally:
+            retirement.execute = original
+
+    def fake(self, change=None):
+        calls = []
+        answers = {("emu", "avd", "name"): "pr67-ci-api33\nOK\n",
+                   ("shell", "getprop", "ro.kernel.qemu"): "1\n",
+                   ("shell", "getprop", "ro.build.version.sdk"): "33\n",
+                   ("shell", "getprop", "ro.product.cpu.abi"): "x86_64\n",
+                   ("shell", "service", "check", "PServerBinder"): "Service PServerBinder: not found\n"}
+        if change:
+            answers[change[0]] = change[1]
+
+        def call(command):
+            calls.append(command)
+            return answers[tuple(command)]
+        return calls, call
+
+    def test_physical_serial_rejected_before_any_call(self):
+        calls, call = self.fake()
+        for serial in [None, "", "synthetic-physical", "emulator-5554 shell"]:
+            with self.assertRaisesRegex(controller.Failure, "NON_EMULATOR_SERIAL"):
+                controller.certify(serial, "pr67-ci-api33", call)
+        self.assertEqual([], calls)
+
+    def test_unapproved_requested_avd_rejected_before_any_call(self):
+        calls, call = self.fake()
+        with self.assertRaisesRegex(controller.Failure, "UNAPPROVED_AVD_NAME"):
+            controller.certify("emulator-5554", "personal-avd", call)
+        self.assertEqual([], calls)
+
+    def test_foreign_surface_fails_during_read_only_certification(self):
+        variants = [(("emu", "avd", "name"), "other-avd\n"),
+                    (("shell", "getprop", "ro.kernel.qemu"), "0\n"),
+                    (("shell", "getprop", "ro.build.version.sdk"), "34\n"),
+                    (("shell", "getprop", "ro.product.cpu.abi"), "arm64-v8a\n"),
+                    (("shell", "service", "check", "PServerBinder"), "Service PServerBinder: found\n"),
+                    (("shell", "service", "check", "PServerBinder"), "")]
+        for variant in variants:
+            calls, call = self.fake(variant)
+            with self.subTest(variant=variant), self.assertRaises(controller.Failure):
+                controller.certify("emulator-5554", "pr67-ci-api33", call)
+            self.assertTrue(all(command[:2] in [["emu", "avd"], ["shell", "getprop"], ["shell", "service"]] for command in calls))
+
+    def test_approved_emulator_requires_all_observations(self):
+        calls, call = self.fake()
+        controller.certify("emulator-5554", "pr67-ci-api33", call)
+        self.assertEqual(5, len(calls))
+
+
+if __name__ == "__main__":
+    unittest.main()
