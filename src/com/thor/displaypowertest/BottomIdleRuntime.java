@@ -7,6 +7,7 @@ import android.util.Log;
 import android.view.InputChannel;
 
 import java.lang.reflect.Method;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Optional, event-driven lower-screen inactivity watcher. One dormant Looper
@@ -27,6 +28,8 @@ public final class BottomIdleRuntime {
     private static Object monitor;
     private static String inputState = "OFF";
     private static final Runnable TIMEOUT = BottomIdleRuntime::onTimeout;
+    /** Limit vendor calls even if a 70s stall spans another touch/timeout lease. */
+    private static final AtomicBoolean POWER_IN_FLIGHT = new AtomicBoolean();
 
     private BottomIdleRuntime() {}
 
@@ -218,11 +221,25 @@ public final class BottomIdleRuntime {
     private static void onTimeout() {
         long ticket;
         synchronized (LOCK) { ticket = POLICY.beginOff(SystemClock.elapsedRealtime()); }
-        if (ticket >= 0L) {
-            // A vendor power call may block for seconds. Keep the input Looper responsive.
-            // The pending policy lease prevents concurrent timeout workers.
-            new Thread(() -> DisplayActionCoordinator.requestIdleBottomOff(ticket),
-                    "thor-idle-power").start();
+        if (ticket < 0L) return;
+        // Touch cancels a policy lease while the old composer call may still be
+        // blocked. A fresh timeout must never create a second vendor worker.
+        if (!POWER_IN_FLIGHT.compareAndSet(false, true)) {
+            completeOff(ticket, false); // fail closed and retry on a later deadline
+            return;
+        }
+        try {
+            new Thread(() -> {
+                try {
+                    DisplayActionCoordinator.requestIdleBottomOff(ticket);
+                } finally {
+                    POWER_IN_FLIGHT.set(false);
+                }
+            }, "thor-idle-power").start();
+        } catch (Throwable failure) {
+            POWER_IN_FLIGHT.set(false);
+            completeOff(ticket, false);
+            Log.w(TAG, "bottom idle power worker unavailable; timeout deferred", failure);
         }
     }
 
