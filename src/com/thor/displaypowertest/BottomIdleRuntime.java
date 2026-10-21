@@ -34,6 +34,7 @@ public final class BottomIdleRuntime {
         if (minutes != 0 && !BottomIdleSettings.validMinutes(minutes))
             return "ok=0;error=INVALID_IDLE_TIMEOUT";
         final Handler prior;
+        final Handler currentHandler;
         final HandlerThread priorThread;
         final boolean restore;
         final long restoreLease;
@@ -75,9 +76,10 @@ public final class BottomIdleRuntime {
             // Mint the restore lease only after configure/mode have invalidated
             // previous generations, including a disable/re-enable edge.
             restoreLease = restore ? POLICY.requireRestore() : -1L;
+            currentHandler = handler;
         }
-        if (restore && minutes != 0 && handler != null) {
-            handler.post(() -> DisplayActionCoordinator.restoreIdleBottom(restoreLease));
+        if (restore && minutes != 0 && currentHandler != null) {
+            currentHandler.post(() -> DisplayActionCoordinator.restoreIdleBottom(restoreLease));
         }
         if (minutes == 0 && prior != null) {
             prior.removeCallbacks(TIMEOUT);
@@ -189,6 +191,7 @@ public final class BottomIdleRuntime {
     public static void onInputFailure(long epoch) {
         final boolean restore;
         final long restoreLease;
+        final Handler owner;
         synchronized (LOCK) {
             if (epoch != monitorEpoch || !POLICY.enabled()) return;
             restore = POLICY.suppressNativeRestore();
@@ -196,23 +199,13 @@ public final class BottomIdleRuntime {
             restoreLease = restore ? POLICY.requireRestore() : -1L;
             if (handler != null) handler.removeCallbacks(TIMEOUT);
             inputState = "UNAVAILABLE";
-            final Handler owner = handler;
-            if (owner != null) owner.post(() -> {
-                synchronized (LOCK) {
-                    if (handler == owner && epoch == monitorEpoch
-                            && "UNAVAILABLE".equals(inputState)) {
-                        closeMonitor();
-                    }
-                }
-            });
+            owner = handler;
+            if (owner != null) owner.post(() -> closeMonitorIfFailed(owner, epoch));
         }
         // Finish the current input event before potentially expensive
         // display reconciliation; do not hold the input-dispatch callback.
-        if (restore) {
-            final Handler owner = handler;
-            if (owner != null)
-                owner.post(() -> DisplayActionCoordinator.restoreIdleBottom(restoreLease));
-        }
+        if (restore && owner != null)
+            owner.post(() -> DisplayActionCoordinator.restoreIdleBottom(restoreLease));
     }
 
     private static void scheduleLocked(long now) {
@@ -317,10 +310,13 @@ public final class BottomIdleRuntime {
         disposeMonitor(created);
     }
 
-    private static void closeMonitor() {
-        BottomIdleTouchMonitor toClose;
-        Object toDispose;
+    /** Only the still-owned monitor may be disposed; never hold LOCK in vendor cleanup. */
+    private static void closeMonitorIfFailed(Handler owner, long epoch) {
+        final BottomIdleTouchMonitor toClose;
+        final Object toDispose;
         synchronized (LOCK) {
+            if (handler != owner || epoch != monitorEpoch
+                    || !"UNAVAILABLE".equals(inputState)) return;
             toClose = receiver;
             toDispose = monitor;
             receiver = null;
