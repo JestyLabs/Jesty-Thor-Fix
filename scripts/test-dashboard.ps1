@@ -24,6 +24,8 @@ if ($activity -match 'SocketClient|new (TextView|LinearLayout|Switch|MediaPlayer
 $idleSettings = Join-Path $repository 'src\com\thor\displaypowertest\BottomIdleSettings.java'
 $idlePolicy = Join-Path $repository 'src\com\thor\displaypowertest\BottomIdlePolicy.java'
 $idleTest = Join-Path $repository 'tests\BottomIdlePolicyTest.java'
+$idleQueue = Join-Path $repository 'src\com\thor\displaypowertest\BottomIdleRestoreQueue.java'
+$idleQueueTest = Join-Path $repository 'tests\BottomIdleRestoreQueueTest.java'
 $model = Join-Path $repository 'src\com\thor\displaypowertest\DashboardStateModel.java'
 $test = Join-Path $repository 'tests\DashboardStateModelTest.java'
 $warningModel = Join-Path $repository 'src\com\thor\displaypowertest\CpuWarningModel.java'
@@ -47,11 +49,13 @@ $identity = Join-Path $repository 'src\com\thor\displaypowertest\DaemonIdentity.
 $activationTest = Join-Path $repository 'tests\RebootActivationPolicyTest.java'
 $clockFixture = Join-Path $repository 'tests\fixtures\android\os\SystemClock.java'
 
-& javac -source 8 -target 8 -d $output $idleSettings $idlePolicy $idleTest $model $test $warningModel $warningTest $updateModel $updateTest $commitGateModel $commitGateTest $readiness $readinessTest $clockFixture $confirmationModel $confirmationTest $sessionModel $sessionTest $replacementModel $replacementTest $dispatchModel $dispatchTest $activationPolicy $identity $activationTest
+& javac -source 8 -target 8 -d $output $idleSettings $idlePolicy $idleTest $idleQueue $idleQueueTest $model $test $warningModel $warningTest $updateModel $updateTest $commitGateModel $commitGateTest $readiness $readinessTest $clockFixture $confirmationModel $confirmationTest $sessionModel $sessionTest $replacementModel $replacementTest $dispatchModel $dispatchTest $activationPolicy $identity $activationTest
 if ($LASTEXITCODE -ne 0) { throw 'Dashboard test compilation failed.' }
 
 & java -cp $output BottomIdlePolicyTest
 if ($LASTEXITCODE -ne 0) { throw 'Bottom idle policy tests failed.' }
+& java -cp $output BottomIdleRestoreQueueTest
+if ($LASTEXITCODE -ne 0) { throw 'Bottom idle restore coalescing tests failed.' }
 & java -cp $output DashboardStateModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Dashboard tests failed.' }
 & java -cp $output CpuWarningModelTest

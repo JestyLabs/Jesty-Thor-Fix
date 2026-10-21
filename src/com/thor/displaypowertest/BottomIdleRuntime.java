@@ -30,6 +30,10 @@ public final class BottomIdleRuntime {
     private static final Runnable TIMEOUT = BottomIdleRuntime::onTimeout;
     /** Limit vendor calls even if a 70s stall spans another touch/timeout lease. */
     private static final AtomicBoolean POWER_IN_FLIGHT = new AtomicBoolean();
+    /** Demand-driven, coalescing restorer; never blocks the touch input Looper. */
+    private static final BottomIdleRestoreQueue RESTORES = new BottomIdleRestoreQueue(
+            DisplayActionCoordinator::restoreIdleBottom,
+            failure -> Log.w(TAG, "bottom idle restore failed", failure));
 
     private BottomIdleRuntime() {}
 
@@ -37,7 +41,6 @@ public final class BottomIdleRuntime {
         if (minutes != 0 && !BottomIdleSettings.validMinutes(minutes))
             return "ok=0;error=INVALID_IDLE_TIMEOUT";
         final Handler prior;
-        final Handler currentHandler;
         final HandlerThread priorThread;
         final boolean restore;
         final long restoreLease;
@@ -79,16 +82,13 @@ public final class BottomIdleRuntime {
             // Mint the restore lease only after configure/mode have invalidated
             // previous generations, including a disable/re-enable edge.
             restoreLease = restore ? POLICY.requireRestore() : -1L;
-            currentHandler = handler;
         }
-        if (restore && minutes != 0 && currentHandler != null) {
-            currentHandler.post(() -> DisplayActionCoordinator.restoreIdleBottom(restoreLease));
-        }
+        if (restore) requestRestore(restoreLease);
         if (minutes == 0 && prior != null) {
             prior.removeCallbacks(TIMEOUT);
             prior.post(() -> {
-                if (restore) DisplayActionCoordinator.restoreIdleBottom(restoreLease);
-                // Cleanup only this generation: never dispose a newer session.
+                // Cleanup never waits behind a vendor power call.
+                // Only this input monitor generation is disposed.
                 if (oldReceiver != null) oldReceiver.dispose();
                 disposeMonitor(oldMonitor);
                 if (priorThread != null) priorThread.quitSafely();
@@ -182,8 +182,7 @@ public final class BottomIdleRuntime {
             owner = handler;
             scheduleLocked(now);
         }
-        if (restoreLease >= 0L && owner != null)
-            owner.post(() -> DisplayActionCoordinator.restoreIdleBottom(restoreLease));
+        if (restoreLease >= 0L) requestRestore(restoreLease);
     }
 
     /** Revoke earlier touch proof if hidden display-id decoding stops working. */
@@ -203,8 +202,12 @@ public final class BottomIdleRuntime {
         }
         // Finish the current input event before potentially expensive
         // display reconciliation; do not hold the input-dispatch callback.
-        if (restore && owner != null)
-            owner.post(() -> DisplayActionCoordinator.restoreIdleBottom(restoreLease));
+        if (restore) requestRestore(restoreLease);
+    }
+
+    private static void requestRestore(long lease) {
+        if (lease >= 0L && !RESTORES.request(lease))
+            Log.w(TAG, "bottom idle restore worker unavailable");
     }
 
     private static void scheduleLocked(long now) {
