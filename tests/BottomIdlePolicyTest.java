@@ -121,6 +121,49 @@ public final class BottomIdlePolicyTest {
         restore.configure(0);
         check(restore.touchEvent(130001, 0) == BottomIdlePolicy.REJECTED_TOUCH,
                 "disabled touch never verifies display inactivity");
+        // A single API call must own each previously reported CodeQL
+        // check/use site; disabled branches cannot change their generation.
+        BottomIdlePolicy atomic = new BottomIdlePolicy();
+        long disabledGeneration = atomic.generation();
+        check(atomic.sampleModeIfEnabled("0") == -1, "disabled sample rejected");
+        check(!atomic.wakeIfEnabled(), "disabled wake rejected");
+        check(atomic.inputUnavailableRestoreLease() == BottomIdlePolicy.REJECTED_TOUCH,
+                "disabled input failure rejected");
+        check(atomic.generation() == disabledGeneration,
+                "disabled snapshots have no policy mutations");
+        atomic.configure(1);
+        check(atomic.sampleModeIfEnabled("0") == 1,
+                "enabled BOTH mode edge recognized");
+        check(atomic.sampleModeIfEnabled("0") == 0,
+                "unchanged BOTH never invalidates proof");
+        atomic.touch(50);
+        check(atomic.inputUnavailableRestoreLease() == -1L,
+                "monitor failure without pending/off ownership cannot restore");
+        check(atomic.delayMs(65050) == -1L,
+                "input failure disarms deadline before first new touch");
+        atomic.touch(70);
+        long aOff = atomic.beginOff(60070);
+        check(aOff > 0L && atomic.completeOff(aOff, true, 60070),
+                "owned lower CRTC OFF fixture");
+        long retry = atomic.inputUnavailableRestoreLease();
+        check(retry >= 0L && atomic.canRestore(retry),
+                "input failure returns exact current restoration lease");
+        check(!atomic.isOff(), "input failure drops stale OFF ownership");
+        long retry2 = atomic.inputUnavailableRestoreLease();
+        check(retry2 > retry && atomic.canRestore(retry2)
+                        && !atomic.canRestore(retry),
+                "repeated failed monitor must not lose pending restore");
+        check(!atomic.completeRestore(retry, true),
+                "old failure restore cannot acknowledge newer generation");
+        check(atomic.completeRestore(retry2, true),
+                "latest restore acknowledgment clears lease");
+        atomic.touch(300);
+        long old = atomic.generation();
+        check(atomic.wakeIfEnabled(), "wake resets touch proof");
+        check(atomic.generation() > old && atomic.delayMs(60300) == -1L,
+                "wake revokes old touch deadline");
+        check(atomic.sampleModeIfEnabled("1") == 1, "TOP mode edge");
+        check(atomic.sampleModeIfEnabled("0") == 1, "BOTH mode edge again");
         System.out.println("BottomIdlePolicyTest passed");
     }
 }
