@@ -23,7 +23,7 @@ try {
     $production = Join-Path $work 'production'
     $fakes = Join-Path $work 'fakes'
     New-Item -ItemType Directory -Path $production, $fakes | Out-Null
-    $names = @('AppUpdater','UpdateReleaseCatalog','UpdateInstallReceiver','UpdateVersion','UpdateCommitGate',
+    $names = @('AppUpdater','UpdateArchiveVerifier','UpdateReleaseCatalog','UpdateInstallReceiver','UpdateVersion','UpdateCommitGate',
         'UpdateConfirmationStore','UpdateSessionOwnership','ReplacementSessionPolicy','UpdateTaskDispatch')
     $classes = @($names | ForEach-Object { Join-Path $root "src/com/thor/displaypowertest/$_.java" })
     & $javac -encoding UTF-8 -source 8 -target 8 -classpath $jar -d $production @classes
@@ -42,3 +42,7 @@ try {
         Remove-Item -LiteralPath $work -Recurse -Force
     }
 }
+# Archive characterization calls the same production entrypoint with metadata adapters.
+$resolvedJavaHome = Split-Path -Parent (Split-Path -Parent $javac)
+& python (Join-Path $root 'scripts/test-updater-archive-host.py') --sdk $AndroidSdk --java $resolvedJavaHome --negative-controls
+if ($LASTEXITCODE -ne 0) { throw 'Production updater archive host regression failed' }

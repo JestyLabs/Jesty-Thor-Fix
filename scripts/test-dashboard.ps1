@@ -8,7 +8,7 @@ New-Item -ItemType Directory -Path $output | Out-Null
 try {
 
 # The updater is an ordinary app install; it must never reach the root daemon or a shell.
-$updaterSources = @('AppUpdater.java', 'UpdateReleaseCatalog.java', 'UpdateInstallReceiver.java', 'UpdateVersion.java',
+$updaterSources = @('AppUpdater.java', 'UpdateArchiveVerifier.java', 'UpdateReleaseCatalog.java', 'UpdateInstallReceiver.java', 'UpdateVersion.java',
     'UpdateCommitGate.java') |
     ForEach-Object { Get-Content -LiteralPath (Join-Path $repository "src\com\thor\displaypowertest\$_") -Raw }
 if (($updaterSources -join "`n") -match 'SocketClient|PServer|Runtime\.getRuntime|ProcessBuilder|"su"') {
