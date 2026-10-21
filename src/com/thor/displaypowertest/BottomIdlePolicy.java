@@ -55,6 +55,26 @@ public final class BottomIdlePolicy {
         return restore;
     }
 
+
+    /** Failed/disarmed input is never touch proof and never starts a timer. */
+    public static final long REJECTED_TOUCH = Long.MIN_VALUE;
+
+    /**
+     * A complete touch + pointer transition and its restoration lease are a
+     * single synchronized policy operation. The caller must never capture
+     * generation before applying the DOWN/UP pointer edge.
+     *
+     * pointerState: 1 = held/down, 0 = released, -1 = unchanged.
+     * Returns REJECTED_TOUCH, -1 (accepted; no restore) or the exact ON lease.
+     */
+    public synchronized long touchEvent(long nowMs, int pointerState) {
+        if (!enabled || !both || nowMs < 0L) return REJECTED_TOUCH;
+        boolean restore = touch(nowMs);
+        if (pointerState == 1) pointerDown(true);
+        else if (pointerState == 0) pointerDown(false);
+        return restore ? generation : -1L;
+    }
+
     /** The generation is an exact lease for a single delayed OFF attempt. */
     /** A held gesture is active usage, even when it has no MOVE samples. */
     public synchronized void pointerDown(boolean pressed) {
