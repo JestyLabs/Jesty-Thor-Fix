@@ -75,6 +75,22 @@ if ($LASTEXITCODE -ne 0) { throw 'Updater session ownership tests failed.' }
 & java -cp $output com.thor.displaypowertest.ReplacementSessionPolicyTest
 if ($LASTEXITCODE -ne 0) { throw 'Android session replacement policy failed.' }
 
+# One real event mutates the policy twice (touch + pointer edge). A queued
+# restoration must capture its lease only AFTER both changes, otherwise the
+# first ACTION_DOWN / ACTION_UP instantly invalidates its own restore.
+$runtimeSource = Get-Content -LiteralPath (Join-Path $repository 'src/com/thor/displaypowertest/BottomIdleRuntime.java') -Raw
+$touchStart = $runtimeSource.IndexOf('public static void onBottomTouch(')
+$touchEnd = $runtimeSource.IndexOf('public static void onInputFailure(', $touchStart)
+if ($touchStart -lt 0 -or $touchEnd -le $touchStart) {
+    throw 'Missing production idle touch callback; restore ordering unverified.'
+}
+$touchBody = $runtimeSource.Substring($touchStart, $touchEnd - $touchStart)
+$touchMutation = $touchBody.IndexOf('POLICY.pointerDown(false);')
+$leaseCapture = $touchBody.IndexOf('restoreLease = restore ? POLICY.generation() : -1L;')
+if ($touchMutation -lt 0 -or $leaseCapture -le $touchMutation) {
+    throw 'Idle touch restore lease must be captured after the DOWN/UP policy mutation.'
+}
+
 # Static UI contract: when switches have no visible text, their screen-reader
 # labels must come from their adjacent feature heading; do not couple a TalkBack
 # fix to the daemon, updater installer or hardware.
