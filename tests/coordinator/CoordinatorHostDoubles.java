@@ -182,6 +182,7 @@ final class BottomIdleRuntime {
     static boolean lastConfirmed;
     static void onModeSample(String mode) {}
     static void onDisplayWake() { off = false; pending = -1L; }
+    static void onDisplayOnUnlessOwned() {}
     static boolean isOff() { return off; }
     static boolean isOffOrPending() { return off || pending >= 0L; }
     static boolean isPending(long ticket) { return pending == ticket; }

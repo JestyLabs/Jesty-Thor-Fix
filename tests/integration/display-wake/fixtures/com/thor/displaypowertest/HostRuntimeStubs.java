@@ -58,6 +58,7 @@ final class DisplayModeReader { static String current() { return TestDisplayStat
 final class BottomIdleRuntime {
     static void onModeSample(String mode) {}
     static void onDisplayWake() {}
+    static void onDisplayOnUnlessOwned() {}
     static boolean isOff() { return false; }
     static boolean isOffOrPending() { return false; }
     static boolean isPending(long ticket) { return false; }

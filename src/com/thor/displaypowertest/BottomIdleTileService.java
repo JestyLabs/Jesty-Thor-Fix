@@ -76,10 +76,16 @@ public final class BottomIdleTileService extends TileService {
     private void refresh() {
         Tile tile = getQsTile();
         if (tile == null) return;
-        boolean enabled = getSharedPreferences("state", MODE_PRIVATE)
-                .getBoolean("bottom_idle_enabled", false);
+        SharedPreferences prefs = getSharedPreferences("state", MODE_PRIVATE);
+        boolean enabled = prefs.getBoolean("bottom_idle_enabled", false);
         tile.setState(CHANGING.get() ? Tile.STATE_UNAVAILABLE
                 : enabled ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
+        // The timer only acts with True Bottom Screen Off; an ACTIVE tile alone
+        // would suggest it is working. The tile stays clickable to turn it off.
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            tile.setSubtitle(enabled && !prefs.getBoolean("fix_enabled", true)
+                    ? "Needs True Off" : null);
+        }
         tile.updateTile();
     }
 }

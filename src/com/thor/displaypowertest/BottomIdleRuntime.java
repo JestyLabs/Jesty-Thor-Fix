@@ -157,9 +157,26 @@ public final class BottomIdleRuntime {
         if (!active) return;
         synchronized (LOCK) {
             if (!POLICY.wakeIfEnabled()) return;
-            if (handler != null) handler.removeCallbacks(TIMEOUT);
-            inputState = receiver == null ? inputState : "WAITING_FOR_TOUCH";
+            cancelForWakeLocked();
         }
+    }
+
+    /**
+     * Display callback: our own OFF may emit a logical display-on, so an owned
+     * OFF/pending lease survives. Check and reset are one policy operation; a
+     * separate isOffOrPending() read could let a timeout start in between.
+     */
+    public static void onDisplayOnUnlessOwned() {
+        if (!active) return;
+        synchronized (LOCK) {
+            if (!POLICY.wakeUnlessOwned()) return;
+            cancelForWakeLocked();
+        }
+    }
+
+    private static void cancelForWakeLocked() {
+        if (handler != null) handler.removeCallbacks(TIMEOUT);
+        inputState = receiver == null ? inputState : "WAITING_FOR_TOUCH";
     }
 
     public static void onBottomTouch(long now, long epoch, int action) {
@@ -252,8 +269,15 @@ public final class BottomIdleRuntime {
         synchronized (LOCK) { return POLICY.canRestore(lease); }
     }
 
+    /**
+     * A touch that arrived while the restore was queued could not arm the
+     * deadline (restore pending). Re-arm from that touch once the panel is
+     * confirmed ON, or a single tap would keep the lower screen lit forever.
+     */
     public static void completeRestore(long lease, boolean confirmed) {
-        synchronized (LOCK) { POLICY.completeRestore(lease, confirmed); }
+        synchronized (LOCK) {
+            if (POLICY.completeRestore(lease, confirmed)) scheduleLocked(SystemClock.elapsedRealtime());
+        }
     }
 
     public static boolean isPending(long ticket) {

@@ -176,6 +176,10 @@ public final class AutoService extends Service {
         for (int i = 0; i < attempts; i++) {
             try {
                 String identity = SocketClient.request('I', 800);
+                // Held phases that end only by replacement or reboot: stop waiting so
+                // this worker does not keep a later recovery start busy for ~70 s.
+                if (identity.contains(";boot_phase=" + DaemonLaunchModel.HANDOFF_FAILED_PHASE + ";")
+                        || identity.contains(";boot_phase=BOOT_SAFETY_TIMEOUT;")) return;
                 if (identity.contains(";boot_phase=READY;")) {
                     synchronized (BottomIdleSettings.class) {
                         // The tile may have changed intent while boot was held.

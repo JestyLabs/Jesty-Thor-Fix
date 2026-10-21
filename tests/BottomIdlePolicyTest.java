@@ -164,6 +164,28 @@ public final class BottomIdlePolicyTest {
                 "wake revokes old touch deadline");
         check(atomic.sampleModeIfEnabled("1") == 1, "TOP mode edge");
         check(atomic.sampleModeIfEnabled("0") == 1, "BOTH mode edge again");
+
+        // Display-on callback: one call checks ownership and resets evidence.
+        BottomIdlePolicy owned = new BottomIdlePolicy();
+        long ownedGeneration = owned.generation();
+        check(!owned.wakeUnlessOwned() && owned.generation() == ownedGeneration,
+                "disabled display-on has no policy mutation");
+        owned.configure(1);
+        owned.mode("0");
+        owned.touch(1000);
+        check(owned.wakeUnlessOwned() && owned.delayMs(1000) == -1L,
+                "unowned display-on revokes touch proof");
+        owned.touch(2000);
+        long ownedPending = owned.beginOff(62000);
+        check(!owned.wakeUnlessOwned() && owned.isPending(ownedPending),
+                "own pending OFF survives its display callback");
+        check(owned.completeOff(ownedPending, true, 62000), "owned OFF confirmed");
+        check(!owned.wakeUnlessOwned() && owned.isOff(),
+                "own confirmed OFF survives its display callback");
+        long ownedRestore = owned.touchEvent(63000, 0);
+        check(ownedRestore >= 0L && owned.completeRestore(ownedRestore, true)
+                        && owned.delayMs(63000) == 60000L,
+                "confirmed restore re-arms from the restoring touch");
         System.out.println("BottomIdlePolicyTest passed");
     }
 }
