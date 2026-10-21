@@ -18,6 +18,7 @@ Jesty Thor Fix is split between a normal Android dashboard and a privileged root
   classifies an unreachable socket pathname before waiting (see *Daemon launch
   and stale sockets*).
 - `BootReceiver` starts that service after a normal boot.
+- `BottomIdleTileService` is a user-added Android Quick Settings tile for the opt-in lower-screen timer. The slider and tile use the same app-private preference and one-byte authenticated daemon commands. `BottomIdleRuntime` owns one event-driven input monitor for logical display 4 and one pending timeout only while enabled; it will not arm without a real lower-panel touch. See the draft proposal; vendor input routing and power-off recovery require physical validation.
 - `AppDiagnostics` records bounded Activity/telemetry transitions in private
   preferences and queries this package's Android exit history on demand.
   `AppDiagnosticReport` owns the single 64-entry journal; a pure Java classifier contributes only bounded, typed Q transitions (two consecutive valid samples for mode/CRTC observations), not a second store or poll. It reuses

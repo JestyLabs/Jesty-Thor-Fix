@@ -25,7 +25,7 @@ PRODUCT = (
     "AutoService", "PServer", "LiveRetirement", "RebootActivation",
     "RebootActivationPolicy", "PreviousSecureDaemonIdentity", "LiveHandoverPolicy",
     "DaemonLaunchModel", "DashboardRenderer", "DashboardStateModel",
-    "CpuWarningModel", "TelemetryValues",
+    "CpuWarningModel", "TelemetryValues", "BottomIdleSettings",
 )
 TESTS = (
     "com.thor.displaypowertest.RebootActivationHostTest",

@@ -88,6 +88,7 @@ final class LidGuard {
 }
 
 final class WatcherCadence {
+    static void onDisplayEvent() {}
     static volatile boolean skipRead;
     static int modeChanges;
     static int requestedReads;
@@ -170,4 +171,31 @@ final class ProcessWait {
         // requestGuardSleep has a fail-closed precondition in this harness.
         throw new AssertionError("unexpected external process execution from host test");
     }
+}
+
+/** Host-only test double: no touch observer and no physical display calls. */
+final class BottomIdleRuntime {
+    static long pending = -1L;
+    static long restoreLease = -1L;
+    static boolean off;
+    static int completed;
+    static boolean lastConfirmed;
+    static void onModeSample(String mode) {}
+    static void onDisplayWake() { off = false; pending = -1L; }
+    static void onDisplayOnUnlessOwned() {}
+    static boolean isOff() { return off; }
+    static boolean isOffOrPending() { return off || pending >= 0L; }
+    static boolean isPending(long ticket) { return pending == ticket; }
+    static void completeOff(long ticket, boolean confirmed) {
+        completed++;
+        lastConfirmed = confirmed;
+        if (pending == ticket) {
+            pending = -1L;
+            off = confirmed;
+        }
+    }
+    static boolean canRestore(long lease) {
+        return lease == restoreLease && !off && pending < 0L;
+    }
+    static void completeRestore(long lease, boolean confirmed) {}
 }

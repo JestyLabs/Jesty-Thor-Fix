@@ -153,6 +153,7 @@ public final class AutoService extends Service {
                             : "trusted daemon healthy") + " enabled=" + enabled
                             + " fromBoot=" + fromBoot
                             + " elapsed_ms=" + SystemClock.elapsedRealtime());
+                    reconcileBottomIdle(state);
                 } finally {
                     workerRunning = false;
                     stopSelf();
@@ -160,6 +161,56 @@ public final class AutoService extends Service {
             }
         }, "thor-start").start();
         return START_NOT_STICKY;
+    }
+
+    /**
+     * Boot/startup reconciliation is bounded and runs only while the temporary
+     * AutoService worker is alive. The daemon never polls application prefs.
+     */
+    private static void reconcileBottomIdle(android.content.SharedPreferences prefs) {
+        boolean desired = prefs.getBoolean("bottom_idle_enabled", false);
+        // Default-off is a strict fast path: no daemon query, retry, thread,
+        // timer or additional IPC when this optional feature is not selected.
+        if (!desired) return;
+        int attempts = 30;
+        for (int i = 0; i < attempts; i++) {
+            try {
+                String identity = SocketClient.request('I', 800);
+                // Held phases that end only by replacement or reboot: stop waiting so
+                // this worker does not keep a later recovery start busy for ~70 s.
+                if (identity.contains(";boot_phase=" + DaemonLaunchModel.HANDOFF_FAILED_PHASE + ";")
+                        || identity.contains(";boot_phase=BOOT_SAFETY_TIMEOUT;")) return;
+                if (identity.contains(";boot_phase=READY;")) {
+                    synchronized (BottomIdleSettings.class) {
+                        // The tile may have changed intent while boot was held.
+                        if (!prefs.getBoolean("bottom_idle_enabled", false)) return;
+                        int wanted = prefs.getInt("bottom_idle_minutes",
+                                BottomIdleSettings.minutesAt(BottomIdleSettings.DEFAULT_INDEX));
+                        if (!BottomIdleSettings.validMinutes(wanted)) wanted =
+                                BottomIdleSettings.minutesAt(BottomIdleSettings.DEFAULT_INDEX);
+                        // A dashboard open must not reset a running deadline.
+                        String current = SocketClient.request('Q', 2300);
+                        java.util.Map<String, String> live = TelemetryValues.parse(current);
+                        if ("1".equals(live.get("idle_enabled"))
+                                && Integer.toString(wanted).equals(live.get("idle_minutes")))
+                            return;
+                        SocketClient.request(BottomIdleSettings.commandFor(wanted), 1800);
+                        return;
+                    }
+                }
+            } catch (Throwable failure) {
+                if (i == attempts - 1) {
+                    Log.w(TAG, "bottom idle preference could not be reconciled", failure);
+                }
+            }
+            if (i + 1 < attempts) {
+                try { Thread.sleep(1500L); }
+                catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
+        }
     }
 
     private static boolean pause() {

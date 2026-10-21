@@ -81,7 +81,8 @@ try {
         $_ -ne (Join-Path $src 'DisplayActionCoordinator.java') -and
         $_ -ne (Join-Path $fixture 'DisplayActionCoordinatorHostTest.java')
     }) + @($adapter, (Join-Path $fixture 'CoordinatorReadbackHostTest.java'),
-        (Join-Path $fixture 'CoordinatorFailureHostTest.java'))
+        (Join-Path $fixture 'CoordinatorFailureHostTest.java'),
+        (Join-Path $fixture 'BottomIdleCoordinatorHostTest.java'))
     & javac -encoding UTF-8 -source 8 -target 8 -d $classes @readbackSources
     if ($LASTEXITCODE -ne 0) { throw 'S1 readback adapter compilation failed' }
     & java -cp $classes com.thor.displaypowertest.CoordinatorReadbackHostTest
@@ -89,6 +90,8 @@ try {
     Write-Host 'S1-09 adapter: Settings reads scripted in temporary copy; no Android process or vendor execution.'
     & java -cp $classes com.thor.displaypowertest.CoordinatorFailureHostTest
     if ($LASTEXITCODE -ne 0) { throw 'S1 failure characterization failed' }
+    & java -cp $classes com.thor.displaypowertest.BottomIdleCoordinatorHostTest
+    if ($LASTEXITCODE -ne 0) { throw 'Auto Bottom Off coordinator regression failed' }
 
     $PSNativeCommandUseErrorActionPreference = $false
     foreach ($mutant in @(

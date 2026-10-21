@@ -1,6 +1,7 @@
 package com.thor.displaypowertest;
 
 import android.app.Activity;
+import android.content.res.ColorStateList;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
@@ -12,6 +13,7 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 
@@ -40,6 +42,10 @@ final class DashboardLayout {
     final Switch fixToggle;
     final Switch dashboardFixToggle;
     final Switch lidGuardToggle;
+    final Switch bottomIdleToggle;
+    final SeekBar bottomIdleSlider;
+    final TextView bottomIdleValue;
+    final TextView bottomIdleHelp;
     final TextView dashboardFixHelp;
     final TextView stateText;
     final TextView stateDetail;
@@ -182,6 +188,29 @@ final class DashboardLayout {
         View divider = new View(activity);
         divider.setBackgroundColor(0x338B4AE2);
         controls.addView(divider, new LinearLayout.LayoutParams(-1, views.dp(1)));
+
+        // Opt-in and timeout share the same panel, style and 48dp input targets.
+        bottomIdleToggle = views.makeSwitch("", Color.WHITE, 14f);
+        DashboardViews.ToggleRow idleRow = views.featureToggleRow("AUTO BOTTOM OFF",
+                "Only in BOTH. Requires True Bottom Screen Off and a detected bottom-screen touch.",
+                bottomIdleToggle);
+        bottomIdleHelp = idleRow.help;
+        controls.addView(idleRow.row,
+                new LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT));
+        bottomIdleValue = views.text("AFTER 5 MIN", 11f, AMBER, true);
+        bottomIdleValue.setPadding(0, views.dp(3), 0, 0);
+        controls.addView(bottomIdleValue);
+        bottomIdleSlider = new SeekBar(activity);
+        bottomIdleSlider.setMax(BottomIdleSettings.count() - 1);
+        bottomIdleSlider.setThumbTintList(ColorStateList.valueOf(AMBER));
+        bottomIdleSlider.setProgressTintList(ColorStateList.valueOf(AMBER));
+        bottomIdleSlider.setProgressBackgroundTintList(ColorStateList.valueOf(0x88684C85));
+        bottomIdleSlider.setMinimumHeight(views.dp(48));
+        bottomIdleSlider.setContentDescription("Auto Bottom Off timeout in minutes");
+        controls.addView(bottomIdleSlider, new LinearLayout.LayoutParams(-1, views.dp(48)));
+        View idleDivider = new View(activity);
+        idleDivider.setBackgroundColor(0x338B4AE2);
+        controls.addView(idleDivider, new LinearLayout.LayoutParams(-1, views.dp(1)));
 
         dashboardFixToggle = views.makeSwitch("", Color.WHITE, 14f);
         DashboardViews.ToggleRow cpuRow = views.featureToggleRow("AYN DASHBOARD CPU FIX",

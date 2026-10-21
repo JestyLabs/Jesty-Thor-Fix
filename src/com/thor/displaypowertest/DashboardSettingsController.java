@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.SharedPreferences;
 import android.widget.Switch;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -15,7 +16,7 @@ import static com.thor.displaypowertest.DashboardStyle.AMBER;
 import static com.thor.displaypowertest.DashboardStyle.MUTED;
 
 /**
- * The three persistent switches. Each change saves the preference first, then
+ * Persistent switches and the optional bottom-idle slider. Changes save intent first, then
  * sends one daemon command on a single background thread; a rejected command
  * restores the previous preference, an unanswered one keeps the request and
  * lets telemetry confirm it. UI-thread fields are only touched on that thread;
@@ -25,6 +26,8 @@ final class DashboardSettingsController {
     static final String DISPLAY_FIX = "fix_enabled";
     static final String CPU_FIX = "dashboard_cpu_fix_enabled";
     static final String LID_GUARD = "lid_guard_enabled";
+    static final String BOTTOM_IDLE = "bottom_idle_enabled";
+    static final String BOTTOM_IDLE_MINUTES = "bottom_idle_minutes";
 
     /** Status lines owned by DashboardRenderer. */
     interface Feedback {
@@ -38,15 +41,22 @@ final class DashboardSettingsController {
     private final Switch fixToggle;
     private final Switch dashboardFixToggle;
     private final Switch lidGuardToggle;
+    private final Switch bottomIdleToggle;
+    private final SeekBar bottomIdleSlider;
+    private final TextView bottomIdleValue;
+    private final TextView bottomIdleHelp;
     private final TextView dashboardFixHelp;
     private final Feedback feedback;
     private final ExecutorService commandExecutor = Executors.newSingleThreadExecutor();
     private boolean suppressToggle;
     private boolean suppressDashboardToggle;
     private boolean suppressLidToggle;
+    private boolean suppressIdleControls;
     private volatile boolean commandInFlight;
     private volatile boolean dashboardCommandInFlight;
     private volatile boolean lidCommandInFlight;
+    private volatile boolean idleCommandInFlight;
+    private final Runnable commitIdleSlider;
     private volatile boolean installReserved;
     private volatile boolean activationPending = true;
 
@@ -57,6 +67,15 @@ final class DashboardSettingsController {
         this.fixToggle = layout.fixToggle;
         this.dashboardFixToggle = layout.dashboardFixToggle;
         this.lidGuardToggle = layout.lidGuardToggle;
+        this.bottomIdleToggle = layout.bottomIdleToggle;
+        this.bottomIdleSlider = layout.bottomIdleSlider;
+        this.commitIdleSlider = () -> {
+            int minutes = BottomIdleSettings.minutesAt(bottomIdleSlider.getProgress());
+            if (minutes != desiredBottomIdleMinutes())
+                changeIdle(desiredBottomIdle(), minutes);
+        };
+        this.bottomIdleValue = layout.bottomIdleValue;
+        this.bottomIdleHelp = layout.bottomIdleHelp;
         this.dashboardFixHelp = layout.dashboardFixHelp;
         this.feedback = feedback;
     }
@@ -67,6 +86,8 @@ final class DashboardSettingsController {
             fixToggle.setEnabled(false);
             dashboardFixToggle.setEnabled(false);
             lidGuardToggle.setEnabled(false);
+            bottomIdleToggle.setEnabled(false);
+            bottomIdleSlider.setEnabled(false);
         }
     }
 
@@ -92,7 +113,39 @@ final class DashboardSettingsController {
         lidGuardToggle.setOnCheckedChangeListener((button, checked) -> {
             if (!suppressLidToggle) setLidGuardEnabled(checked);
         });
+        suppressIdleControls = true;
+        bottomIdleToggle.setChecked(desiredBottomIdle());
+        bottomIdleSlider.setProgress(BottomIdleSettings.indexOf(desiredBottomIdleMinutes()));
+        setIdleValue(bottomIdleSlider.getProgress());
+        suppressIdleControls = false;
+        bottomIdleToggle.setOnCheckedChangeListener((button, checked) -> {
+            if (!suppressIdleControls) changeIdle(checked, desiredBottomIdleMinutes());
+        });
+        bottomIdleSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
+                setIdleValue(progress);
+                // D-pad/accessibility adjustments have no stop-tracking callback.
+                // Coalesce them without sending IPC for every slider increment.
+                if (fromUser && !suppressIdleControls && !bar.isPressed()) {
+                    bar.removeCallbacks(commitIdleSlider);
+                    bar.postDelayed(commitIdleSlider, 350L);
+                }
+            }
+            @Override public void onStartTrackingTouch(SeekBar bar) {}
+            @Override public void onStopTrackingTouch(SeekBar bar) {
+                bar.removeCallbacks(commitIdleSlider);
+                if (!suppressIdleControls) commitIdleSlider.run();
+            }
+        });
         setActivationPending(true);
+    }
+
+    boolean desiredBottomIdle() { return preferences.getBoolean(BOTTOM_IDLE, false); }
+    int desiredBottomIdleMinutes() {
+        int saved = preferences.getInt(BOTTOM_IDLE_MINUTES,
+                BottomIdleSettings.minutesAt(BottomIdleSettings.DEFAULT_INDEX));
+        return BottomIdleSettings.validMinutes(saved) ? saved
+                : BottomIdleSettings.minutesAt(BottomIdleSettings.DEFAULT_INDEX);
     }
 
     boolean desiredDisplayFix() { return preferences.getBoolean(DISPLAY_FIX, true); }
@@ -102,7 +155,8 @@ final class DashboardSettingsController {
     boolean displayCommandInFlight() { return commandInFlight; }
 
     boolean anyCommandInFlight() {
-        return commandInFlight || dashboardCommandInFlight || lidCommandInFlight;
+        return commandInFlight || dashboardCommandInFlight || lidCommandInFlight
+                || idleCommandInFlight;
     }
 
     /** From the Download tap until commit, no switch may start a command. */
@@ -112,6 +166,8 @@ final class DashboardSettingsController {
             fixToggle.setEnabled(false);
             dashboardFixToggle.setEnabled(false);
             lidGuardToggle.setEnabled(false);
+            bottomIdleToggle.setEnabled(false);
+            bottomIdleSlider.setEnabled(false);
         }
     }
 
@@ -135,10 +191,110 @@ final class DashboardSettingsController {
         dashboardFixToggle.setEnabled(!activationPending && !bootHeld && watcherReady && !dashboardCommandInFlight
                 && !installReserved);
         lidGuardToggle.setEnabled(!activationPending && !bootHeld && !lidCommandInFlight && !installReserved);
+        if (!idleCommandInFlight) {
+            suppressIdleControls = true;
+            bottomIdleToggle.setChecked(desiredBottomIdle());
+            int index = BottomIdleSettings.indexOf(desiredBottomIdleMinutes());
+            if (!bottomIdleSlider.isPressed()) bottomIdleSlider.setProgress(index);
+            suppressIdleControls = false;
+        }
+        boolean idleReady = !activationPending && !bootHeld && !idleCommandInFlight && !installReserved;
+        bottomIdleToggle.setEnabled(idleReady);
+        bottomIdleSlider.setEnabled(idleReady);
+    }
+
+    void syncIdleStatus(String inputState) {
+        if (!desiredBottomIdle()) {
+            bottomIdleHelp.setText("Only in BOTH. Set the timeout, then enable here or in Android Quick Settings.");
+            bottomIdleHelp.setTextColor(MUTED);
+        } else if ("UNAVAILABLE".equals(inputState)) {
+            bottomIdleHelp.setText("Bottom touch monitor unavailable — automatic off will not activate.");
+            bottomIdleHelp.setTextColor(AMBER);
+        } else if ("SUSPENDED".equals(inputState)) {
+            bottomIdleHelp.setText("Waiting for BOTH mode with True Bottom Screen Off enabled.");
+            bottomIdleHelp.setTextColor(MUTED);
+        } else if ("WAITING_FOR_TOUCH".equals(inputState)) {
+            bottomIdleHelp.setText("Touch the bottom screen once in BOTH to start the inactivity timer.");
+            bottomIdleHelp.setTextColor(MUTED);
+        } else if ("OBSERVED".equals(inputState)) {
+            bottomIdleHelp.setText("Timer active in BOTH. Passive video without touch also counts as idle.");
+            bottomIdleHelp.setTextColor(MUTED);
+        }
     }
 
     void shutdown() {
+        bottomIdleSlider.removeCallbacks(commitIdleSlider);
         commandExecutor.shutdown();
+    }
+
+    private void setIdleValue(int index) {
+        int minutes = BottomIdleSettings.minutesAt(index);
+        bottomIdleValue.setText("OFF AFTER " + minutes + (minutes == 1 ? " MINUTE" : " MINUTES"));
+        bottomIdleSlider.setContentDescription(
+                "Auto Bottom Off timeout: " + minutes + (minutes == 1 ? " minute" : " minutes"));
+    }
+
+    private void restoreIdleControls() {
+        suppressIdleControls = true;
+        bottomIdleToggle.setChecked(desiredBottomIdle());
+        int progress = BottomIdleSettings.indexOf(desiredBottomIdleMinutes());
+        bottomIdleSlider.setProgress(progress);
+        setIdleValue(progress);
+        suppressIdleControls = false;
+    }
+
+    /** Only one IPC change when the user releases the slider, never per tick. */
+    private void changeIdle(boolean enabled, int minutes) {
+        bottomIdleSlider.removeCallbacks(commitIdleSlider);
+        if (idleCommandInFlight || activationPending || installReserved) {
+            restoreIdleControls();
+            return;
+        }
+        // Slider changes must preserve a concurrent QS tile toggle, rather
+        // than silently disabling the option with a stale checked snapshot.
+        final boolean sliderOnly = enabled == desiredBottomIdle();
+        idleCommandInFlight = true;
+        bottomIdleToggle.setEnabled(false);
+        bottomIdleSlider.setEnabled(false);
+        commandExecutor.execute(() -> {
+            // Dashboard and tile are in the same Android app process. Serialize
+            // preference writes with their matching authenticated daemon ACK.
+            synchronized (BottomIdleSettings.class) {
+                final boolean previousEnabled = desiredBottomIdle();
+                final int previousMinutes = desiredBottomIdleMinutes();
+                final boolean targetEnabled = sliderOnly ? previousEnabled : enabled;
+                try {
+                    if (!preferences.edit().putBoolean(BOTTOM_IDLE, targetEnabled)
+                            .putInt(BOTTOM_IDLE_MINUTES, minutes).commit()) {
+                        throw new IllegalStateException("ok=0;error=IDLE_PREFERENCE_WRITE_FAILED");
+                    }
+                    if (targetEnabled || previousEnabled) {
+                        SocketClient.request(targetEnabled ? BottomIdleSettings.commandFor(minutes)
+                                : BottomIdleSettings.DISABLE_COMMAND, 1800);
+                    }
+                    activity.runOnUiThread(() -> finishIdleChange(null));
+                } catch (Throwable error) {
+                    final boolean rejected = rejected(error);
+                    if (rejected && !preferences.edit().putBoolean(BOTTOM_IDLE, previousEnabled)
+                            .putInt(BOTTOM_IDLE_MINUTES, previousMinutes).commit()) {
+                        android.util.Log.e("ThorIdle", "preference rollback failed", error);
+                    }
+                    activity.runOnUiThread(() -> finishIdleChange(rejected
+                            ? "Auto Bottom Off rejected; setting restored"
+                            : "Auto Bottom Off status uncertain; check again"));
+                }
+            }
+        });
+    }
+
+    private void finishIdleChange(String message) {
+        idleCommandInFlight = false;
+        restoreIdleControls();
+        boolean ready = !activationPending && !installReserved;
+        bottomIdleToggle.setEnabled(ready);
+        bottomIdleSlider.setEnabled(ready);
+        BottomIdleTileService.requestRefresh(activity);
+        if (message != null) toast(message, Toast.LENGTH_LONG);
     }
 
     private void confirmDashboardCpuFix(boolean requested) {

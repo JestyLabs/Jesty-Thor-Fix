@@ -34,6 +34,19 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
             </intent-filter>
         </receiver>
+        <!-- Optional user-added Quick Settings tile; no exported application receiver. -->
+        <service
+            android:name="com.thor.displaypowertest.BottomIdleTileService"
+            android:label="Auto Bottom Off"
+            android:icon="@drawable/jesty_thor_icon"
+            android:exported="true"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE"/>
+            </intent-filter>
+            <meta-data android:name="android.service.quicksettings.ACTIVE_TILE"
+                android:value="true"/>
+        </service>
         <receiver
             android:name="com.thor.displaypowertest.UpdateInstallReceiver"
             android:exported="false"/>

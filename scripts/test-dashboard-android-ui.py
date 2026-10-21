@@ -98,7 +98,7 @@ def assess(data):
                                           ('settings-keyboard', 'Updates'), ('update-dialog', 'Update available')])
     navigation &= any(n['key'] == 'SPACE_RESULT' and n['openedDiagnostics'] for n in data['navigation'])
     actions = [v for v in base['views'] if v.get('clickable')]
-    touch = len(actions) == 7 and all(min(v['width'], v['height']) / density >= 47.5 for v in actions)
+    touch = len(actions) >= 8 and all(min(v['width'], v['height']) / density >= 47.5 for v in actions)
     text = all(not v.get('verticalTextClipped') and not v.get('ellipsisCharacters')
                and v.get('maxLineWidth', 0) <= v.get('availableWidth', 0) + 1
                for c in captures.values() for v in c.get('views', []))
@@ -122,7 +122,9 @@ def assess(data):
               'dashboard-text': bool(text), 'diagnostics-actions': bool(diagnostics)}
     if data['activationGatePresent']:
         switches = [v for v in base['views'] if v.get('class') == 'Switch']
-        checks['activation-pending-controls'] = (len(switches) == 3
+        sliders = [v for v in base['views'] if v.get('class') == 'SeekBar']
+        checks['activation-pending-controls'] = (len(switches) == 4
+            and len(sliders) == 1 and not sliders[0]['enabled']
             and all(not v['enabled'] for v in switches)
             and base['internalActivationState'] == 'SERVICE TRANSFER PENDING'
             and any(v.get('text') == 'ACTIVATION PENDING' for v in base['views']))

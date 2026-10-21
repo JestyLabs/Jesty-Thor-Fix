@@ -56,7 +56,10 @@ public final class DaemonCommandHandler {
             case 'G': return LidGuard.setEnabled(true) ? "ok=1;lid_guard=1"
                     : "ok=0;error=HALL_UNAVAILABLE";
             case 'H': LidGuard.setEnabled(false); return "ok=1;lid_guard=0";
-            default: return "ok=0;error=UNKNOWN_COMMAND";
+            default:
+                int minutes = BottomIdleSettings.minutesFor(command);
+                return minutes < 0 ? "ok=0;error=UNKNOWN_COMMAND"
+                        : BottomIdleRuntime.configure(minutes);
         }
     }
 }
