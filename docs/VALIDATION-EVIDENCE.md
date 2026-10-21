@@ -4,6 +4,8 @@
 
 [Release validation and artifact identity](VALIDATION-1.7.5.md) record host, generic Android, CodeQL, signing and downloaded-asset checks as PASS. **Physical acceptance of this revision is NOT RUN at publication**, under an explicit maintainer timing exception. [Blackout containment](BLACKOUT-CONTAINMENT-1.7.4.md) is a tested software mitigation awaiting device acceptance; the earlier physical results below retain their original version boundaries.
 
+**21 October maintainer feedback:** ongoing device testing of v1.7.4 and v1.7.5 has shown no black screens or other issues so far; background-service transitions have worked without observed errors. [The dated observation](evidence/OWNER-OBSERVATION-1.7.4-1.7.5-2026-10-21.md) also records the planned complete supervised physical retest for v1.7.6. This does not mark the formal S6 matrix complete.
+
 
 ## RC78 hardening session — 15–16 October 2026
 

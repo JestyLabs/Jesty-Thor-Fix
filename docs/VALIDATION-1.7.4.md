@@ -2,6 +2,8 @@
 
 Published [Latest stable v1.7.4](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.4). This record separates the completed software gates from physical acceptance, which is **NOT RUN for this revision at publication**. The maintainer explicitly authorized publication after host/emulator verification, followed by overnight observation and supervised Thor checks. This timing exception does not establish device acceptance or change future gates.
 
+**21 October update:** the maintainer reports ongoing Thor testing of v1.7.4 and v1.7.5 with no black screens or other issues observed so far, and normal background-service transitions without errors. [Observation and planned v1.7.6 supervised retest](evidence/OWNER-OBSERVATION-1.7.4-1.7.5-2026-10-21.md) are recorded separately from the formal S6 matrix.
+
 ## Exact artifact and gates
 
 | Item | Verified result |
@@ -32,7 +34,7 @@ Earlier failed CI remains visible: a historical-source control initially depende
 
 ## Pending / unknown
 
-- Exact released APK on the Thor, same-boot upgrades, visible healthy transitions, physical sleep/wake and containment effectiveness: **NOT RUN for this revision**.
+- Supervised acceptance with captured artifact identity, same-boot upgrades, visible healthy transitions, physical sleep/wake and containment effectiveness: **NOT RUN for this revision**. The ongoing maintainer observation above is additional physical feedback, not a completed S6 result.
 - Root electrical/DSI/panel/firmware cause, reliable recovery from an already blocked compositor and absence of future blackouts: **UNKNOWN**. A call that never returns cannot trigger this post-return containment.
 - Active Guard interception, BOTTOM/dock coverage and new CPU/energy/frame-time measurements remain outside this release's evidence. Historical PASS/FAIL records are preserved.
 - [#84](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/84) is closed as delivered mitigation at the maintainer's request; [#95/S6](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/95) retains physical acceptance; [#65](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/65) brightness research is separate. Refresh research and the lower-screen inactivity timer are excluded.

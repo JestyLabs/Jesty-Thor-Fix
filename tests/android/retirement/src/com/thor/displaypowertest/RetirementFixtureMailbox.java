@@ -16,13 +16,14 @@ final class RetirementFixtureMailbox {
     private RetirementFixtureMailbox() {}
 
     static boolean submitHelper(String command) {
-        Matcher match = Pattern.compile(" app_process / R ([0-9a-f]{32}) 100 ").matcher(command);
+        Matcher match = Pattern.compile(" app_process / R ([0-9a-f]{32}) 100( recovery)? ").matcher(command);
         if (!match.find()) throw new AssertionError("Fixed helper command required");
         String nonce = match.group(1);
-        if (!LiveRetirement.helperCommand(nonce, true, false, false).equals(command)) {
+        boolean recovery = match.group(2) != null;
+        if (!LiveRetirement.helperCommand(nonce, true, false, false, recovery).equals(command)) {
             throw new AssertionError("No arbitrary command is permitted in the fixture");
         }
-        return request("HELPER " + nonce);
+        return request((recovery ? "RECOVERY " : "HELPER ") + nonce);
     }
 
     static boolean launchSuccessor() { return request("SUCCESSOR"); }

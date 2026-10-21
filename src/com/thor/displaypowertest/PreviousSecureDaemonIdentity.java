@@ -5,6 +5,15 @@ public final class PreviousSecureDaemonIdentity {
     private PreviousSecureDaemonIdentity() {}
 
     public static int safePid(String health, String snapshot) {
+        return checkedPid(health, snapshot, false);
+    }
+
+    /** Only the retained-process caller may consider a confirmed TOP state. */
+    static int safePidForRetainedProcess(String health, String snapshot, boolean displayFix) {
+        return checkedPid(health, snapshot, displayFix);
+    }
+
+    private static int checkedPid(String health, String snapshot, boolean allowTop) {
         if (health == null || snapshot == null
                 || !health.startsWith("ok=1;")
                 || !snapshot.startsWith("ok=1;")
@@ -30,11 +39,15 @@ public final class PreviousSecureDaemonIdentity {
                         || version.equals("1.7.1-rc3")
                         || version.equals("1.7.1-rc4")
                         || version.equals("1.7.1") || version.equals("1.7.2")
-                        || version.equals("1.7.3") || version.equals("1.7.4"))
+                        || version.equals("1.7.3") || version.equals("1.7.4") || version.equals("1.7.5"))
                 || !field(health, "watcher").equals("RUNNING")) return -1;
-        if (!field(snapshot, "mode").equals("0")
-                || !field(snapshot, "top_crtc").equals("1")
-                || !field(snapshot, "bottom_crtc").equals("1")) return -1;
+        boolean both = field(snapshot, "mode").equals("0")
+                && field(snapshot, "top_crtc").equals("1")
+                && field(snapshot, "bottom_crtc").equals("1");
+        boolean top = allowTop && field(snapshot, "mode").equals("1")
+                && field(snapshot, "top_crtc").equals("1")
+                && field(snapshot, "bottom_crtc").equals("0");
+        if (!both && !top) return -1;
         String pid = field(health, "pid");
         if (!pid.matches("[1-9][0-9]{0,8}")) return -1;
         try {

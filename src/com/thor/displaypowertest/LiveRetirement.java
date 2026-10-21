@@ -15,6 +15,7 @@ public final class LiveRetirement {
     private static final int FRAME_LIMIT = 128;
 
     interface Bridge { boolean submit(String command); }
+    interface CommitGate { boolean allow(); }
 
     interface Io {
         int applicationUid() throws IOException;
@@ -39,6 +40,15 @@ public final class LiveRetirement {
 
     static int retire(boolean display, boolean cpu, boolean guard, Bridge bridge)
             throws IOException {
+        return begin(display, cpu, guard, false, () -> true, bridge);
+    }
+
+    static int recover(boolean display, CommitGate gate, Bridge bridge) throws IOException {
+        return begin(display, false, false, true, gate, bridge);
+    }
+
+    private static int begin(boolean display, boolean cpu, boolean guard,
+            boolean recovery, CommitGate gate, Bridge bridge) throws IOException {
         RetirementNative.load();
         byte[] random = new byte[16];
         new SecureRandom().nextBytes(random);
@@ -47,17 +57,22 @@ public final class LiveRetirement {
             nonce.append(Character.forDigit((value >>> 4) & 15, 16));
             nonce.append(Character.forDigit(value & 15, 16));
         }
-        return retire(new NativeIo(), nonce.toString(), display, cpu, guard, bridge);
+        return retire(new NativeIo(), nonce.toString(), display, cpu, guard, recovery, gate, bridge);
     }
 
     static int retire(Io io, String nonce, boolean display, boolean cpu,
             boolean guard, Bridge bridge) throws IOException {
+        return retire(io, nonce, display, cpu, guard, false, () -> true, bridge);
+    }
+
+    private static int retire(Io io, String nonce, boolean display, boolean cpu,
+            boolean guard, boolean recovery, CommitGate gate, Bridge bridge) throws IOException {
         validateNonce(nonce);
         Deadline deadline = new Deadline();
         String path = controlPath(nonce);
         try (Endpoint endpoint = new Endpoint(io, io.listen(path), path)) {
             deadline.remaining(CONTROL_MS);
-            if (!bridge.submit(helperCommand(nonce, display, cpu, guard))) {
+            if (!bridge.submit(helperCommand(nonce, display, cpu, guard, recovery))) {
                 throw new IOException("Retirement bridge rejected");
             }
             try (Handle control = new Handle(io,
@@ -65,7 +80,7 @@ public final class LiveRetirement {
                 if (io.uid(control.fd) != 0) throw new IOException("Retirement helper UID");
                 expect(io, control.fd, "HELLO " + nonce, deadline);
                 int peerPid = -1;
-                for (int index = 0; index < 4; index++) {
+                for (int index = 0; index < (recovery ? 2 : 4); index++) {
                     expect(io, control.fd, "SOCKET " + nonce + " " + index, deadline,
                             OBSERVATION_WAIT_MS);
                     try (Handle socket = new Handle(io,
@@ -83,6 +98,7 @@ public final class LiveRetirement {
                         OBSERVATION_WAIT_MS);
                 // COMMIT is the irreversible-operation boundary. Cancellation
                 // afterwards cannot undo a signal, but still cannot launch.
+                if (!gate.allow()) throw new IOException("Retirement commit authorization unavailable");
                 io.write(control.fd, "COMMIT " + nonce, deadline.remaining(CONTROL_MS));
                 expect(io, control.fd, "EXIT " + nonce + " " + peerPid, deadline, 3500);
                 deadline.remaining(CONTROL_MS);
@@ -93,10 +109,16 @@ public final class LiveRetirement {
 
     /** Fixed main, endpoint and flags only; never a caller-selected PID/command. */
     static String helperCommand(String nonce, boolean display, boolean cpu, boolean guard) {
+        return helperCommand(nonce, display, cpu, guard, false);
+    }
+
+    static String helperCommand(String nonce, boolean display, boolean cpu,
+            boolean guard, boolean recovery) {
         validateNonce(nonce);
         String command = "A=$(pm path com.thor.displaypowertest);A=${A#*:};"
                 + "CLASSPATH=$A app_process / R " + nonce + " "
                 + (display ? "1" : "0") + (cpu ? "1" : "0") + (guard ? "1" : "0")
+                + (recovery ? " recovery" : "")
                 + " >/dev/null 2>&1 &";
         if (command.length() > DaemonLaunchScript.MAX_COMMAND_CHARS) {
             throw new IllegalArgumentException("Retirement helper command too long");
@@ -105,17 +127,24 @@ public final class LiveRetirement {
     }
 
     public static void runHelper(String[] args) throws IOException {
-        if (args.length != 2 || !args[1].matches("[01]{3}")) {
+        boolean recovery = args.length == 3 && "recovery".equals(args[2]);
+        if ((!recovery && args.length != 2) || !args[1].matches("[01]{3}")
+                || (recovery && !args[1].substring(1).equals("00"))) {
             throw new IOException("Retirement helper arguments");
         }
         validateNonce(args[0]);
         RetirementNative.loadHelper();
         serve(new NativeIo(), args[0], args[1].charAt(0) == '1',
-                args[1].charAt(1) == '1', args[1].charAt(2) == '1');
+                args[1].charAt(1) == '1', args[1].charAt(2) == '1', recovery);
     }
 
     static void serve(Io io, String nonce, boolean display, boolean cpu, boolean guard)
             throws IOException {
+        serve(io, nonce, display, cpu, guard, false);
+    }
+
+    private static void serve(Io io, String nonce, boolean display, boolean cpu, boolean guard,
+            boolean recovery) throws IOException {
         validateNonce(nonce);
         Deadline deadline = new Deadline();
         int expectedUid = io.applicationUid();
@@ -129,7 +158,7 @@ public final class LiveRetirement {
                 int peerPid = -1;
                 String firstHealth = null;
                 String firstSnapshot = null;
-                for (int index = 0; index < 4; index++) {
+                for (int index = 0; index < (recovery ? 2 : 4); index++) {
                     io.write(control.fd, "SOCKET " + nonce + " " + index,
                             deadline.remaining(CONTROL_MS));
                     try (Handle socket = new Handle(io,
@@ -145,10 +174,19 @@ public final class LiveRetirement {
                             if (processFd < 0) throw new IOException("Retirement descriptor missing");
                         }
                         io.requireSameProcess(processFd, socket.fd, peerPid);
-                        char command = index % 2 == 0 ? 'I' : 'Q';
+                        char command = recovery || index % 2 == 0 ? 'I' : 'Q';
                         String response = io.request(socket.fd, command,
                                 deadline.remaining(command == 'I' ? 700 : 2500));
                         io.requireSameProcess(processFd, socket.fd, peerPid);
+                        if (recovery) {
+                            if (FailedStartRetirementPolicy.safePid(response, display, uid, peerPid)
+                                    != peerPid || (index > 0
+                                    && !FailedStartRetirementPolicy.unchanged(firstHealth, response))) {
+                                throw new IOException("Retirement failed-start state ineligible");
+                            }
+                            firstHealth = response;
+                            continue;
+                        }
                         if (index == 0) firstHealth = response;
                         if (index == 1) {
                             firstSnapshot = response;
@@ -162,7 +200,8 @@ public final class LiveRetirement {
                             firstHealth = response;
                         }
                         if (index == 3) {
-                            requireEligible(firstHealth, response, display, cpu, guard, uid, peerPid);
+                            requireUnchangedEligible(firstHealth, firstSnapshot, response,
+                                    display, cpu, guard, uid, peerPid);
                         }
                     }
                 }
@@ -186,6 +225,14 @@ public final class LiveRetirement {
         if (LiveHandoverPolicy.safePidForRetainedProcess(health, snapshot,
                 display, cpu, guard, uid, pid) != pid) {
             throw new IOException("Retirement predecessor ineligible");
+        }
+    }
+
+    private static void requireUnchangedEligible(String health, String firstSnapshot, String snapshot,
+            boolean display, boolean cpu, boolean guard, int uid, int pid) throws IOException {
+        requireEligible(health, snapshot, display, cpu, guard, uid, pid);
+        if (!LiveHandoverPolicy.sameRetainedDisplayState(firstSnapshot, snapshot)) {
+            throw new IOException("Retirement display state changed");
         }
     }
 

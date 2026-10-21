@@ -6,9 +6,6 @@ import android.util.Log;
 
 import java.lang.reflect.Method;
 import java.io.File;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
@@ -44,21 +41,6 @@ public final class PServer {
         }
     }
 
-    public static boolean stopLegacyDaemon() {
-        // A port occupant alone is not an identity. Require our exact legacy
-        // protocol first, then a *single* root app_process with D's known
-        // command line. /proc/PID/environ is not available in every vendor
-        // service context after package replacement, so do not depend on it.
-        if (!legacyProtocolSeen()) return false;
-        String command = "PICK='';COUNT=0;for P in $(pidof app_process);do "
-                + "[ \"$(stat -c %u /proc/$P)\" = 0 ]||continue;"
-                + "tr '\\000' ' ' </proc/$P/cmdline|"
-                + "grep -Eq '^app_process / D [01] (hold|run) [01] [01]( |$)'||continue;"
-                + "PICK=$P;COUNT=$((COUNT+1));done;"
-                + "[ \"$COUNT\" = 1 ]&&kill \"$PICK\"";
-        return send(command, "uniquely identified legacy daemon stop submitted");
-    }
-
     /** A verified, narrow candidate for a same-boot replacement. No root operation here. */
     public static int safeLivePredecessor(boolean displayFix, boolean cpuFix, boolean lidGuard) {
         try {
@@ -83,27 +65,6 @@ public final class PServer {
         }
     }
 
-    /** Replaces only known older authenticated daemons while BOTH is physically ON. */
-    public static boolean stopPreviousSecureDaemonIfSafe() {
-        try {
-            // SocketClient checks the daemon's root UID before returning either
-            // response. A claimed version or PID is never authentication alone.
-            String health = SocketClient.request('I', 700);
-            String snapshot = SocketClient.request('Q', 2500);
-            int pid = PreviousSecureDaemonIdentity.safePid(health, snapshot);
-            if (pid < 1) {
-                Log.e(TAG, "older daemon safe-replace rejected; health=" + health
-                        + ";snapshot=" + snapshot);
-                return false;
-            }
-            return send(identifiedDaemonKill(pid),
-                    "identified older secure daemon stop submitted pid=" + pid);
-        } catch (Throwable error) {
-            Log.e(TAG, "older daemon identity check failed", error);
-            return false;
-        }
-    }
-
     /**
      * Replaces only an authenticated same-version, same-intent daemon that is
      * held after a failed compositor handover, or whose starting phase has not
@@ -111,41 +72,21 @@ public final class PServer {
      * held in both cases, so no BOTH requirement applies; the successor is
      * launched in hold and runs the full boot gate.
      */
-    public static boolean stopReplaceableSecureDaemonIfSafe(boolean expectedFix) {
+    static synchronized boolean stopReplaceableSecureDaemonIfSafe(boolean expectedFix,
+            LiveRetirement.CommitGate gate) {
         try {
+            // Advisory only: avoid privileged work for normal or mismatched starts.
+            // The retained helper still authenticates and revalidates every observation.
             String health = SocketClient.request('I', 700);
-            int pid = DaemonLaunchModel.replaceablePid(health, DaemonIdentity.RUNTIME_ID,
-                    expectedFix);
-            if (pid < 1) return false;
-            Log.w(TAG, "replaceable daemon: " + health);
-            return send(identifiedDaemonKill(pid),
-                    "identified held same-version daemon stop submitted pid=" + pid);
-        } catch (Throwable error) {
-            Log.e(TAG, "held daemon identity check failed", error);
+            if (DaemonLaunchModel.replaceablePid(health, DaemonIdentity.RUNTIME_ID, expectedFix) <= 100) {
+                return false;
+            }
+            return LiveRetirement.recover(expectedFix, gate,
+                    command -> send(command, "recovery helper submitted; exit unconfirmed")) > 100;
+        } catch (Exception | LinkageError error) {
+            Log.w(TAG, "held daemon recovery unavailable; normal restart required", error);
             return false;
         }
-    }
-
-    private static String identifiedDaemonKill(int pid) {
-        return "P=" + pid + ";"
-                + "[ \"$(stat -c %u /proc/$P)\" = 0 ]||exit 1;"
-                + "tr '\\000' ' ' </proc/$P/cmdline|"
-                + "grep -Eq '^app_process / D [01] (hold|run) [01] [01]( |$)'||exit 1;"
-                + "kill \"$P\"";
-    }
-
-    /** Read-only legacy fingerprint; never sends a power-changing command. */
-    private static boolean legacyProtocolSeen() {
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress("127.0.0.1", 3804), 300);
-            socket.setSoTimeout(1500);
-            socket.getOutputStream().write((byte) 'Q');
-            socket.getOutputStream().flush();
-            BufferedReader reader = new BufferedReader(new InputStreamReader(
-                    socket.getInputStream(), StandardCharsets.UTF_8));
-            String response = reader.readLine();
-            return LegacyDaemonIdentity.expectedResponse(response);
-        } catch (Throwable ignored) { return false; }
     }
 
     public static boolean healthy(boolean expectedFix) {
