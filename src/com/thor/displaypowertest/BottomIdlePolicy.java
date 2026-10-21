@@ -60,6 +60,13 @@ public final class BottomIdlePolicy {
         return true;
     }
 
+    /** As wakeIfEnabled, but an owned OFF or pending OFF lease is preserved. */
+    public synchronized boolean wakeUnlessOwned() {
+        if (!enabled || off || pending) return false;
+        clear();
+        return true;
+    }
+
     /**
      * On input monitor failure, revoke all touch proof and atomically return
      * a new exact restoration lease, if a prior OFF/restore may still be owned.

@@ -221,7 +221,7 @@ public final class DisplayActionCoordinator {
     }
     public static void noteDisplayOn() {
         // Our own OFF may emit a logical display-on callback; do not revoke its lease.
-        if (!BottomIdleRuntime.isOffOrPending()) BottomIdleRuntime.onDisplayWake();
+        BottomIdleRuntime.onDisplayOnUnlessOwned();
         synchronized (DisplayHardware.class) {
             if (generations.isRepairCurrent() && WakeRepairScheduler.isPending())
                 WakeRepairScheduler.noteDisplayOn();
