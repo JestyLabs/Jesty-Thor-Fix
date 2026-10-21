@@ -163,31 +163,27 @@ public final class BottomIdleRuntime {
     }
 
     public static void onBottomTouch(long now, long epoch, int action) {
-        final Handler active;
-        final boolean restore;
+        final Handler owner;
         final long restoreLease;
         synchronized (LOCK) {
-            if (receiver == null || epoch != monitorEpoch || !POLICY.enabled()
+            if (receiver == null || epoch != monitorEpoch
                     || "UNAVAILABLE".equals(inputState) || !DaemonState.isEnabled()) return;
-            restore = POLICY.touch(now);
-            if (!POLICY.inputVerified()) return;
-            if (action == android.view.MotionEvent.ACTION_DOWN
+            final int pointerState =
+                    action == android.view.MotionEvent.ACTION_DOWN
                     || action == android.view.MotionEvent.ACTION_POINTER_DOWN
-                    || action == android.view.MotionEvent.ACTION_MOVE) {
-                POLICY.pointerDown(true);
-            } else if (action == android.view.MotionEvent.ACTION_UP
-                    || action == android.view.MotionEvent.ACTION_CANCEL) {
-                POLICY.pointerDown(false);
-            }
-            // pointerDown() can advance the generation on DOWN/UP. Mint the
-            // queued restore lease only after all event policy mutations.
-            restoreLease = restore ? POLICY.generation() : -1L;
+                    || action == android.view.MotionEvent.ACTION_MOVE ? 1
+                    : action == android.view.MotionEvent.ACTION_UP
+                    || action == android.view.MotionEvent.ACTION_CANCEL ? 0 : -1;
+            // One atomic policy operation covers touch evidence, pointer state
+            // and the generation of any queued restoration.
+            restoreLease = POLICY.touchEvent(now, pointerState);
+            if (restoreLease == BottomIdlePolicy.REJECTED_TOUCH) return;
             inputState = "OBSERVED";
-            active = handler;
+            owner = handler;
             scheduleLocked(now);
         }
-        if (restore && active != null)
-            active.post(() -> DisplayActionCoordinator.restoreIdleBottom(restoreLease));
+        if (restoreLease >= 0L && owner != null)
+            owner.post(() -> DisplayActionCoordinator.restoreIdleBottom(restoreLease));
     }
 
     /** Revoke earlier touch proof if hidden display-id decoding stops working. */
