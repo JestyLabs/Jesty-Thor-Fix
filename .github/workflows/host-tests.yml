@@ -131,6 +131,10 @@ jobs:
         shell: pwsh
         run: python ./tests/test-updater-e2e-timeout.py
 
+      - name: Native channel controller admission and evidence guards (host-only)
+        shell: pwsh
+        run: python ./tests/test-secure-channel-native-guards.py
+
       - name: Passive energy analysis fixtures (host-only)
         shell: pwsh
         run: python ./scripts/test-thor-energy.py
@@ -405,6 +409,10 @@ jobs:
         run: |
           python3 scripts/test-display-wake-android.py --sdk "$ANDROID_HOME" --java "$JAVA_HOME" --build "$RUNNER_TEMP/display-wake-build" --build-only
 
+      - name: Build native channel fixture and compiled controls
+        run: |
+          python3 scripts/test-secure-channel-native.py --sdk "$ANDROID_HOME" --java "$JAVA_HOME" --build "$RUNNER_TEMP/native-channel-build" --build-only
+
       - name: Test Android lifecycle with no vendor Binder
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         with:
@@ -427,6 +435,7 @@ jobs:
             python3 scripts/test-display-wake-android.py --sdk "$ANDROID_HOME" --build "$RUNNER_TEMP/display-wake-build" --run-only --serial emulator-5554 --avd pr67-ci-api33 --output "$RUNNER_TEMP/display-wake-results"
             SOURCE_HEAD="${{ github.event.pull_request.head.sha || github.sha }}" python3 scripts/test-process-binding-android.py --sdk "$ANDROID_HOME" --build "$RUNNER_TEMP/process-binding" --serial emulator-5554 --avd pr67-ci-api33
             python3 scripts/test-retirement-android.py --sdk "$ANDROID_HOME" --build "$RUNNER_TEMP/retirement-android" --serial emulator-5554 --avd pr67-ci-api33
+            SOURCE_HEAD="${{ github.event.pull_request.head.sha || github.sha }}" python3 scripts/test-secure-channel-native.py --sdk "$ANDROID_HOME" --build "$RUNNER_TEMP/native-channel-build" --serial emulator-5554 --avd pr67-ci-api33 --output "$RUNNER_TEMP/native-channel-results"
 
       - name: Retain disposable retirement evidence without private keys
         if: always()
@@ -434,6 +443,7 @@ jobs:
         with:
           name: retirement-android-evidence-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
+            ${{ runner.temp }}/native-channel-results/results.json
             ${{ runner.temp }}/retirement-android/provenance.json
             ${{ runner.temp }}/retirement-android/results.json
             ${{ runner.temp }}/retirement-android/*/*-runtime.txt
