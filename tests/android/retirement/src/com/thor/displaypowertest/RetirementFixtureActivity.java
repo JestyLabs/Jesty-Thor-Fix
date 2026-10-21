@@ -9,6 +9,8 @@ public final class RetirementFixtureActivity extends Activity {
     private DashboardLayout layout;
     private DashboardRenderer renderer;
     private DashboardSettingsController settings;
+    private boolean expectReplacement;
+    private int replacementRequests;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -26,7 +28,8 @@ public final class RetirementFixtureActivity extends Activity {
         renderer = new DashboardRenderer(layout, new DashboardRenderer.Host() {
             public void onDisplayVisual(DashboardStateModel.Visual visual) {}
             public void requestDaemonReplacement() {
-                throw new AssertionError("Unexpected fixture dashboard replacement");
+                if (!expectReplacement) throw new AssertionError("Unexpected fixture dashboard replacement");
+                replacementRequests++;
             }
         }, RebootActivation.ticket(this, preferences));
         settings = new DashboardSettingsController(this, preferences, layout, renderer);
@@ -34,9 +37,16 @@ public final class RetirementFixtureActivity extends Activity {
         settings.bind();
     }
 
-    String render(Map<String, String> sample) {
-        renderer.render(sample, settings);
-        return layout.stateText.getText().toString();
+    String render(Map<String, String> sample, boolean expectedReplacement) {
+        int before = replacementRequests;
+        expectReplacement = expectedReplacement;
+        try {
+            renderer.render(sample, settings);
+            if (replacementRequests - before != (expectedReplacement ? 1 : 0)) {
+                throw new AssertionError("Unexpected dashboard replacement request count");
+            }
+            return layout.stateText.getText().toString();
+        } finally { expectReplacement = false; }
     }
 
     @Override protected void onDestroy() {

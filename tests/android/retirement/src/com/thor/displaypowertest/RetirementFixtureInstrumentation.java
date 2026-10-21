@@ -27,6 +27,7 @@ public final class RetirementFixtureInstrumentation extends Instrumentation {
     private RetirementFixtureActivity activity;
     private String lastPeerPid;
     private boolean recovery;
+    private int expectedRecoveryRequests;
 
     @Override public void onCreate(Bundle args) {
         super.onCreate(args);
@@ -64,6 +65,11 @@ public final class RetirementFixtureInstrumentation extends Instrumentation {
             } else {
                 require("activate".equals(stage), "Choose prepare or activate");
                 activate(context, preferences, version, mode, result);
+            }
+            if ("activate".equals(stage)) {
+                require(expectedRecoveryRequests == (recovery ? 2 : 0),
+                        "Exact inert recovery dashboard callbacks required");
+                result.putString("dashboard_replacement_requests", Integer.toString(expectedRecoveryRequests));
             }
             result.putString("hardware", "MODELLED_NO_PHYSICAL_ACCEPTANCE");
             result.putString("display_mode", mode);
@@ -266,7 +272,14 @@ public final class RetirementFixtureInstrumentation extends Instrumentation {
 
     private String render(Map<String, String> values) {
         final String[] text = new String[1];
-        runOnMainSync(() -> text[0] = activity.render(values));
+        final Throwable[] failure = new Throwable[1];
+        boolean expectedReplacement = recovery && "HANDOFF_FAILED".equals(values.get("boot_phase"));
+        runOnMainSync(() -> {
+            try { text[0] = activity.render(values, expectedReplacement); }
+            catch (Throwable error) { failure[0] = error; }
+        });
+        if (failure[0] != null) throw new AssertionError("Fixture rendering failed: " + failure[0], failure[0]);
+        if (expectedReplacement) expectedRecoveryRequests++;
         return text[0];
     }
 
