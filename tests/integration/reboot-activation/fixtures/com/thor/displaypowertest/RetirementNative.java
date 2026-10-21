@@ -208,6 +208,11 @@ public final class RetirementNative {
         if (!(value instanceof String)) throw new IOException("modelled line frame");
         String line = (String) value;
         if (line.length() > limit) throw new IOException("modelled oversized receipt");
+        if (line.startsWith("PREPARED ") && FixtureState.beforeCommit != null) {
+            Runnable hook = FixtureState.beforeCommit;
+            FixtureState.beforeCommit = null;
+            hook.run();
+        }
         if ((cancelBeforeCommit && line.startsWith("PREPARED "))
                 || (cancelAfterCommit && line.startsWith("EXIT "))) {
             Thread.currentThread().interrupt();

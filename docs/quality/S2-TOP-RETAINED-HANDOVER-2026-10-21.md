@@ -45,11 +45,26 @@ helpers have no runtime callers and are removed; the read-only public predecesso
 policy remains BOTH-only.
 
 HOST validation exercises the actual service, app/helper controllers and durable
-activation machinery: 107 activation scenarios/588 assertions, 38 recovery cases,
-28 storage/boot checks and seven compiled negative controls. The four frozen
+activation machinery: 113 activation scenarios/641 assertions, 39 recovery cases,
+31 storage/boot checks and fourteen compiled negative controls. The four frozen
 producer suites and TOP successor boot controls remain separate evidence. The
 Android fixture now requests sixteen update plus four recovery cases, using the
 real current producer/JNI/preferences with synthetic failed-start/readiness and
 prior activation inputs. New-head Android/CodeQL execution and independent review
 must be verified before integration; earlier baseline PASS does not qualify this
 changed implementation. Physical Thor acceptance remains NOT RUN.
+
+The recovery entry first checks current activation authorization and makes an
+advisory authenticated identity query before submitting a privileged helper.
+Normal starting phases, READY with an unhealthy watcher and mismatched intent
+do not submit recovery work. The helper retains the authoritative identity,
+phase and process checks. Tests reject a denied or failed durable fence and a
+boot change before COMMIT; reopening after an unconfirmed receipt submits no
+helper. Compiled controls remove each of these admission/fence checks.
+
+Ordinary transfer guidance now gives the bounded one-restart path. An
+unconfirmed recovery has its own restart heading and explanation. The actual
+renderer has 42 HOST assertions; this does not establish physical UI acceptance.
+The Android driver requires all twenty expected distinct cases and every frozen
+origin before emitting PASS. Offline controls reject incomplete, duplicate,
+foreign and failed report inputs. No allowlist or timing is changed here.

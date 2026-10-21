@@ -22,6 +22,9 @@ public final class RebootDashboardHostTest {
         DashboardRenderer ui=renderer(views,requests);ui.render(sample(),settings);
         check(views.stateText.text.equals("SERVICE TRANSFER PENDING")&&settings.pending,"current telemetry cannot bypass same-boot baseline");
         check(views.stateDetail.text.contains("contact Jesty"),"successful baseline preparation visible");
+        check(views.stateDetail.text.equals("Restart the Thor once to finish updating the background service. "
+                + "Still pending after that? Save diagnostics and contact Jesty."),
+                "ordinary update guidance matches the bounded restart path");
         Map<String,String> beforeBoot=sample();beforeBoot.put("runtime_version","1.7.1");ui.render(beforeBoot,settings);
         check(views.stateText.text.equals("SERVICE TRANSFER PENDING")&&settings.pending,"old runtime cannot skip the first required reboot");
         check(views.displayValue.text.equals("ACTIVATION PENDING"),"prepared baseline is not yet a post-boot mismatch");
@@ -53,6 +56,20 @@ public final class RebootDashboardHostTest {
         check(!views.stateText.text.equals("ACTIVE")&&settings.pending,"failed watcher not ready");
         q=sample();q.put("boot_phase","HANDOFF_FAILED");q.put("display_actions_held","1");ui.render(q,settings);
         check(requests[0]==1&&settings.pending,"same-version held recovery retained");
+        FixtureState.reset("1.7.5");RebootActivation.ticket(new AutoService(),FixturePreferences.INSTANCE);
+        FixtureState.boot="00000000-0000-0000-0000-000000000002";
+        RebootActivation.Ticket recovery=RebootActivation.ticket(new AutoService(),FixturePreferences.INSTANCE);
+        check(recovery.beginRecovery(),"prepare unconfirmed recovery fence");
+        requests[0]=0;ui=renderer(views,requests);ui.render(sample(),settings);
+        check(views.stateText.text.equals("SERVICE RESTART REQUIRED")&&settings.pending,
+                "unconfirmed recovery has a distinct restart heading");
+        check(views.stateDetail.text.contains("restart could not be confirmed")
+                &&views.stateDetail.text.contains("Restart the Thor once"),
+                "unconfirmed recovery explains the required action");
+        check(!views.stateDetail.text.contains("updating")&&requests[0]==0,
+                "recovery fence never promises an update or requests another helper");
+        ui.renderUnavailable(false);
+        check(views.stateText.text.equals("SERVICE RESTART REQUIRED"),"unavailable telemetry preserves recovery guidance");
         FixtureState.reset(null);FixtureState.commitFailure=true;ui=renderer(views,requests);ui.render(sample(),settings);
         check(views.stateText.text.equals("ACTIVATION BLOCKED")&&settings.pending,"storage failure clearly blocked");
         check(views.stateDetail.text.contains("Do not keep restarting")&&views.stateDetail.text.contains("external recovery"),"bounded storage recovery instructions");

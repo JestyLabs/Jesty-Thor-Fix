@@ -14,11 +14,16 @@ public final class RecoveryRetirementHostTest {
 
     private static void run(String id, String first, String second, boolean allowed,
             int signals, java.util.function.Consumer<String> setup) throws Exception {
+        run(id, first, second, allowed, signals, setup, () -> true);
+    }
+
+    private static void run(String id, String first, String second, boolean allowed,
+            int signals, java.util.function.Consumer<String> setup, LiveRetirement.CommitGate gate) throws Exception {
         FixtureState.reset("1.7.5");
         FixtureState.phase = "HANDOFF_FAILED";
-        FixtureState.scriptedReplies = new String[] {first, second};
+        FixtureState.scriptedReplies = new String[] {first, first, second};
         setup.accept(id);
-        boolean result = PServer.stopReplaceableSecureDaemonIfSafe(true, () -> true);
+        boolean result = PServer.stopReplaceableSecureDaemonIfSafe(true, gate);
         Thread.interrupted();
         RetirementNative.awaitHelper();
         check(result == allowed, id + ": recovery result requires confirmed exit");
@@ -26,7 +31,7 @@ public final class RecoveryRetirementHostTest {
         check(FixtureState.launches == 0, id + ": helper never launches successor");
         check(!FixtureState.requests.toString().contains("Q"), id + ": failed start needs no Q");
         if (allowed) {
-            check(FixtureState.requests.toString().equals("II"), id + ": two identities");
+            check(FixtureState.requests.toString().equals("III"), id + ": prefilter plus two retained identities");
             check(FixtureState.events.indexOf("BIND_PROCESS")
                     < FixtureState.events.indexOf("REQUEST_I"), id + ": retained before first I");
             check(FixtureState.events.indexOf("EXIT_CONFIRMED")
@@ -44,6 +49,9 @@ public final class RecoveryRetirementHostTest {
             return;
         }
         run("failed", failed, failed, true, 1, inert);
+        run("gate-denied", failed, failed, false, 0, inert, () -> false);
+        check(!FixtureState.events.contains("COMMIT"), "gate-denied: no COMMIT");
+        check("1.7.5".equals(FixtureState.version), "gate-denied: daemon preserved");
         for (String phase : new String[] {"BOOT_HOLD", "WAITING_FOR_ANDROID", "APPLYING_CPU_FIX",
                 "WAITING_AFTER_COMPOSER", "RECONCILING_DISPLAY"}) {
             run("stalled-" + phase, health(phase), health(phase), true, 1, inert);

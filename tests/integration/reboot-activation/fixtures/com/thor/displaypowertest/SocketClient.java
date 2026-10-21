@@ -1,5 +1,6 @@
 package com.thor.displaypowertest;
 public final class SocketClient {public static String request(char c,int timeout) throws Exception {
+ if(c=='I'&&FixtureState.beforeProbe!=null){Runnable hook=FixtureState.beforeProbe;FixtureState.beforeProbe=null;hook.run();}
  if(FixtureState.scriptedReplies!=null){FixtureState.requests.append(c);
  int at=FixtureState.replyIndex++;
  if(at>=FixtureState.scriptedReplies.length)throw new AssertionError("unexpected scripted request");

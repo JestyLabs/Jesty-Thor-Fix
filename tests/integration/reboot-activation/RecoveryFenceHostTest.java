@@ -21,7 +21,12 @@ public final class RecoveryFenceHostTest {
         return result;
     }
     public static void main(String[] args) {
+        FixtureState.reset("1.7.5");
+        RebootActivation.Ticket unprepared = ticket();
+        check(!unprepared.beginRecovery(), "unauthorized activation cannot create recovery permission");
+        check(!FixtureState.durable.containsKey(KEY), "unauthorized recovery writes no pending fence");
         RebootActivation.Ticket t = authorized();
+        check(!t.completeRecoveryExit(), "receipt cannot clear an absent pending fence");
         check(t.beginRecovery(), "durable fence can precede COMMIT");
         check(NEXT.equals(FixtureState.durable.get(KEY)), "pending kernel persisted before signal");
         check(!ticket().isAuthorized(), "same boot pending blocks subsequent ticket");

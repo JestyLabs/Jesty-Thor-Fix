@@ -20,6 +20,7 @@ public final class RebootActivationHostTest {
         FixtureState.finished=new CountDownLatch(1);FixtureState.kills=FixtureState.launches=FixtureState.probes=0;
     }
     private static void run(String name,int kills,int launches,boolean authorized)throws Exception{
+        int helpersBefore=FixtureState.helperSubmissions;
         attempt();AutoService service=new AutoService();service.onCreate();
         service.onStartCommand(new android.content.Intent(),0,1);
         check(FixtureState.finished.await(5,TimeUnit.SECONDS),name+": worker done");
@@ -27,6 +28,9 @@ public final class RebootActivationHostTest {
         check(FixtureState.kills==kills,name+": stop submissions");
         check(FixtureState.launches==launches,name+": launches");
         check(ticket().isAuthorized()==authorized,name+": kernel evidence");
+        if(name.endsWith("-reopen-still-held")||name.endsWith("-new-app-process-still-held")){
+            check(FixtureState.helperSubmissions==helpersBefore,name+": no helper while recovery blocked");
+        }
         cases++;System.out.println("PASS|"+name+"|kills="+kills+"|launches="+launches);
     }
     public static void main(String[] args)throws Exception{
@@ -41,6 +45,19 @@ public final class RebootActivationHostTest {
         FixtureState.boot=B;FixtureState.fromBoot=false;run("new-kernel-no-broadcast-foreground-start",0,1,true);
         check(FixtureState.lastHeld,"foreground fallback launches through boot hold");
         run("current-ready-app-reopen",0,0,true);
+        for(String name:new String[]{"starting-young","ready-watcher-stalled","wrong-intent","not-authorized"}){
+            FixtureState.reset("1.7.5");prepareThenReboot();
+            if(name.equals("starting-young")){FixtureState.phase="WAITING_FOR_ANDROID";FixtureState.phaseMs="89999";}
+            if(name.equals("ready-watcher-stalled"))FixtureState.watcher="STALLED";
+            if(name.equals("wrong-intent")){FixtureState.phase="HANDOFF_FAILED";FixtureState.fix="0";}
+            if(name.equals("not-authorized")){
+                FixtureState.phase="HANDOFF_FAILED";
+                FixtureState.beforeProbe=()->FixtureState.saved.put("activation_v3_recovery_pending",B);
+            }
+            run("recovery-prefilter-"+name,0,0,!name.equals("not-authorized"));
+            check(FixtureState.helperSubmissions==0,"recovery-prefilter-"+name+": no privileged helper");
+        }
+        FixtureState.reset("1.7.5");prepareThenReboot();
         FixtureState.boot=C;FixtureState.version=null;run("later-kernel-no-broadcast",0,1,true);
         check(prepared.equals(FixtureState.saved.get(KEY)),"verified boots do not replace original baseline");
 
@@ -204,6 +221,17 @@ public final class RebootActivationHostTest {
         FixtureState.reset("1.7.5");prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";
         run("same-version-held-recovery-retained",1,1,true);
         check(FixtureState.lastHeld,"same-version recovery remains held");
+        FixtureState.reset("1.7.5");prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";
+        java.util.Map<String,String> beforeFence=new java.util.HashMap<>(FixtureState.durable);
+        FixtureState.commitFailure=true;
+        run("same-version-fence-write-fails",0,0,false);
+        check(FixtureState.helperSubmissions==1&&!FixtureState.events.contains("COMMIT"),
+                "failed durable fence cannot reach COMMIT");
+        check(beforeFence.equals(FixtureState.durable),"failed fence leaves durable evidence unchanged");
+        FixtureState.reset("1.7.5");prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";
+        FixtureState.beforeCommit=()->FixtureState.boot=C;
+        run("boot-changes-before-commit",0,0,true);
+        check(!FixtureState.events.contains("COMMIT"),"fresh boot change cannot reach COMMIT");
         FixtureState.reset("1.7.5");prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";FixtureState.stopEffective=false;
         run("same-version-stop-no-effect-no-duplicate",1,0,false);
         for(String fault:new String[]{"stale","malformed","missing","oversized"}){

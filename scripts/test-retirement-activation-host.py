@@ -37,6 +37,29 @@ TESTS = (
     "com.thor.displaypowertest.RecoveryFenceHostTest",
 )
 MUTANTS = (
+    ("recovery-prefilter-removed", "PServer.java",
+     "if (DaemonLaunchModel.replaceablePid(health, DaemonIdentity.RUNTIME_ID, expectedFix) <= 100)",
+     "if (false)", TESTS[0], (), "recovery-prefilter-starting-young: no privileged helper"),
+    ("recovery-activation-prefilter-removed", "AutoService.java",
+     "boolean recoveryAttempted = activation.isAuthorized()\n"
+     "                            && (probe == Probe.STARTING || probe == Probe.UNHEALTHY);",
+     "boolean recoveryAttempted = probe == Probe.STARTING || probe == Probe.UNHEALTHY;",
+     TESTS[0], (), "recovery-prefilter-not-authorized: no privileged helper"),
+    ("recovery-gate-result-ignored", "LiveRetirement.java",
+     'if (!gate.allow()) throw new IOException("Retirement commit authorization unavailable");',
+     "gate.allow();", TESTS[5], (), "gate-denied: recovery result requires confirmed exit"),
+    ("recovery-service-pending-guard-removed", "AutoService.java",
+     "if (activation.recoveryBlocked())", "if (false)",
+     TESTS[0], (), "same-version-receipt-stale-reopen-still-held: no helper while recovery blocked"),
+    ("recovery-begin-authorization-removed", "RebootActivation.java",
+     "if (!isAuthorized()) return false;", "",
+     TESTS[6], (), "unauthorized activation cannot create recovery permission"),
+    ("recovery-completion-pending-check-removed", "RebootActivation.java",
+     '\n                            || !boot.equalsIgnoreCase(preferences.getString(RECOVERY_PENDING, ""))', "",
+     TESTS[6], (), "receipt cannot clear an absent pending fence"),
+    ("recovery-fresh-boot-check-removed", "RebootActivation.java",
+     "if (!boot.equalsIgnoreCase(SecureChannel.currentBootId())) return false;", "",
+     TESTS[0], (), "boot-changes-before-commit: stop submissions"),
     ("same-kernel-authorized", "RebootActivationPolicy.java",
      "!boot.equalsIgnoreCase(savedBoot)", "true",
      "RebootActivationPolicyTest", (), "same kernel cannot authorize"),
@@ -109,6 +132,7 @@ def main():
           "Dashboard; native effects, credentials and historical replies MODELLED")
     print("PATH_REDACTION: bundle=[BUNDLE_ROOT]; disposable compilation directory=[HOST_TEMP]")
     print("Python " + platform.python_version())
+    run([sys.executable, "tests/test_retirement_android_matrix.py"])
     run(["java", "-version"])
     compiler = run(["javac", "-version"])
     if not compiler.startswith("javac 17."):

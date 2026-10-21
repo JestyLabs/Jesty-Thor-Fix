@@ -23,6 +23,26 @@ ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = 'org.example.rfixture'
 AVD = 'pr67-ci-api33'
 VERSIONS = ('1.7.1', '1.7.2', '1.7.3', '1.7.4')
+RECOVERY_ORIGIN = '1.7.4'
+EXPECTED_CASE_COUNT = 20
+
+def expected_cases():
+    return {(purpose, version, support, mode)
+            for version in VERSIONS for support in ('native', 'unavailable') for mode in ('both', 'top')
+            for purpose in (('update', 'recovery') if version == RECOVERY_ORIGIN else ('update',))}
+
+def validate_origins(records):
+    origins = [record['predecessor'] for record in records]
+    if len(origins) != len(VERSIONS) or set(origins) != set(VERSIONS):
+        raise ValueError('Frozen provenance must contain every expected origin exactly once')
+
+def validate_results(results):
+    expected = expected_cases()
+    actual = [(case['purpose'], case['fixture_origin'], case['support'], case['mode']) for case in results]
+    if (len(expected) != EXPECTED_CASE_COUNT or len(actual) != EXPECTED_CASE_COUNT
+            or len(set(actual)) != len(actual) or set(actual) != expected
+            or any(case['result'] != 'PASS' for case in results)):
+        raise ValueError('Android PASS requires the complete unique expected retirement matrix')
 
 def execute(command, timeout=120, check=True):
     p = subprocess.run(list(map(str, command)), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -149,6 +169,7 @@ def run(args):
         raise ValueError('Emulator root unavailable')
     boot = shell('cat /proc/sys/kernel/random/boot_id')
     provenance = json.loads((out / 'provenance.json').read_text(encoding='utf-8'))
+    validate_origins(provenance['fixtures'])
     results = []
     def instrument(version, stage, support, mode, purpose):
         return [adb, '-s', args.serial, 'shell', 'am', 'instrument', '-w', '-r',
@@ -176,7 +197,7 @@ def run(args):
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     for record in provenance['fixtures']:
         version = record['predecessor']
-        purposes = ('update', 'recovery') if version == '1.7.4' else ('update',)
+        purposes = ('update', 'recovery') if version == RECOVERY_ORIGIN else ('update',)
         for support, mode, purpose in ((support, mode, purpose) for support in ('native', 'unavailable')
                                        for mode in ('both', 'top') for purpose in purposes):
             trial = out / version
@@ -270,6 +291,7 @@ def run(args):
                     wait_text(remote + '/old.exit')
                 shell('rm -rf ' + shlex.quote(remote))  # Fresh, regex-shaped task-owned emulator path only.
                 remove_disposable_package(adb_call)
+    validate_results(results)
     report = {'result': 'PASS', 'tier': 'ANDROID_API33_X86_64_INSTALLED_APP_REAL_JNI',
               'cases': results, 'vendor_binder': 'ABSENT_NOT_TESTED', 'physical': 'NOT_RUN',
               'cleanup': 'OWNED_CHILDREN_WAITED_AND_DISPOSABLE_PACKAGE_REMOVED', 'provenance': provenance}

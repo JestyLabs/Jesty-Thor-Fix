@@ -91,7 +91,8 @@ public final class AutoService extends Service {
                             probe = PServer.probe(enabled);
                         }
                     }
-                    boolean recoveryAttempted = probe == Probe.STARTING || probe == Probe.UNHEALTHY;
+                    boolean recoveryAttempted = activation.isAuthorized()
+                            && (probe == Probe.STARTING || probe == Probe.UNHEALTHY);
                     boolean recoveryConfirmed = recoveryAttempted
                             && PServer.stopReplaceableSecureDaemonIfSafe(enabled, activation::beginRecovery);
                     if (recoveryConfirmed) {

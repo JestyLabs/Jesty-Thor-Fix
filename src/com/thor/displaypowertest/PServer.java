@@ -75,9 +75,15 @@ public final class PServer {
     static synchronized boolean stopReplaceableSecureDaemonIfSafe(boolean expectedFix,
             LiveRetirement.CommitGate gate) {
         try {
+            // Advisory only: avoid privileged work for normal or mismatched starts.
+            // The retained helper still authenticates and revalidates every observation.
+            String health = SocketClient.request('I', 700);
+            if (DaemonLaunchModel.replaceablePid(health, DaemonIdentity.RUNTIME_ID, expectedFix) <= 100) {
+                return false;
+            }
             return LiveRetirement.recover(expectedFix, gate,
                     command -> send(command, "recovery helper submitted; exit unconfirmed")) > 100;
-        } catch (java.io.IOException | IllegalArgumentException | SecurityException | LinkageError error) {
+        } catch (Exception | LinkageError error) {
             Log.w(TAG, "held daemon recovery unavailable; normal restart required", error);
             return false;
         }
