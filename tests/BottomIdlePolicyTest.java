@@ -88,21 +88,16 @@ public final class BottomIdlePolicyTest {
         long firstOff = restore.beginOff(60100);
         check(firstOff > 0L, "first timed OFF admitted");
         check(restore.completeOff(firstOff, true, 60100), "physical confirmation owned");
-        check(restore.touch(60101), "OFF touch requests restoration");
-        // Mirror the real callback: touch() followed by the pointer DOWN transition.
-        long prematureLease = restore.generation();
-        restore.pointerDown(true);
-        long oldLease = restore.generation();
-        check(!restore.canRestore(prematureLease),
-                "TOCTOU: a lease captured before pointer DOWN is already invalid");
-        check(restore.canRestore(oldLease), "current restore lease valid");
-        check(restore.touch(60102), "ACTION_UP must retain restore pending");
-        long staleBeforeUp = restore.generation();
-        restore.pointerDown(false);
-        check(!restore.canRestore(staleBeforeUp),
-                "TOCTOU: ACTION_UP pointer transition also advances the lease");
-        check(!restore.canRestore(oldLease), "ACTION_UP invalidates only the old callback");
-        long freshLease = restore.generation();
+        // Exercise the same single-call API as BottomIdleRuntime, not a fake
+        // touch/gesture sequence that could miss the actual restore bug.
+        long oldLease = restore.touchEvent(60101, 1); // ACTION_DOWN
+        check(oldLease > 0L && restore.canRestore(oldLease),
+                "ACTION_DOWN must return a current valid restore lease");
+        long freshLease = restore.touchEvent(60102, 0); // ACTION_UP
+        check(freshLease > oldLease && restore.canRestore(freshLease),
+                "ACTION_UP must reissue a current restore lease");
+        check(!restore.canRestore(oldLease),
+                "ACTION_UP invalidates the earlier DOWN restore");
         check(restore.canRestore(freshLease), "ACTION_UP re-issues current restore");
         check(restore.delayMs(60200) == -1L, "do not rearm while restore is pending");
         check(!restore.completeRestore(oldLease, true), "stale restore ACK rejected");
@@ -120,6 +115,12 @@ public final class BottomIdlePolicyTest {
         check(restore.canRestore(disabledLease), "disable can own a restore lease");
         restore.configure(1);
         check(!restore.canRestore(disabledLease), "reenable revokes queued disable restore");
+        restore.mode("1");
+        check(restore.touchEvent(130000, 1) == BottomIdlePolicy.REJECTED_TOUCH,
+                "TOP touch cannot mint a restore lease");
+        restore.configure(0);
+        check(restore.touchEvent(130001, 0) == BottomIdlePolicy.REJECTED_TOUCH,
+                "disabled touch never verifies display inactivity");
         System.out.println("BottomIdlePolicyTest passed");
     }
 }
