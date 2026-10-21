@@ -108,6 +108,8 @@ jobs:
         run: |
           python scripts/test-retirement-host.py --negative-controls
           if ($LASTEXITCODE -ne 0) { throw 'Published retirement controller tests failed' }
+          python scripts/test-top-handover-boot-host.py --negative-controls
+          if ($LASTEXITCODE -ne 0) { throw 'TOP successor boot controller tests failed' }
           python tests/android/retirement/check_sources_host.py
           if ($LASTEXITCODE -ne 0) { throw 'Retirement fixture source compilation failed' }
 

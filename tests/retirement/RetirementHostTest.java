@@ -19,14 +19,35 @@ public final class RetirementHostTest {
         final List<String> frames = new ArrayList<>();
         String health;
         String snapshot;
+        final DaemonCommandHandler producer;
         int sockets, reads, requests, signals;
         boolean bound, exited, cleaned;
 
         OsBoundary(String fault) {
             this.fault = fault;
-            DaemonState.setMode("0");
-            DaemonCommandHandler producer =
-                    new DaemonCommandHandler(new CpuFixController(), new BootTrace(), 12000);
+            boolean top = fault.startsWith("top-");
+            DaemonState.setMode(top ? "1" : "0");
+            DaemonState.onRepairEnd("NONE");
+            Telemetry.observedBottom = top ? "0" : "1";
+            LidGuard.observedEnabled = fault.startsWith("top-guard");
+            LidGuard.observedLid = top && !LidGuard.observedEnabled ? "unknown" : "open";
+            LidGuard.observedExternal = fault.equals("top-guard") ? "0" : "unknown";
+            if (fault.equals("top-closed")) LidGuard.observedLid = "closed";
+            if (fault.equals("top-dock")) LidGuard.observedExternal = "1";
+            DisplayActionCoordinator.observedStatus = "CONFIRMED";
+            DisplayActionCoordinator.observedGeneration = 1L;
+            if (fault.equals("top-pending")) DaemonState.onWake(false);
+            if (fault.equals("top-rescheduled")) DaemonState.onWake(true);
+            if (fault.equals("top-running")) DaemonState.onRepairBegin();
+            if (fault.equals("top-retry")) DaemonState.onRepairEnd("RETRY_PENDING");
+            if (fault.equals("top-unknown-repair")) DaemonState.onRepairEnd("?");
+            if (fault.equals("top-off-ok")) DaemonState.onRepairEnd("OFF_OK");
+            if (fault.equals("top-cancelled")) {
+                DaemonState.onWake(false);
+                DaemonState.onRepairCancelled();
+            }
+            if (fault.equals("top-busy")) DisplayActionCoordinator.observedStatus = "UNCONFIRMED";
+            producer = new DaemonCommandHandler(new CpuFixController(), new BootTrace(), 12000);
             health = producer.handle('I');
             snapshot = producer.handle('Q');
         }
@@ -42,7 +63,7 @@ public final class RetirementHostTest {
         public int uid(int fd) {
             if (fd == 10) return fault.equals("helper-uid") ? 2000
                     : fault.equals("control-uid") ? 0 : 10123;
-            return fault.equals("socket-uid") ? 2000 : 0;
+            return fault.equals("socket-uid") || fault.equals("top-socket-uid") ? 2000 : 0;
         }
         public int pid(int fd) { return fault.equals("changed-peer") && fd >= 102 ? 12001 : 12000; }
         public void sendFd(int control, int socket, int timeout) { events.add("transfer"); }
@@ -92,7 +113,32 @@ public final class RetirementHostTest {
             events.add(Character.toString(command));
             requests++;
             String value = command == 'I' ? health : snapshot;
-            if (fault.equals("claimed-pid") && command == 'I') value = value.replace("pid=12000", "pid=13000");
+            if (requests == 4 && (fault.equals("top-to-both") || fault.equals("both-to-top"))) {
+                boolean top = fault.equals("both-to-top");
+                DaemonState.setMode(top ? "1" : "0");
+                Telemetry.observedBottom = top ? "0" : "1";
+                DisplayActionCoordinator.observedGeneration++;
+                value = producer.handle('Q');
+            }
+            if (requests == 4 && fault.equals("top-aba")) {
+                // Existing mode/repair producer observes an invalidation token change.
+                DisplayActionCoordinator.observedGeneration += 2;
+                value = producer.handle('Q');
+            }
+            if (requests == 4 && fault.equals("top-second-pending")) {
+                DaemonState.onWake(false);
+                value = producer.handle('Q');
+            }
+            if (fault.equals("top-missing-repair") && command == 'Q') value = value.replace(";repair_result=NONE", "");
+            if (fault.equals("top-duplicate-repair") && command == 'Q') value += ";repair_result=NONE";
+            if (fault.equals("top-missing-generation") && command == 'Q') value = value.replace(";display_generation=1", "");
+            if (fault.equals("top-duplicate-generation") && command == 'Q') value += ";display_generation=1";
+            if (fault.equals("top-invalid-generation") && command == 'Q') value = value.replace(";display_generation=1", ";display_generation=-1");
+            if (fault.equals("top-overflow-generation") && command == 'Q') value = value.replace(";display_generation=1", ";display_generation=9223372036854775808");
+            if (fault.equals("top-noncanonical-generation") && command == 'Q') value = value.replace(";display_generation=1", ";display_generation=01");
+            if (fault.equals("top-missing-status") && command == 'Q') value = value.replace(";display_action_status=CONFIRMED", "");
+            if (fault.equals("top-duplicate-status") && command == 'Q') value += ";display_action_status=CONFIRMED";
+            if ((fault.equals("claimed-pid") || fault.equals("top-claimed-pid")) && command == 'I') value = value.replace("pid=12000", "pid=13000");
             if (fault.equals("duplicate-I") && command == 'I') value += ";pid=12000";
             if (fault.equals("duplicate-Q") && command == 'Q') value += ";top_crtc=1";
             if (fault.equals("duplicate-runtime") && command == 'Q') value += ";runtime_version=1.7.1;runtime_version=1.7.1";
@@ -115,7 +161,7 @@ public final class RetirementHostTest {
             events.add("signal");
             if (fault.equals("dead-before-signal")) throw new IOException("Already exited");
             signals++;
-            if (fault.equals("no-effect")) throw new IOException("No exit event");
+            if (fault.equals("no-effect") || fault.equals("top-no-effect")) throw new IOException("No exit event");
             exited = true;
             events.add("exit");
         }
@@ -130,7 +176,7 @@ public final class RetirementHostTest {
         OsBoundary io = new OsBoundary(fault);
         boolean completed = false;
         try {
-            LiveRetirement.serve(io, NONCE, true, false, false);
+            LiveRetirement.serve(io, NONCE, true, false, fault.startsWith("top-guard"));
             completed = true;
         } catch (IOException expected) {
             System.out.println("DENIED root " + fault + ": " + expected.getMessage());
@@ -181,7 +227,20 @@ public final class RetirementHostTest {
 
     public static void main(String[] args) throws Exception {
         if (args.length > 0) {
-            if ("second-mode".equals(args[0])) rootCase("second-mode", false, 0);
+            if ("top-stable".equals(args[0])) rootCase("top-stable", true, 1);
+            else if ("top-pending".equals(args[0])) rootCase("top-pending", false, 0);
+            else if ("top-aba".equals(args[0])) rootCase("top-aba", false, 0);
+            else if ("both-to-top".equals(args[0])) rootCase("both-to-top", false, 0);
+            else if ("top-public".equals(args[0])) {
+                OsBoundary top = new OsBoundary("top-stable");
+                check(PreviousSecureDaemonIdentity.safePid(top.health, top.snapshot) < 0,
+                        "public unbound retirement stays BOTH-only");
+                check(LiveHandoverPolicy.safePid(top.health, top.snapshot, true, false, false) < 0,
+                        "public live policy stays BOTH-only");
+                check(PreviousSecureDaemonIdentity.safePidForRetainedProcess(top.health, top.snapshot, false) < 0,
+                        "TOP requires the display fix enabled");
+            }
+            else if ("second-mode".equals(args[0])) rootCase("second-mode", false, 0);
             else if ("app-wait".equals(args[0])) appCase("stable", true);
             else rootCase("no-effect", false, 1);
             return;
@@ -193,6 +252,14 @@ public final class RetirementHostTest {
                 true, false, false, 0, 13000) == -1, "kernel PID must match I.pid");
         rootCase("stable", true, 1);
         rootCase("dynamic-age", true, 1);
+        for (String top : new String[]{"top-stable", "top-off-ok", "top-cancelled", "top-guard"}) rootCase(top, true, 1);
+        for (String denied : new String[]{"top-pending", "top-rescheduled", "top-running", "top-retry",
+                "top-unknown-repair", "top-busy", "top-missing-repair", "top-duplicate-repair",
+                "top-missing-generation", "top-duplicate-generation", "top-to-both", "both-to-top",
+                "top-invalid-generation", "top-overflow-generation", "top-noncanonical-generation",
+                "top-missing-status", "top-duplicate-status", "top-aba", "top-second-pending",
+                "top-closed", "top-dock", "top-guard-unknown-dock", "top-socket-uid", "top-claimed-pid"}) rootCase(denied, false, 0);
+        rootCase("top-no-effect", false, 1);
         for (String fault : new String[]{"control-uid", "socket-uid", "changed-peer", "claimed-pid",
                 "duplicate-I", "duplicate-Q", "duplicate-runtime", "wrong-runtime", "empty-runtime",
                 "version-change", "missing-Q", "held", "cpu", "lid", "dock", "second-mode",

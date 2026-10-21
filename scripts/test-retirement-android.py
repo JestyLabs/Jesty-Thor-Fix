@@ -150,10 +150,10 @@ def run(args):
     boot = shell('cat /proc/sys/kernel/random/boot_id')
     provenance = json.loads((out / 'provenance.json').read_text(encoding='utf-8'))
     results = []
-    def instrument(version, stage, support):
+    def instrument(version, stage, support, mode):
         return [adb, '-s', args.serial, 'shell', 'am', 'instrument', '-w', '-r',
                 '-e', 'owner_approved_disposable', 'true', '-e', 'predecessor', version,
-                '-e', 'stage', stage, '-e', 'route', 'transport', '-e', 'expect',
+                '-e', 'stage', stage, '-e', 'mode', mode, '-e', 'route', 'transport', '-e', 'expect',
                 'unavailable' if support == 'unavailable' else 'success',
                 PACKAGE + '/.RetirementFixtureInstrumentation']
     def wait_text(path, deadline=8):
@@ -175,7 +175,7 @@ def run(args):
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     for record in provenance['fixtures']:
         version = record['predecessor']
-        for support in ('native', 'unavailable'):
+        for support, mode in ((support, mode) for support in ('native', 'unavailable') for mode in ('both', 'top')):
             trial = out / version
             apk = trial / (support + '.apk')
             if digest(apk) != record[support + '_apk_sha256'] or digest(trial / 'predecessor-dex.jar') != record['old_dex_sha256']:
@@ -188,7 +188,7 @@ def run(args):
                 adb_call('uninstall', PACKAGE, check=False)  # Only our certified disposable package.
                 if 'Success' not in adb_call('install', str(apk)).stdout:
                     raise RuntimeError('Disposable fixture installation failed')
-                prepared = execute(instrument(version, 'prepare', support)).stdout
+                prepared = execute(instrument(version, 'prepare', support, mode)).stdout
                 if 'PREPARED_NOT_ACTIVATED' not in prepared or 'outcome=FAIL' in prepared:
                     raise RuntimeError('Fixture preparation failed: ' + prepared)
                 app_owner = shell('stat -c %u:%g ' + shlex.quote(files))
@@ -203,7 +203,7 @@ def run(args):
                 installed = pm.removeprefix('package:')
                 children.append(owned_launch(remote, 'old', remote + '/predecessor.jar', 'D', '1 run 0 0'))
                 time.sleep(.4)
-                active = subprocess.Popen(list(map(str, instrument(version, 'activate', support))),
+                active = subprocess.Popen(list(map(str, instrument(version, 'activate', support, mode))),
                                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
                 handled = set()
                 until = time.monotonic() + 60
@@ -233,7 +233,7 @@ def run(args):
                         handled.add(number)
                     time.sleep(.02)
                 output = active.communicate(timeout=5)[0]
-                (trial / (support + '-runtime.txt')).write_text(output, encoding='utf-8')
+                (trial / (support + '-' + mode + '-runtime.txt')).write_text(output, encoding='utf-8')
                 expected = 'PASS_CLOSED_NATIVE_UNAVAILABLE' if support == 'unavailable' else 'PASS_TO_READY_NOT_PHYSICAL_ACCEPTANCE'
                 if expected not in output or 'outcome=FAIL' in output:
                     logs = shell('cat ' + shlex.quote(remote) + '/*.log', check=False)
@@ -246,10 +246,10 @@ def run(args):
                         raise RuntimeError('Unavailable native must not submit helper or successor')
                 if shell('cat /proc/sys/kernel/random/boot_id') != boot:
                     raise RuntimeError('Kernel boot changed during no-reboot trial')
-                results.append({'predecessor': version, 'support': support, 'result': 'PASS',
+                results.append({'predecessor': version, 'support': support, 'mode': mode, 'result': 'PASS',
                                 'same_boot': True, 'vendor_bridge': 'NOT_TESTED',
                                 'hardware_boot': 'SYNTHETIC', 'owned_exit_before_launch': support == 'native'})
-                print('RETIREMENT_ANDROID_CASE: ' + version + ' ' + support + ' PASS', flush=True)
+                print('RETIREMENT_ANDROID_CASE: ' + version + ' ' + support + ' ' + mode + ' PASS', flush=True)
             finally:
                 shell('touch ' + shlex.quote(files + '/retirement-fixture-stop'), check=False)
                 if active is not None and active.poll() is None:

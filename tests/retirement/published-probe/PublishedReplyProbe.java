@@ -44,8 +44,10 @@ final class BootSafety {
 }
 final class SecureChannel { static final int PROTOCOL = 2; }
 final class DisplayActionCoordinator {
-    static String status() { return "CONFIRMED"; }
-    static long generation() { return 1L; }
+    static String observedStatus = "CONFIRMED";
+    static long observedGeneration = 1L;
+    static String status() { return observedStatus; }
+    static long generation() { return observedGeneration; }
     static String requestFix(boolean on) { throw new AssertionError("unexpected display effect"); }
 }
 final class WatcherSupervisor {
@@ -55,15 +57,19 @@ final class WatcherSupervisor {
 final class WatcherCadence { static String snapshotFields() { return ";fixture_sample=1"; } }
 final class DisplayHardware { static String getProperty() { return "1"; } }
 final class LidGuard {
-    static boolean isEnabled() { return false; }
+    static boolean observedEnabled;
+    static String observedLid = "open";
+    static String observedExternal = "unknown";
+    static boolean isEnabled() { return observedEnabled; }
     static boolean setEnabled(boolean on) { throw new AssertionError("unexpected Guard effect"); }
-    static String lid() { return "open"; }
+    static String lid() { return observedLid; }
     static String state() { return "OFF"; }
     static int blockedWakes() { return 0; }
     static String lastAction() { return "NONE"; }
-    static String externalDisplay() { return "unknown"; }
+    static String externalDisplay() { return observedExternal; }
 }
 final class Telemetry {
+    static String observedBottom = "1";
     static final class CpuSnapshot {
         long littleCurrent, littleMax, bigCurrent, bigMax, primeCurrent, primeMax;
         long littleMaxTicks, littleHighTicks, littleTotalTicks;
@@ -76,7 +82,7 @@ final class Telemetry {
     }
     static CpuSnapshot readCpu() { return new CpuSnapshot(); }
     static PowerSnapshot readPower() { return new PowerSnapshot(); }
-    static String[] crtcActivePair() { return new String[] {"1", "1"}; }
+    static String[] crtcActivePair() { return new String[] {"1", observedBottom}; }
     static String systemLoadFixStateForSnapshot() { return "0"; }
     static String verifyDrm() { throw new AssertionError("unexpected DRM query"); }
 }

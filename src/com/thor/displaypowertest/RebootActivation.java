@@ -103,9 +103,9 @@ final class RebootActivation {
                         + "Use owner-approved external recovery; do not uninstall or clear app data.";
             }
             if (state == Evidence.RESTART_REQUIRED) {
-                return "Switch to BOTH and keep the app open to update the background service. "
+                return "Keep the app open to update the background service. "
                         + "If it stays pending, restart the Thor once. Still stuck? "
-                        + "Save diagnostics and contact support. Don't uninstall the app or clear its data.";
+                        + "Save diagnostics and contact Jesty.";
             }
             return RebootActivationPolicy.restartMessage();
         }

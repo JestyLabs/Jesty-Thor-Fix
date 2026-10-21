@@ -42,7 +42,8 @@ MUTANTS = (
      "return ticket(context, preferences).isAuthorized();", "return true;",
      TESTS[0], (), "first-open-prepares-only: launches"),
     ("retained-second-snapshot-guard-removed", "LiveRetirement.java",
-     "requireEligible(firstHealth, response, display, cpu, guard, uid, peerPid);",
+     "requireUnchangedEligible(firstHealth, firstSnapshot, response,\n"
+     "                                    display, cpu, guard, uid, peerPid);",
      "/* deliberate compiled negative control: second snapshot guard removed */",
      TESTS[4], ("mode",), "S2-recheck-mode stop admission"),
     ("invented-code76-runtime-field", "FixtureState.java",

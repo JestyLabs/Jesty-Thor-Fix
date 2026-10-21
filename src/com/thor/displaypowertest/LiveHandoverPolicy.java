@@ -35,7 +35,9 @@ public final class LiveHandoverPolicy {
 
     private static int checkedPid(String health, String snapshot, boolean displayFix,
             boolean cpuFix, boolean lidGuard, boolean retainedProcess) {
-        int pid = PreviousSecureDaemonIdentity.safePid(health, snapshot);
+        int pid = retainedProcess
+                ? PreviousSecureDaemonIdentity.safePidForRetainedProcess(health, snapshot, displayFix)
+                : PreviousSecureDaemonIdentity.safePid(health, snapshot);
         if (pid < 1) return -1;
         // Exact published predecessors only; never a broad version comparison.
         String version = field(health, "version");
@@ -55,6 +57,7 @@ public final class LiveHandoverPolicy {
                 || !"CONFIRMED".equals(field(snapshot, "cpu_fix_phase"))
                 || !expected(field(snapshot, "system_load_fix"), cpuFix)
                 || !expected(field(snapshot, "lid_guard"), lidGuard)) return -1;
+        if ("1".equals(field(snapshot, "mode")) && !confirmedTopSnapshot(snapshot)) return -1;
         // Do not retire a daemon while the lid is known closed or a dock is connected.
         // With Guard OFF the stock firmware reports external_display=unknown.
         // Missing values retain their previous policy, but duplicate values do not.
@@ -65,6 +68,28 @@ public final class LiveHandoverPolicy {
                 || "1".equals(externalDisplay)
                 || (lidGuard && !"0".equals(externalDisplay))) return -1;
         return pid;
+    }
+
+    private static boolean confirmedTopSnapshot(String snapshot) {
+        String repair = field(snapshot, "repair_result");
+        return "CONFIRMED".equals(field(snapshot, "display_action_status"))
+                && ("NONE".equals(repair) || "OFF_OK".equals(repair) || "CANCELLED".equals(repair))
+                && validGeneration(field(snapshot, "display_generation"));
+    }
+
+    /** Endpoint checks detect observed mode/repair invalidations, not a platform freeze. */
+    static boolean sameRetainedDisplayState(String first, String second) {
+        String mode = field(first, "mode");
+        if (mode == null || !mode.equals(field(second, "mode"))) return false;
+        String generation = field(first, "display_generation");
+        return "0".equals(mode) || ("1".equals(mode) && validGeneration(generation)
+                && generation.equals(field(second, "display_generation")));
+    }
+
+    private static boolean validGeneration(String value) {
+        if (value == null || !value.matches("0|[1-9][0-9]{0,18}")) return false;
+        try { return Long.parseLong(value) >= 0L; }
+        catch (NumberFormatException invalid) { return false; }
     }
 
     private static boolean expected(String value, boolean enabled) {

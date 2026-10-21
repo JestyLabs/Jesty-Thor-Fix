@@ -77,6 +77,15 @@ public final class RebootActivationHostTest {
         run("live-proven-repeat-open-no-kill",0,0,true);
         FixtureState.reset("1.7.1");run("code76-bound-native-handover",1,1,true);
         verifiedExitBeforeLaunch("code76");
+        for(String old:new String[]{"1.7.1","1.7.2","1.7.3","1.7.4"}){
+            FixtureState.reset(old);FixtureState.mode="1";FixtureState.bottom="0";
+            run("confirmed-top-handover-"+old,1,1,true);
+            verifiedExitBeforeLaunch("TOP-"+old);
+            check(FixtureState.lastHeld&&"1".equals(FixtureState.mode)&&"0".equals(FixtureState.bottom),
+                    "TOP successor remains held without a modelled lower ON");
+        }
+        FixtureState.reset("1.7.2");FixtureState.mode="1";FixtureState.bottom="0";FixtureState.stopEffective=false;
+        run("top-no-exit-no-successor",1,0,false);
         FixtureState.reset("1.7.1");FixtureState.snapshotSuffix=";runtime_version=";
         run("code76-present-empty-Q-version-is-not-absence",0,0,false);
         for(String old:new String[]{"1.7.1","1.7.2","1.7.3","1.7.4"}){
@@ -87,7 +96,7 @@ public final class RebootActivationHostTest {
                     "unsupported support retains normal reboot fallback");
         }
         FixtureState.reset("1.7.2");FixtureState.mode="1";
-        run("top-mode-fails-closed",0,0,false);
+        run("top-with-active-lower-fails-closed",0,0,false);
         FixtureState.mode="0";run("later-both-retry-activates",1,1,true);
         FixtureState.reset("1.7.2");FixtureState.bottom="0";
         run("dark-bottom-must-not-be-killed",0,0,false);

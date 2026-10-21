@@ -162,7 +162,8 @@ public final class LiveRetirement {
                             firstHealth = response;
                         }
                         if (index == 3) {
-                            requireEligible(firstHealth, response, display, cpu, guard, uid, peerPid);
+                            requireUnchangedEligible(firstHealth, firstSnapshot, response,
+                                    display, cpu, guard, uid, peerPid);
                         }
                     }
                 }
@@ -186,6 +187,14 @@ public final class LiveRetirement {
         if (LiveHandoverPolicy.safePidForRetainedProcess(health, snapshot,
                 display, cpu, guard, uid, pid) != pid) {
             throw new IOException("Retirement predecessor ineligible");
+        }
+    }
+
+    private static void requireUnchangedEligible(String health, String firstSnapshot, String snapshot,
+            boolean display, boolean cpu, boolean guard, int uid, int pid) throws IOException {
+        requireEligible(health, snapshot, display, cpu, guard, uid, pid);
+        if (!LiveHandoverPolicy.sameRetainedDisplayState(firstSnapshot, snapshot)) {
+            throw new IOException("Retirement display state changed");
         }
     }
 

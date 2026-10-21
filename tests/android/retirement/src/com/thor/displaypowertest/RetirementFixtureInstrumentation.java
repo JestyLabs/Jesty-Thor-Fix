@@ -47,19 +47,22 @@ public final class RetirementFixtureInstrumentation extends Instrumentation {
             require("true".equals(arguments.getString("owner_approved_disposable")),
                     "Owner must separately approve the exact disposable candidate/trial");
             String version = arguments.getString("predecessor", "");
+            String mode = arguments.getString("mode", "both");
+            require("both".equals(mode) || "top".equals(mode), "Exact fixture mode required");
             require("1.7.1".equals(version) || "1.7.2".equals(version)
                     || "1.7.3".equals(version) || "1.7.4".equals(version), "Exact predecessor required");
             context.getFilesDir();
             SharedPreferences preferences = context.getSharedPreferences("state", Context.MODE_PRIVATE);
             String stage = arguments.getString("stage", "");
             if ("prepare".equals(stage)) {
-                prepare(context, preferences, version);
+                prepare(context, preferences, version, mode);
                 result.putString("outcome", "PREPARED_NOT_ACTIVATED");
             } else {
                 require("activate".equals(stage), "Choose prepare or activate");
-                activate(context, preferences, version, result);
+                activate(context, preferences, version, mode, result);
             }
             result.putString("hardware", "MODELLED_NO_PHYSICAL_ACCEPTANCE");
+            result.putString("display_mode", mode);
             result.putString("exit_observation", "PRODUCT_DESCRIPTOR_RECEIPT_NOT_INDEPENDENT_SUPERVISOR");
             result.putString("acceptance", "OWNER_SUPERVISOR_AND_CLEANUP_VALIDATION_REQUIRED");
         } catch (Throwable failure) {
@@ -78,12 +81,13 @@ public final class RetirementFixtureInstrumentation extends Instrumentation {
         finish(resultCode, result);
     }
 
-    private void prepare(Context context, SharedPreferences preferences, String version)
+    private void prepare(Context context, SharedPreferences preferences, String version, String mode)
             throws Exception {
         require(preferences.getAll().isEmpty(), "Use fresh disposable preferences; never clear real app data");
         require(!RetirementFixtureHardware.ARMED.exists()
                 && !RetirementFixtureHardware.READY.exists()
-                && !RetirementFixtureHardware.STOP.exists(), "Refuse stale fixture markers");
+                && !RetirementFixtureHardware.STOP.exists()
+                && !RetirementFixtureHardware.MODE.exists(), "Refuse stale fixture markers");
         require(preferences.edit().putBoolean("fix_enabled", true)
                 .putBoolean("dashboard_cpu_fix_enabled", false)
                 .putBoolean("lid_guard_enabled", false)
@@ -91,13 +95,17 @@ public final class RetirementFixtureInstrumentation extends Instrumentation {
         require(RebootActivation.ticket(context, preferences).evidence()
                 == RebootActivation.Evidence.RESTART_REQUIRED, "Preparation cannot authorize same boot");
         marker(RetirementFixtureHardware.ARMED, version);
+        marker(RetirementFixtureHardware.MODE, "top".equals(mode) ? "1" : "0");
     }
 
-    private void activate(Context context, SharedPreferences preferences, String version,
+    private void activate(Context context, SharedPreferences preferences, String version, String mode,
             Bundle result) throws Exception {
         String armed = new String(Files.readAllBytes(RetirementFixtureHardware.ARMED.toPath()),
                 StandardCharsets.UTF_8);
         require(version.equals(armed), "Prepared predecessor must match this exact trial");
+        String expectedMode = "top".equals(mode) ? "1" : "0";
+        String preparedMode = new String(Files.readAllBytes(RetirementFixtureHardware.MODE.toPath()), StandardCharsets.US_ASCII);
+        require(expectedMode.equals(preparedMode), "Prepared mode must match this trial");
         require(!RetirementFixtureHardware.READY.exists() && !RetirementFixtureHardware.STOP.exists(),
                 "Refuse replayed READY/STOP markers");
         RebootActivation.Ticket ticket = RebootActivation.ticket(context, preferences);
@@ -107,6 +115,9 @@ public final class RetirementFixtureInstrumentation extends Instrumentation {
         require(version.equals(health.get("version")), "Real frozen predecessor must already be listening");
         String oldPid = health.get("pid");
         Map<String, String> oldSnapshot = TelemetryValues.parse(SocketClient.request('Q', 2500));
+        require(expectedMode.equals(oldSnapshot.get("mode")) && "1".equals(oldSnapshot.get("top_crtc"))
+                && ("top".equals(mode) ? "0" : "1").equals(oldSnapshot.get("bottom_crtc")),
+                "Actual predecessor mode and synthetic CRTC state match the trial");
         require("1.7.1".equals(version) ? !oldSnapshot.containsKey("runtime_version")
                 : version.equals(oldSnapshot.get("runtime_version")), "Exact actual published Q format");
         activity = (RetirementFixtureActivity) startActivitySync(new Intent(context,
@@ -175,6 +186,9 @@ public final class RetirementFixtureInstrumentation extends Instrumentation {
         require("ACTIVATION PENDING".equals(render(starting)), "Durable permission is still not READY");
         marker(RetirementFixtureHardware.READY, "ready");
         Map<String, String> ready = awaitCurrent(false);
+        require(expectedMode.equals(ready.get("mode")) && "1".equals(ready.get("top_crtc"))
+                && ("top".equals(mode) ? "0" : "1").equals(ready.get("bottom_crtc")),
+                "Successor keeps the requested synthetic display state through READY");
         require(PServer.healthy(true), "Authenticated final READY health");
         require("ACTIVE".equals(render(ready)), "Actual renderer accepts eventual current READY");
         require(!"ACTIVE".equals(render(oldSnapshot)), "Old identity never ACTIVE even after live permission");

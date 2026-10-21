@@ -18,7 +18,7 @@ public final class FixtureState {
  finished=new CountDownLatch(1);errors=new ArrayList<>();}
  public static String health(){return "ok=1;protocol="+protocol+";version="+version+";pid="+pid+";boot_phase="+phase+";fix=1;watcher="+watcher;}
  // Published code76 did not emit Q.runtime_version; never invent identity evidence.
- public static String snapshot(){return "ok=1"+("1.7.1".equals(version) ? "" : ";runtime_version=" + version)+";mode="+mode+";top_crtc="+top+";bottom_crtc="+bottom+";display_actions_held=0;display_effective=CONFIRMED;fix=1;cpu_fix_desired=0;cpu_fix_phase=CONFIRMED;system_load_fix=0;lid_guard=0;lid=open;external_display=unknown"+snapshotSuffix;}
+ public static String snapshot(){return "ok=1"+("1.7.1".equals(version) ? "" : ";runtime_version=" + version)+";mode="+mode+";top_crtc="+top+";bottom_crtc="+bottom+";display_actions_held=0;display_effective=CONFIRMED;display_action_status=CONFIRMED;display_generation=1;repair_result=NONE;fix=1;cpu_fix_desired=0;cpu_fix_phase=CONFIRMED;system_load_fix=0;lid_guard=0;lid=open;external_display=unknown"+snapshotSuffix;}
  public static boolean transact(String cmd){
  if(cmd.contains(" app_process / R ")){helperSubmissions++;events.add("BRIDGE_SUBMIT");
  if(!bridgeAccept)return false;events.add("BRIDGE_ACK");RetirementNative.submit(cmd);return true;}
