@@ -100,8 +100,9 @@ public final class BottomIdleRuntime {
     public static void onModeSample(String mode) {
         if (!active) return;
         synchronized (LOCK) {
-            if (!POLICY.enabled()) return;
-            if (POLICY.mode(mode)) {
+            int edge = POLICY.sampleModeIfEnabled(mode);
+            if (edge < 0) return;
+            if (edge > 0) {
                 if (handler != null) handler.removeCallbacks(TIMEOUT);
                 if (!"UNAVAILABLE".equals(inputState)) {
                     inputState = receiver == null ? "SUSPENDED" : "WAITING_FOR_TOUCH";
@@ -155,8 +156,7 @@ public final class BottomIdleRuntime {
     public static void onDisplayWake() {
         if (!active) return;
         synchronized (LOCK) {
-            if (!POLICY.enabled()) return;
-            POLICY.wake();
+            if (!POLICY.wakeIfEnabled()) return;
             if (handler != null) handler.removeCallbacks(TIMEOUT);
             inputState = receiver == null ? inputState : "WAITING_FOR_TOUCH";
         }
@@ -187,14 +187,12 @@ public final class BottomIdleRuntime {
 
     /** Revoke earlier touch proof if hidden display-id decoding stops working. */
     public static void onInputFailure(long epoch) {
-        final boolean restore;
         final long restoreLease;
         final Handler owner;
         synchronized (LOCK) {
-            if (epoch != monitorEpoch || !POLICY.enabled()) return;
-            restore = POLICY.suppressNativeRestore();
-            POLICY.wake();
-            restoreLease = restore ? POLICY.requireRestore() : -1L;
+            if (epoch != monitorEpoch) return;
+            restoreLease = POLICY.inputUnavailableRestoreLease();
+            if (restoreLease == BottomIdlePolicy.REJECTED_TOUCH) return;
             if (handler != null) handler.removeCallbacks(TIMEOUT);
             inputState = "UNAVAILABLE";
             owner = handler;
@@ -202,7 +200,7 @@ public final class BottomIdleRuntime {
         }
         // Finish the current input event before potentially expensive
         // display reconciliation; do not hold the input-dispatch callback.
-        if (restore) requestRestore(restoreLease);
+        if (restoreLease >= 0L) requestRestore(restoreLease);
     }
 
     private static void requestRestore(long lease) {
