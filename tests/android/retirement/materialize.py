@@ -45,6 +45,14 @@ def materialize(version, destination):
     if WORK.resolve() not in destination.resolve().parents:
         raise ValueError("Source output must remain beneath work/")
     entries = []
+    frozen = json.loads((PUBLISHED / 'SOURCES.json').read_text(encoding='utf-8'))['files']
+    frozen = [entry for entry in frozen if entry['version'] == version]
+    expected_paths = {'src/com/thor/displaypowertest/' + name + '.java' for name in SERVER}
+    if (len(frozen) != len(SERVER) or {entry['source_path'] for entry in frozen} != expected_paths):
+        raise ValueError('Frozen producer manifest is incomplete or ambiguous')
+    for entry in frozen:
+        if sha256((PUBLISHED / version / entry['source_path']).read_bytes()) != entry['sha256']:
+            raise ValueError('Frozen published producer changed: ' + entry['source_path'])
     destination.mkdir(parents=True)
     try:
         def copy(source, target, *, native=False):
@@ -111,7 +119,7 @@ def materialize(version, destination):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--predecessor", required=True, choices=("1.7.1", "1.7.2", "1.7.3", "1.7.4"))
+    parser.add_argument("--predecessor", required=True, choices=("1.7.1", "1.7.2", "1.7.3", "1.7.4", "1.7.5"))
     parser.add_argument("--output-relative-to-work")
     parser.add_argument("--verify-only", action="store_true",
                         help="verify namespace-only source copies, then remove generated files")

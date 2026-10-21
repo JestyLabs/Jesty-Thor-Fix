@@ -22,7 +22,7 @@ import uuid
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = Path("com/thor/displaypowertest")
 PRODUCT = (
-    "AutoService", "PServer", "LiveRetirement", "RebootActivation",
+    "AutoService", "PServer", "LiveRetirement", "RebootActivation", "DaemonIdentity",
     "RebootActivationPolicy", "PreviousSecureDaemonIdentity", "LiveHandoverPolicy",
     "DaemonLaunchModel", "FailedStartRetirementPolicy", "DashboardRenderer", "DashboardStateModel",
     "CpuWarningModel", "TelemetryValues",

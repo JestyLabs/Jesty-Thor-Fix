@@ -8,7 +8,7 @@ public final class RecoveryRetirementHostTest {
     }
 
     private static String health(String phase) {
-        return "ok=1;protocol=2;version=1.7.5;pid=12000;boot_phase=" + phase
+        return "ok=1;protocol=2;version=" + DaemonIdentity.RUNTIME_ID + ";pid=12000;boot_phase=" + phase
                 + ";phase_ms=90000;fix=1;watcher=STOPPED";
     }
 
@@ -19,7 +19,7 @@ public final class RecoveryRetirementHostTest {
 
     private static void run(String id, String first, String second, boolean allowed,
             int signals, java.util.function.Consumer<String> setup, LiveRetirement.CommitGate gate) throws Exception {
-        FixtureState.reset("1.7.5");
+        FixtureState.reset(DaemonIdentity.RUNTIME_ID);
         FixtureState.phase = "HANDOFF_FAILED";
         FixtureState.scriptedReplies = new String[] {first, first, second};
         setup.accept(id);
@@ -51,7 +51,7 @@ public final class RecoveryRetirementHostTest {
         run("failed", failed, failed, true, 1, inert);
         run("gate-denied", failed, failed, false, 0, inert, () -> false);
         check(!FixtureState.events.contains("COMMIT"), "gate-denied: no COMMIT");
-        check("1.7.5".equals(FixtureState.version), "gate-denied: daemon preserved");
+        check(DaemonIdentity.RUNTIME_ID.equals(FixtureState.version), "gate-denied: daemon preserved");
         for (String phase : new String[] {"BOOT_HOLD", "WAITING_FOR_ANDROID", "APPLYING_CPU_FIX",
                 "WAITING_AFTER_COMPOSER", "RECONCILING_DISPLAY"}) {
             run("stalled-" + phase, health(phase), health(phase), true, 1, inert);
@@ -64,19 +64,21 @@ public final class RecoveryRetirementHostTest {
         run("wrong-peer", failed, failed, false, 0, ignored -> RetirementNative.daemonUid = 2000);
         run("changed-peer", failed, failed, false, 0, ignored -> RetirementNative.changedPeerAt = 1);
         run("wrong-helper", failed, failed, false, 0, ignored -> RetirementNative.helperUid = 2000);
-        run("wrong-version", failed.replace("1.7.5", "1.7.4"), failed, false, 0, inert);
+        run("wrong-version", failed.replace(DaemonIdentity.RUNTIME_ID, "1.7.4"), failed, false, 0, inert);
+        run("published-predecessor-is-not-same-version-recovery",
+                failed.replace(DaemonIdentity.RUNTIME_ID, "1.7.5"), failed, false, 0, inert);
         run("claimed-pid", failed.replace("12000", "13000"), failed, false, 0, inert);
         run("wrong-intent", failed.replace("fix=1", "fix=0"), failed, false, 0, inert);
         run("starting-young", health("BOOT_HOLD").replace("90000", "89999"), failed, false, 0, inert);
         for (String key : new String[] {"ok", "protocol", "version", "pid", "fix", "boot_phase", "phase_ms"}) {
             String value = key.equals("boot_phase") ? "HANDOFF_FAILED" : key.equals("pid") ? "12000"
-                    : key.equals("version") ? "1.7.5" : key.equals("protocol") ? "2"
+                    : key.equals("version") ? DaemonIdentity.RUNTIME_ID : key.equals("protocol") ? "2"
                     : key.equals("phase_ms") ? "90000" : "1";
             run("duplicate-" + key, failed + ";" + key + "=" + value, failed, false, 0, inert);
         }
         run("second-ready", failed, health("READY"), false, 0, inert);
         run("changed-failed-phase", failed, health("BOOT_HOLD"), false, 0, inert);
-        run("second-wrong-version", failed, failed.replace("1.7.5", "1.7.4"), false, 0, inert);
+        run("second-wrong-version", failed, failed.replace(DaemonIdentity.RUNTIME_ID, "1.7.4"), false, 0, inert);
         run("second-duplicate", failed, failed + ";pid=12000", false, 0, inert);
         run("second-gone", failed, null, false, 0, inert);
         run("no-effect", failed, failed, false, 1, ignored -> FixtureState.stopEffective = false);

@@ -207,7 +207,7 @@ def main():
         stub_directory = scratch / "inert-interfaces"
         interfaces(stub_directory)
         stubs = sorted(stub_directory.rglob("*.java"))
-        for version in ("1.7.1", "1.7.2", "1.7.3", "1.7.4"):
+        for version in ("1.7.1", "1.7.2", "1.7.3", "1.7.4", "1.7.5"):
             target = scratch / ("sources-" + version)
             provenance = materializer.materialize(version, target)
             outputs = [entry["output"] for entry in provenance["files"]]

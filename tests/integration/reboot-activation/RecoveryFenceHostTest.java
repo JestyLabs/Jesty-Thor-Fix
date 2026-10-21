@@ -13,7 +13,7 @@ public final class RecoveryFenceHostTest {
         return RebootActivation.ticket(new AutoService(), FixturePreferences.INSTANCE);
     }
     private static RebootActivation.Ticket authorized() {
-        FixtureState.reset("1.7.5");
+        FixtureState.reset(DaemonIdentity.RUNTIME_ID);
         check(!ticket().isAuthorized(), "new package needs independent boot");
         FixtureState.boot = NEXT;
         RebootActivation.Ticket result = ticket();
@@ -21,7 +21,7 @@ public final class RecoveryFenceHostTest {
         return result;
     }
     public static void main(String[] args) {
-        FixtureState.reset("1.7.5");
+        FixtureState.reset(DaemonIdentity.RUNTIME_ID);
         RebootActivation.Ticket unprepared = ticket();
         check(!unprepared.beginRecovery(), "unauthorized activation cannot create recovery permission");
         check(!FixtureState.durable.containsKey(KEY), "unauthorized recovery writes no pending fence");

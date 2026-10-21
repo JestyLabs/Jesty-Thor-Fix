@@ -6,7 +6,7 @@ public final class RebootDashboardHostTest {
     private static int checks;
     private static void check(boolean b,String m){checks++;if(!b)throw new AssertionError(m);}
     private static Map<String,String> sample(){
-        Map<String,String> q=new HashMap<>();q.put("runtime_version","1.7.5");
+        Map<String,String> q=new HashMap<>();q.put("runtime_version",DaemonIdentity.RUNTIME_ID);
         q.put("boot_phase","READY");q.put("display_actions_held","0");q.put("watcher_health","RUNNING");
         q.put("fix","1");q.put("display_effective","CONFIRMED");q.put("mode","0");q.put("top_crtc","1");q.put("bottom_crtc","1");return q;
     }
@@ -56,7 +56,7 @@ public final class RebootDashboardHostTest {
         check(!views.stateText.text.equals("ACTIVE")&&settings.pending,"failed watcher not ready");
         q=sample();q.put("boot_phase","HANDOFF_FAILED");q.put("display_actions_held","1");ui.render(q,settings);
         check(requests[0]==1&&settings.pending,"same-version held recovery retained");
-        FixtureState.reset("1.7.5");RebootActivation.ticket(new AutoService(),FixturePreferences.INSTANCE);
+        FixtureState.reset(DaemonIdentity.RUNTIME_ID);RebootActivation.ticket(new AutoService(),FixturePreferences.INSTANCE);
         FixtureState.boot="00000000-0000-0000-0000-000000000002";
         RebootActivation.Ticket recovery=RebootActivation.ticket(new AutoService(),FixturePreferences.INSTANCE);
         check(recovery.beginRecovery(),"prepare unconfirmed recovery fence");

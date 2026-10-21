@@ -31,7 +31,7 @@ public final class RetirementFixtureHardware {
         }
         String armed = new String(Files.readAllBytes(ARMED.toPath()), StandardCharsets.UTF_8);
         if (!"1.7.1".equals(armed) && !"1.7.2".equals(armed) && !"1.7.3".equals(armed)
-                && !"1.7.4".equals(armed)) {
+                && !"1.7.4".equals(armed) && !"1.7.5".equals(armed)) {
             throw new IllegalStateException("Fixture was not prepared by the disposable app");
         }
         if (old && (!DaemonIdentity.RUNTIME_ID.equals(armed) || READY.exists() || STOP.exists())) {

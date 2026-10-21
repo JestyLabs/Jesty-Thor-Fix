@@ -46,7 +46,7 @@ public final class RebootActivationHostTest {
         check(FixtureState.lastHeld,"foreground fallback launches through boot hold");
         run("current-ready-app-reopen",0,0,true);
         for(String name:new String[]{"starting-young","ready-watcher-stalled","wrong-intent","not-authorized"}){
-            FixtureState.reset("1.7.5");prepareThenReboot();
+            FixtureState.reset(DaemonIdentity.RUNTIME_ID);prepareThenReboot();
             if(name.equals("starting-young")){FixtureState.phase="WAITING_FOR_ANDROID";FixtureState.phaseMs="89999";}
             if(name.equals("ready-watcher-stalled"))FixtureState.watcher="STALLED";
             if(name.equals("wrong-intent")){FixtureState.phase="HANDOFF_FAILED";FixtureState.fix="0";}
@@ -57,11 +57,11 @@ public final class RebootActivationHostTest {
             run("recovery-prefilter-"+name,0,0,!name.equals("not-authorized"));
             check(FixtureState.helperSubmissions==0,"recovery-prefilter-"+name+": no privileged helper");
         }
-        FixtureState.reset("1.7.5");prepareThenReboot();
+        FixtureState.reset(DaemonIdentity.RUNTIME_ID);prepareThenReboot();
         FixtureState.boot=C;FixtureState.version=null;run("later-kernel-no-broadcast",0,1,true);
         check(prepared.equals(FixtureState.saved.get(KEY)),"verified boots do not replace original baseline");
 
-        FixtureState.reset("1.7.5");run("current-version-without-proof-not-authorized",0,0,false);
+        FixtureState.reset(DaemonIdentity.RUNTIME_ID);run("current-version-without-proof-not-authorized",0,0,false);
         FixtureState.reset(null);FixtureState.fromBoot=true;run("first-observation-is-boot-not-authority",0,0,false);
         FixtureState.boot=B;run("second-boot-receiver-can-start",0,1,true);
 
@@ -89,12 +89,15 @@ public final class RebootActivationHostTest {
         verifiedExitBeforeLaunch("code83");
         FixtureState.reset("1.7.4");run("code84-same-kernel-handover",1,1,true);
         verifiedExitBeforeLaunch("code84");
+        FixtureState.reset("1.7.5");run("code85-same-kernel-handover",1,1,true);
+        verifiedExitBeforeLaunch("code85");
+        check(DaemonIdentity.RUNTIME_ID.equals(FixtureState.version),"code85 successor uses current product identity");
         check(FixtureState.saved.containsKey("activation_v3_live_handover"),
                 "live proof is durable only after new runtime identity");
         run("live-proven-repeat-open-no-kill",0,0,true);
         FixtureState.reset("1.7.1");run("code76-bound-native-handover",1,1,true);
         verifiedExitBeforeLaunch("code76");
-        for(String old:new String[]{"1.7.1","1.7.2","1.7.3","1.7.4"}){
+        for(String old:new String[]{"1.7.1","1.7.2","1.7.3","1.7.4","1.7.5"}){
             FixtureState.reset(old);FixtureState.mode="1";FixtureState.bottom="0";
             run("confirmed-top-handover-"+old,1,1,true);
             verifiedExitBeforeLaunch("TOP-"+old);
@@ -105,7 +108,7 @@ public final class RebootActivationHostTest {
         run("top-no-exit-no-successor",1,0,false);
         FixtureState.reset("1.7.1");FixtureState.snapshotSuffix=";runtime_version=";
         run("code76-present-empty-Q-version-is-not-absence",0,0,false);
-        for(String old:new String[]{"1.7.1","1.7.2","1.7.3","1.7.4"}){
+        for(String old:new String[]{"1.7.1","1.7.2","1.7.3","1.7.4","1.7.5"}){
             FixtureState.reset(old);RetirementNative.available=false;
             run("native-unavailable-reboot-fallback-"+old,0,0,false);
             check(FixtureState.helperSubmissions==0,"unsupported native never submits helper");
@@ -218,24 +221,24 @@ public final class RebootActivationHostTest {
         run("already-persisted-proof-needs-no-new-write",0,1,true);
         FixtureState.reset(null);prepareThenReboot();FixtureState.legacyPresent=true;
         run("legacy-occupant-no-stop",0,0,true);
-        FixtureState.reset("1.7.5");prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";
+        FixtureState.reset(DaemonIdentity.RUNTIME_ID);prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";
         run("same-version-held-recovery-retained",1,1,true);
         check(FixtureState.lastHeld,"same-version recovery remains held");
-        FixtureState.reset("1.7.5");prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";
+        FixtureState.reset(DaemonIdentity.RUNTIME_ID);prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";
         java.util.Map<String,String> beforeFence=new java.util.HashMap<>(FixtureState.durable);
         FixtureState.commitFailure=true;
         run("same-version-fence-write-fails",0,0,false);
         check(FixtureState.helperSubmissions==1&&!FixtureState.events.contains("COMMIT"),
                 "failed durable fence cannot reach COMMIT");
         check(beforeFence.equals(FixtureState.durable),"failed fence leaves durable evidence unchanged");
-        FixtureState.reset("1.7.5");prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";
+        FixtureState.reset(DaemonIdentity.RUNTIME_ID);prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";
         FixtureState.beforeCommit=()->FixtureState.boot=C;
         run("boot-changes-before-commit",0,0,true);
         check(!FixtureState.events.contains("COMMIT"),"fresh boot change cannot reach COMMIT");
-        FixtureState.reset("1.7.5");prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";FixtureState.stopEffective=false;
+        FixtureState.reset(DaemonIdentity.RUNTIME_ID);prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";FixtureState.stopEffective=false;
         run("same-version-stop-no-effect-no-duplicate",1,0,false);
         for(String fault:new String[]{"stale","malformed","missing","oversized"}){
-            FixtureState.reset("1.7.5");prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";
+            FixtureState.reset(DaemonIdentity.RUNTIME_ID);prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";
             RetirementNative.receiptFault=fault;
             run("same-version-receipt-"+fault+"-no-successor",1,0,false);
             run("same-version-receipt-"+fault+"-reopen-still-held",0,0,false);

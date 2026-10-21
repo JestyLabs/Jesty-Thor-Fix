@@ -22,9 +22,9 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = 'org.example.rfixture'
 AVD = 'pr67-ci-api33'
-VERSIONS = ('1.7.1', '1.7.2', '1.7.3', '1.7.4')
-RECOVERY_ORIGIN = '1.7.4'
-EXPECTED_CASE_COUNT = 20
+VERSIONS = ('1.7.1', '1.7.2', '1.7.3', '1.7.4', '1.7.5')
+RECOVERY_ORIGIN = '1.7.5'
+EXPECTED_CASE_COUNT = 24
 
 def expected_cases():
     return {(purpose, version, support, mode)

@@ -1,6 +1,6 @@
 # Installed retirement JNI fixture
 
-Candidate: **1.7.5/code85**. Exact published predecessors: **1.7.1, 1.7.2, 1.7.3 and 1.7.4**.
+Candidate: **1.7.6/code86**. Exact published predecessors: **1.7.1, 1.7.2, 1.7.3, 1.7.4 and 1.7.5**.
 The frozen source hashes live under `tests/retirement/published/`; code76's missing
 Q runtime field is preserved. Prepared sources are not an executed platform PASS.
 
@@ -33,8 +33,8 @@ Before mutation, the driver requires an emulator-shaped serial, the exact owned
 AVD `pr67-ci-api33`, qemu=1, API33, x86_64 and absent PServerBinder. It recertifies
 after root; every ADB command is serial-specific. Physical/foreign targets fail.
 
-Sixteen update cases cover native support and deliberately omitted support in
-BOTH/TOP for all four origins. Four additional recovery cases use the current
+Twenty update cases cover native support and deliberately omitted support in
+BOTH/TOP for all five origins. Four additional recovery cases use the current
 real producer in BOTH/TOP with either native variant and a synthetic failed-start
 phase. The `transport` route invokes actual LiveRetirement/JNI/fixed R:
 app-opened descriptors, both I/Q rounds, kernel peer identity, retained process,
