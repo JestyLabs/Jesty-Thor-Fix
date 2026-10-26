@@ -26,12 +26,12 @@ def execute(command, expected=None):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--negative-controls", action="store_true")
-    parser.add_argument('--predecessor', choices=('1.7.1', '1.7.2', '1.7.3', '1.7.4'))
+    parser.add_argument('--predecessor', choices=('1.7.1', '1.7.2', '1.7.3', '1.7.4', '1.7.5'))
     args = parser.parse_args()
     if not shutil.which("javac") or not shutil.which("java"):
         print("NOT RUN: existing JDK unavailable; no installation permitted")
         return 2
-    for version in ((args.predecessor,) if args.predecessor else ('1.7.1', '1.7.2', '1.7.3', '1.7.4')):
+    for version in ((args.predecessor,) if args.predecessor else ('1.7.1', '1.7.2', '1.7.3', '1.7.4', '1.7.5')):
         with tempfile.TemporaryDirectory(prefix="retirement-host-") as tmp:
             root = Path(tmp)
             source = root / "src"
@@ -39,7 +39,7 @@ def main():
             product = WORK / "src/com/thor/displaypowertest"
             sources = []
             for name in ("LiveRetirement", "LiveHandoverPolicy", "PreviousSecureDaemonIdentity",
-                         "DaemonLaunchScript", "RetirementNative"):
+                         "DaemonLaunchScript", "DaemonLaunchModel", "FailedStartRetirementPolicy", "RetirementNative"):
                 dest = source / (name + ".java")
                 shutil.copyfile(product / dest.name, dest)
                 sources.append(str(dest))
@@ -67,22 +67,36 @@ def main():
             execute(["java", "-cp", str(classes), "PreviousSecureDaemonIdentityTest"])
             execute(["java", "-cp", str(classes), "com.thor.displaypowertest.RetirementHostTest"])
             if args.negative_controls:
-                path = source / "LiveRetirement.java"
-                original = path.read_text()
                 mutants = [
-                    ("second-Q-gate-removed",
-                     "requireEligible(firstHealth, response, display, cpu, guard, uid, peerPid);",
+                    ("second-Q-gate-removed", "LiveRetirement.java",
+                     "requireUnchangedEligible(firstHealth, firstSnapshot, response,\n"
+                     "                                    display, cpu, guard, uid, peerPid);",
                      "", "second-mode", "second-mode: unsafe stop admission"),
-                    ("exit-proof-removed",
+                    ("exit-proof-removed", "LiveRetirement.java",
                      "io.signalAndAwaitExit(processFd, control.fd, deadline.remaining(3000));",
                      "", "no-effect", "no-effect: unsafe stop admission"),
-                    ("app-wait-undercuts-Q",
+                    ("app-wait-undercuts-Q", "LiveRetirement.java",
                      "private static final int OBSERVATION_WAIT_MS = 6000;",
                      "private static final int OBSERVATION_WAIT_MS = 1000;",
                      "app-wait", "app wait preserves Q and identity-check budget"),
+                    ("top-repair-gate-removed", "LiveHandoverPolicy.java",
+                     '!confirmedTopSnapshot(snapshot)', 'false',
+                     'top-pending', 'top-pending: unsafe stop admission'),
+                    ("top-generation-check-removed", "LiveHandoverPolicy.java",
+                     'generation.equals(field(second, "display_generation"))', 'true',
+                     'top-aba', 'top-aba: unsafe stop admission'),
+                    ("retained-mode-check-removed", "LiveHandoverPolicy.java",
+                     'mode == null || !mode.equals(field(second, "mode"))', 'mode == null',
+                     'both-to-top', 'both-to-top: unsafe stop admission'),
+                    ("public-stop-top-widened", "PreviousSecureDaemonIdentity.java",
+                     'return checkedPid(health, snapshot, false);',
+                     'return checkedPid(health, snapshot, true);',
+                     'top-public', 'public unbound retirement stays BOTH-only'),
                 ]
-                for name, before, after, case, assertion in mutants:
-                    if before not in original:
+                for name, filename, before, after, case, assertion in mutants:
+                    path = source / filename
+                    original = path.read_text()
+                    if original.count(before) != 1:
                         raise RuntimeError("Missing mutation target: " + name)
                     path.write_text(original.replace(before, after))
                     execute(compile_command)

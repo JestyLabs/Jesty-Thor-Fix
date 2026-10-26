@@ -22,9 +22,9 @@ import uuid
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = Path("com/thor/displaypowertest")
 PRODUCT = (
-    "AutoService", "PServer", "LiveRetirement", "RebootActivation",
+    "AutoService", "PServer", "LiveRetirement", "RebootActivation", "DaemonIdentity",
     "RebootActivationPolicy", "PreviousSecureDaemonIdentity", "LiveHandoverPolicy",
-    "DaemonLaunchModel", "DashboardRenderer", "DashboardStateModel",
+    "DaemonLaunchModel", "FailedStartRetirementPolicy", "DashboardRenderer", "DashboardStateModel",
     "CpuWarningModel", "TelemetryValues",
 )
 TESTS = (
@@ -33,22 +33,59 @@ TESTS = (
     "RebootActivationPolicyTest",
     "LiveHandoverPolicyTest",
     "com.thor.displaypowertest.PredecessorRecheckHostTest",
+    "com.thor.displaypowertest.RecoveryRetirementHostTest",
+    "com.thor.displaypowertest.RecoveryFenceHostTest",
 )
 MUTANTS = (
+    ("recovery-prefilter-removed", "PServer.java",
+     "if (DaemonLaunchModel.replaceablePid(health, DaemonIdentity.RUNTIME_ID, expectedFix) <= 100)",
+     "if (false)", TESTS[0], (), "recovery-prefilter-starting-young: no privileged helper"),
+    ("recovery-activation-prefilter-removed", "AutoService.java",
+     "boolean recoveryAttempted = activation.isAuthorized()\n"
+     "                            && (probe == Probe.STARTING || probe == Probe.UNHEALTHY);",
+     "boolean recoveryAttempted = probe == Probe.STARTING || probe == Probe.UNHEALTHY;",
+     TESTS[0], (), "recovery-prefilter-not-authorized: no privileged helper"),
+    ("recovery-gate-result-ignored", "LiveRetirement.java",
+     'if (!gate.allow()) throw new IOException("Retirement commit authorization unavailable");',
+     "gate.allow();", TESTS[5], (), "gate-denied: recovery result requires confirmed exit"),
+    ("recovery-service-pending-guard-removed", "AutoService.java",
+     "if (activation.recoveryBlocked())", "if (false)",
+     TESTS[0], (), "same-version-receipt-stale-reopen-still-held: no helper while recovery blocked"),
+    ("recovery-begin-authorization-removed", "RebootActivation.java",
+     "if (!isAuthorized()) return false;", "",
+     TESTS[6], (), "unauthorized activation cannot create recovery permission"),
+    ("recovery-completion-pending-check-removed", "RebootActivation.java",
+     '\n                            || !boot.equalsIgnoreCase(preferences.getString(RECOVERY_PENDING, ""))', "",
+     TESTS[6], (), "receipt cannot clear an absent pending fence"),
+    ("recovery-fresh-boot-check-removed", "RebootActivation.java",
+     "if (!boot.equalsIgnoreCase(SecureChannel.currentBootId())) return false;", "",
+     TESTS[0], (), "boot-changes-before-commit: stop submissions"),
     ("same-kernel-authorized", "RebootActivationPolicy.java",
      "!boot.equalsIgnoreCase(savedBoot)", "true",
      "RebootActivationPolicyTest", (), "same kernel cannot authorize"),
-    ("service-gate-bypassed", "RebootActivation.java",
-     "return ticket(context, preferences).isAuthorized();", "return true;",
+    ("activation-authorization-bypassed", "RebootActivation.java",
+     "Evidence result = evidence();\n"
+     "            return result == Evidence.BOOT_VERIFIED || result == Evidence.LIVE_VERIFIED;", "return true;",
      TESTS[0], (), "first-open-prepares-only: launches"),
     ("retained-second-snapshot-guard-removed", "LiveRetirement.java",
-     "requireEligible(firstHealth, response, display, cpu, guard, uid, peerPid);",
+     "requireUnchangedEligible(firstHealth, firstSnapshot, response,\n"
+     "                                    display, cpu, guard, uid, peerPid);",
      "/* deliberate compiled negative control: second snapshot guard removed */",
      TESTS[4], ("mode",), "S2-recheck-mode stop admission"),
     ("invented-code76-runtime-field", "FixtureState.java",
      '"1.7.1".equals(version) ? "" : ";runtime_version=" + version',
      '";runtime_version=" + version',
      TESTS[4], ("raw-code76",), "raw-code76 must not fabricate runtime identity"),
+    ("recovery-exit-proof-removed", "LiveRetirement.java",
+     "io.signalAndAwaitExit(processFd, control.fd, deadline.remaining(3000));", "",
+     TESTS[5], ("no-effect",), "no-effect: recovery result requires confirmed exit"),
+    ("recovery-second-phase-guard-removed", "FailedStartRetirementPolicy.java",
+     'a.get("boot_phase").equals(b.get("boot_phase"))', 'true',
+     TESTS[5], (), "changed-failed-phase: recovery result requires confirmed exit"),
+    ("recovery-durable-fence-removed", "RebootActivation.java",
+     'boot.equalsIgnoreCase(unconfirmedRecoveryBoot)\n'
+     '                            || boot.equalsIgnoreCase(pending)', 'false',
+     TESTS[6], (), "same boot pending blocks subsequent ticket"),
 )
 
 
@@ -95,6 +132,7 @@ def main():
           "Dashboard; native effects, credentials and historical replies MODELLED")
     print("PATH_REDACTION: bundle=[BUNDLE_ROOT]; disposable compilation directory=[HOST_TEMP]")
     print("Python " + platform.python_version())
+    run([sys.executable, "tests/test_retirement_android_matrix.py"])
     run(["java", "-version"])
     compiler = run(["javac", "-version"])
     if not compiler.startswith("javac 17."):
@@ -120,8 +158,6 @@ def main():
                 if "stopPreviousSecureDaemonIfSafe" in source or "stopLegacyDaemon" in source:
                     raise RuntimeError("reboot activation must not stop an earlier/legacy daemon")
             if name == "PServer":
-                source = replace_body(source, "private static boolean legacyProtocolSeen()",
-                                      " return false; ")
                 source = replace_body(source, "public static boolean legacyTcpOpen()",
                                       " return FixtureState.legacyPresent; ")
             (src / PACKAGE / (name + ".java")).write_text(source, encoding="utf-8")

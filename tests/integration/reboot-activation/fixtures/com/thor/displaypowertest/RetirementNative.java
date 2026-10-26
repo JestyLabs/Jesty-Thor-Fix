@@ -75,10 +75,12 @@ public final class RetirementNative {
     }
 
     static void submit(String command) {
-        Matcher match = Pattern.compile(" app_process / R ([0-9a-f]{32}) ([01]{3}) ")
+        Matcher match = Pattern.compile(" app_process / R ([0-9a-f]{32}) ([01]{3})( recovery)? ")
                 .matcher(command);
         if (!match.find()) throw new AssertionError("not the fixed product helper command");
-        final String[] args = {match.group(1), match.group(2)};
+        final String[] args = match.group(3) == null
+                ? new String[] {match.group(1), match.group(2)}
+                : new String[] {match.group(1), match.group(2), "recovery"};
         if (bridgeAckOnly) return;
         connected = 0;
         helper = new Thread(() -> {
@@ -206,6 +208,11 @@ public final class RetirementNative {
         if (!(value instanceof String)) throw new IOException("modelled line frame");
         String line = (String) value;
         if (line.length() > limit) throw new IOException("modelled oversized receipt");
+        if (line.startsWith("PREPARED ") && FixtureState.beforeCommit != null) {
+            Runnable hook = FixtureState.beforeCommit;
+            FixtureState.beforeCommit = null;
+            hook.run();
+        }
         if ((cancelBeforeCommit && line.startsWith("PREPARED "))
                 || (cancelAfterCommit && line.startsWith("EXIT "))) {
             Thread.currentThread().interrupt();

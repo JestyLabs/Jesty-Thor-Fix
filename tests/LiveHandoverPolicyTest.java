@@ -17,6 +17,15 @@ public final class LiveHandoverPolicyTest {
     }
     public static void main(String[] args) {
         check(pid(H,Q)==12000, "exact code80 ready+BOTH+matching CPU is eligible");
+        String h85 = H.replace("1.7.2", "1.7.5");
+        String q85 = Q.replace("1.7.2", "1.7.5");
+        check(pid(h85,q85)==12000, "exact published code85 READY+BOTH is eligible");
+        check(pid(h85,q85.replace(";runtime_version=1.7.5", ""))<0, "code85 requires Q runtime identity");
+        check(pid(h85,q85+";runtime_version=1.7.5")<0, "code85 duplicate Q identity denied");
+        check(pid(h85+";pid=12000",q85)<0, "code85 duplicate I identity denied");
+        check(pid(h85,q85.replace("1.7.5","1.7.4"))<0, "code85 mismatched I/Q denied");
+        check(pid(h85,q85.replace("mode=0","mode=1").replace("bottom_crtc=1","bottom_crtc=0"))<0,
+                "code85 public stop remains BOTH-only");
         String h84 = H.replace("1.7.2", "1.7.4");
         String q84 = Q.replace("1.7.2", "1.7.4");
         check(pid(h84,q84)==12000, "published code84 ready+BOTH is eligible");
@@ -37,7 +46,7 @@ public final class LiveHandoverPolicyTest {
         check(pid(H.replace("1.7.2","1.7.1"),Q.replace(";runtime_version=1.7.2",""))<0,
                 "published code76 lacks Q runtime identity and cannot authorize live stop");
         check(pid(H.replace("1.7.2","1.7.1"),Q)<0,"I/Q version mismatch denied");
-        for (String version : new String[]{"1.7.0","1.7.2-rc1","1.7.5","1.7.4-rc1","1.7.4-recovery","1.7.40",
+        for (String version : new String[]{"1.7.0","1.7.2-rc1","1.7.6","1.7.5-rc1","1.7.5-recovery","1.7.50","1.7.4-rc1","1.7.4-recovery","1.7.40",
                 "1.7.3-recovery","1.7.2-hijacked","unknown"}) {
             check(pid(H.replace("1.7.2",version),Q.replace("1.7.2",version))<0,"unknown predecessor denied "+version);
         }
