@@ -9,7 +9,8 @@ public final class D {
         boolean old = "1.7.1".equals(DaemonIdentity.RUNTIME_ID)
                 || "1.7.2".equals(DaemonIdentity.RUNTIME_ID)
                 || "1.7.3".equals(DaemonIdentity.RUNTIME_ID)
-                || "1.7.4".equals(DaemonIdentity.RUNTIME_ID);
+                || "1.7.4".equals(DaemonIdentity.RUNTIME_ID)
+                || "1.7.5".equals(DaemonIdentity.RUNTIME_ID);
         String phase = old ? "run" : "hold";
         if (args.length != 4 || !"1".equals(args[0]) || !phase.equals(args[1])
                 || !"0".equals(args[2]) || !"0".equals(args[3])) {

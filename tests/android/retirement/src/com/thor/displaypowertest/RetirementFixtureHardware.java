@@ -16,7 +16,11 @@ public final class RetirementFixtureHardware {
     static final File ARMED = new File(DIRECTORY, "retirement-fixture-armed");
     static final File READY = new File(DIRECTORY, "retirement-fixture-ready");
     static final File STOP = new File(DIRECTORY, "retirement-fixture-stop");
+    static final File MODE = new File(DIRECTORY, "retirement-fixture-mode");
+    static final File FAILED = new File(DIRECTORY, "retirement-fixture-failed");
+    static String selectedMode = "0";
     static boolean predecessor;
+    static boolean failedStart;
     static long began;
 
     private RetirementFixtureHardware() {}
@@ -27,16 +31,22 @@ public final class RetirementFixtureHardware {
         }
         String armed = new String(Files.readAllBytes(ARMED.toPath()), StandardCharsets.UTF_8);
         if (!"1.7.1".equals(armed) && !"1.7.2".equals(armed) && !"1.7.3".equals(armed)
-                && !"1.7.4".equals(armed)) {
+                && !"1.7.4".equals(armed) && !"1.7.5".equals(armed)) {
             throw new IllegalStateException("Fixture was not prepared by the disposable app");
         }
         if (old && (!DaemonIdentity.RUNTIME_ID.equals(armed) || READY.exists() || STOP.exists())) {
             throw new IllegalStateException("Wrong predecessor or non-fresh fixture");
         }
         predecessor = old;
+        failedStart = FAILED.isFile();
+        if (failedStart && old) throw new IllegalStateException("Recovery uses the current real producer");
+        selectedMode = new String(Files.readAllBytes(MODE.toPath()), StandardCharsets.US_ASCII);
+        if (!"0".equals(selectedMode) && !"1".equals(selectedMode)) {
+            throw new IllegalStateException("Prepared fixture mode is invalid");
+        }
         began = SystemClock.elapsedRealtime();
         DaemonState.setEnabled(true);
-        DaemonState.setMode("0");
+        DaemonState.setMode(selectedMode);
         Thread expiry = new Thread(() -> {
             // Self-exit only. Never signal another process or touch panel/CPU state.
             while (SystemClock.elapsedRealtime() - began < 120000L) {
@@ -64,7 +74,10 @@ final class BootSafety {
     static boolean isHeld() {
         return !RetirementFixtureHardware.predecessor && !RetirementFixtureHardware.READY.isFile();
     }
-    static String phase() { return isHeld() ? "WAITING_FOR_ANDROID" : "READY"; }
+    static String phase() {
+        return RetirementFixtureHardware.failedStart ? "HANDOFF_FAILED"
+                : isHeld() ? "WAITING_FOR_ANDROID" : "READY";
+    }
     static long phaseAgeMs() {
         return SystemClock.elapsedRealtime() - RetirementFixtureHardware.began;
     }
@@ -83,7 +96,7 @@ final class DisplayHardware { static String getProperty() { return "1"; } }
 final class LidGuard {
     static boolean isEnabled() { return false; }
     static boolean setEnabled(boolean enabled) { throw new AssertionError("Fixture forbids Guard effects"); }
-    static String lid() { return "open"; }
+    static String lid() { return "1".equals(RetirementFixtureHardware.selectedMode) ? "unknown" : "open"; }
     static String state() { return "OFF"; }
     static int blockedWakes() { return 0; }
     static String lastAction() { return "NONE"; }
@@ -102,7 +115,7 @@ final class Telemetry {
     }
     static CpuSnapshot readCpu() { return new CpuSnapshot(); }
     static PowerSnapshot readPower() { return new PowerSnapshot(); }
-    static String[] crtcActivePair() { return new String[] {"1", "1"}; }
+    static String[] crtcActivePair() { return new String[] {"1", "1".equals(RetirementFixtureHardware.selectedMode) ? "0" : "1"}; }
     static String systemLoadFixStateForSnapshot() { return "0"; }
     static String verifyDrm() { throw new AssertionError("Fixture forbids DRM effects"); }
 }

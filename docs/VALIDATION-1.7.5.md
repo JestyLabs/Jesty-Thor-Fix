@@ -1,6 +1,8 @@
 # v1.7.5 / code85 — release validation (20 October 2026)
 
-Published [stable v1.7.5](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.5). Host, full generic Android, CodeQL, protected signing and publication passed. Physical acceptance is **NOT RUN for this revision**. The owner explicitly authorized software-gated publication followed by owner testing and a later supervised session; this timing exception is not hardware evidence.
+Published [stable v1.7.5](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.5). Host, full generic Android, CodeQL, protected signing and publication passed. Physical acceptance was **NOT RUN at publication**. The owner explicitly authorized software-gated publication followed by owner testing and a later supervised session; this timing exception is not hardware evidence.
+
+**21 October update:** the maintainer reports ongoing Thor testing of v1.7.4 and v1.7.5 with no black screens or other issues observed so far, and normal background-service transitions without errors. [Observation and planned v1.7.6 supervised retest](evidence/OWNER-OBSERVATION-1.7.4-1.7.5-2026-10-21.md) are recorded separately from the formal S6 matrix.
 
 ## Artifact and gates
 
@@ -27,7 +29,7 @@ Earlier failed gates remain recorded: the first build rejected an outdated defau
 
 ## Pending acceptance
 
-- Exact released APK on Thor, actual vendor-bridge live transfer, visible healthy transitions and ordinary sleep/wake: **NOT RUN** for this revision.
+- Supervised acceptance with captured artifact identity, actual vendor-bridge live transfer, visible healthy transitions and ordinary sleep/wake: **NOT RUN** for this revision. The ongoing maintainer observation above is additional physical feedback, not a completed S6 result.
 - Underlying lower-panel/DSI failure, reliable escape from a permanently blocked compositor and absence of future blackouts: **UNKNOWN**. [v1.7.4 containment boundaries](BLACKOUT-CONTAINMENT-1.7.4.md) remain in force.
 - [#95/S6](https://github.com/JestyLabs/Jesty-Thor-Fix/issues/95) retains supervised physical and performance work; S4/AppUpdater remains the next offline workstream. No new numerical quality score is asserted. Refresh research, brightness research and the lower-screen inactivity timer are excluded.
 

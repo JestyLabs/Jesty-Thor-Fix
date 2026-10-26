@@ -20,6 +20,7 @@ public final class RebootActivationHostTest {
         FixtureState.finished=new CountDownLatch(1);FixtureState.kills=FixtureState.launches=FixtureState.probes=0;
     }
     private static void run(String name,int kills,int launches,boolean authorized)throws Exception{
+        int helpersBefore=FixtureState.helperSubmissions;
         attempt();AutoService service=new AutoService();service.onCreate();
         service.onStartCommand(new android.content.Intent(),0,1);
         check(FixtureState.finished.await(5,TimeUnit.SECONDS),name+": worker done");
@@ -27,6 +28,9 @@ public final class RebootActivationHostTest {
         check(FixtureState.kills==kills,name+": stop submissions");
         check(FixtureState.launches==launches,name+": launches");
         check(ticket().isAuthorized()==authorized,name+": kernel evidence");
+        if(name.endsWith("-reopen-still-held")||name.endsWith("-new-app-process-still-held")){
+            check(FixtureState.helperSubmissions==helpersBefore,name+": no helper while recovery blocked");
+        }
         cases++;System.out.println("PASS|"+name+"|kills="+kills+"|launches="+launches);
     }
     public static void main(String[] args)throws Exception{
@@ -41,10 +45,23 @@ public final class RebootActivationHostTest {
         FixtureState.boot=B;FixtureState.fromBoot=false;run("new-kernel-no-broadcast-foreground-start",0,1,true);
         check(FixtureState.lastHeld,"foreground fallback launches through boot hold");
         run("current-ready-app-reopen",0,0,true);
+        for(String name:new String[]{"starting-young","ready-watcher-stalled","wrong-intent","not-authorized"}){
+            FixtureState.reset(DaemonIdentity.RUNTIME_ID);prepareThenReboot();
+            if(name.equals("starting-young")){FixtureState.phase="WAITING_FOR_ANDROID";FixtureState.phaseMs="89999";}
+            if(name.equals("ready-watcher-stalled"))FixtureState.watcher="STALLED";
+            if(name.equals("wrong-intent")){FixtureState.phase="HANDOFF_FAILED";FixtureState.fix="0";}
+            if(name.equals("not-authorized")){
+                FixtureState.phase="HANDOFF_FAILED";
+                FixtureState.beforeProbe=()->FixtureState.saved.put("activation_v3_recovery_pending",B);
+            }
+            run("recovery-prefilter-"+name,0,0,!name.equals("not-authorized"));
+            check(FixtureState.helperSubmissions==0,"recovery-prefilter-"+name+": no privileged helper");
+        }
+        FixtureState.reset(DaemonIdentity.RUNTIME_ID);prepareThenReboot();
         FixtureState.boot=C;FixtureState.version=null;run("later-kernel-no-broadcast",0,1,true);
         check(prepared.equals(FixtureState.saved.get(KEY)),"verified boots do not replace original baseline");
 
-        FixtureState.reset("1.7.5");run("current-version-without-proof-not-authorized",0,0,false);
+        FixtureState.reset(DaemonIdentity.RUNTIME_ID);run("current-version-without-proof-not-authorized",0,0,false);
         FixtureState.reset(null);FixtureState.fromBoot=true;run("first-observation-is-boot-not-authority",0,0,false);
         FixtureState.boot=B;run("second-boot-receiver-can-start",0,1,true);
 
@@ -72,14 +89,26 @@ public final class RebootActivationHostTest {
         verifiedExitBeforeLaunch("code83");
         FixtureState.reset("1.7.4");run("code84-same-kernel-handover",1,1,true);
         verifiedExitBeforeLaunch("code84");
+        FixtureState.reset("1.7.5");run("code85-same-kernel-handover",1,1,true);
+        verifiedExitBeforeLaunch("code85");
+        check(DaemonIdentity.RUNTIME_ID.equals(FixtureState.version),"code85 successor uses current product identity");
         check(FixtureState.saved.containsKey("activation_v3_live_handover"),
                 "live proof is durable only after new runtime identity");
         run("live-proven-repeat-open-no-kill",0,0,true);
         FixtureState.reset("1.7.1");run("code76-bound-native-handover",1,1,true);
         verifiedExitBeforeLaunch("code76");
+        for(String old:new String[]{"1.7.1","1.7.2","1.7.3","1.7.4","1.7.5"}){
+            FixtureState.reset(old);FixtureState.mode="1";FixtureState.bottom="0";
+            run("confirmed-top-handover-"+old,1,1,true);
+            verifiedExitBeforeLaunch("TOP-"+old);
+            check(FixtureState.lastHeld&&"1".equals(FixtureState.mode)&&"0".equals(FixtureState.bottom),
+                    "TOP successor remains held without a modelled lower ON");
+        }
+        FixtureState.reset("1.7.2");FixtureState.mode="1";FixtureState.bottom="0";FixtureState.stopEffective=false;
+        run("top-no-exit-no-successor",1,0,false);
         FixtureState.reset("1.7.1");FixtureState.snapshotSuffix=";runtime_version=";
         run("code76-present-empty-Q-version-is-not-absence",0,0,false);
-        for(String old:new String[]{"1.7.1","1.7.2","1.7.3","1.7.4"}){
+        for(String old:new String[]{"1.7.1","1.7.2","1.7.3","1.7.4","1.7.5"}){
             FixtureState.reset(old);RetirementNative.available=false;
             run("native-unavailable-reboot-fallback-"+old,0,0,false);
             check(FixtureState.helperSubmissions==0,"unsupported native never submits helper");
@@ -87,7 +116,7 @@ public final class RebootActivationHostTest {
                     "unsupported support retains normal reboot fallback");
         }
         FixtureState.reset("1.7.2");FixtureState.mode="1";
-        run("top-mode-fails-closed",0,0,false);
+        run("top-with-active-lower-fails-closed",0,0,false);
         FixtureState.mode="0";run("later-both-retry-activates",1,1,true);
         FixtureState.reset("1.7.2");FixtureState.bottom="0";
         run("dark-bottom-must-not-be-killed",0,0,false);
@@ -192,11 +221,33 @@ public final class RebootActivationHostTest {
         run("already-persisted-proof-needs-no-new-write",0,1,true);
         FixtureState.reset(null);prepareThenReboot();FixtureState.legacyPresent=true;
         run("legacy-occupant-no-stop",0,0,true);
-        FixtureState.reset("1.7.5");prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";
+        FixtureState.reset(DaemonIdentity.RUNTIME_ID);prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";
         run("same-version-held-recovery-retained",1,1,true);
         check(FixtureState.lastHeld,"same-version recovery remains held");
-        FixtureState.reset("1.7.5");prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";FixtureState.stopEffective=false;
-        run("same-version-stop-no-effect-no-duplicate",1,0,true);
+        FixtureState.reset(DaemonIdentity.RUNTIME_ID);prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";
+        java.util.Map<String,String> beforeFence=new java.util.HashMap<>(FixtureState.durable);
+        FixtureState.commitFailure=true;
+        run("same-version-fence-write-fails",0,0,false);
+        check(FixtureState.helperSubmissions==1&&!FixtureState.events.contains("COMMIT"),
+                "failed durable fence cannot reach COMMIT");
+        check(beforeFence.equals(FixtureState.durable),"failed fence leaves durable evidence unchanged");
+        FixtureState.reset(DaemonIdentity.RUNTIME_ID);prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";
+        FixtureState.beforeCommit=()->FixtureState.boot=C;
+        run("boot-changes-before-commit",0,0,true);
+        check(!FixtureState.events.contains("COMMIT"),"fresh boot change cannot reach COMMIT");
+        FixtureState.reset(DaemonIdentity.RUNTIME_ID);prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";FixtureState.stopEffective=false;
+        run("same-version-stop-no-effect-no-duplicate",1,0,false);
+        for(String fault:new String[]{"stale","malformed","missing","oversized"}){
+            FixtureState.reset(DaemonIdentity.RUNTIME_ID);prepareThenReboot();FixtureState.phase="HANDOFF_FAILED";
+            RetirementNative.receiptFault=fault;
+            run("same-version-receipt-"+fault+"-no-successor",1,0,false);
+            run("same-version-receipt-"+fault+"-reopen-still-held",0,0,false);
+            FixtureState.saved=new java.util.HashMap<>(FixtureState.durable);
+            FixtureState.clearRecoveryProcessCache();
+            run("same-version-receipt-"+fault+"-new-app-process-still-held",0,0,false);
+            FixtureState.boot=C;
+            run("same-version-receipt-"+fault+"-new-boot-allows-held-launch",0,1,true);
+        }
         FixtureState.reset(null);prepareThenReboot();FixtureState.afterLaunchPhase="WAITING_FOR_ANDROID";
         run("starting-not-ready",0,1,true);
         check(FixtureState.phase.equals("WAITING_FOR_ANDROID"),"STARTING is not relabeled READY");
