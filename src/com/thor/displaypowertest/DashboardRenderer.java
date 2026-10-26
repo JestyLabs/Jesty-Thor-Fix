@@ -134,6 +134,7 @@ final class DashboardRenderer implements DashboardSettingsController.Feedback {
         boolean watcherReady = "RUNNING".equals(values.get("watcher_health"));
         boolean bootHeld = "1".equals(values.get("display_actions_held"));
         settings.syncFromTelemetry(bootHeld, watcherReady);
+        settings.syncIdleStatus(values.get("idle_input"));
         stateText.setText(!watcherReady ? "MONITOR UNAVAILABLE"
                 : enabled != desiredDisplayFix ? "SETTING NOT APPLIED"
                 : "CONFIRMED".equals(displayEffective)

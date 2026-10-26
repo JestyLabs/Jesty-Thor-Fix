@@ -70,8 +70,12 @@ public final class DaemonState {
                 + ";external_display=" + LidGuard.externalDisplay()
                 + ";fix=" + (enabled ? "1" : "0")
                 + ";display_desired=" + (enabled ? "1" : "0")
-                + ";display_effective=" + DisplayDecisionModel.effective(
-                        mode, topCrtc, bottomCrtc, enabled, BootSafety.isHeld())
+                + ";display_effective=" + (BottomIdleRuntime.isOffOrPending()
+                        && "0".equals(mode) && "1".equals(topCrtc)
+                        && "0".equals(bottomCrtc) && !BootSafety.isHeld()
+                        ? "CONFIRMED" : DisplayDecisionModel.effective(
+                                mode, topCrtc, bottomCrtc, enabled, BootSafety.isHeld()))
+                + BottomIdleRuntime.snapshotFields()
                 + ";display_action_status=" + clean(DisplayActionCoordinator.status())
                 + ";display_generation=" + DisplayActionCoordinator.generation()
                 + ";watcher_health=" + WatcherSupervisor.health()

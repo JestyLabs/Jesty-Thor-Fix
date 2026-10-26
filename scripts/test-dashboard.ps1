@@ -21,6 +21,11 @@ if ($activity -match 'SocketClient|new (TextView|LinearLayout|Switch|MediaPlayer
     throw 'MainActivity must delegate daemon commands, telemetry, layout and media.'
 }
 
+$idleSettings = Join-Path $repository 'src\com\thor\displaypowertest\BottomIdleSettings.java'
+$idlePolicy = Join-Path $repository 'src\com\thor\displaypowertest\BottomIdlePolicy.java'
+$idleTest = Join-Path $repository 'tests\BottomIdlePolicyTest.java'
+$idleQueue = Join-Path $repository 'src\com\thor\displaypowertest\BottomIdleRestoreQueue.java'
+$idleQueueTest = Join-Path $repository 'tests\BottomIdleRestoreQueueTest.java'
 $model = Join-Path $repository 'src\com\thor\displaypowertest\DashboardStateModel.java'
 $test = Join-Path $repository 'tests\DashboardStateModelTest.java'
 $warningModel = Join-Path $repository 'src\com\thor\displaypowertest\CpuWarningModel.java'
@@ -44,9 +49,13 @@ $identity = Join-Path $repository 'src\com\thor\displaypowertest\DaemonIdentity.
 $activationTest = Join-Path $repository 'tests\RebootActivationPolicyTest.java'
 $clockFixture = Join-Path $repository 'tests\fixtures\android\os\SystemClock.java'
 
-& javac -source 8 -target 8 -d $output $model $test $warningModel $warningTest $updateModel $updateTest $commitGateModel $commitGateTest $readiness $readinessTest $clockFixture $confirmationModel $confirmationTest $sessionModel $sessionTest $replacementModel $replacementTest $dispatchModel $dispatchTest $activationPolicy $identity $activationTest
+& javac -source 8 -target 8 -d $output $idleSettings $idlePolicy $idleTest $idleQueue $idleQueueTest $model $test $warningModel $warningTest $updateModel $updateTest $commitGateModel $commitGateTest $readiness $readinessTest $clockFixture $confirmationModel $confirmationTest $sessionModel $sessionTest $replacementModel $replacementTest $dispatchModel $dispatchTest $activationPolicy $identity $activationTest
 if ($LASTEXITCODE -ne 0) { throw 'Dashboard test compilation failed.' }
 
+& java -cp $output BottomIdlePolicyTest
+if ($LASTEXITCODE -ne 0) { throw 'Bottom idle policy tests failed.' }
+& java -cp $output BottomIdleRestoreQueueTest
+if ($LASTEXITCODE -ne 0) { throw 'Bottom idle restore coalescing tests failed.' }
 & java -cp $output DashboardStateModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Dashboard tests failed.' }
 & java -cp $output CpuWarningModelTest
@@ -69,6 +78,20 @@ if ($LASTEXITCODE -ne 0) { throw 'Updater confirmation lifecycle characterizatio
 if ($LASTEXITCODE -ne 0) { throw 'Updater session ownership tests failed.' }
 & java -cp $output com.thor.displaypowertest.ReplacementSessionPolicyTest
 if ($LASTEXITCODE -ne 0) { throw 'Android session replacement policy failed.' }
+
+# Use the single atomic touchEvent policy boundary for a gesture and its
+# restore generation. Split reads of POLICY can reintroduce stale-lease bugs.
+$runtimeSource = Get-Content -LiteralPath (Join-Path $repository 'src/com/thor/displaypowertest/BottomIdleRuntime.java') -Raw
+$touchStart = $runtimeSource.IndexOf('public static void onBottomTouch(')
+$touchEnd = $runtimeSource.IndexOf('public static void onInputFailure(', $touchStart)
+if ($touchStart -lt 0 -or $touchEnd -le $touchStart) {
+    throw 'Missing production idle touch callback; restore ordering unverified.'
+}
+$touchBody = $runtimeSource.Substring($touchStart, $touchEnd - $touchStart)
+if ($touchBody -notmatch 'restoreLease = POLICY\.touchEvent\(now, pointerState\);' -or
+    $touchBody -match 'POLICY\.(touch|generation|pointerDown)\(') {
+    throw 'Idle touch callback must use atomic policy event and restoration lease.'
+}
 
 # Static UI contract: when switches have no visible text, their screen-reader
 # labels must come from their adjacent feature heading; do not couple a TalkBack

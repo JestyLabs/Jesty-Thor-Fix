@@ -20,6 +20,7 @@ final class LidGuard {
     static String externalDisplayCached() { return "0"; }
 }
 final class WatcherCadence {
+    static void onDisplayEvent() {}
     static void onModeChanged() {}
     static long beginDrmRead(long last, boolean changed, boolean due, boolean wake) { return 0L; }
     static void completeDrmRead(long generation) {}
@@ -52,3 +53,16 @@ final class WakeRepairScheduler {
 final class WatcherSupervisor { static String health() { return "RUNNING"; } }
 final class ProcessWait { static boolean exited(Process process, long timeout) { throw new AssertionError("No process execution allowed in host harness"); } }
 final class DisplayModeReader { static String current() { return TestDisplayState.mode; } }
+
+/** Host-only inert boundary: never authorizes an idle display action. */
+final class BottomIdleRuntime {
+    static void onModeSample(String mode) {}
+    static void onDisplayWake() {}
+    static void onDisplayOnUnlessOwned() {}
+    static boolean isOff() { return false; }
+    static boolean isOffOrPending() { return false; }
+    static boolean isPending(long ticket) { return false; }
+    static void completeOff(long ticket, boolean confirmed) {}
+    static boolean canRestore(long lease) { return false; }
+    static void completeRestore(long lease, boolean confirmed) {}
+}
