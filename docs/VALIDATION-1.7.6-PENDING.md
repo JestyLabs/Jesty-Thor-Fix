@@ -5,17 +5,20 @@ Candidate from [#131](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/131), whi
 - retained-process service transfer admitted in confirmed TOP (upper CRTC on, lower off, terminal repair, stable generation), in addition to BOTH;
 - shared descriptor-bound stop for authorized same-version failed-start recovery, with a durable fence before commit;
 - the exact published v1.7.5 admitted as an update origin (five origins: 1.7.1–1.7.5);
-- shorter pending-update notice.
+- shorter pending-update notice;
+- boot-scoped lower-failure latch after a stalled display call (S1, [#132](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/132)).
 
-Excluded from this candidate: Auto Bottom Off ([#117](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/117)), refresh research ([#37](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/37)) and any new black-screen mitigation. [#130](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/130) adds host tests and documentation only and does not change the APK. Display commands, wake-repair timing, stall containment, CPU Fix and Guard behavior are unchanged.
+Excluded from this candidate: Auto Bottom Off ([#117](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/117)) and refresh research ([#37](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/37)). [#130](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/130) adds host tests and documentation only and does not change the APK. Display commands, wake-repair timing, CPU Fix and Guard behavior are unchanged; stall containment changes only as described in #132.
 
 ## Software gates before the physical session
 
 | Gate | Status |
 | --- | --- |
-| Exact-head PR CI: build, host suites, Android 24-case retirement matrix | PENDING |
-| Exact-head CodeQL (actions + java-kotlin) on the `main`-based PR | PENDING |
-| Squash integration to `main` (no release) | NOT RUN |
+| #131 exact-head PR CI (`d461a15`): build, host suites, Android 24-case retirement matrix | PASS ([CI 40406266984](https://github.com/JestyLabs/Jesty-Thor-Fix/actions/runs/40406266984)) |
+| #131 exact-head CodeQL (actions + java-kotlin) | PASS ([CodeQL 40406266727](https://github.com/JestyLabs/Jesty-Thor-Fix/actions/runs/40406266727)) |
+| #131 squash integration to `main` (no release) | PASS (`36e7fd0`) |
+| #132 exact-head PR CI and CodeQL (lower-failure latch) | PENDING |
+| #132 squash integration to `main` (no release) | NOT RUN |
 | Owner-dispatched main CI with `sign_main_candidate`, protected `thor-signing` approval | NOT RUN |
 | Signed artifact recorded: run ID, `Jesty-Thor-Fix-1.7.6.apk`, size, SHA-256, established certificate, code86 | NOT RUN |
 
@@ -59,6 +62,14 @@ If the transfer stays pending, record the notice text and diagnostics, then perf
 | C6 | Guard ON normal cycle in BOTH and TOP (only if Guard is part of the owner's usage) | NOT RUN |
 
 Not run by design: failed-start recovery (cannot be induced safely on hardware), stall/blackout induction, BOTTOM-only and dock.
+
+### D — S1 lower-failure latch (#132), never induced
+
+| ID | Check | Result |
+| --- | --- | --- |
+| D1 | Across A–C transitions, sleeps and the C4 reboot: no `LOWER_FAILURE_LATCH set` in diagnostics; lower panel turns ON normally in BOTH; status never stuck in BOTH_ON_BACKOFF/BOTH_DEGRADED | NOT RUN |
+| D2 | Manual fix toggle in the app behaves as before (the latch's only in-process exit) | NOT RUN |
+| D3 | Only if a stall occurs naturally: lower panel stays OFF after a BOTH wake until manual toggle or reboot; follow the agreed recovery | NOT RUN (never induced) |
 
 **STOP conditions:** black or abnormal presentation on either screen, unexpected compositor/UI restart, two services or lost identity after the update, transfer stuck after one normal restart, loss of input. Stop, note the time and last action, preserve diagnostics, then perform only the agreed recovery.
 
