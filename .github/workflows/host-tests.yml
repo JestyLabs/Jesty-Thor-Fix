@@ -129,6 +129,20 @@ jobs:
         shell: pwsh
         run: python ./tests/test-watcher-producer-contract.py
 
+      - name: S1 remaining containment boundaries (real classes, host-only)
+        shell: pwsh
+        run: |
+          python scripts/test-containment-boundaries-host.py --negative-controls --output "$env:RUNNER_TEMP/containment-boundaries"
+          if ($LASTEXITCODE -ne 0) { throw 'Containment boundary characterization failed' }
+
+      - name: Preserve S1 containment characterization evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: containment-boundaries-${{ github.sha }}
+          path: ${{ runner.temp }}/containment-boundaries/results.json
+          if-no-files-found: warn
+
       - name: Native updater timeout evidence redaction (host-only)
         shell: pwsh
         run: python ./tests/test-updater-e2e-timeout.py
