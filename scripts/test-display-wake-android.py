@@ -169,6 +169,7 @@ def run(args):
                              'slow synthetic call arms back-off')
             assert armed['hardwareCalls'] == (1 if fail_call else 2), armed
             assert armed['actionStatus'] == ('APPLY_FAILED' if fail_call else 'BOTH_DEGRADED'), armed
+            assert armed['latched'], armed
             # Leave the one-second query budget available for SCREEN_OFF.
             time.sleep(1.2)
             shell('input', 'keyevent', '223')
@@ -180,10 +181,15 @@ def run(args):
             time.sleep(1.2)
             shell('input', 'keyevent', '224')
             final = wait_for(lambda: state() if state()['finished'] else None, 'real back-off wake settled')
-            assert not final['backoff'] and final['hardwareCalls'] == armed['hardwareCalls'] + 1 and final['property'] == '1', final
+            # The real power-cycle edge still clears the back-off, but the boot-scoped
+            # lower-failure latch keeps automatic BOTH ON out (2026-10-20 re-arm).
+            assert not final['backoff'] and final['latched'], final
+            assert final['hardwareCalls'] == armed['hardwareCalls'], final
+            assert final['property'] == armed['property'], final
+            assert final['actionStatus'] == 'BOTH_ON_BACKOFF', final
             results.append({'scenario': scenario, 'result': final})
             (args.output / 'results.json').write_text(json.dumps(results, indent=2), encoding='utf-8')
-            print('PASS: ' + scenario + '; real Android power query, synthetic panels', flush=True)
+            print('PASS: ' + scenario + '; real Android power query, synthetic panels, latch holds', flush=True)
         for unconfirmed in (False, True):
             scenario = 'containment-status-unconfirmed' if unconfirmed else 'containment-status-failed'
             time.sleep(1.6)

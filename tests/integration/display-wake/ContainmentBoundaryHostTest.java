@@ -76,12 +76,13 @@ public final class ContainmentBoundaryHostTest {
         TestDisplayState.bottom = "1".equals(mode) ? "0" : "1";
         sample(2000L);
         check(!DisplayActionCoordinator.isLowerOnBackoff(), "RESET-01 leaving BOTH for selected mode clears");
+        check(DisplayActionCoordinator.isLowerFailureLatched(), "RESET-03 the boot-scoped latch survives the mode change");
         TestDisplayState.mode = "0";
         TestDisplayState.bottom = "0";
         sample(2000L);
-        check(TestDisplayState.hardwareCalls == 2 && "1".equals(TestDisplayState.bottom),
-                "RESET-02 return to BOTH can issue ON again");
-        System.out.println("OBSERVATION: mode " + mode + " clears protection; later BOTH permits ON");
+        check(TestDisplayState.hardwareCalls == 1 && "0".equals(TestDisplayState.bottom),
+                "RESET-02 return to BOTH keeps automatic ON suppressed by the boot latch");
+        System.out.println("OBSERVATION: mode " + mode + " clears the back-off; the boot latch keeps BOTH ON suppressed");
     }
     private static void unknownMode() {
         arm();
@@ -132,9 +133,10 @@ public final class ContainmentBoundaryHostTest {
         TestDisplayState.top = "1";
         sample(1000L);
         check(!DisplayActionCoordinator.isLowerOnBackoff(), "CYCLE-02 observed wake clears");
-        check(TestDisplayState.hardwareCalls == 2 && "1".equals(TestDisplayState.bottom),
-                "CYCLE-03 BOTH may resume ON in the clearing sample");
-        System.out.println("OBSERVATION: sampled sleep/wake resumes ON; no panel-health proof is implied");
+        check(TestDisplayState.hardwareCalls == 1 && "0".equals(TestDisplayState.bottom)
+                        && DisplayActionCoordinator.isLowerFailureLatched(),
+                "CYCLE-03 the boot latch keeps BOTH ON suppressed after the clearing sample");
+        System.out.println("OBSERVATION: sampled sleep/wake clears the back-off; the boot latch keeps ON suppressed until reboot or manual reconcile");
     }
     private static void transientCrtc() {
         arm();

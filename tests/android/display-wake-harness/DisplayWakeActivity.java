@@ -157,6 +157,7 @@ public final class DisplayWakeActivity extends Activity {
             state.put("backoffTest", backoffTest);
             state.put("statusScenario", statusScenario);
             state.put("backoff", DisplayActionCoordinator.isLowerOnBackoff());
+            state.put("latched", DisplayActionCoordinator.isLowerFailureLatched());
             state.put("actionStatus", DisplayActionCoordinator.status());
             try (FileOutputStream output = new FileOutputStream(new File(getFilesDir(), "result.json"))) {
                 output.write(state.toString(2).getBytes(StandardCharsets.UTF_8));

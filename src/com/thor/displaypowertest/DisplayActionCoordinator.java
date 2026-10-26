@@ -25,6 +25,15 @@ public final class DisplayActionCoordinator {
     private static long lastInteractiveQueryAt = Long.MIN_VALUE / 2; // watcher thread only
     private static boolean sawNonInteractive;
     private static boolean bothDegraded;
+    /**
+     * Boot-scoped companion of the back-off. On 2026-10-20 every lower-panel start after
+     * the first failure failed until reboot, and automatic BOTH ON re-entered the vendor
+     * reset loop after the app's own OFF. A stalled call therefore also latches suppression
+     * of automatic lower ON for the life of this daemon process (normally until reboot).
+     * Mode changes, TOP wake and sleep/wake clear only the back-off; confirmed manual
+     * reconciliation is the only in-process clear. The lower OFF path is never blocked.
+     */
+    private static volatile boolean lowerFailureLatched;
 
     private DisplayActionCoordinator() {}
     public static String status() { return status; }
@@ -131,7 +140,8 @@ public final class DisplayActionCoordinator {
             }
             // Owner-accepted BOTH degrade: after a measured compositor stall the lower
             // panel is turned OFF, the only action observed to end the vendor reset loop.
-            if (lowerOnBackoff && "0".equals(mode) && "1".equals(bottom)) {
+            // The boot latch keeps this after the back-off itself has been cleared.
+            if ((lowerOnBackoff || lowerFailureLatched) && "0".equals(mode) && "1".equals(bottom)) {
                 // A new active-lower observation invalidates the prior isolation result.
                 // Preserve a current error/readback failure instead of historical success.
                 status = "BOTH_ON_BACKOFF";
@@ -142,9 +152,10 @@ public final class DisplayActionCoordinator {
             DisplayDecisionModel.Action action = DisplayDecisionModel.reconcile(
                     mode, top, bottom, true, false, WakeRepairScheduler.isPending());
             if (action == DisplayDecisionModel.Action.OFF) attempt(false, "WATCH_TOP", mode);
-            else if (action == DisplayDecisionModel.Action.ON && lowerOnBackoff) {
+            else if (action == DisplayDecisionModel.Action.ON && (lowerOnBackoff || lowerFailureLatched)) {
                 String held = bothDegraded ? "BOTH_DEGRADED" : "BOTH_ON_BACKOFF";
-                if (!held.equals(status)) Log.d(TAG, "WATCH_BOTH_SUPPRESSED backoff=1;degraded=" + (bothDegraded ? "1" : "0"));
+                if (!held.equals(status)) Log.d(TAG, "WATCH_BOTH_SUPPRESSED backoff=" + (lowerOnBackoff ? "1" : "0")
+                        + ";latched=" + (lowerFailureLatched ? "1" : "0") + ";degraded=" + (bothDegraded ? "1" : "0"));
                 status = held;
             }
             else if (action == DisplayDecisionModel.Action.ON) attempt(true, "WATCH_BOTH", mode);
@@ -174,6 +185,7 @@ public final class DisplayActionCoordinator {
             generations.invalidate();
             cancelRepairLocked();
             clearLowerOnBackoffLocked("USER_RECONCILE");
+            clearLowerFailureLatchLocked("USER_RECONCILE");
             DaemonState.setEnabled(requested);
             status = "CONFIRMED";
             return "ok=1;fix=" + (requested ? "1" : "0") + ";display=confirmed";
@@ -251,8 +263,17 @@ public final class DisplayActionCoordinator {
     public static boolean isLowerOnBackoff() {
         synchronized (DisplayHardware.class) { return lowerOnBackoff; }
     }
+    /** True for the rest of this daemon process after a stalled call, unless manually reconciled. */
+    public static boolean isLowerFailureLatched() {
+        synchronized (DisplayHardware.class) { return lowerFailureLatched; }
+    }
     private static void noteHardwareCallLocked(String reason, long blockedMs) {
-        if (blockedMs <= STALLED_CALL_MS || lowerOnBackoff) return;
+        if (blockedMs <= STALLED_CALL_MS) return;
+        if (!lowerFailureLatched) {
+            lowerFailureLatched = true;
+            Log.d(TAG, "LOWER_FAILURE_LATCH set reason=" + reason + ";call_ms=" + blockedMs);
+        }
+        if (lowerOnBackoff) return;
         lowerOnBackoff = true;
         sawNonInteractive = false;
         Log.d(TAG, "LOWER_ON_BACKOFF set reason=" + reason + ";call_ms=" + blockedMs);
@@ -263,6 +284,11 @@ public final class DisplayActionCoordinator {
         sawNonInteractive = false;
         bothDegraded = false;
         Log.d(TAG, "LOWER_ON_BACKOFF cleared cause=" + cause);
+    }
+    private static void clearLowerFailureLatchLocked(String cause) {
+        if (!lowerFailureLatched) return;
+        lowerFailureLatched = false;
+        Log.d(TAG, "LOWER_FAILURE_LATCH cleared cause=" + cause);
     }
     /** "1"/"0" from IPowerManager.isInteractive(); "?" when unavailable (never clears). */
     private static String readInteractive() {

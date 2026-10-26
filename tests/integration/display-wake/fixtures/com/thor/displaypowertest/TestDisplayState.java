@@ -20,6 +20,7 @@ public final class TestDisplayState {
     public static int gateRefusals;
     public static java.util.concurrent.CountDownLatch callEntered, callRelease;
     public static void baseline() {
+        newDaemonProcess();
         DisplayActionCoordinator.cancelWakeRepair();
         DisplayActionCoordinator.onWatcherSample("?");
         enabled = true; held = false; guard = false;
@@ -31,6 +32,24 @@ public final class TestDisplayState {
         propertyWrites = 0; hardwareCalls = 0;
         WakeRepairScheduler.schedules = 0; WakeRepairScheduler.notes = 0;
         DisplayActionCoordinator.onWatcherSample(mode);
+    }
+    /**
+     * Each scenario starts as a fresh daemon process (in production, normally a reboot):
+     * the boot-scoped lower-failure latch has no clear path other than manual reconcile.
+     * Reflection keeps production free of a test seam and lets the same fixture compile
+     * against pre-latch baselines, where the field is absent.
+     */
+    static void newDaemonProcess() {
+        try {
+            java.lang.reflect.Field latch =
+                    DisplayActionCoordinator.class.getDeclaredField("lowerFailureLatched");
+            latch.setAccessible(true);
+            latch.setBoolean(null, false);
+        } catch (NoSuchFieldException absent) {
+            // Pre-latch coordinator baseline: nothing to reset.
+        } catch (IllegalAccessException error) {
+            throw new AssertionError(error);
+        }
     }
     public static void wakeTop() {
         mode = "1"; top = "1"; bottom = "1"; property = "1";
