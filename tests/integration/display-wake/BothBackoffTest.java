@@ -10,7 +10,13 @@ import android.util.Log;
  * BOTH reconciliation re-powered the failing lower panel. Not a physical reproduction.
  * Uses only APIs present in B so that running it on B is a meaningful negative control.
  * Arguments: none = all, or one of "trace", "control", "threshold", "clear", "topoff",
- * "failure", "bothwake", "powercycle", "unknown", "degrade", "nodegrade", "gate", "restore".
+ * "failure", "bothwake", "powercycle", "unknown", "degrade", "nodegrade", "gate", "restore",
+ * "gates", "retry", "replay", "latchloop", "latchtopwake", "latchuser".
+ *
+ * S1 boot latch (2026-10-26): on 2026-10-20 the lower-panel failure persisted until reboot
+ * and automatic BOTH ON re-entered the vendor reset loop twice, about 1 s after the app's own
+ * OFF. A stalled call therefore also latches suppression of automatic lower ON for the rest
+ * of the daemon process; mode change, TOP wake and sleep/wake clear only the back-off.
  */
 public final class BothBackoffTest {
     private static int checks;
@@ -48,6 +54,8 @@ public final class BothBackoffTest {
         check(TestDisplayState.hardwareCalls == 1 && count("ThorDisplayDaemon: WATCH_BOTH_SUPPRESSED") == 1
                 && count("ThorDisplayDaemon: LOWER_ON_BACKOFF set reason=WAKE_REPAIR;call_ms=29600") == 1,
                 "BO-04 suppression is stable and logged once: " + Log.LINES);
+        check(count("ThorDisplayDaemon: LOWER_ON_BACKOFF cleared") == 0,
+                "BO-05 staying in BOTH does not clear the back-off: " + Log.LINES);
     }
     private static void control() {
         staleOff(0L);
@@ -73,12 +81,16 @@ public final class BothBackoffTest {
         SystemClock.now += 2000L;
         TestDisplayState.mode = "0"; TestDisplayState.top = "1"; TestDisplayState.bottom = "0";
         DisplayActionCoordinator.onWatcherSample("0");
-        check(TestDisplayState.hardwareCalls == 2 && "1".equals(TestDisplayState.bottom), "CL-02 re-entering BOTH powers the lower panel");
+        check(TestDisplayState.hardwareCalls == 1 && "0".equals(TestDisplayState.bottom),
+                "CL-02 re-entering BOTH after a stall keeps the failed lower panel OFF (boot latch): calls="
+                + TestDisplayState.hardwareCalls);
         staleOff(29600L);
         check(TestDisplayState.hardwareCalls == 1, "CL-03 back-off set again");
         check(DisplayActionCoordinator.requestFix(true).startsWith("ok=1"), "CL-04 explicit user reconcile still acts");
         check(TestDisplayState.hardwareCalls == 2 && "1".equals(TestDisplayState.bottom)
                 && count("ThorDisplayDaemon: LOWER_ON_BACKOFF cleared cause=USER_RECONCILE") == 1, "CL-05 user reconcile clears: " + Log.LINES);
+        check(count("ThorDisplayDaemon: LOWER_FAILURE_LATCH cleared cause=USER_RECONCILE") == 1,
+                "CL-06 user reconcile is the only in-process latch clear: " + Log.LINES);
     }
     private static void topoff() {
         reset();
@@ -145,7 +157,8 @@ public final class BothBackoffTest {
         SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0");
         check(count("ThorDisplayDaemon: LOWER_ON_BACKOFF cleared cause=POWER_CYCLE") == 1, "PC-02 wake after sleep clears: " + Log.LINES);
         SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0");
-        check(TestDisplayState.hardwareCalls == 2 && "1".equals(TestDisplayState.bottom), "PC-03 BOTH reconciliation resumes after a real power cycle");
+        check(TestDisplayState.hardwareCalls == 1 && "0".equals(TestDisplayState.bottom),
+                "PC-03 a real power cycle clears the back-off but not the boot latch: no automatic lower ON");
         int queries = TestDisplayState.powerQueries;
         for (int i = 0; i < 5; i++) { SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0"); }
         check(TestDisplayState.powerQueries == queries, "PC-04 no power query while back-off is clear");
@@ -213,8 +226,9 @@ public final class BothBackoffTest {
         TestDisplayState.interactive = true; TestDisplayState.top = "1";
         SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0");
         SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0");
-        check(count("ThorDisplayDaemon: LOWER_ON_BACKOFF cleared cause=POWER_CYCLE") == 1 && "1".equals(TestDisplayState.bottom),
-                "RS-01 a real sleep/wake ends the degrade and BOTH powers the lower panel again: " + Log.LINES);
+        check(count("ThorDisplayDaemon: LOWER_ON_BACKOFF cleared cause=POWER_CYCLE") == 1 && "0".equals(TestDisplayState.bottom)
+                && TestDisplayState.hardwareCalls == 2,
+                "RS-01 a real sleep/wake clears the back-off; the boot latch keeps the lower panel OFF: " + Log.LINES);
         staleOff(29600L);
         check("BOTH_ON_BACKOFF".equals(DisplayActionCoordinator.status()),
                 "RS-02 a new back-off episode does not inherit the degraded label: " + DisplayActionCoordinator.status());
@@ -284,6 +298,68 @@ public final class BothBackoffTest {
         check(TestDisplayState.hardwareCalls == 1 && "BOTH_ON_BACKOFF".equals(DisplayActionCoordinator.status()),
                 "REPLAY-04 late OFF cannot be followed by automatic re-ON");
     }
+    /**
+     * Incident run shape (2026-10-20): after the degrade, a real sleep/wake clears the
+     * back-off and the platform powers the lower panel again on wake. The latch must keep
+     * the app from adding its own ON and must still allow the OFF that ended every run.
+     */
+    private static void latchloop() {
+        loopProbe(21000L);
+        check(TestDisplayState.hardwareCalls == 2 && "0".equals(TestDisplayState.bottom), "LA-00 degraded after the stalled probe");
+        check(count("ThorDisplayDaemon: LOWER_FAILURE_LATCH set reason=WATCH_BOTH;call_ms=21000") == 1,
+                "LA-00b stalled call latches once with its reason: " + Log.LINES);
+        TestDisplayState.interactive = false; TestDisplayState.top = "0"; TestDisplayState.bottom = "0";
+        SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0");
+        TestDisplayState.interactive = true; TestDisplayState.top = "1"; TestDisplayState.bottom = "0";
+        SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0");
+        check(count("ThorDisplayDaemon: LOWER_ON_BACKOFF cleared cause=POWER_CYCLE") == 1, "LA-00c wake clears the back-off");
+        TestDisplayState.bottom = "1";                       // platform wake powers the lower panel
+        SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0");
+        check(TestDisplayState.hardwareCalls == 3 && "0".equals(TestDisplayState.bottom),
+                "LA-01 after wake the latch keeps automatic ON out and turns the platform-powered lower panel OFF: calls="
+                + TestDisplayState.hardwareCalls + " bottom=" + TestDisplayState.bottom);
+        for (int i = 0; i < 5; i++) { SystemClock.now += 2000L; DisplayActionCoordinator.onWatcherSample("0"); }
+        check(TestDisplayState.hardwareCalls == 3 && "BOTH_DEGRADED".equals(DisplayActionCoordinator.status()),
+                "LA-02 latched degrade is stable: no re-ON, no further OFF: " + DisplayActionCoordinator.status());
+    }
+    /** Leaving BOTH through a TOP wake clears the back-off; returning to BOTH must not re-power. */
+    private static void latchtopwake() {
+        staleOff(29600L);
+        SystemClock.now += 2000L;
+        TestDisplayState.wakeTop();
+        SystemClock.now += 100L;
+        DisplayActionCoordinator.onWatcherSample("1");
+        SystemClock.now = Math.max(SystemClock.now, WakeRepairScheduler.deadline);
+        DisplayActionCoordinator.onWatcherSample("1");
+        check("0".equals(TestDisplayState.bottom), "LA-03a TOP keeps the lower panel OFF");
+        int before = TestDisplayState.hardwareCalls;
+        SystemClock.now += 2000L;
+        TestDisplayState.mode = "0"; TestDisplayState.top = "1"; TestDisplayState.bottom = "0";
+        DisplayActionCoordinator.onWatcherSample("0");
+        check(TestDisplayState.hardwareCalls == before && "0".equals(TestDisplayState.bottom),
+                "LA-03 returning to BOTH after a TOP wake does not re-power the latched lower panel: calls="
+                + TestDisplayState.hardwareCalls + " before=" + before);
+    }
+    /** Explicit user reconcile remains the manual escape hatch and restores the normal contract. */
+    private static void latchuser() {
+        staleOff(29600L);
+        check(DisplayActionCoordinator.requestFix(true).startsWith("ok=1") && "1".equals(TestDisplayState.bottom),
+                "LA-04 confirmed manual reconcile still powers the lower panel in BOTH");
+        check(count("ThorDisplayDaemon: LOWER_FAILURE_LATCH cleared cause=USER_RECONCILE") == 1,
+                "LA-04b manual reconcile clears the latch: " + Log.LINES);
+        SystemClock.now += 2000L;
+        TestDisplayState.mode = "1"; TestDisplayState.top = "1"; TestDisplayState.bottom = "1";
+        DisplayActionCoordinator.onWatcherSample("1");
+        SystemClock.now += 2000L;
+        DisplayActionCoordinator.onWatcherSample("1");
+        int before = TestDisplayState.hardwareCalls;
+        SystemClock.now += 2000L;
+        TestDisplayState.mode = "0"; TestDisplayState.top = "1"; TestDisplayState.bottom = "0";
+        DisplayActionCoordinator.onWatcherSample("0");
+        check(TestDisplayState.hardwareCalls == before + 1 && "1".equals(TestDisplayState.bottom),
+                "LA-05 after manual reconcile BOTH reconciliation is normal again: calls="
+                + TestDisplayState.hardwareCalls + " before=" + before);
+    }
     public static void main(String[] args) {
         String only = args.length > 0 ? args[0] : "all";
         if ("all".equals(only) || "trace".equals(only)) trace();
@@ -302,6 +378,9 @@ public final class BothBackoffTest {
         if ("all".equals(only) || "gates".equals(only)) gates();
         if ("all".equals(only) || "retry".equals(only)) retry();
         if ("all".equals(only) || "replay".equals(only)) replay();
+        if ("all".equals(only) || "latchloop".equals(only)) latchloop();
+        if ("all".equals(only) || "latchtopwake".equals(only)) latchtopwake();
+        if ("all".equals(only) || "latchuser".equals(only)) latchuser();
         System.out.println("BothBackoffTest passed (" + only + "): " + checks + " assertions (host contract + simulated stall)");
     }
 }

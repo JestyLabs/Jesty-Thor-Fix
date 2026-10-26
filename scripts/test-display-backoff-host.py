@@ -42,6 +42,8 @@ def main():
                 content = (frozen / 'v174-coordinator.java.txt').read_text(encoding='utf-8')
             elif baseline == 'backoff' and file == 'DisplayActionCoordinator.java':
                 content = (frozen / 'backoff-coordinator.java.txt').read_text(encoding='utf-8')
+            elif baseline == 'v175' and file == 'DisplayActionCoordinator.java':
+                content = (frozen / 'v175-coordinator.java.txt').read_text(encoding='utf-8')
             elif changed and file == 'DisplayActionCoordinator.java':
                 before, after = changed
                 assert content.count(before) == 1, (name, content.count(before))
@@ -90,20 +92,30 @@ def main():
     run('baseline', case='trace', expected='BO-02', baseline='original')
     run('baseline-threaded-replay', case='replay', expected='REPLAY-04', baseline='original')
     run('backoff-before-degrade', case='degrade', expected='DG-01', baseline='backoff')
+    # Published 1.7.5: after the back-off clears, automatic BOTH ON re-powers the failed
+    # lower panel (the 2026-10-20 re-arm). These must fail before the boot latch.
+    run('v175-rearm-mode-change', case='clear', expected='CL-02', baseline='v175')
+    run('v175-rearm-power-cycle', case='powercycle', expected='PC-03', baseline='v175')
+    run('v175-rearm-after-wake', case='latchloop', expected='LA-00b', baseline='v175')
     mutations = [
-        ('no-arm', 'if (blockedMs <= STALLED_CALL_MS || lowerOnBackoff) return;', 'if (true) return;', 'trace', 'BO-02'),
-        ('no-suppression', 'action == DisplayDecisionModel.Action.ON && lowerOnBackoff', 'action == DisplayDecisionModel.Action.ON && false', 'trace', 'BO-02'),
-        ('clear-entering-both', 'if ("1".equals(mode) || "2".equals(mode)) clearLowerOnBackoffLocked', 'if ("0".equals(mode) || "1".equals(mode) || "2".equals(mode)) clearLowerOnBackoffLocked', 'trace', 'BO-02'),
+        ('no-arm', 'if (blockedMs <= STALLED_CALL_MS) return;', 'if (true) return;', 'trace', 'BO-02'),
+        ('no-suppression', 'action == DisplayDecisionModel.Action.ON && (lowerOnBackoff || lowerFailureLatched)', 'action == DisplayDecisionModel.Action.ON && false', 'trace', 'BO-02'),
+        ('clear-entering-both', 'if ("1".equals(mode) || "2".equals(mode)) clearLowerOnBackoffLocked', 'if ("0".equals(mode) || "1".equals(mode) || "2".equals(mode)) clearLowerOnBackoffLocked', 'trace', 'BO-05'),
         ('threshold', 'blockedMs <= STALLED_CALL_MS', 'blockedMs < STALLED_CALL_MS', 'threshold', 'TH-02'),
         ('block-off', 'if (action == DisplayDecisionModel.Action.OFF) attempt', 'if (action == DisplayDecisionModel.Action.OFF && !lowerOnBackoff) attempt', 'topoff', 'TO-02'),
         ('no-user-clear', 'clearLowerOnBackoffLocked("USER_RECONCILE");', '/* mutant: no user clear */', 'clear', 'CL-05'),
         ('no-failed-call-arm', 'noteHardwareCallLocked(reason, SystemClock.elapsedRealtime() - hardwareStartedAt);\n            status = "APPLY_FAILED";', 'status = "APPLY_FAILED";', 'failure', 'FA-02'),
         ('no-power-clear', 'clearLowerOnBackoffLocked("POWER_CYCLE");', '/* mutant: no cycle clear */ {}', 'powercycle', 'PC-02'),
-        ('unconditional-power-clear', '"1".equals(interactive) && sawNonInteractive', '"1".equals(interactive)', 'trace', 'BO-02'),
+        ('unconditional-power-clear', '"1".equals(interactive) && sawNonInteractive', '"1".equals(interactive)', 'trace', 'BO-05'),
         ('no-query-rate-limit', 'queryAt - lastInteractiveQueryAt >= INTERACTIVE_QUERY_MS', 'true', 'unknown', 'UN-02'),
         ('query-without-backoff', 'if (lowerOnBackoff) {', 'if (true) {', 'control', 'CT-03'),
-        ('no-degrade', 'if (lowerOnBackoff && "0".equals(mode) && "1".equals(bottom)) {', 'if (false) {', 'degrade', 'DG-01'),
-        ('degrade-without-stall', 'if (lowerOnBackoff && "0".equals(mode) && "1".equals(bottom)) {', 'if ("0".equals(mode) && "1".equals(bottom)) {', 'nodegrade', 'ND-01'),
+        ('no-degrade', 'if ((lowerOnBackoff || lowerFailureLatched) && "0".equals(mode) && "1".equals(bottom)) {', 'if (false) {', 'degrade', 'DG-01'),
+        ('degrade-without-stall', 'if ((lowerOnBackoff || lowerFailureLatched) && "0".equals(mode) && "1".equals(bottom)) {', 'if ("0".equals(mode) && "1".equals(bottom)) {', 'nodegrade', 'ND-01'),
+        ('no-latch', 'lowerFailureLatched = true;', 'lowerFailureLatched = false;', 'latchloop', 'LA-01'),
+        ('latch-cleared-with-backoff', 'lowerOnBackoff = false;\n        sawNonInteractive = false;\n        bothDegraded = false;', 'lowerOnBackoff = false; lowerFailureLatched = false;\n        sawNonInteractive = false;\n        bothDegraded = false;', 'powercycle', 'PC-03'),
+        ('latch-without-suppression', 'action == DisplayDecisionModel.Action.ON && (lowerOnBackoff || lowerFailureLatched)', 'action == DisplayDecisionModel.Action.ON && (lowerOnBackoff)', 'powercycle', 'PC-03'),
+        ('latch-without-degrade', 'if ((lowerOnBackoff || lowerFailureLatched) && "0".equals(mode)', 'if ((lowerOnBackoff) && "0".equals(mode)', 'latchloop', 'LA-01'),
+        ('latch-survives-user-reconcile', 'clearLowerFailureLatchLocked("USER_RECONCILE");', '/* mutant: latch survives manual reconcile */', 'latchuser', 'LA-04b'),
         ('no-degrade-clear', 'bothDegraded = false;', '/* mutant: retain previous degraded label */', 'restore', 'RS-02'),
         ('bypass-boot-hold', 'if (!BootSafety.knownMode(mode) || BootSafety.isHeld()) {', 'if (!BootSafety.knownMode(mode)) {', 'gates', 'SAFE-01'),
         ('bypass-disabled-fix', 'if (!DaemonState.isEnabled()) {', 'if (false) {', 'gates', 'SAFE-01'),
