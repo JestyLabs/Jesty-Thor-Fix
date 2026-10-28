@@ -222,9 +222,12 @@ public final class LiveRetirement {
 
     private static void requireEligible(String health, String snapshot, boolean display,
             boolean cpu, boolean guard, int uid, int pid) throws IOException {
+        // Fixed reason code and allowlisted value only; never the raw I/Q reply.
+        StringBuilder why = new StringBuilder();
         if (LiveHandoverPolicy.safePidForRetainedProcess(health, snapshot,
-                display, cpu, guard, uid, pid) != pid) {
-            throw new IOException("Retirement predecessor ineligible");
+                display, cpu, guard, uid, pid, why) != pid) {
+            throw new IOException("Retirement predecessor ineligible reason="
+                    + (why.length() > 0 ? why.toString() : "UNKNOWN"));
         }
     }
 

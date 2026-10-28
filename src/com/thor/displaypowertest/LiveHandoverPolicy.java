@@ -20,9 +20,28 @@ public final class LiveHandoverPolicy {
      */
     static int safePidForRetainedProcess(String health, String snapshot,
             boolean displayFix, boolean cpuFix, boolean lidGuard, int peerUid, int peerPid) {
-        if (peerUid != 0 || peerPid <= 100) return -1;
-        int pid = checkedPid(health, snapshot, displayFix, cpuFix, lidGuard, true);
-        return pid == peerPid ? pid : -1;
+        return safePidForRetainedProcess(health, snapshot, displayFix, cpuFix, lidGuard,
+                peerUid, peerPid, null);
+    }
+
+    /** Same decision; {@code why} receives the first failed condition (observation only). */
+    static int safePidForRetainedProcess(String health, String snapshot, boolean displayFix,
+            boolean cpuFix, boolean lidGuard, int peerUid, int peerPid, StringBuilder why) {
+        if (peerUid != 0 || peerPid <= 100) return reject(why, "PEER", "");
+        int pid = checkedPid(health, snapshot, displayFix, cpuFix, lidGuard, true, why);
+        if (pid < 1) return -1;
+        return pid == peerPid ? pid : reject(why, "PEER_PID", "");
+    }
+
+    /**
+     * Read-only diagnostic: null when eligible, else the first failed condition. The retained
+     * flag selects the same identity gate as the retained-descriptor path (peer not checked).
+     */
+    public static String ineligibleReason(String health, String snapshot, boolean displayFix,
+            boolean cpuFix, boolean lidGuard, boolean retainedProcess) {
+        StringBuilder why = new StringBuilder();
+        return checkedPid(health, snapshot, displayFix, cpuFix, lidGuard, retainedProcess, why) > 0
+                ? null : why.toString();
     }
 
     static boolean sameRetainedIdentity(String first, String second) {
@@ -35,38 +54,59 @@ public final class LiveHandoverPolicy {
 
     private static int checkedPid(String health, String snapshot, boolean displayFix,
             boolean cpuFix, boolean lidGuard, boolean retainedProcess) {
+        return checkedPid(health, snapshot, displayFix, cpuFix, lidGuard, retainedProcess, null);
+    }
+
+    private static int checkedPid(String health, String snapshot, boolean displayFix,
+            boolean cpuFix, boolean lidGuard, boolean retainedProcess, StringBuilder why) {
         int pid = retainedProcess
-                ? PreviousSecureDaemonIdentity.safePidForRetainedProcess(health, snapshot, displayFix)
+                ? PreviousSecureDaemonIdentity.safePidForRetainedProcess(health, snapshot, displayFix, why)
                 : PreviousSecureDaemonIdentity.safePid(health, snapshot);
-        if (pid < 1) return -1;
+        // The retained gate names its own condition first; the public gate stays coarse.
+        if (pid < 1) return reject(why, "PREVIOUS_IDENTITY", "");
         // Exact published predecessors only; never a broad version comparison.
         String version = field(health, "version");
         if (!"1.7.5".equals(version) && !"1.7.4".equals(version) && !"1.7.3".equals(version) && !"1.7.2".equals(version)
-                && !"1.7.1".equals(version)) return -1;
+                && !"1.7.1".equals(version)) return reject(why, "VERSION", version);
         // I and Q must describe the same process generation, not a socket takeover.
         String runtimeVersion = field(snapshot, "runtime_version");
         boolean publishedCode76 = retainedProcess && "1.7.1".equals(version)
                 && snapshot.indexOf(";runtime_version=") < 0;
-        if (!publishedCode76 && !version.equals(runtimeVersion)) return -1;
-        if (!"READY".equals(field(health, "boot_phase"))) return -1;
-        if (!expected(field(health, "fix"), displayFix)
-                || !expected(field(snapshot, "fix"), displayFix)
-                || !"0".equals(field(snapshot, "display_actions_held"))
-                || !"CONFIRMED".equals(field(snapshot, "display_effective"))
-                || !expected(field(snapshot, "cpu_fix_desired"), cpuFix)
-                || !"CONFIRMED".equals(field(snapshot, "cpu_fix_phase"))
-                || !expected(field(snapshot, "system_load_fix"), cpuFix)
-                || !expected(field(snapshot, "lid_guard"), lidGuard)) return -1;
-        if ("1".equals(field(snapshot, "mode")) && !confirmedTopSnapshot(snapshot)) return -1;
+        if (!publishedCode76 && !version.equals(runtimeVersion))
+            return reject(why, "RUNTIME_VERSION", runtimeVersion);
+        if (!"READY".equals(field(health, "boot_phase")))
+            return reject(why, "BOOT_PHASE", field(health, "boot_phase"));
+        if (!expected(field(health, "fix"), displayFix))
+            return reject(why, "FIX_HEALTH", field(health, "fix"));
+        if (!expected(field(snapshot, "fix"), displayFix))
+            return reject(why, "FIX_SNAPSHOT", field(snapshot, "fix"));
+        if (!"0".equals(field(snapshot, "display_actions_held")))
+            return reject(why, "ACTIONS_HELD", field(snapshot, "display_actions_held"));
+        if (!"CONFIRMED".equals(field(snapshot, "display_effective")))
+            return reject(why, "DISPLAY_EFFECTIVE", field(snapshot, "display_effective"));
+        if (!expected(field(snapshot, "cpu_fix_desired"), cpuFix))
+            return reject(why, "CPU_FIX_DESIRED", field(snapshot, "cpu_fix_desired"));
+        if (!"CONFIRMED".equals(field(snapshot, "cpu_fix_phase")))
+            return reject(why, "CPU_FIX_PHASE", field(snapshot, "cpu_fix_phase"));
+        if (!expected(field(snapshot, "system_load_fix"), cpuFix))
+            return reject(why, "SYSTEM_LOAD_FIX", field(snapshot, "system_load_fix"));
+        if (!expected(field(snapshot, "lid_guard"), lidGuard))
+            return reject(why, "LID_GUARD", field(snapshot, "lid_guard"));
+        if ("1".equals(field(snapshot, "mode"))) {
+            if (!"CONFIRMED".equals(field(snapshot, "display_action_status")))
+                return reject(why, "TOP_ACTION_STATUS", field(snapshot, "display_action_status"));
+            if (!confirmedTopSnapshot(snapshot))
+                return reject(why, "TOP_REPAIR_OR_GENERATION", field(snapshot, "repair_result"));
+        }
         // Do not retire a daemon while the lid is known closed or a dock is connected.
         // With Guard OFF the stock firmware reports external_display=unknown.
         // Missing values retain their previous policy, but duplicate values do not.
         String lid = field(snapshot, "lid");
         String externalDisplay = field(snapshot, "external_display");
-        if (lid == null || externalDisplay == null
-                || "closed".equals(lid)
-                || "1".equals(externalDisplay)
-                || (lidGuard && !"0".equals(externalDisplay))) return -1;
+        if (lid == null || "closed".equals(lid)) return reject(why, "LID", lid);
+        if (externalDisplay == null || "1".equals(externalDisplay)
+                || (lidGuard && !"0".equals(externalDisplay)))
+            return reject(why, "EXTERNAL_DISPLAY", externalDisplay);
         return pid;
     }
 
@@ -94,6 +134,18 @@ public final class LiveHandoverPolicy {
 
     private static boolean expected(String value, boolean enabled) {
         return (enabled ? "1" : "0").equals(value);
+    }
+
+    /**
+     * Observation only: names the first failed eligibility condition with a fixed code and a
+     * bounded, allowlisted value, never a raw daemon reply, and always returns the refusal -1.
+     * (2026-10-28: a held TOP transfer could not be explained because the refusal had no reason.)
+     */
+    private static int reject(StringBuilder why, String code, String value) {
+        if (why != null && why.length() == 0) why.append(code).append(";value=").append(
+                value == null ? "DUPLICATE" : value.isEmpty() ? "ABSENT"
+                : value.length() <= 32 && value.matches("[A-Za-z0-9._-]+") ? value : "INVALID");
+        return -1;
     }
 
     private static String field(String response, String name) {
