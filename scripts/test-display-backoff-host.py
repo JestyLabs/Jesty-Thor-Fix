@@ -27,7 +27,7 @@ def main():
     for item in json.loads((frozen / 'manifest.json').read_text(encoding='utf-8')):
         assert hashlib.sha256((frozen / item['file']).read_bytes()).hexdigest() == item['sha256']
     tests = ['DisplayWakeCoordinatorTest', 'BottomWakeCharacterizationTest',
-             'ResumeStallObservationTest', 'BothBackoffTest']
+             'ResumeStallObservationTest', 'BothBackoffTest', 'SleepOrderRaceTest']
     results = []
 
     def run(name, changed=None, case=None, expected=None, baseline=None, test_class=None):
@@ -97,6 +97,10 @@ def main():
     run('v175-rearm-mode-change', case='clear', expected='CL-02', baseline='v175')
     run('v175-rearm-power-cycle', case='powercycle', expected='PC-03', baseline='v175')
     run('v175-rearm-after-wake', case='latchloop', expected='LA-00b', baseline='v175')
+    # Published 1.7.5 (same WATCH_BOTH path as the first 1.7.6 candidate): going to sleep with
+    # the lower panel powered off first, the lower panel is re-powered for the whole sleep.
+    run('v175-sleep-order-race', case='race', expected='SR-01', baseline='v175', test_class='SleepOrderRaceTest')
+    run('v175-sleep-order-lag', case='lag', expected='SR-05', baseline='v175', test_class='SleepOrderRaceTest')
     mutations = [
         ('no-arm', 'if (blockedMs <= STALLED_CALL_MS) return;', 'if (true) return;', 'trace', 'BO-02'),
         ('no-suppression', 'action == DisplayDecisionModel.Action.ON && (lowerOnBackoff || lowerFailureLatched)', 'action == DisplayDecisionModel.Action.ON && false', 'trace', 'BO-02'),
@@ -107,8 +111,8 @@ def main():
         ('no-failed-call-arm', 'noteHardwareCallLocked(reason, SystemClock.elapsedRealtime() - hardwareStartedAt);\n            status = "APPLY_FAILED";', 'status = "APPLY_FAILED";', 'failure', 'FA-02'),
         ('no-power-clear', 'clearLowerOnBackoffLocked("POWER_CYCLE");', '/* mutant: no cycle clear */ {}', 'powercycle', 'PC-02'),
         ('unconditional-power-clear', '"1".equals(interactive) && sawNonInteractive', '"1".equals(interactive)', 'trace', 'BO-05'),
-        ('no-query-rate-limit', 'queryAt - lastInteractiveQueryAt >= INTERACTIVE_QUERY_MS', 'true', 'unknown', 'UN-02'),
-        ('query-without-backoff', 'if (lowerOnBackoff) {', 'if (true) {', 'control', 'CT-03'),
+        ('no-query-rate-limit', 'queryAt - lastInteractiveQueryAt >= interval', 'true', 'unknown', 'UN-02'),
+        ('query-without-backoff', 'if (lowerOnBackoff || bothCandidate) {', 'if (true) {', 'control', 'CT-03'),
         ('no-degrade', 'if ((lowerOnBackoff || lowerFailureLatched) && "0".equals(mode) && "1".equals(bottom)) {', 'if (false) {', 'degrade', 'DG-01'),
         ('degrade-without-stall', 'if ((lowerOnBackoff || lowerFailureLatched) && "0".equals(mode) && "1".equals(bottom)) {', 'if ("0".equals(mode) && "1".equals(bottom)) {', 'nodegrade', 'ND-01'),
         ('no-latch', 'lowerFailureLatched = true;', 'lowerFailureLatched = false;', 'latchloop', 'LA-01'),
@@ -120,6 +124,15 @@ def main():
         ('bypass-boot-hold', 'if (!BootSafety.knownMode(mode) || BootSafety.isHeld()) {', 'if (!BootSafety.knownMode(mode)) {', 'gates', 'SAFE-01'),
         ('bypass-disabled-fix', 'if (!DaemonState.isEnabled()) {', 'if (false) {', 'gates', 'SAFE-01'),
     ]
+    sleep_race = [
+        ('no-sleep-skip', 'if ("0".equals(candidateInteractive)) {', 'if (false) {', 'race', 'SR-01'),
+        ('no-confirm-window', 'now - bothOnCandidateAt < BOTH_ON_CONFIRM_MS', 'false', 'lag', 'SR-05'),
+        ('no-fresh-query', 'candidateQueried = true;', '/* mutant: no fresh query */', 'loss', 'SR-06'),
+        ('no-mode-edge-grace', 'now - lastModeEdgeAt < MODE_EDGE_GRACE_MS', 'false', 'switch', 'SR-09'),
+        ('unknown-blocks-restore', 'if ("0".equals(candidateInteractive)) {', 'if (!"1".equals(candidateInteractive)) {', 'nopower', 'SR-11'),
+    ]
+    for name, before, after, case, expected in sleep_race:
+        run('sleep-race-' + name, (before, after), case, expected, test_class='SleepOrderRaceTest')
     for name, before, after, case, expected in mutations:
         run(name, (before, after), case, expected)
     (output / 'results.json').write_text(json.dumps(results, indent=2), encoding='utf-8')
