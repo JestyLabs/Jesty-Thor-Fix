@@ -7,6 +7,8 @@
 - After a display call that stalls for more than five seconds, the app keeps the lower screen OFF in BOTH until the next
   reboot or a manual fix toggle, instead of turning it back on after the next mode change or wake. This avoids re-entering
   a vendor display-reset loop that can blank both screens.
+- Going to sleep in BOTH, the app no longer turns the lower screen back on when the system switches it off a moment
+  before the top screen, so the lower screen stays off during sleep. Switching from TOP to BOTH still turns it on at once.
 
-Display-recovery actions are unchanged except for the boot-scoped stall containment above; CPU Fix, Closed-Lid Wake Guard
+Display-recovery actions are unchanged except for the boot-scoped stall containment and the sleep-order fix above; CPU Fix, Closed-Lid Wake Guard
 and the documented hardware limitations are unchanged.

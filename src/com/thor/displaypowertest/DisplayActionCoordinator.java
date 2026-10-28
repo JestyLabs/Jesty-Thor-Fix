@@ -34,6 +34,23 @@ public final class DisplayActionCoordinator {
      * reconciliation is the only in-process clear. The lower OFF path is never blocked.
      */
     private static volatile boolean lowerFailureLatched;
+    /**
+     * S1 sleep-order race (2026-10-28, 2/2 BOTH lid sleeps; 7 of 20 BOTH sleeps on 1.7.5):
+     * going to sleep the platform may power the lower panel off first, so the watcher sees
+     * mode=0;top=1;bottom=0 for ~0.2-0.4 s before the top follows. Restoring the lower panel
+     * then left it powered for the whole sleep. In stable BOTH (no recent mode edge) a lower
+     * ON therefore waits for a second observation and a fresh interactive query; a user mode
+     * switch keeps its immediate ON. Watcher thread only.
+     */
+    private static final long BOTH_ON_CONFIRM_MS = 300L;
+    private static final long MODE_EDGE_GRACE_MS = 1600L;
+    private static final long CANDIDATE_QUERY_MS = 100L;
+    private static long bothOnCandidateAt = -1L;
+    private static String candidateInteractive = "?";
+    private static boolean candidateQueried;
+    private static boolean candidateConfirmed;
+    private static boolean candidateSkipLogged;
+    private static long lastModeEdgeAt = Long.MIN_VALUE / 2;
 
     private DisplayActionCoordinator() {}
     public static String status() { return status; }
@@ -52,13 +69,20 @@ public final class DisplayActionCoordinator {
         // Avoid an inverted lock order with LidGuard's synchronized methods.
         boolean deferredByLid = stableTopWake && LidGuard.isEnabled()
                 && LidGuard.onWakeEvent();
-        // Binder query outside the coordinator lock, only while the back-off is set.
+        // Binder query outside the coordinator lock, only while the back-off is set or a
+        // stable-BOTH lower ON is waiting for confirmation.
         String interactive = "?";
-        if (lowerOnBackoff) {
+        boolean bothCandidate = bothOnCandidateAt >= 0L;
+        if (lowerOnBackoff || bothCandidate) {
             long queryAt = SystemClock.elapsedRealtime();
-            if (queryAt - lastInteractiveQueryAt >= INTERACTIVE_QUERY_MS) {
+            long interval = bothCandidate ? CANDIDATE_QUERY_MS : INTERACTIVE_QUERY_MS;
+            if (queryAt - lastInteractiveQueryAt >= interval) {
                 lastInteractiveQueryAt = queryAt;
                 interactive = readInteractive();
+                if (bothCandidate) {
+                    candidateInteractive = interactive;
+                    candidateQueried = true;
+                }
             }
         }
         synchronized (DisplayHardware.class) {
@@ -76,6 +100,8 @@ public final class DisplayActionCoordinator {
                 // span the mode switch, as in the 2026-10-20 recurrence).
                 if ("1".equals(mode) || "2".equals(mode)) clearLowerOnBackoffLocked("MODE_" + mode);
                 lastMode = mode;
+                lastModeEdgeAt = SystemClock.elapsedRealtime();
+                clearBothOnCandidate();
                 status = "MODE_CHANGED";
                 WatcherCadence.onModeChanged();
             }
@@ -107,6 +133,8 @@ public final class DisplayActionCoordinator {
                 Log.d(TAG, "CRTC_OBSERVED top=" + top + ";bottom=" + bottom + ";mode=" + mode
                         + ";property=" + DisplayHardware.getProperty());
             }
+            // A candidate exists only while BOTH still shows an active top and an inactive lower.
+            if (!("0".equals(mode) && "1".equals(top) && "0".equals(bottom))) clearBothOnCandidate();
             if ("0".equals(top) && "0".equals(bottom)) {
                 if (WakeRepairScheduler.isPending()) generations.invalidate();
                 cancelRepairLocked();
@@ -158,7 +186,13 @@ public final class DisplayActionCoordinator {
                         + ";latched=" + (lowerFailureLatched ? "1" : "0") + ";degraded=" + (bothDegraded ? "1" : "0"));
                 status = held;
             }
-            else if (action == DisplayDecisionModel.Action.ON) attempt(true, "WATCH_BOTH", mode);
+            else if (action == DisplayDecisionModel.Action.ON
+                    && now - lastModeEdgeAt < MODE_EDGE_GRACE_MS) {
+                // A user TOP -> BOTH switch: the device is interactive, keep the immediate ON.
+                clearBothOnCandidate();
+                attempt(true, "WATCH_BOTH", mode);
+            }
+            else if (action == DisplayDecisionModel.Action.ON) confirmBothOnLocked(mode, now);
             else if (!WakeRepairScheduler.isPending()) status =
                     DisplayDecisionModel.effective(mode, top, bottom, true, false);
         }
@@ -289,6 +323,45 @@ public final class DisplayActionCoordinator {
         if (!lowerFailureLatched) return;
         lowerFailureLatched = false;
         Log.d(TAG, "LOWER_FAILURE_LATCH cleared cause=" + cause);
+    }
+    /**
+     * Stable-BOTH lower ON: first observation only records a candidate; the ON is issued when
+     * the pattern persisted BOTH_ON_CONFIRM_MS and the fresh query did not report a
+     * non-interactive (going to sleep) device. An unavailable query keeps the old contract.
+     */
+    private static void confirmBothOnLocked(String mode, long now) {
+        if (bothOnCandidateAt < 0L) {
+            clearBothOnCandidate();
+            bothOnCandidateAt = now;
+            status = "DISPLAY_ASLEEP_OR_TRANSITION";
+            return;
+        }
+        if ("0".equals(candidateInteractive)) {
+            if (!candidateSkipLogged) {
+                candidateSkipLogged = true;
+                Log.d(TAG, "WATCH_BOTH_SKIPPED reason=NON_INTERACTIVE;candidate_ms=" + (now - bothOnCandidateAt));
+            }
+            status = "DISPLAY_ASLEEP_OR_TRANSITION";
+            return;
+        }
+        if (!candidateConfirmed) {
+            if (!candidateQueried || now - bothOnCandidateAt < BOTH_ON_CONFIRM_MS) {
+                status = "DISPLAY_ASLEEP_OR_TRANSITION";
+                return;
+            }
+            candidateConfirmed = true;
+            Log.d(TAG, "WATCH_BOTH_CONFIRMED interactive=" + candidateInteractive
+                    + ";candidate_ms=" + (now - bothOnCandidateAt));
+        }
+        // Once confirmed, retries keep the existing attempt() interval until the pattern ends.
+        attempt(true, "WATCH_BOTH", mode);
+    }
+    private static void clearBothOnCandidate() {
+        bothOnCandidateAt = -1L;
+        candidateInteractive = "?";
+        candidateQueried = false;
+        candidateConfirmed = false;
+        candidateSkipLogged = false;
     }
     /** "1"/"0" from IPowerManager.isInteractive(); "?" when unavailable (never clears). */
     private static String readInteractive() {

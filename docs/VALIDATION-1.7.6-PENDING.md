@@ -6,9 +6,24 @@ Candidate from [#131](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/131), whi
 - shared descriptor-bound stop for authorized same-version failed-start recovery, with a durable fence before commit;
 - the exact published v1.7.5 admitted as an update origin (five origins: 1.7.1–1.7.5);
 - shorter pending-update notice;
-- boot-scoped lower-failure latch after a stalled display call (S1, [#132](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/132)).
+- boot-scoped lower-failure latch after a stalled display call (S1, [#132](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/132));
+- S1 sleep-order race: in stable BOTH an automatic lower ON waits for one confirming sample and is skipped while the device is non-interactive, so going to sleep no longer re-powers the lower panel for the whole sleep (block E).
 
-Excluded from this candidate: Auto Bottom Off ([#117](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/117)) and refresh research ([#37](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/37)). [#130](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/130) adds host tests and documentation only and does not change the APK. Display commands, wake-repair timing, CPU Fix and Guard behavior are unchanged; stall containment changes only as described in #132.
+## Physical session on the first signed candidate (main `23e1560b`, 2026-10-28)
+
+Owner-supervised, USB, Guard OFF, refresh fixed at 120 Hz in BOTH before block A. No STOP condition.
+
+| Block | Result |
+| --- | --- |
+| A1–A4 (published 1.7.5) | PASS; A5 NOT RUN (did not occur) |
+| B1 upgrade in TOP | **FAIL for the live transfer**: install and version correct, lower panel stayed off, no compositor restart, one service; the successor reported the published 1.7.5 predecessor *ineligible* and held the transfer (cause UNKNOWN: the failed eligibility condition is not logged). One normal restart completed it (one healthy 1.7.6 service, boot READY in TOP). The held state showed a support notice rather than a restart notice |
+| B2, C1, C3, C4, C5 | PASS; C6 NOT RUN (Guard not used) |
+| C2 | Wakes normal, **but** both BOTH lid sleeps showed the sleep-order race: the lower panel was powered off first, `WATCH_BOTH` re-powered it while the top was still on, and it stayed powered for the whole sleep. The long-sleep collector shows the same race in 7 of 20 BOTH sleeps on published 1.7.5 (pre-existing) |
+| D1, D2 | PASS (D2 by owner observation only: the manual toggle leaves no log line); D3 NOT RUN |
+
+That signed artifact is therefore not published. The candidate is rebuilt with the block E fix (and the separate transfer diagnostics work), signed again, and the affected checks are repeated.
+
+Excluded from this candidate: Auto Bottom Off ([#117](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/117)) and refresh research ([#37](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/37)). [#130](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/130) adds host tests and documentation only and does not change the APK. Display commands, wake-repair timing, CPU Fix and Guard behavior are unchanged; stall containment changes only as described in #132, and the automatic BOTH ON only as described in block E.
 
 ## Software gates before the physical session
 
@@ -70,6 +85,14 @@ Not run by design: failed-start recovery (cannot be induced safely on hardware),
 | D1 | Across A–C transitions, sleeps and the C4 reboot: no `LOWER_FAILURE_LATCH set` in diagnostics; lower panel turns ON normally in BOTH; status never stuck in BOTH_ON_BACKOFF/BOTH_DEGRADED | NOT RUN |
 | D2 | Manual fix toggle in the app behaves as before (the latch's only in-process exit) | NOT RUN |
 | D3 | Only if a stall occurs naturally: lower panel stays OFF after a BOTH wake until manual toggle or reboot; follow the agreed recovery | NOT RUN (never induced) |
+
+### E — S1 sleep-order race fix, never induced
+
+| ID | Check | Result |
+| --- | --- | --- |
+| E1 | Two ordinary lid sleeps in BOTH: no `WATCH_BOTH` call between the lower and top power-off; if the lower panel goes off first, one `WATCH_BOTH_SKIPPED reason=NON_INTERACTIVE`; lower panel stays off during sleep; both panels normal on wake | NOT RUN |
+| E2 | TOP → BOTH still turns the lower panel on immediately (same sample, no extra delay) | NOT RUN |
+| E3 | Awake lower-panel loss in stable BOTH restored after confirmation | NOT RUN (cannot be induced safely; host tests only) |
 
 **STOP conditions:** black or abnormal presentation on either screen, unexpected compositor/UI restart, two services or lost identity after the update, transfer stuck after one normal restart, loss of input. Stop, note the time and last action, preserve diagnostics, then perform only the agreed recovery.
 
