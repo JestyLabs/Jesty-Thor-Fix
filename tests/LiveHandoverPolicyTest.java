@@ -107,6 +107,39 @@ public final class LiveHandoverPolicyTest {
             check(pid(H, Q + suffix) < 0,
                     "duplicate predecessor snapshot field denied: " + suffix);
         }
+        reasons(h85, q85);
         System.out.println("LiveHandoverPolicyTest passed: "+assertions+" fail-closed checks.");
+    }
+
+    /** The refusal names its first failed condition; the decision itself is unchanged. */
+    private static void reasons(String h, String q) {
+        check(LiveHandoverPolicy.ineligibleReason(h, q, true, false, false, true) == null, "RS-00 eligible has no reason");
+        String top = q.replace("mode=0", "mode=1").replace("bottom_crtc=1", "bottom_crtc=0");
+        check("PREVIOUS_IDENTITY;value=ABSENT".equals(LiveHandoverPolicy.ineligibleReason(h, top, true, false, false, false)),
+                "RS-04 the public gate stays BOTH-only and coarse");
+        String[][] cases = {
+            {h.replace("boot_phase=READY", "boot_phase=HANDOFF_RECOVERING"), q, "BOOT_PHASE;value=HANDOFF_RECOVERING"},
+            {h, q.replace("display_effective=CONFIRMED", "display_effective=UNCONFIRMED"), "DISPLAY_EFFECTIVE;value=UNCONFIRMED"},
+            {h, q.replace("cpu_fix_phase=CONFIRMED", "cpu_fix_phase=PENDING"), "CPU_FIX_PHASE;value=PENDING"},
+            {h, q.replace("system_load_fix=0", "system_load_fix=1"), "SYSTEM_LOAD_FIX;value=1"},
+            {h, q.replace("display_actions_held=0", "display_actions_held=1"), "ACTIONS_HELD;value=1"},
+            {h, q.replace("lid=open", "lid=closed"), "LID;value=closed"},
+            {h, q.replace("external_display=unknown", "external_display=1"), "EXTERNAL_DISPLAY;value=1"},
+            {h, q.replace("runtime_version=1.7.5", "runtime_version=1.7.4"), "RUNTIME_VERSION;value=1.7.4"},
+            {h.replace("watcher=RUNNING", "watcher=STOPPED"), q, "WATCHER;value=STOPPED"},
+            {h.replace("version=1.7.5", "version=9.9.9"), q.replace("1.7.5", "9.9.9"), "PREVIOUS_VERSION;value=9.9.9"},
+            {h, q.replace("bottom_crtc=1", "bottom_crtc=0"), "DISPLAY_STATE;value=m0t1b0"},
+            {h, top, "TOP_ACTION_STATUS;value=ABSENT"},
+            {h, top + ";display_action_status=CONFIRMED;repair_result=RETRY_PENDING;display_generation=4",
+                "TOP_REPAIR_OR_GENERATION;value=RETRY_PENDING"},
+            {h, q + ";lid=open", "LID;value=DUPLICATE"},
+            {h.replace("boot_phase=READY", "boot_phase=A<b>"), q, "BOOT_PHASE;value=INVALID"},
+        };
+        for (String[] c : cases) {
+            String why = LiveHandoverPolicy.ineligibleReason(c[0], c[1], true, false, false, true);
+            check(c[2].equals(why), "RS-01 reason " + c[2] + " observed " + why);
+            check(why.matches("[A-Z_]+;value=[A-Za-z0-9._-]+"), "RS-02 values are allowlisted: " + why);
+            check(LiveHandoverPolicy.safePid(c[0], c[1], true, false, false) < 0, "RS-03 still refused: " + c[2]);
+        }
     }
 }
