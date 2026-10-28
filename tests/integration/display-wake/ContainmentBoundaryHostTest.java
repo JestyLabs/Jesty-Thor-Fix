@@ -63,7 +63,11 @@ public final class ContainmentBoundaryHostTest {
         TestDisplayState.powerFailure = true;
         for (int attempt = 1; attempt <= 16; attempt++) {
             sample(1500L);
-            check(TestDisplayState.hardwareCalls == attempt, "FAST-01 repeated fast ON failure admitted");
+            // S1 sleep-order race: once the mode edge is >= 1.6 s old, the first stable-BOTH
+            // ON waits for one confirming sample; later retries keep the 1.5 s interval.
+            int expected = attempt >= 3 ? attempt - 1 : attempt;
+            check(TestDisplayState.hardwareCalls == expected, "FAST-01 repeated fast ON failure admitted: calls="
+                    + TestDisplayState.hardwareCalls + ";expected=" + expected);
             check(!DisplayActionCoordinator.isLowerOnBackoff(),
                     "FAST-02 fast errors alone do not arm elapsed-call protection");
         }
@@ -163,6 +167,9 @@ public final class ContainmentBoundaryHostTest {
         TestDisplayState.top = "1";
         TestDisplayState.bottom = "0";
         sample(2000L);
+        // S1 sleep-order race: in stable BOTH the ON waits for one confirming, interactive sample.
+        check(TestDisplayState.hardwareCalls == 0, "TRIGGER-03a first stable-BOTH observation only records a candidate");
+        sample(300L);
         check(TestDisplayState.hardwareCalls == 1, "TRIGGER-03 ordinary BOTH ON remains eligible");
         System.out.println("OBSERVATION: CRTC patterns alone are not a vendor-failure detector");
     }
