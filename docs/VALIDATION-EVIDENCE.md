@@ -1,5 +1,9 @@
 # Physical validation & performance evidence
 
+## Pre-release: v1.7.6 / code86 (28 October 2026)
+
+[Candidate acceptance and both physical rounds](VALIDATION-1.7.6-PENDING.md): F1/F2, E2, E4, D2, C1 and C3 PASS on the published signed APK; the live transfer from published 1.7.5 in TOP was held and completed by one normal restart; the sleep-order race fix is host-tested but not yet exercised on hardware. Published as a pre-release; the current stable release below is unchanged.
+
 ## Current release: v1.7.5 / code85 (20 October 2026)
 
 [Release validation and artifact identity](VALIDATION-1.7.5.md) record host, generic Android, CodeQL, signing and downloaded-asset checks as PASS. **Physical acceptance of this revision is NOT RUN at publication**, under an explicit maintainer timing exception. [Blackout containment](BLACKOUT-CONTAINMENT-1.7.4.md) is a tested software mitigation awaiting device acceptance; the earlier physical results below retain their original version boundaries.

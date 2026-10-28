@@ -128,6 +128,13 @@ Not run by design: failed-start recovery (cannot be induced safely on hardware),
 
 ## Publication
 
-After owner acceptance of the exact signed artifact, run **Publish tested candidate** with that main run ID (pre-release or stable). Then update the README and integrity records to v1.7.6 in a documentation follow-up, as for v1.7.4 and v1.7.5. Raw captures, device identifiers and signing material stay owner-local.
+After owner acceptance of the exact signed artifact, run **Publish tested candidate** with that main run ID (pre-release or stable). Then update the README and integrity records to v1.7.6 in a documentation follow-up, as for v1.7.4 and v1.7.5.
+
+**Published 2026-10-28 as a pre-release:**
+- [publication run 40783945707](https://github.com/JestyLabs/Jesty-Thor-Fix/actions/runs/40783945707), from signed candidate run 40690534453;
+- tag `v1.7.6` points to `dd6d773`;
+- the downloaded release asset has SHA-256 `2620a300…d641e`, identical to the tested artifact. See [release integrity](RELEASE-INTEGRITY.md).
+
+Promotion of the same tag to stable is pending the race-path observation. Raw captures, device identifiers and signing material stay owner-local.
 
 This record was prepared after the physical rounds; it contains no raw captures, device identifiers or signing material.
