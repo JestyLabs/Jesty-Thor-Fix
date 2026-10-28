@@ -22,6 +22,12 @@ public final class CoordinatorFailureHostTest {
         field("lastAttemptAt", 0L);
         field("lastAttemptKey", "");
         field("status", "STARTING");
+        // S1 sleep-order race: no pending stable-BOTH candidate and no recent mode edge.
+        field("bothOnCandidateAt", -1L);
+        field("candidateInteractive", "?");
+        field("candidateQueried", false);
+        field("candidateConfirmed", false);
+        field("lastModeEdgeAt", Long.MIN_VALUE / 2);
         android.os.SystemClock.setElapsedRealtime(100000L);
         BootSafety.held = false;
         DaemonState.mode = "0";
@@ -65,13 +71,18 @@ public final class CoordinatorFailureHostTest {
         reset();
         DaemonState.enabled = true;
         DisplayHardware.applySucceeds = false;
+        // Stable BOTH: the first observation is only a candidate; the ON follows the
+        // confirming sample (300 ms, interactive unavailable on the host keeps the contract).
+        DisplayActionCoordinator.onWatcherSample("0");
+        equal(0, DisplayHardware.actionCount, "CF-retry stable-BOTH candidate only");
+        android.os.SystemClock.setElapsedRealtime(100300L);
         DisplayActionCoordinator.onWatcherSample("0");
         equal(1, DisplayHardware.actionCount, "CF-retry first attempt");
         equal("APPLY_FAILED", DisplayActionCoordinator.status(), "CF-retry first fails");
-        android.os.SystemClock.setElapsedRealtime(101499L);
+        android.os.SystemClock.setElapsedRealtime(101799L);
         DisplayActionCoordinator.onWatcherSample("0");
         equal(1, DisplayHardware.actionCount, "CF-retry suppressed at 1499ms");
-        android.os.SystemClock.setElapsedRealtime(101500L);
+        android.os.SystemClock.setElapsedRealtime(101800L);
         DisplayActionCoordinator.onWatcherSample("0");
         equal(2, DisplayHardware.actionCount, "CF-retry admitted at 1500ms");
         equal("APPLY_FAILED", DisplayActionCoordinator.status(), "CF-retry still no success");
