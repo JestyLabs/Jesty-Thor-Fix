@@ -198,7 +198,14 @@ public final class DisplayActionCoordinator {
         }
     }
 
+    /** Manual fix toggle; one observation line per request (2026-10-28: the toggle left no trace). */
     public static String requestFix(boolean requested) {
+        String reply = requestFixLocked(requested);
+        Log.d(TAG, "USER_RECONCILE fix=" + (requested ? "1" : "0") + ";result="
+                + (reply.startsWith("ok=1;") ? "CONFIRMED" : reply.replace("ok=0;error=", "")));
+        return reply;
+    }
+    private static String requestFixLocked(boolean requested) {
         synchronized (DisplayHardware.class) {
             if (BootSafety.isHeld()) return "ok=0;error=BOOT_HOLD";
             if (!"RUNNING".equals(WatcherSupervisor.health()))

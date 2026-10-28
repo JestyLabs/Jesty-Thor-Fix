@@ -10,7 +10,7 @@ import android.util.Log;
  * panel off first; while the top CRTC was still active the watcher saw mode=0;top=1;bottom=0,
  * WATCH_BOTH re-powered the lower panel, and the platform then turned only the top off. The
  * lower panel stayed powered for the whole lid-closed sleep. Not a physical reproduction.
- * Arguments: none = all, or one of "race", "lag", "loss", "switch", "nopower", "wakeloss".
+ * Arguments: none = all, or one of "race", "lag", "loss", "switch", "nopower", "wakeloss", "toggle".
  */
 public final class SleepOrderRaceTest {
     private static int checks;
@@ -135,6 +135,16 @@ public final class SleepOrderRaceTest {
                 "SR-12 a lower panel missing after a BOTH wake is restored: calls=" + TestDisplayState.hardwareCalls
                 + " " + Log.LINES);
     }
+    /** The manual fix toggle leaves one observation line per request (D2 had no trace). */
+    private static void toggle() {
+        stableBoth();
+        String off = DisplayActionCoordinator.requestFix(false);
+        String on = DisplayActionCoordinator.requestFix(true);
+        check(off.startsWith("ok=1;") && on.startsWith("ok=1;"), "SR-13 toggle accepted: " + off + " / " + on);
+        check(count("ThorDisplayDaemon: USER_RECONCILE fix=0;result=CONFIRMED") == 1
+                && count("ThorDisplayDaemon: USER_RECONCILE fix=1;result=CONFIRMED") == 1,
+                "SR-14 each toggle request is logged once with its result: " + Log.LINES);
+    }
     public static void main(String[] args) {
         String only = args.length > 0 ? args[0] : "all";
         if ("all".equals(only) || "race".equals(only)) race();
@@ -143,6 +153,7 @@ public final class SleepOrderRaceTest {
         if ("all".equals(only) || "switch".equals(only)) modeSwitch();
         if ("all".equals(only) || "nopower".equals(only)) noPower();
         if ("all".equals(only) || "wakeloss".equals(only)) wakeLoss();
+        if ("all".equals(only) || "toggle".equals(only)) toggle();
         System.out.println("SleepOrderRaceTest passed (" + only + "): " + checks + " assertions (host contract)");
     }
 }
