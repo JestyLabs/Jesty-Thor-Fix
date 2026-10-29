@@ -117,8 +117,8 @@ public final class DashboardStateModelTest {
         truth(DashboardStateModel.refreshGuard("NONE") == null);
         equal("REFRESH GUARD ON", DashboardStateModel.refreshGuard("ARMED").text);
         truth(DashboardStateModel.refreshGuard("ARMED").tone == DashboardStateModel.Tone.GREEN);
-        equal("REFRESH GUARD  ·  WAITING FOR LOWER SCREEN", DashboardStateModel.refreshGuard("ARMED_PENDING").text);
-        equal("REFRESH GUARD  ·  WAITING FOR LOWER SCREEN", DashboardStateModel.refreshGuard("DRAINING").text);
+        equal("REFRESH GUARD  \u00B7  WAITING FOR LOWER SCREEN", DashboardStateModel.refreshGuard("ARMED_PENDING").text);
+        equal("REFRESH GUARD  \u00B7  WAITING FOR LOWER SCREEN", DashboardStateModel.refreshGuard("DRAINING").text);
         equal("REFRESH GUARD OFF", DashboardStateModel.refreshGuard("OFF").text);
         equal("REFRESH GUARD UNAVAILABLE", DashboardStateModel.refreshGuard("UNAVAILABLE_SYSFS").text);
         truth(DashboardStateModel.refreshGuard("UNAVAILABLE_BIND").tone == DashboardStateModel.Tone.AMBER);

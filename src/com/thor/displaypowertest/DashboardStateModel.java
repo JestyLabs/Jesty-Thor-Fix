@@ -66,7 +66,7 @@ public final class DashboardStateModel {
         if (field == null || field.isEmpty() || "NONE".equals(field)) return null;
         if ("ARMED".equals(field)) return new GuardStatus("REFRESH GUARD ON", Tone.GREEN);
         if ("ARMED_PENDING".equals(field) || "DRAINING".equals(field)) {
-            return new GuardStatus("REFRESH GUARD  ·  WAITING FOR LOWER SCREEN", Tone.AMBER);
+            return new GuardStatus("REFRESH GUARD  \u00B7  WAITING FOR LOWER SCREEN", Tone.AMBER);
         }
         if ("OFF".equals(field)) return new GuardStatus("REFRESH GUARD OFF", Tone.MUTED);
         return new GuardStatus("REFRESH GUARD UNAVAILABLE", Tone.AMBER);
