@@ -39,6 +39,7 @@ final class DashboardRenderer implements DashboardSettingsController.Feedback {
     private final TextView primeValue;
     private final TextView displayValue;
     private final TextView displayDetail;
+    private final TextView faultValue;
     private final TextView powerValue;
     private final TextView warningValue;
     private final TextView lidValue;
@@ -54,6 +55,7 @@ final class DashboardRenderer implements DashboardSettingsController.Feedback {
         primeValue = layout.primeValue;
         displayValue = layout.displayValue;
         displayDetail = layout.displayDetail;
+        faultValue = layout.faultValue;
         powerValue = layout.powerValue;
         warningValue = layout.warningValue;
         lidValue = layout.lidValue;
@@ -111,6 +113,7 @@ final class DashboardRenderer implements DashboardSettingsController.Feedback {
         dashboardModel.resetBattery();
         warningValue.setText("");
         refreshValue.setVisibility(View.GONE);
+        faultValue.setVisibility(View.GONE);
     }
 
     void render(Map<String, String> values, DashboardSettingsController settings) {
@@ -198,6 +201,15 @@ final class DashboardRenderer implements DashboardSettingsController.Feedback {
             if (display.confirmed) host.onDisplayVisual(display.confirmedVisual);
         }
 
+        DashboardStateModel.FaultStatus fault = DashboardStateModel.lowerFault(values.get("lower_fault"));
+        if (fault == null) {
+            faultValue.setVisibility(View.GONE);
+        } else {
+            faultValue.setText(fault.text);
+            faultValue.setTextColor(color(fault.tone));
+            faultValue.setVisibility(View.VISIBLE);
+        }
+
         double batteryWatts = decimalNumber(values, "battery_w");
         if ("battery".equals(values.get("power_source")) && batteryWatts >= 0d) {
             double smoothedBatteryWatts = dashboardModel.smoothBattery(batteryWatts);
@@ -268,6 +280,7 @@ final class DashboardRenderer implements DashboardSettingsController.Feedback {
         warningValue.setText("");
         lidValue.setText("WAKE GUARD UNVERIFIED");
         refreshValue.setVisibility(View.GONE);
+        faultValue.setVisibility(View.GONE);
     }
 
     private static String clock(long current, long maximum) {

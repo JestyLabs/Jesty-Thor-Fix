@@ -373,6 +373,27 @@ leaves no partial interception (`bypass_intercept=UNAVAILABLE_<reason>` in the
 'Q' sample); the platform then behaves as before. `BypassRamPolicy` holds the
 pure decision and `BypassRamRuntime` the device access.
 
+## Poisoned-boot detection
+
+After a panel-RAM bypass write with the lower panel off (owner-supervised trial,
+2026-10-29), every later lower start fails until reboot: the first logged six
+`dsi-ctrl-0: Command transfer failed` and its ON call took 1407 ms, the second
+logged `wait for commit done failed ret:-110` on CRTC 243 and blanked both
+screens. Neither call reached the 5 s stall latch. Healthy lower ON calls in
+the retained logs took 202-428 ms.
+
+`KernelSignalWatcher` reads new `/dev/kmsg` records in the root daemon (its own
+cursor; `/proc/kmsg` is never read) and `KernelSignalModel` classifies the
+trigger (`DSI_PLL_n: lock failed`, `failed to send DSI_CMD_SET_VID_BYPASS_RAM`),
+the first failed start and the commit timeout. A match sets a poisoned latch:
+no app-initiated lower ON for the rest of the process, BOTH degrades the lower
+panel OFF, manual reconciliation keeps the latch and refuses a lower ON
+(`LOWER_POISONED_REBOOT_REQUIRED`), the 'Q' sample reports `lower_fault`, the
+dashboard asks for a restart and one best-effort system notification is posted.
+Without kernel log access, a lower ON of at least 1000 ms sets the same latch;
+with it, a slow ON is only logged. A platform-initiated lower ON on wake is
+outside the app's control; only a restart recovers.
+
 ## Telemetry
 
 `Q` returns true-off state, both physical CRTC states, Dashboard CPU Fix state,

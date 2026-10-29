@@ -68,6 +68,7 @@ public final class DaemonRuntime {
         BypassRamRuntime.install();
         WatcherSupervisor.start();
         DisplayEventManager.register();
+        KernelSignalWatcher.start();
         if (coordinating) trace.mark("SERVICES_REGISTERED", null);
         if (!coordinating) cpuFix.resumePersistedAttempt();
         DaemonIpcServer server = new DaemonIpcServer(listener, commands);

@@ -10,6 +10,7 @@ public final class DashboardStateModelTest {
         clockResetsAndBusyState();
         batteryMathAndMedian();
         refreshGuardLine();
+        lowerFaultLine();
         System.out.println("DashboardStateModelTest passed: " + assertions + " assertions");
     }
 
@@ -122,6 +123,16 @@ public final class DashboardStateModelTest {
         equal("REFRESH GUARD OFF", DashboardStateModel.refreshGuard("OFF").text);
         equal("REFRESH GUARD UNAVAILABLE", DashboardStateModel.refreshGuard("UNAVAILABLE_SYSFS").text);
         truth(DashboardStateModel.refreshGuard("UNAVAILABLE_BIND").tone == DashboardStateModel.Tone.AMBER);
+    }
+
+    private static void lowerFaultLine() {
+        truth(DashboardStateModel.lowerFault(null) == null);
+        truth(DashboardStateModel.lowerFault("0") == null);
+        equal("LOWER SCREEN FAULT  \u00B7  RESTART THE THOR NOW",
+                DashboardStateModel.lowerFault("POISONED_KMSG_PRECURSOR").text);
+        truth(DashboardStateModel.lowerFault("POISONED_SLOW_ON").tone == DashboardStateModel.Tone.RED);
+        equal("LOWER SCREEN PAUSED  \u00B7  RESTART RECOMMENDED", DashboardStateModel.lowerFault("LATCHED").text);
+        truth(DashboardStateModel.lowerFault("LATCHED").tone == DashboardStateModel.Tone.AMBER);
     }
 
     private static void assertDisplay(String expected, DashboardStateModel.DisplayStatus status) {

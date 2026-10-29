@@ -73,6 +73,7 @@ public final class DaemonState {
                 + ";display_effective=" + DisplayDecisionModel.effective(
                         mode, topCrtc, bottomCrtc, enabled, BootSafety.isHeld())
                 + ";display_action_status=" + clean(DisplayActionCoordinator.status())
+                + ";lower_fault=" + clean(DisplayActionCoordinator.lowerFailureState())
                 + ";display_generation=" + DisplayActionCoordinator.generation()
                 + ";watcher_health=" + WatcherSupervisor.health()
                 + ";watcher_last_sample_ms=" + WatcherSupervisor.lastSampleAt()

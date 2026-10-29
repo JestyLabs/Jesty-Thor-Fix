@@ -35,6 +35,17 @@ public final class DisplayActionCoordinator {
      */
     private static volatile boolean lowerFailureLatched;
     /**
+     * Evidence that the lower DSI link will not start again before reboot: a kernel
+     * signature (KernelSignalModel) or, without kernel log access, a lower ON slower than
+     * SLOW_LOWER_ON_MS. Healthy lower ON calls took 202-428 ms; the two after the
+     * 2026-10-29 trigger took 1407 and 1705 ms (six 200 ms command timeouts), returned
+     * normally and so never reached STALLED_CALL_MS. Unlike a stall, this keeps the latch
+     * through manual reconciliation and refuses any lower ON until reboot.
+     */
+    private static volatile String lowerPoisonedReason;
+    private static final long SLOW_LOWER_ON_MS = 1000L;
+    private static volatile boolean kernelSignalsAvailable;
+    /**
      * S1 sleep-order race (2026-10-28, 2/2 BOTH lid sleeps; 7 of 20 BOTH sleeps on 1.7.5):
      * going to sleep the platform may power the lower panel off first, so the watcher sees
      * mode=0;top=1;bottom=0 for ~0.2-0.4 s before the top follows. Restoring the lower panel
@@ -224,6 +235,8 @@ public final class DisplayActionCoordinator {
             if (!DisplayDecisionModel.readyForReconcile(mode, top, bottom))
                 return "ok=0;error=DISPLAY_TRANSITION";
             boolean targetOn = !requested || !"1".equals(mode);
+            if (targetOn && lowerPoisonedReason != null && !"1".equals(bottom))
+                return "ok=0;error=LOWER_POISONED_REBOOT_REQUIRED";
             if (!applyConfirmed(targetOn, "USER_RECONCILE", mode))
                 return "ok=0;error=DISPLAY_UNCONFIRMED";
             generations.invalidate();
@@ -313,10 +326,7 @@ public final class DisplayActionCoordinator {
     }
     private static void noteHardwareCallLocked(String reason, long blockedMs) {
         if (blockedMs <= STALLED_CALL_MS) return;
-        if (!lowerFailureLatched) {
-            lowerFailureLatched = true;
-            Log.d(TAG, "LOWER_FAILURE_LATCH set reason=" + reason + ";call_ms=" + blockedMs);
-        }
+        setLowerFailureLatchLocked(reason, blockedMs);
         if (lowerOnBackoff) return;
         lowerOnBackoff = true;
         sawNonInteractive = false;
@@ -329,8 +339,43 @@ public final class DisplayActionCoordinator {
         bothDegraded = false;
         Log.d(TAG, "LOWER_ON_BACKOFF cleared cause=" + cause);
     }
+    /** Kernel evidence of a poisoned lower link (KernelSignalWatcher thread). */
+    public static void latchLowerPoisoned(String reason) {
+        synchronized (DisplayHardware.class) { latchLowerPoisonedLocked(reason); }
+    }
+    private static void latchLowerPoisonedLocked(String reason) {
+        if (lowerPoisonedReason == null) {
+            lowerPoisonedReason = reason;
+            Log.d(TAG, "LOWER_POISONED reason=" + reason);
+        }
+        setLowerFailureLatchLocked(reason, 0L);
+    }
+    private static void setLowerFailureLatchLocked(String reason, long blockedMs) {
+        if (lowerFailureLatched) return;
+        lowerFailureLatched = true;
+        Log.d(TAG, "LOWER_FAILURE_LATCH set reason=" + reason + ";call_ms=" + blockedMs);
+    }
+    public static void setKernelSignalsAvailable(boolean available) {
+        kernelSignalsAvailable = available;
+    }
+    /** "0", "LATCHED" or "POISONED_<reason>"; lock-free for the telemetry snapshot. */
+    public static String lowerFailureState() {
+        String poisoned = lowerPoisonedReason;
+        if (poisoned != null) return "POISONED_" + poisoned;
+        return lowerFailureLatched ? "LATCHED" : "0";
+    }
+    private static void noteLowerOnDurationLocked(String reason, long blockedMs) {
+        if (blockedMs < SLOW_LOWER_ON_MS) return;
+        Log.d(TAG, "SLOW_LOWER_ON reason=" + reason + ";call_ms=" + blockedMs
+                + ";kernel_signals=" + (kernelSignalsAvailable ? "1" : "0"));
+        if (!kernelSignalsAvailable) latchLowerPoisonedLocked("SLOW_ON");
+    }
     private static void clearLowerFailureLatchLocked(String cause) {
         if (!lowerFailureLatched) return;
+        if (lowerPoisonedReason != null) {
+            Log.d(TAG, "LOWER_FAILURE_LATCH kept cause=" + cause + ";poisoned=" + lowerPoisonedReason);
+            return;
+        }
         lowerFailureLatched = false;
         Log.d(TAG, "LOWER_FAILURE_LATCH cleared cause=" + cause);
     }
@@ -431,8 +476,11 @@ public final class DisplayActionCoordinator {
             status = "APPLY_FAILED";
             return false;
         }
-        if (!expected.equals(before))
-            noteHardwareCallLocked(reason, SystemClock.elapsedRealtime() - hardwareStartedAt);
+        if (!expected.equals(before)) {
+            long blockedMs = SystemClock.elapsedRealtime() - hardwareStartedAt;
+            noteHardwareCallLocked(reason, blockedMs);
+            if (on) noteLowerOnDurationLocked(reason, blockedMs);
+        }
         long deadline = SystemClock.elapsedRealtime() + 1200L;
         while (!expected.equals(Telemetry.bottomCrtcActive())
                 && SystemClock.elapsedRealtime() < deadline) {
