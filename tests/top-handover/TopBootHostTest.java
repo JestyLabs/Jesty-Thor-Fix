@@ -77,6 +77,7 @@ final class DisplayHardware {
     static String getProperty() { return "0"; }
     static boolean apply(boolean on, String reason) { TopBootHostTest.powerCalls++; return false; }
     static void alignPropertyWithCrtc(String value) { throw new AssertionError("unexpected alignment"); }
+    static void notifyWatcherSample(boolean fixEnabled, String bottomCrtc) {}
 }
 final class WatcherCadence {
     static void onModeChanged() {}

@@ -21,6 +21,8 @@ public final class DisplayHardware {
         return true;
     }
     public static synchronized void alignPropertyWithCrtc(String value) { set(value); }
+    /** No bypass interceptor in this harness. */
+    public static void notifyWatcherSample(boolean fixEnabled, String bottomCrtc) {}
     // Enables characterization of the previous coordinator in a private control build.
     public static synchronized boolean markWakePending() { set("0"); return true; }
 }
