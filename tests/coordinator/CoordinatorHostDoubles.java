@@ -58,6 +58,8 @@ final class DisplayHardware {
         throw new AssertionError("unexpected vendor display command: " + reason);
     }
     static synchronized void alignPropertyWithCrtc(String crtc) { alignedCount++; }
+    /** No bypass interceptor in this harness; covered by scripts/test-bypass-ram-host.py. */
+    static void notifyWatcherSample(boolean fixEnabled, String bottomCrtc) {}
 }
 
 final class LidGuard {

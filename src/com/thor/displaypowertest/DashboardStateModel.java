@@ -48,6 +48,30 @@ public final class DashboardStateModel {
         }
     }
 
+    public static final class GuardStatus {
+        public final String text;
+        public final Tone tone;
+
+        GuardStatus(String text, Tone tone) {
+            this.text = text;
+            this.tone = tone;
+        }
+    }
+
+    /**
+     * The daemon's panel-RAM bypass interception ("bypass_intercept"); null hides the
+     * line when the daemon predates the field.
+     */
+    public static GuardStatus refreshGuard(String field) {
+        if (field == null || field.isEmpty() || "NONE".equals(field)) return null;
+        if ("ARMED".equals(field)) return new GuardStatus("REFRESH GUARD ON", Tone.GREEN);
+        if ("ARMED_PENDING".equals(field) || "DRAINING".equals(field)) {
+            return new GuardStatus("REFRESH GUARD  ·  WAITING FOR LOWER SCREEN", Tone.AMBER);
+        }
+        if ("OFF".equals(field)) return new GuardStatus("REFRESH GUARD OFF", Tone.MUTED);
+        return new GuardStatus("REFRESH GUARD UNAVAILABLE", Tone.AMBER);
+    }
+
     private static final class ClockDelta {
         final long littleHigh, littleTotal, bigHigh, bigTotal;
         final int utilization;

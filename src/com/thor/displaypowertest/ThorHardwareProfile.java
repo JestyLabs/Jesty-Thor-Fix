@@ -19,6 +19,15 @@ public final class ThorHardwareProfile {
     public static final String DRM_STATE_PATH = "/sys/kernel/debug/dri/0/state";
     /** Input device name of the lid Hall sensor. */
     public static final String HALL_DEVICE_NAME = "hall_switch";
+    /**
+     * Vendor panel-RAM bypass attribute. The framework writes it on every refresh
+     * change (0 at 110 Hz and above, 1 below) through the PServer root shell; a write
+     * while the lower panel is off leaves its DSI link unable to start until reboot.
+     */
+    public static final String BYPASS_RAM_NODE =
+            "/sys/devices/virtual/bypass_ram_class/bypass_ram_device/bypass_ram";
+    /** DRM connector power state of the lower panel ("On" or "Off"). */
+    public static final String BOTTOM_DPMS_PATH = "/sys/class/drm/card0-DSI-2/dpms";
 
     private ThorHardwareProfile() {}
 }

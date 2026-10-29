@@ -65,6 +65,7 @@ public final class DaemonRuntime {
         }
         DaemonState.setEnabled(args.displayFixEnabled);
         if (!coordinating) LidGuard.setEnabled(session.lidGuardDesired());
+        BypassRamRuntime.install();
         WatcherSupervisor.start();
         DisplayEventManager.register();
         if (coordinating) trace.mark("SERVICES_REGISTERED", null);
