@@ -2,7 +2,7 @@
 
 ## Pre-release: v1.7.6 / code86 (28 October 2026)
 
-[Candidate acceptance and both physical rounds](VALIDATION-1.7.6-PENDING.md): F1/F2, E2, E4, D2, C1 and C3 PASS on the published signed APK; the live transfer from published 1.7.5 in TOP was held and completed by one normal restart; the sleep-order race fix is host-tested but not yet exercised on hardware. Published as a pre-release; the current stable release below is unchanged.
+[Candidate acceptance and both physical rounds](VALIDATION-1.7.6-PENDING.md): F1/F2, E2, E4, D2, C1 and C3 PASS on the published signed APK; the live transfer from published 1.7.5 in TOP was held and completed by one normal restart; the sleep-order race path was then observed on hardware with no race (15 lower-first sleeps, 2026-10-29). Published as a pre-release on 2026-10-28; the owner decided to promote the same tag to stable.
 
 ## Current release: v1.7.5 / code85 (20 October 2026)
 
