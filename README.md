@@ -98,6 +98,10 @@ Interested in future device support, including Retroid Pocket Duo? That's **rese
 
 ---
 
+### v1.7.6 pre-release
+
+Available for testing (enable *Test pre-releases* in the app): the lower screen no longer stays on during sleep in BOTH when the system turns it off first, a held service transfer now records why, and after a stalled display call the lower screen stays off in BOTH until the next reboot or a manual fix toggle. Updating from 1.7.5 in TOP may ask for one normal restart. [Release notes](docs/RELEASE-NOTES-1.7.6.md) · [Validation](docs/VALIDATION-1.7.6-PENDING.md).
+
 ### v1.7.5 update
 
 Corrected containment status after unsuccessful retries and guarded service transfer from 1.7.1–1.7.4. Includes the TOP repair cancellation and display-stall containment delivered in 1.7.4. During containment the lower screen may remain off in BOTH; recovery on real hardware is still being evaluated. [Release notes](docs/RELEASE-NOTES-1.7.5.md) · [Blackout investigation and limits](docs/BLACKOUT-CONTAINMENT-1.7.4.md).

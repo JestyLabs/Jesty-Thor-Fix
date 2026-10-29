@@ -1,5 +1,7 @@
 # Activation and external recovery
 
+**Pre-release: [v1.7.6 / code86](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.6).** Updating from published 1.7.5 can complete without a reboot, but on hardware a transfer in TOP was held and needed one normal restart; follow the app's *Restart the Thor once* notice. A held transfer now logs the failed check. Do not repeat the update or clear data.
+
 **Current public release: [v1.7.5 / code85](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.5).** Install over the existing version without uninstalling or clearing app data, then open the app and wait for ACTIVE or STOCK. Verified safe transfer from exact published 1.7.1, 1.7.2, 1.7.3 and 1.7.4 services can proceed without a device reboot.
 
 The process-bound adapter verifies the predecessor instance, waits for its confirmed exit and separately verifies successor READY. It does not weaken authentication, kill an unverified PID or promise transfer under every mode/device state. See [the implementation contract](quality/S2-PROCESS-BOUND-RETIREMENT.md) and [release validation](VALIDATION-1.7.5.md). Android/JNI coverage passed; exact released-APK Thor acceptance remains pending.
