@@ -51,6 +51,7 @@ final class DashboardLayout {
     final TextView powerValue;
     final TextView warningValue;
     final TextView lidValue;
+    final TextView refreshValue;
 
     DashboardLayout(DashboardViews views, TopActions actions) {
         Activity activity = views.activity();
@@ -240,6 +241,11 @@ final class DashboardLayout {
                 9f, MUTED, true);
         lidValue.setPadding(0, views.dp(2), 0, 0);
         cpuPanel.addView(lidValue, new LinearLayout.LayoutParams(-1,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        refreshValue = views.text("", 9f, MUTED, true);
+        refreshValue.setPadding(0, views.dp(2), 0, 0);
+        refreshValue.setVisibility(View.GONE);
+        cpuPanel.addView(refreshValue, new LinearLayout.LayoutParams(-1,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
         content.addView(cpuPanel);

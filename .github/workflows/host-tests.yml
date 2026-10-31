@@ -135,6 +135,12 @@ jobs:
           python scripts/test-containment-boundaries-host.py --negative-controls --output "$env:RUNNER_TEMP/containment-boundaries"
           if ($LASTEXITCODE -ne 0) { throw 'Containment boundary characterization failed' }
 
+      - name: S1 panel-RAM bypass interception (real coordinator, host-only)
+        shell: pwsh
+        run: |
+          python scripts/test-bypass-ram-host.py --output "$env:RUNNER_TEMP/bypass-ram"
+          if ($LASTEXITCODE -ne 0) { throw 'Panel-RAM bypass interception host tests or negative controls failed' }
+
       - name: Preserve S1 containment characterization evidence
         if: always()
         uses: actions/upload-artifact@v7

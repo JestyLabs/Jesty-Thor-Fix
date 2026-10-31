@@ -79,6 +79,7 @@ public final class DaemonState {
                 + WatcherCadence.snapshotFields()
                 + ";mode=" + clean(mode)
                 + ";power=" + clean(DisplayHardware.getProperty())
+                + ";bypass_intercept=" + clean(DisplayHardware.lowerPanelStatus())
                 + ";top_crtc=" + clean(topCrtc)
                 + ";bottom_crtc=" + clean(bottomCrtc)
                 + ";uptime_ms=" + (now - startedAt)

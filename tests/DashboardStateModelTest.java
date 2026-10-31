@@ -9,6 +9,7 @@ public final class DashboardStateModelTest {
         clockDiagnosis();
         clockResetsAndBusyState();
         batteryMathAndMedian();
+        refreshGuardLine();
         System.out.println("DashboardStateModelTest passed: " + assertions + " assertions");
     }
 
@@ -109,6 +110,18 @@ public final class DashboardStateModelTest {
         near(2d, model.smoothBattery(2d));
         model.smoothBattery(3d);
         near(3d, model.smoothBattery(4d));
+    }
+
+    private static void refreshGuardLine() {
+        truth(DashboardStateModel.refreshGuard(null) == null);
+        truth(DashboardStateModel.refreshGuard("NONE") == null);
+        equal("REFRESH GUARD ON", DashboardStateModel.refreshGuard("ARMED").text);
+        truth(DashboardStateModel.refreshGuard("ARMED").tone == DashboardStateModel.Tone.GREEN);
+        equal("REFRESH GUARD  \u00B7  WAITING FOR LOWER SCREEN", DashboardStateModel.refreshGuard("ARMED_PENDING").text);
+        equal("REFRESH GUARD  \u00B7  WAITING FOR LOWER SCREEN", DashboardStateModel.refreshGuard("DRAINING").text);
+        equal("REFRESH GUARD OFF", DashboardStateModel.refreshGuard("OFF").text);
+        equal("REFRESH GUARD UNAVAILABLE", DashboardStateModel.refreshGuard("UNAVAILABLE_SYSFS").text);
+        truth(DashboardStateModel.refreshGuard("UNAVAILABLE_BIND").tone == DashboardStateModel.Tone.AMBER);
     }
 
     private static void assertDisplay(String expected, DashboardStateModel.DisplayStatus status) {

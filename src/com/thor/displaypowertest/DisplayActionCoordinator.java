@@ -111,10 +111,12 @@ public final class DisplayActionCoordinator {
                 return;
             }
             if (!DaemonState.isEnabled()) {
+                DisplayHardware.notifyWatcherSample(false, "?");
                 cancelRepairLocked();
                 status = "STOCK";
                 return;
             }
+            DisplayHardware.notifyWatcherSample(true, "?");
             long now = SystemClock.elapsedRealtime();
             boolean due = WakeRepairScheduler.isDue();
             long readGeneration = WatcherCadence.beginDrmRead(lastHardwareReadAt,
@@ -125,6 +127,7 @@ public final class DisplayActionCoordinator {
             WatcherCadence.completeDrmRead(readGeneration);
             String top = crtc[0];
             String bottom = crtc[1];
+            DisplayHardware.notifyWatcherSample(true, bottom);
             // Observation only: edge-log the paired DRM snapshot the watcher already
             // took, so a later blackout can be placed against CRTC state.
             String observedCrtc = top + bottom;
@@ -371,7 +374,7 @@ public final class DisplayActionCoordinator {
         candidateSkipLogged = false;
     }
     /** "1"/"0" from IPowerManager.isInteractive(); "?" when unavailable (never clears). */
-    private static String readInteractive() {
+    static String readInteractive() {
         try {
             Object binder = Class.forName("android.os.ServiceManager")
                     .getMethod("getService", String.class).invoke(null, "power");

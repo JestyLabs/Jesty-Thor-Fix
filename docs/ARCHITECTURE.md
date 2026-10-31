@@ -351,6 +351,28 @@ Before applying OFF it rechecks the current generation, fix state, mode, and
 CRTCs. Mode, fix, sleep, and boot transitions invalidate pending work. An
 unknown mode or ambiguous/sleeping CRTCs never trigger a speculative ON.
 
+## Panel-RAM bypass interception
+
+On every refresh change the AYN framework fades the lower panel's brightness to
+zero, writes the vendor `bypass_ram` attribute through the PServer root shell
+(`0` at 110 Hz and above, `1` below) and fades back 200 ms later. In an
+owner-supervised trial (2026-10-29) that write, made in TOP with the lower panel
+off, produced `DSI_PLL_0: lock failed`; the next lower start failed and the one
+after it blanked both screens until reboot. The same write with the panel on was
+clean.
+
+With the display fix enabled, `BypassRamInterceptor` bind-mounts a regular file
+(`/dev/jesty-bypass/requested`) over the attribute in the init mount namespace,
+where the PServer shell runs, so the framework's write lands in that file. A
+second sysfs mount keeps the real attribute reachable. The interceptor applies a
+request only under the hardware lock, with a fresh `dpms=On` read of the lower
+connector and an interactive device; otherwise it waits for the next lower ON
+(an app call, or a watcher DRM read after a platform ON). Turning the fix off
+applies a waiting request first, then unmounts. A failed mount, read or watch
+leaves no partial interception (`bypass_intercept=UNAVAILABLE_<reason>` in the
+'Q' sample); the platform then behaves as before. `BypassRamPolicy` holds the
+pure decision and `BypassRamRuntime` the device access.
+
 ## Telemetry
 
 `Q` returns true-off state, both physical CRTC states, Dashboard CPU Fix state,

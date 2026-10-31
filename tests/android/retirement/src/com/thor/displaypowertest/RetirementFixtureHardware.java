@@ -92,7 +92,8 @@ final class WatcherSupervisor {
     static long lastSampleAt() { return SystemClock.elapsedRealtime(); }
 }
 final class WatcherCadence { static String snapshotFields() { return ";fixture_hardware=1"; } }
-final class DisplayHardware { static String getProperty() { return "1"; } }
+final class DisplayHardware { static String getProperty() { return "1"; }
+    static String lowerPanelStatus() { return "NONE"; } }
 final class LidGuard {
     static boolean isEnabled() { return false; }
     static boolean setEnabled(boolean enabled) { throw new AssertionError("Fixture forbids Guard effects"); }

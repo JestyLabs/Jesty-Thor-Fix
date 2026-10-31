@@ -42,6 +42,7 @@ final class DashboardRenderer implements DashboardSettingsController.Feedback {
     private final TextView powerValue;
     private final TextView warningValue;
     private final TextView lidValue;
+    private final TextView refreshValue;
 
     DashboardRenderer(DashboardLayout layout, Host host, RebootActivation.Ticket activation) {
         this.host = host;
@@ -56,6 +57,7 @@ final class DashboardRenderer implements DashboardSettingsController.Feedback {
         powerValue = layout.powerValue;
         warningValue = layout.warningValue;
         lidValue = layout.lidValue;
+        refreshValue = layout.refreshValue;
     }
 
     /** A new telemetry generation starts without smoothing or clock history. */
@@ -108,6 +110,7 @@ final class DashboardRenderer implements DashboardSettingsController.Feedback {
         dashboardModel.resetClocks();
         dashboardModel.resetBattery();
         warningValue.setText("");
+        refreshValue.setVisibility(View.GONE);
     }
 
     void render(Map<String, String> values, DashboardSettingsController settings) {
@@ -153,6 +156,15 @@ final class DashboardRenderer implements DashboardSettingsController.Feedback {
                 : effectiveGuard ? "ON" : "OFF";
         lidValue.setText("LID " + lid.toUpperCase(Locale.US) + "  \u00B7  WAKE GUARD "
                 + guardState + "  \u00B7  " + value(values, "blocked_wakes") + " BLOCKED");
+        DashboardStateModel.GuardStatus refreshGuard =
+                DashboardStateModel.refreshGuard(values.get("bypass_intercept"));
+        if (refreshGuard == null) {
+            refreshValue.setVisibility(View.GONE);
+        } else {
+            refreshValue.setText(refreshGuard.text);
+            refreshValue.setTextColor(color(refreshGuard.tone));
+            refreshValue.setVisibility(View.VISIBLE);
+        }
 
         long littleCur = number(values, "little_cur"), littleMax = number(values, "little_max");
         long bigCur = number(values, "big_cur"), bigMax = number(values, "big_max");
@@ -255,6 +267,7 @@ final class DashboardRenderer implements DashboardSettingsController.Feedback {
         powerValue.setText("\u2014");
         warningValue.setText("");
         lidValue.setText("WAKE GUARD UNVERIFIED");
+        refreshValue.setVisibility(View.GONE);
     }
 
     private static String clock(long current, long maximum) {
