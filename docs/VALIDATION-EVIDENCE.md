@@ -1,5 +1,9 @@
 # Physical validation & performance evidence
 
+## Candidate: v1.7.7 / code87 (pending)
+
+[Candidate acceptance plan](VALIDATION-1.7.7-PENDING.md): the panel-RAM bypass interception (#139) and the poisoned-boot detection (#140), host-tested with negative controls. On 2026-10-29, an owner-supervised trial on v1.7.6 reproduced the blackout on demand: a refresh change while the lower panel was off. The same sequence with the interception (manual helpers) left the kernel clean. The stall latch did not contain the reproduced failure, so v1.7.6 stays a pre-release. Physical acceptance NOT RUN.
+
 ## Pre-release: v1.7.6 / code86 (28 October 2026)
 
 [Candidate acceptance and both physical rounds](VALIDATION-1.7.6-PENDING.md): F1/F2, E2, E4, D2, C1 and C3 PASS on the published signed APK; the live transfer from published 1.7.5 in TOP was held and completed by one normal restart; the sleep-order race fix is host-tested but not yet exercised on hardware. Published as a pre-release; the current stable release below is unchanged.
