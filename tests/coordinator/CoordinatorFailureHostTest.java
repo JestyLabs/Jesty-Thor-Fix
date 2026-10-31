@@ -28,6 +28,10 @@ public final class CoordinatorFailureHostTest {
         field("candidateQueried", false);
         field("candidateConfirmed", false);
         field("lastModeEdgeAt", Long.MIN_VALUE / 2);
+        // Process-scoped lower-failure state (stall latch, poisoned boot): each case is a fresh daemon.
+        field("lowerFailureLatched", false);
+        field("lowerPoisonedReason", null);
+        field("kernelSignalsAvailable", false);
         android.os.SystemClock.setElapsedRealtime(100000L);
         BootSafety.held = false;
         DaemonState.mode = "0";
@@ -152,6 +156,9 @@ public final class CoordinatorFailureHostTest {
         equal("ok=1;fix=1;display=confirmed", DisplayActionCoordinator.requestFix(true), "CF-vendor-duration receipt");
         equal(105000L, android.os.SystemClock.elapsedRealtime(), "CF-vendor-duration outside readback deadline");
         equal(1, DisplayHardware.actionCount, "CF-vendor-duration one request");
+        // Without kernel log access a lower ON of >= 1 s is the poisoned-boot fallback signal.
+        equal("POISONED_SLOW_ON", DisplayActionCoordinator.lowerFailureState(),
+                "CF-vendor-duration slow lower ON without kernel signals latches");
         done("CF-vendor-duration-is-not-readback-timeout");
         retry();
         pendingRepair();

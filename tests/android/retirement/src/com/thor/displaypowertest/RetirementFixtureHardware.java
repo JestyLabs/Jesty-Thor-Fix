@@ -85,6 +85,7 @@ final class BootSafety {
 final class DisplayActionCoordinator {
     static String status() { return "CONFIRMED"; }
     static long generation() { return 1L; }
+    static String lowerFailureState() { return "0"; }
     static String requestFix(boolean enabled) { throw new AssertionError("Fixture forbids display effects"); }
 }
 final class WatcherSupervisor {

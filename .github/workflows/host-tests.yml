@@ -141,6 +141,12 @@ jobs:
           python scripts/test-bypass-ram-host.py --output "$env:RUNNER_TEMP/bypass-ram"
           if ($LASTEXITCODE -ne 0) { throw 'Panel-RAM bypass interception host tests or negative controls failed' }
 
+      - name: S1 poisoned-boot detection (real coordinator, host-only)
+        shell: pwsh
+        run: |
+          python scripts/test-poisoned-boot-host.py --output "$env:RUNNER_TEMP/poisoned-boot"
+          if ($LASTEXITCODE -ne 0) { throw 'Poisoned-boot detection host tests or negative controls failed' }
+
       - name: Preserve S1 containment characterization evidence
         if: always()
         uses: actions/upload-artifact@v7

@@ -48,6 +48,7 @@ final class DashboardLayout {
     final TextView primeValue;
     final TextView displayValue;
     final TextView displayDetail;
+    final TextView faultValue;
     final TextView powerValue;
     final TextView warningValue;
     final TextView lidValue;
@@ -213,6 +214,11 @@ final class DashboardLayout {
         displayDetail = views.text("Waiting for hardware\u2026", 10f, MUTED, false);
         displayDetail.setPadding(0, 0, 0, views.dp(3));
         cpuPanel.addView(displayDetail, new LinearLayout.LayoutParams(-1,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        faultValue = views.text("", 10f, RED, true);
+        faultValue.setPadding(0, 0, 0, views.dp(3));
+        faultValue.setVisibility(View.GONE);
+        cpuPanel.addView(faultValue, new LinearLayout.LayoutParams(-1,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         powerValue = views.text("BATTERY DRAW  \u2014  \u00B7  UNPLUG USB", 10f, MUTED, true);
         powerValue.setPadding(0, 0, 0, views.dp(5));

@@ -34,6 +34,28 @@ public final class DashboardStateModel {
         }
     }
 
+    public static final class FaultStatus {
+        public final String text;
+        public final Tone tone;
+
+        FaultStatus(String text, Tone tone) {
+            this.text = text;
+            this.tone = tone;
+        }
+    }
+
+    /**
+     * The daemon's lower-panel failure state ("lower_fault"); null when there is none or
+     * the daemon predates the field. A poisoned boot can only be recovered by a restart.
+     */
+    public static FaultStatus lowerFault(String field) {
+        if (field == null || field.isEmpty() || "0".equals(field)) return null;
+        if (field.startsWith("POISONED_")) {
+            return new FaultStatus("LOWER SCREEN FAULT  \u00B7  RESTART THE THOR NOW", Tone.RED);
+        }
+        return new FaultStatus("LOWER SCREEN PAUSED  \u00B7  RESTART RECOMMENDED", Tone.AMBER);
+    }
+
     public static final class ClockStatus {
         public final String text;
         public final Tone tone;

@@ -40,13 +40,18 @@ public final class TestDisplayState {
      * against pre-latch baselines, where the field is absent.
      */
     static void newDaemonProcess() {
+        reset("lowerFailureLatched", Boolean.FALSE);
+        // Poisoned-boot state (kernel signals) is process-scoped as well.
+        reset("lowerPoisonedReason", null);
+        reset("kernelSignalsAvailable", Boolean.FALSE);
+    }
+    private static void reset(String name, Object value) {
         try {
-            java.lang.reflect.Field latch =
-                    DisplayActionCoordinator.class.getDeclaredField("lowerFailureLatched");
-            latch.setAccessible(true);
-            latch.setBoolean(null, false);
+            java.lang.reflect.Field field = DisplayActionCoordinator.class.getDeclaredField(name);
+            field.setAccessible(true);
+            field.set(null, value);
         } catch (NoSuchFieldException absent) {
-            // Pre-latch coordinator baseline: nothing to reset.
+            // Older coordinator baseline: nothing to reset.
         } catch (IllegalAccessException error) {
             throw new AssertionError(error);
         }
