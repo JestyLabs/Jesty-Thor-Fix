@@ -1,6 +1,6 @@
 # v1.7.6 / code86 — candidate acceptance
 
-**Owner decision (2026-10-28): publish the second signed candidate, CI run [40690534453](https://github.com/JestyLabs/Jesty-Thor-Fix/actions/runs/40690534453) (main `dd6d773`), as a pre-release; promotion to stable waits for a hardware observation of the sleep-order race path (see Known limitations).** Two owner-supervised physical rounds; no STOP condition. Open items are listed under *Known limitations*.
+**Owner decision (2026-10-28): publish the second signed candidate, CI run [40690534453](https://github.com/JestyLabs/Jesty-Thor-Fix/actions/runs/40690534453) (main `dd6d773`), as a pre-release; promotion to stable waits for a hardware observation of the sleep-order race path (see Known limitations).** **Owner decision (2026-10-29): the race path was observed on hardware with no race (see *Race path on hardware*); promote the same tag to stable.** Two owner-supervised physical rounds; no STOP condition. Open items are listed under *Known limitations*.
 
 Candidate from [#131](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/131), which contains the S2 work first reviewed in [#129](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/129):
 
@@ -20,7 +20,7 @@ Owner-supervised, USB, Guard OFF, refresh fixed at 120 Hz in BOTH before block A
 | A1–A4 (published 1.7.5) | PASS; A5 NOT RUN (did not occur) |
 | B1 upgrade in TOP | **FAIL for the live transfer**: install and version correct, lower panel stayed off, no compositor restart, one service; the successor reported the published 1.7.5 predecessor *ineligible* and held the transfer (cause UNKNOWN: the failed eligibility condition is not logged). One normal restart completed it (one healthy 1.7.6 service, boot READY in TOP). The held state showed the restart notice (*SERVICE TRANSFER PENDING*: restart once; contact Jesty only if still pending) |
 | B2, C1, C3, C4, C5 | PASS; C6 NOT RUN (Guard not used) |
-| C2 | Wakes normal, **but** both BOTH lid sleeps showed the sleep-order race: the lower panel was powered off first, `WATCH_BOTH` re-powered it while the top was still on, and it stayed powered for the whole sleep. The long-sleep collector shows the same race in 7 of 20 BOTH sleeps on published 1.7.5 (pre-existing) |
+| C2 | Wakes normal, **but** both BOTH lid sleeps showed the sleep-order race: the lower panel was powered off first, `WATCH_BOTH` re-powered it while the top was still on, and it stayed powered for the whole sleep. The long-sleep collector shows the same race in 5 of 20 two-panel BOTH sleeps on published 1.7.5 (pre-existing). An earlier count of 7 included two sleeps interrupted by a wake, where the platform itself powered the lower panel back on |
 | D1, D2 | PASS (D2 by owner observation only: the manual toggle leaves no log line); D3 NOT RUN |
 
 That signed artifact is therefore not published. The candidate is rebuilt with the block E fix (and the separate transfer diagnostics work), signed again, and the affected checks are repeated.
@@ -46,9 +46,37 @@ Physical round 2: owner-supervised, USB, Guard OFF, 120 Hz. The upgrade origin w
 | C1, C3 | Mode cycle; compositor, surface flinger and system server unchanged since boot; no blocked threads | PASS |
 | E3 | Awake lower-panel loss in stable BOTH | NOT RUN (cannot be induced safely; host tests only) |
 
-### Known limitations at publication
+### Race path on hardware (2026-10-29, published 1.7.6, same boot as round 2)
 
-- The sleep-order race fix is host-tested but not yet exercised on hardware. The platform's power-off order varies between sleeps and boots (lower first in 12 of 20 BOTH sleeps on 1.7.5 in one boot; top first in both round-2 sleeps). The owner's long-sleep collector keeps recording natural sleeps.
+Source: the owner's long-sleep collector and four owner-supervised trials. BOTH, 120 Hz, USB, no ADB during sleep.
+
+- **Long-sleep collector:** 11 two-panel BOTH sleeps, **all with the lower panel powered off first**, and **no lower re-power between the two power-offs**.
+  - One natural power-button sleep kept the lower panel off for about 1.7 hours until the next wake.
+  - During quick power-button toggles the app logged `WATCH_BOTH_SKIPPED reason=NON_INTERACTIVE` five times.
+  - Once, during a power-button wake, the confirmed lower ON coincided with the platform's own lower power-on (a harmless duplicate call; no error). Restarting the confirmation when the device becomes interactive again is a possible refinement.
+- **Trials:**
+
+  | Trial | Trigger | First power-off | Race |
+  | --- | --- | --- | --- |
+  | 1 | lid | top | no |
+  | 2 | power button | lower | no |
+  | 3 | lid | lower | no |
+  | 4 | power button | lower | no |
+
+- **Order:**
+  - In this boot, power-button sleeps turned the lower panel off first in 13 of 13 cases.
+  - Lid sleeps varied (top first in 3, lower first in 1, including the two round-2 sleeps).
+  - What decides the order for lid sleeps is UNKNOWN. A power-button sleep in BOTH is a practical way to exercise the race path.
+- **Result:** across 15 lower-first sleeps, one of them by lid, no race occurred, and the lower panel stayed off during sleep.
+
+### Known limitations
+
+- **Blackout:** the sleep-order fix is not a blackout fix.
+  - The underlying panel/compositor defect is in the platform and is not removed.
+  - The leading hypothesis (a `bypass_ram` write on a refresh change while the lower panel is off) is avoided by keeping the refresh rate fixed, or changing it only in BOTH with both screens on.
+  - If a stall still happens, the #132 latch keeps the lower panel off for the boot instead of re-entering the reset loop. This is host-tested; it was never induced on hardware (D3 NOT RUN).
+  - The accumulated-suspend explanation is not excluded.
+  - No blackout has been observed since 2026-10-20.
 - Upgrading from published 1.7.5 in TOP can hold the live transfer and ask for one normal restart, as observed in round 1. The cause on that device is UNKNOWN. From 1.7.6 on, a held transfer logs the failed condition.
 - E3, B3, C6, D3 and failed-start recovery were not run on hardware.
 
@@ -135,6 +163,6 @@ After owner acceptance of the exact signed artifact, run **Publish tested candid
 - tag `v1.7.6` points to `dd6d773`;
 - the downloaded release asset has SHA-256 `2620a300…d641e`, identical to the tested artifact. See [release integrity](RELEASE-INTEGRITY.md).
 
-Promotion of the same tag to stable is pending the race-path observation. Raw captures, device identifiers and signing material stay owner-local.
+Promotion of the same tag to stable was decided on 2026-10-29, after the race-path observation above. Raw captures, device identifiers and signing material stay owner-local.
 
 This record was prepared after the physical rounds; it contains no raw captures, device identifiers or signing material.
