@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="org.example.rfixture" android:versionCode="86" android:versionName="1.7.6">
+    package="org.example.rfixture" android:versionCode="87" android:versionName="1.7.7">
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="25"/>
     <application android:label="Disposable retirement fixture"
         android:debuggable="false" android:allowBackup="false"
