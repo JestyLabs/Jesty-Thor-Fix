@@ -15,7 +15,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * write then lands in that file; this class applies it to the real attribute,
  * reached through a second sysfs mount, only while the lower panel is powered and
  * the device is interactive. A request made with the panel off waits for the next
- * ON. Turning the fix off applies any waiting request first, then unmounts.
+ * ON, and a platform ON must first finish starting. Turning the fix off applies any
+ * waiting request first, then unmounts.
  *
  * Every device access goes through Io; all state changes run on the worker.
  */
@@ -31,6 +32,14 @@ final class BypassRamInterceptor implements DisplayHardware.LowerPanelListener {
     static final long DRAIN_CHECK_MS = 1000L;
     /** Refused writes retried by the watcher before only a new request or a lower ON retries. */
     static final int MAX_WRITE_FAILURES = 3;
+    /**
+     * How long the lower panel must have been seen on, in BOTH or BOTTOM ONLY, before a
+     * write. The power state reads On from the start of a platform ON: on 2026-11-02 a
+     * write 60 ms into a wake ON in TOP failed in the kernel ("DSI_PLL_0: lock failed",
+     * -110) and the lower link stayed dead until reboot. A normal start took about 200 ms.
+     * An ON made by this daemon has already finished when it returns.
+     */
+    static final long SETTLE_MS = 1000L;
 
     /** Device access. The daemon uses BypassRamRuntime; host tests use a fake. */
     interface Io {
@@ -63,6 +72,9 @@ final class BypassRamInterceptor implements DisplayHardware.LowerPanelListener {
     private volatile String lastDeferReason;
     private volatile String lastRejected;
     private volatile int writeFailures;
+    // First sighting of the lower panel on; -1 while it is off or not known to be on.
+    // Written on the watcher, hardware and worker threads; every write restarts or clears it.
+    private volatile long lowerOnSince = -1L;
     // Written on the watcher thread only.
     private volatile Boolean fixEnabled;
     private long lastDrainCheckAt = -1L;
@@ -79,7 +91,8 @@ final class BypassRamInterceptor implements DisplayHardware.LowerPanelListener {
         return current.name();
     }
 
-    @Override public void onWatcherSample(boolean enabled, String bottomCrtc) {
+    @Override public void onWatcherSample(boolean enabled, String mode, String bottomCrtc) {
+        if (enabled) trackLower(mode, bottomCrtc);
         Boolean previous = fixEnabled;
         if (previous == null || previous != enabled) {
             fixEnabled = enabled;
@@ -99,8 +112,22 @@ final class BypassRamInterceptor implements DisplayHardware.LowerPanelListener {
         }
     }
 
+    /**
+     * With the fix on, TOP keeps the lower panel off: an ON seen there is the platform's
+     * wake ON, which the wake repair turns off again, never a settled panel.
+     */
+    private void trackLower(String mode, String bottomCrtc) {
+        if ("1".equals(mode) || "0".equals(bottomCrtc)) {
+            lowerOnSince = -1L;
+        } else if ("1".equals(bottomCrtc) && lowerOnSince < 0L) {
+            lowerOnSince = SystemClock.elapsedRealtime();
+        }
+    }
+
     /** Called with the hardware lock held, right after a lower ON returned. */
     @Override public void onLowerPoweredOn(String reason) {
+        // The call returns once the panel has started.
+        lowerOnSince = SystemClock.elapsedRealtime() - SETTLE_MS;
         // Not coalesced with a queued watcher retry: a lower ON always earns a fresh attempt.
         if (pending != null) worker.execute(() -> attempt("LOWER_ON"));
     }
@@ -281,7 +308,12 @@ final class BypassRamInterceptor implements DisplayHardware.LowerPanelListener {
             String real = BypassRamPolicy.parse(io.read(REAL));
             String dpms = io.read(ThorHardwareProfile.BOTTOM_DPMS_PATH);
             boolean latched = io.lowerLatched();
-            switch (BypassRamPolicy.decide(wanted, real, dpms, interactive, latched)) {
+            long now = SystemClock.elapsedRealtime();
+            if (!"On".equals(dpms)) lowerOnSince = -1L;
+            // The fix is off while draining, so no DRM samples: the drain checks time the ON.
+            else if ("DRAIN".equals(source) && lowerOnSince < 0L) lowerOnSince = now;
+            boolean settled = lowerOnSince >= 0L && now - lowerOnSince >= SETTLE_MS;
+            switch (BypassRamPolicy.decide(wanted, real, dpms, interactive, latched, settled)) {
                 case NOOP:
                     applied = true;
                     break;
@@ -291,7 +323,7 @@ final class BypassRamInterceptor implements DisplayHardware.LowerPanelListener {
                     applied = written && wanted.equals(after);
                     break;
                 default:
-                    deferReason = BypassRamPolicy.deferReason(real, dpms, interactive, latched);
+                    deferReason = BypassRamPolicy.deferReason(real, dpms, interactive, latched, settled);
                     break;
             }
         }

@@ -19,7 +19,8 @@ CORE = ['DisplayActionCoordinator.java', 'DisplayHardware.java', 'DisplayDecisio
 MUTANTS = [
     ('write-with-lower-off', 'BypassRamPolicy.java',
      '        if (!"On".equals(lowerDpms)) return "Off".equals(lowerDpms) ? "LOWER_OFF" : "LOWER_UNKNOWN";\n',
-     '', 'BR-03b'),
+     # The settle rule also holds the store; the deferral reason is what changes.
+     '', 'BR-03c'),
     ('write-when-non-interactive', 'BypassRamPolicy.java',
      '        if (!"1".equals(interactive)) return "0".equals(interactive) ? "NON_INTERACTIVE" : "INTERACTIVE_UNKNOWN";\n',
      '', 'BR-07'),
@@ -28,7 +29,7 @@ MUTANTS = [
      'if (!value.isEmpty()) return "1";', 'BR-08'),
     ('stale-power-read', 'BypassRamInterceptor.java',
      'String dpms = io.read(ThorHardwareProfile.BOTTOM_DPMS_PATH);',
-     'String dpms = "On";', 'BR-03b'),
+     'String dpms = "On";', 'BR-03c'),
     ('bind-without-sysfs', 'BypassRamInterceptor.java',
      'if (!sysfs && !io.run(MOUNT, "-t", "sysfs", "sysfs", SYSFS)) {\n            unavailable("SYSFS");\n            return;\n        }',
      'io.run(MOUNT, "-t", "sysfs", "sysfs", SYSFS);', 'BR-14'),
@@ -49,6 +50,20 @@ MUTANTS = [
     ('lower-on-coalesced', 'BypassRamInterceptor.java',
      'if (pending != null) worker.execute(() -> attempt("LOWER_ON"));',
      'if (pending != null && writeFailures < MAX_WRITE_FAILURES) worker.execute(() -> attempt("LOWER_ON"));', 'BR-22d'),
+    ('platform-start-not-awaited', 'BypassRamPolicy.java',
+     'if (!lowerSettled) return "LOWER_SETTLING";', '', 'BR-06b'),
+    ('first-sighting-counts-as-settled', 'BypassRamInterceptor.java',
+     'lowerOnSince = SystemClock.elapsedRealtime();',
+     'lowerOnSince = SystemClock.elapsedRealtime() - SETTLE_MS;', 'BR-06b'),
+    ('top-on-counts-as-settled', 'BypassRamInterceptor.java',
+     'if ("1".equals(mode) || "0".equals(bottomCrtc)) {', 'if ("0".equals(bottomCrtc)) {', 'BR-23e'),
+    ('own-lower-on-not-trusted', 'BypassRamInterceptor.java',
+     'lowerOnSince = SystemClock.elapsedRealtime() - SETTLE_MS;', '', 'BR-04b'),
+    ('drain-start-counts-as-settled', 'BypassRamInterceptor.java',
+     'else if ("DRAIN".equals(source) && lowerOnSince < 0L) lowerOnSince = now;',
+     'else if ("DRAIN".equals(source) && lowerOnSince < 0L) lowerOnSince = now - SETTLE_MS;', 'BR-13f'),
+    ('off-keeps-settle-time', 'BypassRamInterceptor.java',
+     'if (!"On".equals(dpms)) lowerOnSince = -1L;', 'if (!"On".equals(dpms)) { }', 'BR-13g'),
 ]
 
 
