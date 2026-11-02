@@ -121,6 +121,8 @@ jobs:
       - name: Verify candidate provenance
         id: candidate
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           $metadataFiles = @(Get-ChildItem -LiteralPath 'candidate' -Filter 'candidate-metadata.json' -Recurse)
           if ($metadataFiles.Count -ne 1) {
@@ -184,6 +186,16 @@ jobs:
           $notes = "docs/RELEASE-NOTES-$version.md"
           if (-not (Test-Path -LiteralPath $notes)) {
               throw "Missing release notes: $notes"
+          }
+
+          # Every release already published (stable or pre-release) must update live, without a restart.
+          $publishedTags = @(gh api "repos/${{ github.repository }}/releases" --paginate --jq '.[].tag_name')
+          if ($LASTEXITCODE -ne 0) {
+              throw 'Could not list published releases'
+          }
+          python scripts/test-live-transfer-origins.py --published-tags ($publishedTags -join ',')
+          if ($LASTEXITCODE -ne 0) {
+              throw 'A published release is not an admitted live-transfer origin of this candidate'
           }
 
           "version=$version" >> $env:GITHUB_OUTPUT

@@ -66,8 +66,8 @@ public final class LiveHandoverPolicy {
         if (pid < 1) return reject(why, "PREVIOUS_IDENTITY", "");
         // Exact published predecessors only; never a broad version comparison.
         String version = field(health, "version");
-        if (!"1.7.5".equals(version) && !"1.7.4".equals(version) && !"1.7.3".equals(version) && !"1.7.2".equals(version)
-                && !"1.7.1".equals(version)) return reject(why, "VERSION", version);
+        if (!"1.7.6".equals(version) && !"1.7.5".equals(version) && !"1.7.4".equals(version) && !"1.7.3".equals(version)
+                && !"1.7.2".equals(version) && !"1.7.1".equals(version)) return reject(why, "VERSION", version);
         // I and Q must describe the same process generation, not a socket takeover.
         String runtimeVersion = field(snapshot, "runtime_version");
         boolean publishedCode76 = retainedProcess && "1.7.1".equals(version)

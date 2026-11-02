@@ -92,12 +92,15 @@ public final class RebootActivationHostTest {
         FixtureState.reset("1.7.5");run("code85-same-kernel-handover",1,1,true);
         verifiedExitBeforeLaunch("code85");
         check(DaemonIdentity.RUNTIME_ID.equals(FixtureState.version),"code85 successor uses current product identity");
+        FixtureState.reset("1.7.6");run("code86-same-kernel-handover",1,1,true);
+        verifiedExitBeforeLaunch("code86");
+        check(DaemonIdentity.RUNTIME_ID.equals(FixtureState.version),"code86 successor uses current product identity");
         check(FixtureState.saved.containsKey("activation_v3_live_handover"),
                 "live proof is durable only after new runtime identity");
         run("live-proven-repeat-open-no-kill",0,0,true);
         FixtureState.reset("1.7.1");run("code76-bound-native-handover",1,1,true);
         verifiedExitBeforeLaunch("code76");
-        for(String old:new String[]{"1.7.1","1.7.2","1.7.3","1.7.4","1.7.5"}){
+        for(String old:new String[]{"1.7.1","1.7.2","1.7.3","1.7.4","1.7.5","1.7.6"}){
             FixtureState.reset(old);FixtureState.mode="1";FixtureState.bottom="0";
             run("confirmed-top-handover-"+old,1,1,true);
             verifiedExitBeforeLaunch("TOP-"+old);
@@ -108,7 +111,7 @@ public final class RebootActivationHostTest {
         run("top-no-exit-no-successor",1,0,false);
         FixtureState.reset("1.7.1");FixtureState.snapshotSuffix=";runtime_version=";
         run("code76-present-empty-Q-version-is-not-absence",0,0,false);
-        for(String old:new String[]{"1.7.1","1.7.2","1.7.3","1.7.4","1.7.5"}){
+        for(String old:new String[]{"1.7.1","1.7.2","1.7.3","1.7.4","1.7.5","1.7.6"}){
             FixtureState.reset(old);RetirementNative.available=false;
             run("native-unavailable-reboot-fallback-"+old,0,0,false);
             check(FixtureState.helperSubmissions==0,"unsupported native never submits helper");
