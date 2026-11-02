@@ -97,6 +97,7 @@ transfer origin, so a restart was planned. The app was not opened before that re
 | --- | --- | --- |
 | C5, first restart | **FAIL** (activation defect since v1.7.2; fixed for the next candidate) | See below |
 | C5, second restart | **PASS** | See below |
+| C1, BOTH 60→120→60, twice | **PASS** | See below |
 
 **C5, first restart:**
 - **What happened:**
@@ -110,6 +111,19 @@ transfer origin, so a restart was planned. The app was not opened before that re
 - one daemon, started at once from `STALE_PREVIOUS_BOOT`: `READY 1.7.7`, `KERNEL_SIGNALS ready`, `BOOT READY mode=0 bottom=1`, `BYPASS_INTERCEPT_READY real=0`;
 - the bind and the second sysfs mount were in the init namespace and propagated to system_server;
 - requested, visible and real values were 0; no DSI error.
+
+**C1, BOTH 60→120→60, twice:**
+- **First pair:**
+  - the attribute was still 0 from boot, so 120 Hz needed no write;
+  - back at 60 Hz the app wrote `0x1` (`BYPASS_APPLIED value=1;source=REQUEST`, 34 ms), and the kernel accepted it (`oscar bypass_ram_store 1`).
+- **Second pair:** this is the path that failed on the previous candidate.
+  - 60→120: `BYPASS_REQUEST value=0;real=1` → `BYPASS_APPLIED value=0;source=REQUEST` (60 ms); the kernel accepted it (`oscar bypass_ram_store 0`);
+  - 120→60: the write of `0x1` was accepted again.
+- **Every change:**
+  - no `oscar bypass_ram_store error`, no DSI error, both panels on;
+  - the owner saw normal colours at both rates;
+  - the requested, visible and real values ended equal (`0x1`/`0x1`/1).
+- **SELinux:** the root context is permissive. Each write logs `avc: denied { write }` for `bypass_ram` with `permissive=1`. An enforcing policy for that context would deny the write.
 
 ## Known limitations
 
