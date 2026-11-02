@@ -19,8 +19,8 @@ import java.util.Map;
  * same sequence left the kernel clean and the lower panel started normally.
  *
  * FakeIo models only what the interceptor touches: the attribute (a store with the lower
- * panel off poisons the boot), the bind and second sysfs mounts, the request file and its
- * watch. Arguments: none = all, or one case name.
+ * panel off poisons the boot; like the kernel it accepts only "0x0"/"0x1"), the bind and
+ * second sysfs mounts, the request file and its watch. Arguments: none = all, or one case name.
  */
 public final class BypassRamInterceptorTest {
     private static int checks;
@@ -39,6 +39,10 @@ public final class BypassRamInterceptorTest {
         String kernel = "0";
         boolean poisoned;
         final List<String> stores = new ArrayList<>();
+        /** Raw values written to the real attribute through the second sysfs mount. */
+        final List<String> realWrites = new ArrayList<>();
+        int kernelErrors;
+        boolean refuseAll;
         final Map<String, String> files = new HashMap<>();
         boolean bind, sysfs;
         boolean failSysfs, failBind, failWatch, failRealRead;
@@ -53,6 +57,19 @@ public final class BypassRamInterceptorTest {
             stores.add(value + "@" + lower);
             if (!"On".equals(lower)) poisoned = true;
             kernel = value;
+        }
+        /**
+         * The kernel store (2026-11-02 on the Thor): "0x0"/"0x1" only; anything else is refused
+         * with "oscar bypass_ram_store error" and the attribute keeps its value.
+         */
+        boolean kernelStore(String value) {
+            String form = value == null ? "" : value.trim();
+            if (refuseAll || (!"0x0".equals(form) && !"0x1".equals(form))) {
+                kernelErrors++;
+                return false;
+            }
+            store(form.substring(2));
+            return true;
         }
         String dpms() {
             if (dpmsOverride != null) return dpmsOverride;
@@ -103,16 +120,12 @@ public final class BypassRamInterceptorTest {
         }
         @Override public boolean write(String path, String value) {
             if (path.equals(ThorHardwareProfile.BYPASS_RAM_NODE)) {
-                if (!bind) {
-                    store(BypassRamPolicy.parse(value));
-                    return true;
-                }
+                if (!bind) return kernelStore(value);
                 path = BypassRamInterceptor.REQUEST;
             }
             if (path.equals(BypassRamInterceptor.REAL)) {
-                if (!sysfs) return false;
-                store(BypassRamPolicy.parse(value));
-                return true;
+                realWrites.add(value);
+                return sysfs && kernelStore(value);
             }
             files.put(path, value);
             if (path.equals(BypassRamInterceptor.REQUEST) && watcher != null) watcher.run();
@@ -406,6 +419,46 @@ public final class BypassRamInterceptorTest {
         finish();
     }
 
+    /** 2026-11-02 on the Thor: the kernel refused "0" and accepted only the framework's "0x0". */
+    static void kernelForm() {
+        start(true);
+        io.framework("1");
+        check(io.realWrites.equals(java.util.Arrays.asList("0x1")) && "1".equals(io.kernel) && io.kernelErrors == 0,
+                "BR-21 the real attribute is written in the framework's form: " + io.realWrites);
+        io.framework("0");
+        check(io.realWrites.size() == 2 && "0x0".equals(io.realWrites.get(1)) && "0".equals(io.kernel)
+                && io.kernelErrors == 0, "BR-21b 0 is written as 0x0: " + io.realWrites);
+        finish();
+    }
+
+    /** Each refused write leaves a kernel error: bounded watcher retries, then a request or a lower ON. */
+    static void refusedWrites() {
+        start(true);
+        io.refuseAll = true;
+        io.framework("1");
+        for (int i = 0; i < 20; i++) sample();
+        check(io.realWrites.size() == BypassRamInterceptor.MAX_WRITE_FAILURES,
+                "BR-22 bounded retries while the kernel refuses: " + io.realWrites.size());
+        check(count("BYPASS_WRITE_HELD value=1") == 1 && "ARMED_PENDING".equals(DisplayHardware.lowerPanelStatus()),
+                "BR-22b held once, the request still waits");
+        io.framework("1");
+        check(io.realWrites.size() == BypassRamInterceptor.MAX_WRITE_FAILURES + 1,
+                "BR-22c a new request earns a fresh attempt: " + io.realWrites.size());
+        for (int i = 0; i < 20; i++) sample();
+        check(io.realWrites.size() == 2 * BypassRamInterceptor.MAX_WRITE_FAILURES
+                && count("BYPASS_WRITE_HELD value=1") == 2,
+                "BR-22f and fresh watcher retries, bounded again: " + io.realWrites.size());
+        switchMode("1");
+        int beforeOn = io.realWrites.size();
+        io.refuseAll = false;
+        switchMode("0");
+        check("1".equals(io.kernel) && io.realWrites.size() == beforeOn + 1 && !io.poisoned
+                && count("BYPASS_APPLIED value=1;source=LOWER_ON") == 1,
+                "BR-22d the next lower ON retries and applies: " + io.realWrites);
+        check("ARMED".equals(DisplayHardware.lowerPanelStatus()), "BR-22e nothing left waiting");
+        finish();
+    }
+
     static void status() {
         DisplayHardware.setLowerPanelListener(null);
         check("NONE".equals(DisplayHardware.lowerPanelStatus()), "BR-20 no listener: NONE");
@@ -442,6 +495,8 @@ public final class BypassRamInterceptorTest {
         cases.put("realunreadable", BypassRamInterceptorTest::realUnreadable);
         cases.put("reuse", BypassRamInterceptorTest::reuse);
         cases.put("bindrace", BypassRamInterceptorTest::writeDuringBind);
+        cases.put("kernelform", BypassRamInterceptorTest::kernelForm);
+        cases.put("refused", BypassRamInterceptorTest::refusedWrites);
         cases.put("status", BypassRamInterceptorTest::status);
         if (args.length == 1) {
             Runnable selected = cases.get(args[0]);

@@ -23,6 +23,17 @@ public final class BypassRamPolicy {
         return null;
     }
 
+    /**
+     * The form the kernel store accepts: the framework's own "0x0" or "0x1". On the Thor
+     * (2026-11-02) a bare "0" was refused ("oscar bypass_ram_store error") and the
+     * attribute kept its previous value.
+     */
+    public static String kernelForm(String value) {
+        if ("0".equals(value)) return "0x0";
+        if ("1".equals(value)) return "0x1";
+        return null;
+    }
+
     public static Action decide(String wanted, String real, String lowerDpms,
             String interactive, boolean lowerLatched) {
         if (wanted == null) return Action.REJECT;

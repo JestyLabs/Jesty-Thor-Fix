@@ -40,6 +40,15 @@ MUTANTS = [
      '            if (false) {\n                state = State.DRAINING;', 'BR-13'),
     ('no-lower-on-hook', 'DisplayHardware.java',
      'if (on && listener != null) {', 'if (false) {', 'BR-04'),
+    ('raw-value-to-kernel', 'BypassRamInterceptor.java',
+     'io.write(REAL, BypassRamPolicy.kernelForm(wanted))', 'io.write(REAL, wanted)', 'BR-02'),
+    ('unbounded-watcher-retries', 'BypassRamInterceptor.java',
+     'if (writeFailures >= MAX_WRITE_FAILURES) return;', '', 'BR-22'),
+    ('request-earns-no-retry', 'BypassRamInterceptor.java',
+     'if (!"WATCHER".equals(source) && !"DRAIN".equals(source)) writeFailures = 0;', '', 'BR-22f'),
+    ('lower-on-coalesced', 'BypassRamInterceptor.java',
+     'if (pending != null) worker.execute(() -> attempt("LOWER_ON"));',
+     'if (pending != null && writeFailures < MAX_WRITE_FAILURES) worker.execute(() -> attempt("LOWER_ON"));', 'BR-22d'),
 ]
 
 
