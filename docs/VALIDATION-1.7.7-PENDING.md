@@ -98,6 +98,8 @@ transfer origin, so a restart was planned. The app was not opened before that re
 | C5, first restart | **FAIL** (activation defect since v1.7.2; fixed for the next candidate) | See below |
 | C5, second restart | **PASS** | See below |
 | C1, BOTH 60→120→60, twice | **PASS** | See below |
+| C2, refresh change in TOP then BOTH, both directions | **PASS** | See below |
+| C3, request held in TOP, sleep, wake in TOP | **FAIL** (app defect; fixed in #145) — STOP | See below |
 
 **C5, first restart:**
 - **What happened:**
@@ -124,6 +126,25 @@ transfer origin, so a restart was planned. The app was not opened before that re
   - the owner saw normal colours at both rates;
   - the requested, visible and real values ended equal (`0x1`/`0x1`/1).
 - **SELinux:** the root context is permissive. Each write logs `avc: denied { write }` for `bypass_ram` with `permissive=1`. An enforcing policy for that context would deny the write.
+
+**C2, refresh change in TOP then BOTH, both directions:**
+- in TOP, the requests for 60 Hz and 120 Hz were held (`BYPASS_DEFERRED reason=LOWER_OFF`);
+- on each switch back to BOTH, the daemon's own lower ON returned and the request was applied about 75 ms later (`BYPASS_APPLIED source=LOWER_ON`);
+- the kernel accepted one store per change, none with the lower panel off;
+- no DSI error, one daemon, no compositor restart.
+
+**C3, request held in TOP, sleep, wake in TOP (STOP):**
+- **Before the wake:** a 60→120 change in TOP was held. After a sleep and a wake by power button, still in TOP, the platform started the lower panel, as it always does in TOP before the wake repair.
+- **During the start:** about 20 ms into that start the watcher saw the lower panel active, and its power state already read `On`. The waiting request was applied 60 ms into the start (`BYPASS_APPLIED value=0;source=WATCHER`).
+- **Kernel:** the log, with the writing thread recorded by the long-sleep collector, shows these failures inside the daemon's `bypass_ram_store` call, 35 ms after the platform's panel reset:
+  - `DSI_PLL_0: lock failed`, then `enable failed: -110`;
+  - `failed to send DSI_CMD_SET_VID_PASS_RAM cmds, rc=-22`.
+
+  Every later command to the lower panel failed.
+- **Detection:** the poisoned-boot detection latched, posted its notice and kept the lower panel off, also after a switch to BOTH. No compositor restart; a restart recovered the panel.
+- **Cause:** the interceptor treated `On` as ready. In C2 the daemon's own ON had already finished when its call returned; a platform ON reads `On` from its start.
+- **Fix (#145):** write only after the lower panel has been seen on, in BOTH or BOTTOM ONLY, for 1 s; never count an ON seen in TOP.
+- **Candidate `2A802D2C…` is superseded.** C4–C7 and D-1/D-2 were not run.
 
 ## Known limitations
 
