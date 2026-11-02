@@ -7,7 +7,8 @@ package com.thor.displaypowertest;
  * The vendor framework writes the attribute on every refresh change even when
  * the lower panel is off. That write is what leaves the lower DSI link unable to
  * start until reboot, so the real attribute is only written with the lower panel
- * powered and the device interactive. Otherwise the request waits for the next ON.
+ * powered, past its start, and the device interactive. Otherwise the request
+ * waits for the next ON.
  */
 public final class BypassRamPolicy {
     public enum Action { NOOP, APPLY, DEFER, REJECT }
@@ -35,20 +36,25 @@ public final class BypassRamPolicy {
     }
 
     public static Action decide(String wanted, String real, String lowerDpms,
-            String interactive, boolean lowerLatched) {
+            String interactive, boolean lowerLatched, boolean lowerSettled) {
         if (wanted == null) return Action.REJECT;
         if (wanted.equals(real)) return Action.NOOP;
-        return deferReason(real, lowerDpms, interactive, lowerLatched) == null
+        return deferReason(real, lowerDpms, interactive, lowerLatched, lowerSettled) == null
                 ? Action.APPLY : Action.DEFER;
     }
 
-    /** Why a write must wait, or null when it may proceed. */
+    /**
+     * Why a write must wait, or null when it may proceed. lowerSettled: the lower panel
+     * has been seen on long enough to have finished starting; its power state reads On
+     * from the start of a platform ON.
+     */
     public static String deferReason(String real, String lowerDpms, String interactive,
-            boolean lowerLatched) {
+            boolean lowerLatched, boolean lowerSettled) {
         if (lowerLatched) return "LOWER_LATCHED";
         if (!"0".equals(real) && !"1".equals(real)) return "REAL_UNREADABLE";
         if (!"On".equals(lowerDpms)) return "Off".equals(lowerDpms) ? "LOWER_OFF" : "LOWER_UNKNOWN";
         if (!"1".equals(interactive)) return "0".equals(interactive) ? "NON_INTERACTIVE" : "INTERACTIVE_UNKNOWN";
+        if (!lowerSettled) return "LOWER_SETTLING";
         return null;
     }
 }

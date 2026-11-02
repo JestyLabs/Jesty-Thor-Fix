@@ -51,9 +51,15 @@ public final class BypassRamInterceptorTest {
         String frameworkDuringBind;
         Runnable watcher;
         int watchesOpened;
+        /**
+         * Synthetic: the platform's own lower ON is still starting until this time. The power
+         * state already reads On; on 2026-11-02 a store 60 ms into such a start failed in the
+         * kernel ("DSI_PLL_0: lock failed", -110) and the lower link stayed dead until reboot.
+         */
+        long enablingUntil = Long.MIN_VALUE;
 
         void store(String value) {
-            String lower = dpms();
+            String lower = SystemClock.now < enablingUntil ? "Enabling" : dpms();
             stores.add(value + "@" + lower);
             if (!"On".equals(lower)) poisoned = true;
             kernel = value;
@@ -167,6 +173,9 @@ public final class BypassRamInterceptorTest {
         if (install) {
             DisplayHardware.setLowerPanelListener(interceptor);
             sample();
+            // BOTH has been on for longer than a panel start.
+            SystemClock.now += BypassRamInterceptor.SETTLE_MS;
+            sample();
         }
     }
     private static void sample() {
@@ -228,15 +237,86 @@ public final class BypassRamInterceptorTest {
         finish();
     }
 
-    /** The platform powers the lower panel without an app call (e.g. a wake in BOTH). */
+    /** A normal platform start of the lower panel took about 200 ms on the Thor. */
+    static final long PLATFORM_ENABLE_MS = 200L;
+    /** The platform starts the lower panel itself; the next watcher sample sees it On. */
+    private static void platformLowerOn() {
+        TestDisplayState.top = "1";
+        TestDisplayState.bottom = "1";
+        TestDisplayState.property = "1";
+        io.enablingUntil = SystemClock.now + 50L + PLATFORM_ENABLE_MS;
+        sample();
+    }
+
+    /** The platform powers the lower panel without an app call: a wake in BOTH. */
     static void platformOn() {
         start(true);
-        TestDisplayState.bottom = "0";
+        TestDisplayState.interactive = false;
+        TestDisplayState.sleep();
         io.framework("1");
-        check(io.stores.isEmpty(), "BR-06 deferred while the lower panel is off");
-        TestDisplayState.bottom = "1";
+        check(io.stores.isEmpty(), "BR-06 deferred while asleep");
+        SystemClock.now += 30000L;
+        TestDisplayState.interactive = true;
+        platformLowerOn();
+        check(io.stores.isEmpty() && !io.poisoned,
+                "BR-06b no store while the platform's lower ON is still starting: " + io.stores);
+        check(count("BYPASS_DEFERRED value=1;reason=LOWER_SETTLING") == 1, "BR-06c settling logged");
+        SystemClock.now += BypassRamInterceptor.SETTLE_MS;
         sample();
-        check(io.stores.size() == 1 && "1@On".equals(io.stores.get(0)), "BR-06b applied on the watcher's next DRM read: " + io.stores);
+        check(io.stores.size() == 1 && "1@On".equals(io.stores.get(0)) && !io.poisoned
+                && count("BYPASS_APPLIED value=1;source=WATCHER") == 1,
+                "BR-06d applied once the lower panel has settled: " + io.stores);
+        // A refresh change right at a wake in BOTH: the request itself must also wait.
+        TestDisplayState.interactive = false;
+        TestDisplayState.sleep();
+        SystemClock.now += 30000L;
+        TestDisplayState.interactive = true;
+        platformLowerOn();
+        io.framework("0");
+        check(io.stores.size() == 1 && !io.poisoned, "BR-06e no store for a request made mid-start: " + io.stores);
+        SystemClock.now += BypassRamInterceptor.SETTLE_MS;
+        sample();
+        check(io.stores.size() == 2 && "0@On".equals(io.stores.get(1)) && !io.poisoned,
+                "BR-06f applied once settled: " + io.stores);
+        finish();
+    }
+
+    /** With the fix on, a lower panel seen on in TOP is never settled, however long it stays. */
+    static void topTransient() {
+        start(true);
+        switchMode("1");
+        io.framework("1");
+        io.dpmsOverride = "On";
+        for (int i = 0; i < 30; i++) {
+            SystemClock.now += 100L;
+            interceptor.onWatcherSample(true, "1", "1");
+        }
+        check(io.stores.isEmpty() && !io.poisoned, "BR-23e no store while TOP shows the lower panel on: " + io.stores);
+        finish();
+    }
+
+    /**
+     * 2026-11-02 on the Thor (C3): a request waiting in TOP, sleep, then a wake in TOP. The
+     * platform started the lower panel at the wake and the write landed 60 ms into that
+     * start. In TOP the request must keep waiting until BOTH.
+     */
+    static void topWake() {
+        start(true);
+        switchMode("1");
+        io.framework("1");
+        check(count("BYPASS_DEFERRED value=1;reason=LOWER_OFF") == 1, "BR-23 waiting in TOP");
+        TestDisplayState.interactive = false;
+        TestDisplayState.sleep();
+        SystemClock.now += 30000L;
+        TestDisplayState.interactive = true;
+        platformLowerOn();
+        for (int i = 0; i < 40; i++) sample();
+        check(io.stores.isEmpty() && !io.poisoned, "BR-23b no store during the wake in TOP: " + io.stores);
+        check("0".equals(TestDisplayState.bottom), "BR-23c the wake repair turned the lower panel off again");
+        switchMode("0");
+        check(io.stores.size() == 1 && "1@On".equals(io.stores.get(0)) && !io.poisoned
+                && count("BYPASS_APPLIED value=1;source=LOWER_ON") == 1,
+                "BR-23d applied after the app's lower ON in BOTH: " + io.stores);
         finish();
     }
 
@@ -330,6 +410,16 @@ public final class BypassRamInterceptorTest {
         check(io.stores.isEmpty(), "BR-13c drain checks are rate-limited");
         SystemClock.now += BypassRamInterceptor.DRAIN_CHECK_MS;
         sample();
+        check(io.stores.isEmpty(), "BR-13f the first drain check that sees the lower panel on only starts the settle time");
+        TestDisplayState.bottom = "0";
+        SystemClock.now += BypassRamInterceptor.DRAIN_CHECK_MS;
+        sample();
+        TestDisplayState.bottom = "1";
+        SystemClock.now += BypassRamInterceptor.DRAIN_CHECK_MS;
+        sample();
+        check(io.stores.isEmpty(), "BR-13g an OFF seen by a drain check restarts the settle time: " + io.stores);
+        SystemClock.now += Math.max(BypassRamInterceptor.DRAIN_CHECK_MS, BypassRamInterceptor.SETTLE_MS);
+        sample();
         check(io.stores.size() == 1 && "1@On".equals(io.stores.get(0)) && !io.bind && !io.sysfs
                 && "OFF".equals(DisplayHardware.lowerPanelStatus()),
                 "BR-13d applied with the lower panel on, then unmounted: " + io.stores);
@@ -400,9 +490,13 @@ public final class BypassRamInterceptorTest {
         io.files.put(BypassRamInterceptor.REQUEST, "0x1");
         DisplayHardware.setLowerPanelListener(interceptor);
         sample();
-        check("ARMED".equals(DisplayHardware.lowerPanelStatus()) && count("BYPASS_INTERCEPT_REUSED real=0;request=1") == 1,
+        check("ARMED_PENDING".equals(DisplayHardware.lowerPanelStatus()) && count("BYPASS_INTERCEPT_REUSED real=0;request=1") == 1,
                 "BR-18 mounts reused: " + DisplayHardware.lowerPanelStatus());
-        check(io.stores.size() == 1 && "1@On".equals(io.stores.get(0)), "BR-18b waiting request applied at start: " + io.stores);
+        check(io.stores.isEmpty(), "BR-18b a new daemon has not yet seen the lower panel settle: " + io.stores);
+        SystemClock.now += BypassRamInterceptor.SETTLE_MS;
+        sample();
+        check(io.stores.size() == 1 && "1@On".equals(io.stores.get(0))
+                && "ARMED".equals(DisplayHardware.lowerPanelStatus()), "BR-18c waiting request applied once settled: " + io.stores);
         finish();
     }
 
@@ -481,6 +575,8 @@ public final class BypassRamInterceptorTest {
         cases.put("topthenboth", BypassRamInterceptorTest::topRefreshThenBoth);
         cases.put("control", BypassRamInterceptorTest::withoutInterception);
         cases.put("platformon", BypassRamInterceptorTest::platformOn);
+        cases.put("topwake", BypassRamInterceptorTest::topWake);
+        cases.put("toptransient", BypassRamInterceptorTest::topTransient);
         cases.put("noninteractive", BypassRamInterceptorTest::nonInteractive);
         cases.put("rejects", BypassRamInterceptorTest::rejects);
         cases.put("lastwins", BypassRamInterceptorTest::lastRequestWins);

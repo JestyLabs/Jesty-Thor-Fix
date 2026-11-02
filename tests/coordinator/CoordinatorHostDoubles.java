@@ -59,7 +59,7 @@ final class DisplayHardware {
     }
     static synchronized void alignPropertyWithCrtc(String crtc) { alignedCount++; }
     /** No bypass interceptor in this harness; covered by scripts/test-bypass-ram-host.py. */
-    static void notifyWatcherSample(boolean fixEnabled, String bottomCrtc) {}
+    static void notifyWatcherSample(boolean fixEnabled, String mode, String bottomCrtc) {}
 }
 
 final class LidGuard {

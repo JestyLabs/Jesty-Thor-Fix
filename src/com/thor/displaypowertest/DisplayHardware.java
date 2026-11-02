@@ -11,7 +11,8 @@ public final class DisplayHardware {
     /** Observer of lower ON calls and watcher samples (the panel-RAM bypass interceptor). */
     public interface LowerPanelListener {
         void onLowerPoweredOn(String reason);
-        void onWatcherSample(boolean fixEnabled, String bottomCrtc);
+        /** mode is the AYN mode sampled with bottomCrtc: "0" BOTH, "1" TOP, "2" BOTTOM ONLY. */
+        void onWatcherSample(boolean fixEnabled, String mode, String bottomCrtc);
         String status();
     }
 
@@ -24,10 +25,10 @@ public final class DisplayHardware {
     }
 
     /** Must stay cheap: the watcher calls it on every sample. */
-    public static void notifyWatcherSample(boolean fixEnabled, String bottomCrtc) {
+    public static void notifyWatcherSample(boolean fixEnabled, String mode, String bottomCrtc) {
         LowerPanelListener listener = lowerPanelListener;
         if (listener == null) return;
-        try { listener.onWatcherSample(fixEnabled, bottomCrtc); }
+        try { listener.onWatcherSample(fixEnabled, mode, bottomCrtc); }
         catch (Throwable error) { Log.e(TAG, "lower panel listener failed", error); }
     }
 

@@ -28,6 +28,7 @@ v1.7.6 stays a pre-release. It is not promoted to stable, because its containmen
 | Gate | Result |
 | --- | --- |
 | #139: `BypassRamInterceptorTest` (real coordinator); with the kernel-form fix 56 checks, 12/12 mutants rejected | PASS (host) |
+| Write only after the lower panel has finished starting (never during a wake in TOP): 68 checks, 18/18 mutants rejected; the TOP-wake and BOTH-wake cases fail before the change | PASS (host) |
 | #140: `PoisonedBootTest` (real coordinator, 32 checks); 6/6 mutants rejected | PASS (host) |
 | Published v1.7.6 as a live-transfer origin: actual `LiveRetirement` with the frozen published 1.7.6 producer (68 cases); refused before the change | PASS (host) |
 | `test-live-transfer-origins.py`: every earlier published release from 1.7.1 is admitted at every site; 13/13 controls rejected | PASS (host) |
