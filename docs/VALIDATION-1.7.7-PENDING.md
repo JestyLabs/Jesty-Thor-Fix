@@ -31,6 +31,7 @@ v1.7.6 stays a pre-release. It is not promoted to stable, because its containmen
 | #140: `PoisonedBootTest` (real coordinator, 32 checks); 6/6 mutants rejected | PASS (host) |
 | Published v1.7.6 as a live-transfer origin: actual `LiveRetirement` with the frozen published 1.7.6 producer (68 cases); refused before the change | PASS (host) |
 | `test-live-transfer-origins.py`: every earlier published release from 1.7.1 is admitted at every site; 13/13 controls rejected | PASS (host) |
+| Restart before the first open after an update: actual `AutoService`/`PServer`/`RebootActivation`, 9 new scenarios; refused before the change; 4 new compiled controls (18/18 rejected) | PASS (host) |
 | Main CI, Android emulator job, CodeQL on both PRs | PASS |
 | Signed candidate | NOT RUN |
 
@@ -87,6 +88,64 @@ The Thor ran the published v1.7.6 daemon in BOTH, with the long-sleep collector 
   - watcher retries after a refused write stop at three. Each new request and each lower ON earns a fresh attempt.
 - **Candidate `DEED4415…` is superseded.**
 
+## Physical round 2 (2026-11-02, owner-supervised, candidate `2A802D2C…`)
+
+Candidate `2A802D2C…` was installed over the running `DEED4415…` daemon, a same-version change that is never a
+transfer origin, so a restart was planned. The app was not opened before that restart.
+
+| ID | Result | Observed |
+| --- | --- | --- |
+| C5, first restart | **FAIL** (activation defect since v1.7.2; fixed for the next candidate) | See below |
+| C5, second restart | **PASS** | See below |
+| C1, BOTH 60→120→60, twice | **PASS** | See below |
+| C2, refresh change in TOP then BOTH, both directions | **PASS** | See below |
+| C3, request held in TOP, sleep, wake in TOP | **FAIL** (app defect; fixed in #145) — STOP | See below |
+
+**C5, first restart:**
+- **What happened:**
+  - no daemon ran after the restart;
+  - the boot start found no predecessor to transfer from (`live handover held; safe predecessor not verified`) and stopped there;
+  - with no interception, the attribute was 0, both panels were on and there was no DSI error.
+- **Cause:** activation records its baseline only when the app or service first runs after an install. That first run was this new boot, so the activation evidence still asked for a restart. Users who update, through the in-app updater or otherwise, and restart before opening the app lose the fix for that boot and need a second restart.
+- **Fix:** if no daemon answers and the last instance-lock owner stamped an earlier kernel boot, no daemon has run in this boot. The service then starts held, as after a verified restart, and records proof for this boot. An absent socket, or a stamp that is unreadable or from the current boot, keeps the restart fallback.
+
+**C5, second restart:**
+- one daemon, started at once from `STALE_PREVIOUS_BOOT`: `READY 1.7.7`, `KERNEL_SIGNALS ready`, `BOOT READY mode=0 bottom=1`, `BYPASS_INTERCEPT_READY real=0`;
+- the bind and the second sysfs mount were in the init namespace and propagated to system_server;
+- requested, visible and real values were 0; no DSI error.
+
+**C1, BOTH 60→120→60, twice:**
+- **First pair:**
+  - the attribute was still 0 from boot, so 120 Hz needed no write;
+  - back at 60 Hz the app wrote `0x1` (`BYPASS_APPLIED value=1;source=REQUEST`, 34 ms), and the kernel accepted it (`oscar bypass_ram_store 1`).
+- **Second pair:** this is the path that failed on the previous candidate.
+  - 60→120: `BYPASS_REQUEST value=0;real=1` → `BYPASS_APPLIED value=0;source=REQUEST` (60 ms); the kernel accepted it (`oscar bypass_ram_store 0`);
+  - 120→60: the write of `0x1` was accepted again.
+- **Every change:**
+  - no `oscar bypass_ram_store error`, no DSI error, both panels on;
+  - the owner saw normal colours at both rates;
+  - the requested, visible and real values ended equal (`0x1`/`0x1`/1).
+- **SELinux:** the root context is permissive. Each write logs `avc: denied { write }` for `bypass_ram` with `permissive=1`. An enforcing policy for that context would deny the write.
+
+**C2, refresh change in TOP then BOTH, both directions:**
+- in TOP, the requests for 60 Hz and 120 Hz were held (`BYPASS_DEFERRED reason=LOWER_OFF`);
+- on each switch back to BOTH, the daemon's own lower ON returned and the request was applied about 75 ms later (`BYPASS_APPLIED source=LOWER_ON`);
+- the kernel accepted one store per change, none with the lower panel off;
+- no DSI error, one daemon, no compositor restart.
+
+**C3, request held in TOP, sleep, wake in TOP (STOP):**
+- **Before the wake:** a 60→120 change in TOP was held. After a sleep and a wake by power button, still in TOP, the platform started the lower panel, as it always does in TOP before the wake repair.
+- **During the start:** about 20 ms into that start the watcher saw the lower panel active, and its power state already read `On`. The waiting request was applied 60 ms into the start (`BYPASS_APPLIED value=0;source=WATCHER`).
+- **Kernel:** the log, with the writing thread recorded by the long-sleep collector, shows these failures inside the daemon's `bypass_ram_store` call, 35 ms after the platform's panel reset:
+  - `DSI_PLL_0: lock failed`, then `enable failed: -110`;
+  - `failed to send DSI_CMD_SET_VID_PASS_RAM cmds, rc=-22`.
+
+  Every later command to the lower panel failed.
+- **Detection:** the poisoned-boot detection latched, posted its notice and kept the lower panel off, also after a switch to BOTH. No compositor restart; a restart recovered the panel.
+- **Cause:** the interceptor treated `On` as ready. In C2 the daemon's own ON had already finished when its call returned; a platform ON reads `On` from its start.
+- **Fix (#145):** write only after the lower panel has been seen on, in BOTH or BOTTOM ONLY, for 1 s; never count an ON seen in TOP.
+- **Candidate `2A802D2C…` is superseded.** C4–C7 and D-1/D-2 were not run.
+
 ## Known limitations
 
 - **The vendor driver defect remains.** The interception only covers the framework's write path, and only while the display fix is enabled and the daemon runs. Not covered:
@@ -95,4 +154,5 @@ The Thor ran the published v1.7.6 daemon in BOTH, with the long-sleep collector 
   - unknown other writers.
 - **An already poisoned boot is not recovered.** Detection asks for a restart. A platform lower ON on wake before that restart can still start the reset loop.
 - **The accumulated-suspend explanation is not excluded.**
+- **A first install still needs one restart.** With no earlier daemon there is no boot stamp. An absent socket cannot be told apart from cleared app data with a root daemon still running.
 - **After every boot, the kernel starts with `bypass_ram=0`** whatever the refresh setting, so 60 Hz runs with 0 until the next refresh change. Under study; not changed in this candidate.

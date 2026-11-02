@@ -21,7 +21,7 @@ Once the kernel reboot is verified, earlier or missing runtime identity displays
 ## Lifecycle and recovery
 
 - Clean install or update: open once, prepare baseline, normal reboot, reopen and verify.
-- Never opened/stopped, or reboot before first observation: the eventual first open prepares a baseline and requests the additional reboot. It does not assume a missed broadcast was delivered.
+- Never opened/stopped, or reboot before first observation: the eventual first open prepares a baseline and requests the additional reboot. It does not assume a missed broadcast was delivered. **Changed in 1.7.7:** after an update, if no daemon answers and the last instance-lock owner stamped an earlier kernel boot, no daemon has run in this boot; the service starts held and records proof for this boot, so no additional reboot is needed. A clean install or cleared data (no stamp) still needs it. See [S2-RESTART-BEFORE-FIRST-OPEN](quality/S2-RESTART-BEFORE-FIRST-OPEN-2026-11-02.md).
 - Force-stop: retain the baseline. A manual open after a new boot can activate without any broadcast. Force-stop alone does not count as reboot.
 - Data clear: baseline is gone, so preparation and a new reboot are required. Clearing data is not a suggested recovery action.
 - Storage/identity failure: remain blocked, show a bounded retry/escalation procedure and preserve data. The updater remains blocked while boot evidence is unverified; external recovery is deliberately independent of it.

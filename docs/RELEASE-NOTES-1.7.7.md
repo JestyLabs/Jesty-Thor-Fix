@@ -9,6 +9,8 @@
 - The dashboard shows the refresh protection state (REFRESH GUARD).
 - Updating from v1.7.6 transfers the background service live, as updates from v1.7.1–v1.7.5 already do; no restart is
   needed. Every future release must accept every earlier published release in the same way.
+- Restarting the Thor after an update, before opening the app, now starts the background service on that restart.
+  Since v1.7.2 the service stayed off in that case until a second restart.
 
 The display-fault detection only asks for a restart; the app never restarts the Thor itself. CPU Fix, Closed-Lid Wake
 Guard and the documented hardware limitations are unchanged.

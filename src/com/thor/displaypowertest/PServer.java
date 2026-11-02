@@ -127,6 +127,16 @@ public final class PServer {
                 SecureChannel.stampedBootId(), SecureChannel.currentBootId());
     }
 
+    /**
+     * No daemon of any installation has run in this kernel boot: nothing answers, and the
+     * last instance-lock owner stamped an earlier boot. Every daemon from 1.7.1 on stamps
+     * right after taking the lock. An absent socket (cleared data) or an unreadable or
+     * current-boot stamp proves nothing.
+     */
+    public static boolean noDaemonInThisKernelBoot() {
+        return socketState() == DaemonLaunchModel.SocketState.STALE_PREVIOUS_BOOT;
+    }
+
     /** One diagnostic sample after bounded retries, never per poll. */
     public static void logHealthFailure() {
         try {
