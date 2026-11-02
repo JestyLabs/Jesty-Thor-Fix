@@ -21,11 +21,16 @@ the repository. Never commit either of them or an APK.
 1. Update `android:versionCode` and `android:versionName` in
    `apk/AndroidManifest.xml`, `DaemonIdentity.VERSION`, and the default
    `ArtifactBaseName` in `build.ps1`. The host test rejects a manifest/daemon
-   version mismatch. Add the previously installed daemon version to the
-   narrow `PreviousSecureDaemonIdentity` migration allowlist and test it;
-   never accept an arbitrary reported version or kill an unidentified PID.
-   The in-app updater depends on this: an updated app can replace the running
-   daemon only if the new build allowlists the version being replaced.
+   version mismatch. Every earlier published release (stable or pre-release)
+   from 1.7.1 on must stay a live-transfer origin: users must never need a
+   restart to update. Add the previous release as an exact literal to
+   `LiveHandoverPolicy` and `PreviousSecureDaemonIdentity`, freeze its eight
+   producer files from its release tag into `tests/retirement/published/`
+   (with `SOURCES.json` hashes), and add it to the retirement matrices.
+   `scripts/test-live-transfer-origins.py` lists every missing site and fails
+   CI until all are done; `release.yml` repeats it against the releases
+   actually published. Never accept an arbitrary reported version or kill an
+   unidentified PID.
 2. Run the host tests and build:
 
    ```powershell

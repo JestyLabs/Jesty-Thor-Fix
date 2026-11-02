@@ -29,6 +29,8 @@ v1.7.6 stays a pre-release. It is not promoted to stable, because its containmen
 | --- | --- |
 | #139: `BypassRamInterceptorTest` (real coordinator, 48 checks); 8/8 mutants rejected | PASS (host) |
 | #140: `PoisonedBootTest` (real coordinator, 32 checks); 6/6 mutants rejected | PASS (host) |
+| Published v1.7.6 as a live-transfer origin: actual `LiveRetirement` with the frozen published 1.7.6 producer (68 cases); refused before the change | PASS (host) |
+| `test-live-transfer-origins.py`: every earlier published release from 1.7.1 is admitted at every site; 13/13 controls rejected | PASS (host) |
 | Main CI, Android emulator job, CodeQL on both PRs | PASS |
 | Signed candidate | NOT RUN |
 
@@ -36,7 +38,7 @@ v1.7.6 stays a pre-release. It is not promoted to stable, because its containmen
 
 | ID | Check | Expected |
 | --- | --- | --- |
-| C0 | Install, one normal restart, then read the daemon's mount namespace and mountinfo | `BYPASS_INTERCEPT_READY`; the bind and second sysfs mount are present in the init namespace; `bypass_intercept=ARMED` |
+| C0 | BOTH, published v1.7.6 daemon running: install over it and open the app, **no restart**; then read the daemon's mount namespace and mountinfo | Live transfer to 1.7.7 (one daemon, the new one); `BYPASS_INTERCEPT_READY`; the bind and second sysfs mount are present in the init namespace; `bypass_intercept=ARMED` |
 | C1 | BOTH: Smooth Display 120↔60 | `BYPASS_APPLIED reason=REQUEST` with a short `delay_ms`; one `bypass_ram_store` per change; no error; colours normal |
 | C2 | TOP: 120→60 from the tile, then BOTH; repeat 60→120 | No `lock failed` at the change; `BYPASS_DEFERRED reason=LOWER_OFF`; normal lower start; `BYPASS_APPLIED source=LOWER_ON` right after |
 | C3 | Change in TOP, then sleep and wake by power button in BOTH | Applied on the platform's lower ON (watcher) |

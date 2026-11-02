@@ -50,7 +50,8 @@ public final class PreviousSecureDaemonIdentity {
                         || version.equals("1.7.1-rc3")
                         || version.equals("1.7.1-rc4")
                         || version.equals("1.7.1") || version.equals("1.7.2")
-                        || version.equals("1.7.3") || version.equals("1.7.4") || version.equals("1.7.5")))
+                        || version.equals("1.7.3") || version.equals("1.7.4") || version.equals("1.7.5")
+                        || version.equals("1.7.6")))
             return reject(why, "PREVIOUS_VERSION", version);
         if (!field(health, "watcher").equals("RUNNING"))
             return reject(why, "WATCHER", field(health, "watcher"));
