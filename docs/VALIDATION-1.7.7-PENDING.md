@@ -31,6 +31,7 @@ v1.7.6 stays a pre-release. It is not promoted to stable, because its containmen
 | #140: `PoisonedBootTest` (real coordinator, 32 checks); 6/6 mutants rejected | PASS (host) |
 | Published v1.7.6 as a live-transfer origin: actual `LiveRetirement` with the frozen published 1.7.6 producer (68 cases); refused before the change | PASS (host) |
 | `test-live-transfer-origins.py`: every earlier published release from 1.7.1 is admitted at every site; 13/13 controls rejected | PASS (host) |
+| Restart before the first open after an update: actual `AutoService`/`PServer`/`RebootActivation`, 9 new scenarios; refused before the change; 4 new compiled controls (18/18 rejected) | PASS (host) |
 | Main CI, Android emulator job, CodeQL on both PRs | PASS |
 | Signed candidate | NOT RUN |
 
@@ -87,6 +88,29 @@ The Thor ran the published v1.7.6 daemon in BOTH, with the long-sleep collector 
   - watcher retries after a refused write stop at three. Each new request and each lower ON earns a fresh attempt.
 - **Candidate `DEED4415…` is superseded.**
 
+## Physical round 2 (2026-11-02, owner-supervised, candidate `2A802D2C…`)
+
+Candidate `2A802D2C…` was installed over the running `DEED4415…` daemon, a same-version change that is never a
+transfer origin, so a restart was planned. The app was not opened before that restart.
+
+| ID | Result | Observed |
+| --- | --- | --- |
+| C5, first restart | **FAIL** (activation defect since v1.7.2; fixed for the next candidate) | See below |
+| C5, second restart | **PASS** | See below |
+
+**C5, first restart:**
+- **What happened:**
+  - no daemon ran after the restart;
+  - the boot start found no predecessor to transfer from (`live handover held; safe predecessor not verified`) and stopped there;
+  - with no interception, the attribute was 0, both panels were on and there was no DSI error.
+- **Cause:** activation records its baseline only when the app or service first runs after an install. That first run was this new boot, so the activation evidence still asked for a restart. Users who update, through the in-app updater or otherwise, and restart before opening the app lose the fix for that boot and need a second restart.
+- **Fix:** if no daemon answers and the last instance-lock owner stamped an earlier kernel boot, no daemon has run in this boot. The service then starts held, as after a verified restart, and records proof for this boot. An absent socket, or a stamp that is unreadable or from the current boot, keeps the restart fallback.
+
+**C5, second restart:**
+- one daemon, started at once from `STALE_PREVIOUS_BOOT`: `READY 1.7.7`, `KERNEL_SIGNALS ready`, `BOOT READY mode=0 bottom=1`, `BYPASS_INTERCEPT_READY real=0`;
+- the bind and the second sysfs mount were in the init namespace and propagated to system_server;
+- requested, visible and real values were 0; no DSI error.
+
 ## Known limitations
 
 - **The vendor driver defect remains.** The interception only covers the framework's write path, and only while the display fix is enabled and the daemon runs. Not covered:
@@ -95,4 +119,5 @@ The Thor ran the published v1.7.6 daemon in BOTH, with the long-sleep collector 
   - unknown other writers.
 - **An already poisoned boot is not recovered.** Detection asks for a restart. A platform lower ON on wake before that restart can still start the reset loop.
 - **The accumulated-suspend explanation is not excluded.**
+- **A first install still needs one restart.** With no earlier daemon there is no boot stamp. An absent socket cannot be told apart from cleared app data with a root daemon still running.
 - **After every boot, the kernel starts with `bypass_ram=0`** whatever the refresh setting, so 60 Hz runs with 0 until the next refresh change. Under study; not changed in this candidate.

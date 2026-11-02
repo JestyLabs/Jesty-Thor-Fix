@@ -86,6 +86,23 @@ MUTANTS = (
      'boot.equalsIgnoreCase(unconfirmedRecoveryBoot)\n'
      '                            || boot.equalsIgnoreCase(pending)', 'false',
      TESTS[6], (), "same boot pending blocks subsequent ticket"),
+    ("restart-start-path-removed", "AutoService.java",
+     "if (liveHandover && PServer.noDaemonInThisKernelBoot()) {", "if (false) {",
+     TESTS[0], (), "restart-before-first-open-starts: launches"),
+    ("restart-proof-accepts-any-unanswered-socket", "PServer.java",
+     "return socketState() == DaemonLaunchModel.SocketState.STALE_PREVIOUS_BOOT;",
+     "return socketState() != DaemonLaunchModel.SocketState.ALIVE;",
+     TESTS[0], (), "first-open-prepares-only: launches"),
+    ("restart-proof-accepts-current-boot-stamp", "PServer.java",
+     "return socketState() == DaemonLaunchModel.SocketState.STALE_PREVIOUS_BOOT;",
+     "return socketState() == DaemonLaunchModel.SocketState.STALE_PREVIOUS_BOOT\n"
+     "                || socketState() == DaemonLaunchModel.SocketState.STALE_UNKNOWN;",
+     TESTS[0], (), "lock-owner-stamp-this-boot-held: launches"),
+    ("restart-proof-ignores-listener", "PServer.java",
+     "return socketState() == DaemonLaunchModel.SocketState.STALE_PREVIOUS_BOOT;",
+     "return DaemonLaunchModel.classify(secureSocketExists(), false, SecureChannel.stampedBootId(),\n"
+     "                SecureChannel.currentBootId()) == DaemonLaunchModel.SocketState.STALE_PREVIOUS_BOOT;",
+     TESTS[0], (), "stale-stamp-with-live-predecessor-uses-handover: stop submissions"),
 )
 
 

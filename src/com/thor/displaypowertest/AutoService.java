@@ -56,7 +56,12 @@ public final class AutoService extends Service {
                     Log.d(TAG, "start worker fromBoot=" + fromBoot
                             + " receiver_ms=" + receiverAt + " service_ms=" + serviceAt);
                     boolean protocolMigration = !state.getBoolean("daemon_protocol_unix_v2", false);
-                    if (liveHandover) {
+                    if (liveHandover && PServer.noDaemonInThisKernelBoot()) {
+                        // Restarted after the update but before any open: there is no
+                        // predecessor to transfer from. Start held, as after a verified
+                        // restart; the proof for this boot is recorded below.
+                        Log.d(TAG, "no daemon in this kernel boot; starting without transfer");
+                    } else if (liveHandover) {
                         // Only exact published predecessors with confirmed retained
                         // display/CPU/Guard state may be retired.
                         int previousPid = PServer.stopLivePredecessorIfSafe(enabled,

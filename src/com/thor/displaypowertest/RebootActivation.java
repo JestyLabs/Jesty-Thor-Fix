@@ -127,7 +127,10 @@ final class RebootActivation {
             }
         }
 
-        /** Called only after a safe predecessor stop and authenticated new runtime STARTING/READY. */
+        /**
+         * Called only after a safe predecessor stop, or proof that no daemon has run in this
+         * kernel boot, and authenticated new runtime STARTING/READY.
+         */
         boolean confirmLiveHandover() {
             synchronized (LOCK) {
                 if (evidence() != Evidence.RESTART_REQUIRED) return false;
