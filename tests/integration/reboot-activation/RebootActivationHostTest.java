@@ -75,6 +75,34 @@ public final class RebootActivationHostTest {
         FixtureState.saved.clear();run("data-clear-requires-new-preparation",0,0,false);
         FixtureState.boot=C;FixtureState.version=null;run("data-clear-recovery-open-then-reboot",0,1,true);
 
+        // Updated, then restarted before any open: nothing listens and the last instance-lock
+        // owner stamped an earlier kernel boot, so no daemon has run in this one.
+        FixtureState.reset(null);FixtureState.boot=B;FixtureState.socketPresent=true;FixtureState.stampedBoot=A;
+        FixtureState.fromBoot=true;run("restart-before-first-open-starts",0,1,true);
+        check(FixtureState.lastHeld&&FixtureState.helperSubmissions==0,
+                "first start after the restart launches held without a retirement helper");
+        check(FixtureState.durable.containsKey("activation_v3_live_handover"),
+                "first start after the restart records durable proof for this boot");
+        FixtureState.fromBoot=false;run("restart-before-first-open-reopen",0,0,true);
+        FixtureState.boot=C;FixtureState.version=null;FixtureState.stampedBoot=B;FixtureState.fromBoot=true;
+        run("restart-before-first-open-next-restart",0,1,true);
+        check(ticket().evidence()==RebootActivation.Evidence.BOOT_VERIFIED,
+                "the first observed boot is the baseline for the next restart");
+        for(String stamp:new String[]{B,"","malformed"}){
+            String label=stamp.equals(B)?"this-boot":stamp.isEmpty()?"empty":stamp;
+            FixtureState.reset(null);FixtureState.boot=B;FixtureState.socketPresent=true;FixtureState.stampedBoot=stamp;
+            run("lock-owner-stamp-"+label+"-held",0,0,false);
+            check(ticket().evidence()==RebootActivation.Evidence.RESTART_REQUIRED,
+                    "lock-owner-stamp-"+label+": an unproved boot keeps the restart fallback");
+        }
+        FixtureState.reset(null);FixtureState.boot=B;FixtureState.stampedBoot=A;
+        run("absent-socket-is-not-proof",0,0,false);
+        FixtureState.reset(null);FixtureState.boot=B;FixtureState.socketPresent=true;FixtureState.stampedBoot=A;
+        FixtureState.legacyPresent=true;run("restart-before-first-open-legacy-listener-held",0,0,false);
+        FixtureState.reset("1.7.6");FixtureState.socketPresent=true;FixtureState.stampedBoot=C;
+        run("stale-stamp-with-live-predecessor-uses-handover",1,1,true);
+        verifiedExitBeforeLaunch("stale-stamp-live-code86");
+
         for(String old:new String[]{"1.5.3","1.7.0","1.7.1-rc4","1.7.1","1.7.2-rc1","1.7.2-recovery","unknown"}){
             FixtureState.reset(old);prepareThenReboot();run("post-reboot-old-runtime-not-activated-"+old,0,0,true);
         }

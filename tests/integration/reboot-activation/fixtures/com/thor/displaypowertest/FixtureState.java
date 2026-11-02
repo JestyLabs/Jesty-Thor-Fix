@@ -9,13 +9,15 @@ public final class FixtureState {
  public static String[] scriptedReplies;public static int replyIndex;public static StringBuilder requests;
  public static String phaseMs,fix;public static Runnable beforeProbe,beforeCommit;
  public static List<String> events;public static int helperSubmissions;public static boolean liveCommitFailure;
+ // Secure socket inode and the boot ID stamped by the last instance-lock owner.
+ public static boolean socketPresent;public static String stampedBoot;
  public static void reset(String v){version=v;phase="READY";protocol="2";watcher="RUNNING";mode="0";top="1";bottom="1";
  pid="12000";afterLaunchPhase="READY";probes=kills=launches=disappearAfter=commits=0;stopEffective=bridgeAccept=true;lastHeld=false;
  appVersion=DaemonIdentity.RUNTIME_ID;appCode=86;updateTime=123;boot="00000000-0000-0000-0000-000000000001";
  fromBoot=packageFailure=commitFailure=commitThrows=corruptRead=legacyPresent=bootReadThrows=commitUpdatesMemory=false;
  saved=new HashMap<>();durable=new HashMap<>();
  scriptedReplies=null;replyIndex=0;requests=new StringBuilder();helperSubmissions=0;liveCommitFailure=false;snapshotSuffix="";
- phaseMs="90000";fix="1";beforeProbe=beforeCommit=null;
+ phaseMs="90000";fix="1";beforeProbe=beforeCommit=null;socketPresent=false;stampedBoot="";
  events=Collections.synchronizedList(new ArrayList<String>());RetirementNative.reset();clearRecoveryProcessCache();
  finished=new CountDownLatch(1);errors=new ArrayList<>();}
  public static void clearRecoveryProcessCache(){try{java.lang.reflect.Field field=RebootActivation.class.getDeclaredField("unconfirmedRecoveryBoot");field.setAccessible(true);field.set(null,null);}catch(Exception error){throw new AssertionError(error);}}
