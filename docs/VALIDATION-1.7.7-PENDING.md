@@ -27,7 +27,7 @@ v1.7.6 stays a pre-release. It is not promoted to stable, because its containmen
 
 | Gate | Result |
 | --- | --- |
-| #139: `BypassRamInterceptorTest` (real coordinator, 48 checks); 8/8 mutants rejected | PASS (host) |
+| #139: `BypassRamInterceptorTest` (real coordinator); with the kernel-form fix 56 checks, 12/12 mutants rejected | PASS (host) |
 | #140: `PoisonedBootTest` (real coordinator, 32 checks); 6/6 mutants rejected | PASS (host) |
 | Published v1.7.6 as a live-transfer origin: actual `LiveRetirement` with the frozen published 1.7.6 producer (68 cases); refused before the change | PASS (host) |
 | `test-live-transfer-origins.py`: every earlier published release from 1.7.1 is admitted at every site; 13/13 controls rejected | PASS (host) |
@@ -54,6 +54,38 @@ v1.7.6 stays a pre-release. It is not promoted to stable, because its containmen
 - both screens black;
 - a second service;
 - an unexpected compositor restart.
+
+## Physical round 1 (2026-11-02, owner-supervised, candidate `DEED4415…`)
+
+The Thor ran the published v1.7.6 daemon in BOTH, with the long-sleep collector running.
+
+| ID | Result | Observed |
+| --- | --- | --- |
+| C0 | **PASS** | See below |
+| C1 | **FAIL** (app defect; fixed for the next candidate) | See below |
+
+**C0: live transfer from v1.7.6, no restart.**
+- **Transfer:**
+  - after the install, opening the app retired the v1.7.6 daemon and started `READY 1.7.7`, with `KERNEL_SIGNALS ready`;
+  - `BOOT READY mode=0 bottom=1`, then `BYPASS_INTERCEPT_READY real=1`;
+  - one daemon remained. SurfaceFlinger, system_server and the composer kept their process IDs.
+- **Mounts:** a root read showed the daemon in the init mount namespace. The bind over the attribute and the second sysfs mount were present there and propagated to the system_server namespace. The requested, visible and real values matched (1).
+- **Kernel:** no DSI error.
+- **Dashboard:** the owner confirmed REFRESH GUARD ON.
+
+**C1, 60→120 in BOTH:**
+- **What happened:**
+  - the request `0x0` was intercepted (`BYPASS_REQUEST value=0;real=1`);
+  - the app then wrote `0`, which the kernel store refuses (`oscar bypass_ram_store error`, about once per second as the watcher retried);
+  - the attribute stayed at 1 at 120 Hz. No DSI, PLL or `-110` error and no STOP condition;
+  - returning to 60 Hz made the request equal to the real value, and the retries stopped.
+- **Unexplained:** the owner saw a brief colour artefact at the 120→60 switch. Whether stock behaviour shows the same is UNKNOWN.
+- **Why the tests missed it:** the 2026-10-29 manual helpers copied the framework's raw `0x0`, and the host fake accepted any form.
+- **Fix:**
+  - the real attribute is written in the framework's form (`0x0`/`0x1`);
+  - the host fake now refuses other forms, as the kernel does;
+  - watcher retries after a refused write stop at three. Each new request and each lower ON earns a fresh attempt.
+- **Candidate `DEED4415…` is superseded.**
 
 ## Known limitations
 

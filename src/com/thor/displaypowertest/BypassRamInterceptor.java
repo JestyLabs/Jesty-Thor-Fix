@@ -29,6 +29,8 @@ final class BypassRamInterceptor implements DisplayHardware.LowerPanelListener {
     static final String MOUNT = "/system/bin/mount";
     static final String UMOUNT = "/system/bin/umount";
     static final long DRAIN_CHECK_MS = 1000L;
+    /** Refused writes retried by the watcher before only a new request or a lower ON retries. */
+    static final int MAX_WRITE_FAILURES = 3;
 
     /** Device access. The daemon uses BypassRamRuntime; host tests use a fake. */
     interface Io {
@@ -60,6 +62,7 @@ final class BypassRamInterceptor implements DisplayHardware.LowerPanelListener {
     private volatile long pendingSince = -1L;
     private volatile String lastDeferReason;
     private volatile String lastRejected;
+    private volatile int writeFailures;
     // Written on the watcher thread only.
     private volatile Boolean fixEnabled;
     private long lastDrainCheckAt = -1L;
@@ -84,6 +87,8 @@ final class BypassRamInterceptor implements DisplayHardware.LowerPanelListener {
             return;
         }
         if (pending == null) return;
+        // Each refused write leaves a kernel error line: stop the periodic retries.
+        if (writeFailures >= MAX_WRITE_FAILURES) return;
         if (state == State.DRAINING) {
             long now = SystemClock.elapsedRealtime();
             if (lastDrainCheckAt >= 0L && now - lastDrainCheckAt < DRAIN_CHECK_MS) return;
@@ -96,7 +101,8 @@ final class BypassRamInterceptor implements DisplayHardware.LowerPanelListener {
 
     /** Called with the hardware lock held, right after a lower ON returned. */
     @Override public void onLowerPoweredOn(String reason) {
-        if (pending != null) queueAttempt("LOWER_ON");
+        // Not coalesced with a queued watcher retry: a lower ON always earns a fresh attempt.
+        if (pending != null) worker.execute(() -> attempt("LOWER_ON"));
     }
 
     private void queueAttempt(String source) {
@@ -264,6 +270,7 @@ final class BypassRamInterceptor implements DisplayHardware.LowerPanelListener {
             if (state == State.DRAINING) disarm("DRAINED");
             return;
         }
+        if (!"WATCHER".equals(source) && !"DRAIN".equals(source)) writeFailures = 0;
         // PowerManager is a Binder call: keep it outside the hardware lock.
         String interactive = io.interactive();
         String deferReason = null;
@@ -279,7 +286,7 @@ final class BypassRamInterceptor implements DisplayHardware.LowerPanelListener {
                     applied = true;
                     break;
                 case APPLY:
-                    written = io.write(REAL, wanted);
+                    written = io.write(REAL, BypassRamPolicy.kernelForm(wanted));
                     after = BypassRamPolicy.parse(io.read(REAL));
                     applied = written && wanted.equals(after);
                     break;
@@ -289,6 +296,7 @@ final class BypassRamInterceptor implements DisplayHardware.LowerPanelListener {
             }
         }
         if (applied) {
+            writeFailures = 0;
             if (written) {
                 Log.d(TAG, "BYPASS_APPLIED value=" + wanted + ";source=" + source + ";delay_ms="
                         + (SystemClock.elapsedRealtime() - pendingSince));
@@ -304,8 +312,12 @@ final class BypassRamInterceptor implements DisplayHardware.LowerPanelListener {
                         + ";source=" + source);
             }
         } else {
+            int failures = ++writeFailures;
             Log.d(TAG, "BYPASS_WRITE_FAILED value=" + wanted + ";after="
-                    + (after == null ? "?" : after));
+                    + (after == null ? "?" : after) + ";failures=" + failures);
+            if (failures == MAX_WRITE_FAILURES) {
+                Log.d(TAG, "BYPASS_WRITE_HELD value=" + wanted + ";until=REQUEST_OR_LOWER_ON");
+            }
         }
         if (state == State.DRAINING && pending == null) disarm("DRAINED");
     }
