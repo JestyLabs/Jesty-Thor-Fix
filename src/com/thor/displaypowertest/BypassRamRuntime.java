@@ -14,6 +14,7 @@ import java.util.concurrent.Executors;
 /** Device side of BypassRamInterceptor in the root daemon. */
 final class BypassRamRuntime implements BypassRamInterceptor.Io {
     private static final long COMMAND_TIMEOUT_MS = 3000L;
+    private static final int WRITE_EVENTS = FileObserver.CLOSE_WRITE | FileObserver.MODIFY;
 
     private BypassRamRuntime() {}
 
@@ -90,10 +91,10 @@ final class BypassRamRuntime implements BypassRamInterceptor.Io {
 
     @Override public AutoCloseable watch(String path, Runnable onWrite) {
         try {
-            FileObserver observer = new FileObserver(path,
-                    FileObserver.CLOSE_WRITE | FileObserver.MODIFY) {
+            FileObserver observer = new FileObserver(path, WRITE_EVENTS) {
                 @Override public void onEvent(int event, String name) {
-                    onWrite.run();
+                    // The raw inotify mask: removing the watch also delivers IN_IGNORED.
+                    if ((event & WRITE_EVENTS) != 0) onWrite.run();
                 }
             };
             observer.startWatching();
