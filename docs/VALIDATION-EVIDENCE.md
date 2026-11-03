@@ -1,5 +1,9 @@
 # Physical validation & performance evidence
 
+## Candidate: v1.7.8 / code88 (pending)
+
+[Candidate acceptance plan](VALIDATION-1.7.8-PENDING.md): published v1.7.7 as a live-transfer origin, refused while its lower-fault latch is set (#147), and only completed writes counted as bypass requests (#148). Host-tested with negative controls. C4, the live transfer from v1.7.7 with the interception armed, runs first. Physical acceptance NOT RUN.
+
 ## Candidate: v1.7.7 / code87 (pending)
 
 [Candidate acceptance plan](VALIDATION-1.7.7-PENDING.md): the panel-RAM bypass interception (#139) and the poisoned-boot detection (#140), host-tested with negative controls. On 2026-10-29, an owner-supervised trial on v1.7.6 reproduced the blackout on demand: a refresh change while the lower panel was off. The same sequence with the interception (manual helpers) left the kernel clean. The stall latch did not contain the reproduced failure, so v1.7.6 stays a pre-release. Physical acceptance NOT RUN.
