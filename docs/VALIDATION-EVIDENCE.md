@@ -1,14 +1,14 @@
 # Physical validation & performance evidence
 
-## Candidate: v1.7.7 / code87 (pending)
+## Current release: v1.7.7 / code87 (3 November 2026)
 
-[Candidate acceptance plan](VALIDATION-1.7.7-PENDING.md): the panel-RAM bypass interception (#139) and the poisoned-boot detection (#140), host-tested with negative controls. On 2026-10-29, an owner-supervised trial on v1.7.6 reproduced the blackout on demand: a refresh change while the lower panel was off. The same sequence with the interception (manual helpers) left the kernel clean. The stall latch did not contain the reproduced failure, so v1.7.6 stays a pre-release. Physical acceptance NOT RUN.
+[Release validation and physical rounds](VALIDATION-1.7.7-PENDING.md): the panel-RAM bypass interception (#139) and the poisoned-boot detection (#140), host-tested with negative controls. On 2026-10-29, an owner-supervised trial on v1.7.6 reproduced the blackout on demand: a refresh change while the lower panel was off. The same sequence with the interception (manual helpers) left the kernel clean. The stall latch did not contain the reproduced failure, so v1.7.6 stays a pre-release. Physical round 3 on the released APK passed C1–C3 and C5–C7. C4, the live transfer with the interception armed, can only run when the next release takes over from v1.7.7, so it moves to v1.7.8. The detection test D-1 and its cost D-2 were NOT RUN before publication (owner decision).
 
 ## Pre-release: v1.7.6 / code86 (28 October 2026)
 
-[Candidate acceptance and both physical rounds](VALIDATION-1.7.6-PENDING.md): F1/F2, E2, E4, D2, C1 and C3 PASS on the published signed APK; the live transfer from published 1.7.5 in TOP was held and completed by one normal restart; the sleep-order race fix is host-tested but not yet exercised on hardware. Published as a pre-release; the current stable release below is unchanged.
+[Candidate acceptance and both physical rounds](VALIDATION-1.7.6-PENDING.md): F1/F2, E2, E4, D2, C1 and C3 PASS on the published signed APK; the live transfer from published 1.7.5 in TOP was held and completed by one normal restart; the sleep-order race fix is host-tested but not yet exercised on hardware. Published as a pre-release and not promoted; v1.7.7 above is the current release.
 
-## Current release: v1.7.5 / code85 (20 October 2026)
+## Previous stable: v1.7.5 / code85 (20 October 2026)
 
 [Release validation and artifact identity](VALIDATION-1.7.5.md) record host, generic Android, CodeQL, signing and downloaded-asset checks as PASS. **Physical acceptance of this revision is NOT RUN at publication**, under an explicit maintainer timing exception. [Blackout containment](BLACKOUT-CONTAINMENT-1.7.4.md) is a tested software mitigation awaiting device acceptance; the earlier physical results below retain their original version boundaries.
 

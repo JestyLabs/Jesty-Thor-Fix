@@ -1,6 +1,6 @@
 # v1.7.7 / code87 — candidate acceptance (pending)
 
-**Status: candidate; physical acceptance in progress.** Round 3 (candidate `3363F51A…`) passed C1–C3 and C5–C7. C4 cannot run on a 1.7.7 candidate. D-1 and D-2 are NOT RUN: the owner postponed them.
+**Status: published as stable.** Round 3 (candidate `3363F51A…`, the released APK) passed C1–C3 and C5–C7. C4 cannot run on a 1.7.7 candidate. D-1 and D-2 are NOT RUN: the owner postponed them.
 
 **Published as stable v1.7.7 on 2026-11-03** (owner decision; [publication run](https://github.com/JestyLabs/Jesty-Thor-Fix/actions/runs/41622630233) from signed CI run 41502611834). The tag is on `ab5126d`. The release asset's SHA-256 is `3363F51A…`, the same APK that ran round 3. D-1 and D-2 were not run before publication.
 
