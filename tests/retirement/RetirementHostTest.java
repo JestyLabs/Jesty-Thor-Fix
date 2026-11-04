@@ -36,6 +36,8 @@ public final class RetirementHostTest {
             if (fault.equals("top-dock")) LidGuard.observedExternal = "1";
             DisplayActionCoordinator.observedStatus = "CONFIRMED";
             DisplayActionCoordinator.observedGeneration = 1L;
+            DisplayActionCoordinator.observedLowerFault = fault.equals("lower-latched") ? "LATCHED"
+                    : fault.equals("lower-poisoned") ? "POISONED_KMSG_PRECURSOR" : "0";
             if (fault.equals("top-pending")) DaemonState.onWake(false);
             if (fault.equals("top-rescheduled")) DaemonState.onWake(true);
             if (fault.equals("top-running")) DaemonState.onRepairBegin();
@@ -266,6 +268,10 @@ public final class RetirementHostTest {
                 "unsupported", "dead-before-bind", "dead-after-bind", "dead-before-signal",
                 "stale-commit", "cancel"}) rootCase(fault, false, 0);
         if (!"1.7.1".equals(DaemonIdentity.RUNTIME_ID)) rootCase("missing-runtime", false, 0);
+        // From code87 the producer reports its in-memory lower fault latch; a latched one is never retired.
+        if (producer.snapshot.contains(";lower_fault=")) {
+            for (String fault : new String[]{"lower-latched", "lower-poisoned"}) rootCase(fault, false, 0);
+        }
         rootCase("no-effect", false, 1);
         appCase("stable", true);
         for (String fault : new String[]{"helper-uid", "socket-uid", "changed-peer", "stale-hello",

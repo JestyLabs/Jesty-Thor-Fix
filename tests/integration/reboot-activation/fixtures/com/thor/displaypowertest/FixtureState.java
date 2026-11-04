@@ -11,19 +11,22 @@ public final class FixtureState {
  public static List<String> events;public static int helperSubmissions;public static boolean liveCommitFailure;
  // Secure socket inode and the boot ID stamped by the last instance-lock owner.
  public static boolean socketPresent;public static String stampedBoot;
+ // Published code87 added Q.lower_fault ("0", "LATCHED" or "POISONED_<reason>"); null omits it.
+ public static String lowerFault;
  public static void reset(String v){version=v;phase="READY";protocol="2";watcher="RUNNING";mode="0";top="1";bottom="1";
  pid="12000";afterLaunchPhase="READY";probes=kills=launches=disappearAfter=commits=0;stopEffective=bridgeAccept=true;lastHeld=false;
  appVersion=DaemonIdentity.RUNTIME_ID;appCode=86;updateTime=123;boot="00000000-0000-0000-0000-000000000001";
  fromBoot=packageFailure=commitFailure=commitThrows=corruptRead=legacyPresent=bootReadThrows=commitUpdatesMemory=false;
  saved=new HashMap<>();durable=new HashMap<>();
  scriptedReplies=null;replyIndex=0;requests=new StringBuilder();helperSubmissions=0;liveCommitFailure=false;snapshotSuffix="";
- phaseMs="90000";fix="1";beforeProbe=beforeCommit=null;socketPresent=false;stampedBoot="";
+ phaseMs="90000";fix="1";beforeProbe=beforeCommit=null;socketPresent=false;stampedBoot="";lowerFault="0";
  events=Collections.synchronizedList(new ArrayList<String>());RetirementNative.reset();clearRecoveryProcessCache();
  finished=new CountDownLatch(1);errors=new ArrayList<>();}
  public static void clearRecoveryProcessCache(){try{java.lang.reflect.Field field=RebootActivation.class.getDeclaredField("unconfirmedRecoveryBoot");field.setAccessible(true);field.set(null,null);}catch(Exception error){throw new AssertionError(error);}}
  public static String health(){return "ok=1;protocol="+protocol+";version="+version+";pid="+pid+";boot_phase="+phase+";phase_ms="+phaseMs+";fix="+fix+";watcher="+watcher;}
  // Published code76 did not emit Q.runtime_version; never invent identity evidence.
- public static String snapshot(){return "ok=1"+("1.7.1".equals(version) ? "" : ";runtime_version=" + version)+";mode="+mode+";top_crtc="+top+";bottom_crtc="+bottom+";display_actions_held=0;display_effective=CONFIRMED;display_action_status=CONFIRMED;display_generation=1;repair_result=NONE;fix=1;cpu_fix_desired=0;cpu_fix_phase=CONFIRMED;system_load_fix=0;lid_guard=0;lid=open;external_display=unknown"+snapshotSuffix;}
+ public static String snapshot(){return "ok=1"+("1.7.1".equals(version) ? "" : ";runtime_version=" + version)+";mode="+mode+";top_crtc="+top+";bottom_crtc="+bottom+";display_actions_held=0;display_effective=CONFIRMED;display_action_status=CONFIRMED;display_generation=1;repair_result=NONE;fix=1;cpu_fix_desired=0;cpu_fix_phase=CONFIRMED;system_load_fix=0;lid_guard=0;lid=open;external_display=unknown"
+ +("1.7.7".equals(version)&&lowerFault!=null?";lower_fault="+lowerFault:"")+snapshotSuffix;}
  public static boolean transact(String cmd){
  if(cmd.contains(" app_process / R ")){helperSubmissions++;events.add("BRIDGE_SUBMIT");
  if(!bridgeAccept)return false;events.add("BRIDGE_ACK");RetirementNative.submit(cmd);return true;}
