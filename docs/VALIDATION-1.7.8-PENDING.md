@@ -13,9 +13,9 @@ The owner's requirement stands: an update never requires a restart. Every publis
 origin of the next one.
 
 The candidate will contain:
-- [#147](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/147): the candidate identity 1.7.8/code88, published v1.7.7 as a
+- [#147](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/147) (main `72201ff`): the candidate identity 1.7.8/code88, published v1.7.7 as a
   live-transfer origin, and a new lower-fault gate;
-- [#148](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/148): only completed writes count as bypass requests (the C6
+- [#148](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/148) (main `d5d93f9`): only completed writes count as bypass requests (the C6
   defect);
 - this record and the release notes.
 
@@ -40,7 +40,7 @@ The candidate will contain:
 | #147: reboot activation, code87 handover in BOTH and confirmed TOP; with a lower fault, refused inside the retained session and the restart fallback kept | PASS (host) |
 | #148: `afteroff` and `watchevents` fail before the change, the first with the C6 log lines | FAIL before, as expected |
 | #148: `BypassRamInterceptorTest`, 76 checks; 21/21 mutants rejected (3 new) | PASS (host) |
-| Main CI, Android emulator job (retirement matrix, 32 cases), CodeQL | NOT RUN (pending on the PRs) |
+| Main CI, Android emulator job (retirement matrix, 32 cases), CodeQL | PASS on #147 and #148, each on its branch up to date with main before the merge |
 | Signed candidate: hash, signature and version checked on the host before install | NOT RUN |
 
 ## Physical acceptance plan (owner-supervised, long-sleep collector running)
