@@ -142,6 +142,8 @@ final class BypassRamInterceptor implements DisplayHardware.LowerPanelListener {
 
     private void onRequestWritten() {
         worker.execute(() -> {
+            // A callback that reaches the worker after the watch closed has nothing to intercept.
+            if (state != State.ARMED && state != State.DRAINING) return;
             refreshPending();
             attempt("REQUEST");
         });

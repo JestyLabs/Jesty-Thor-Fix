@@ -35,6 +35,21 @@ public final class LiveHandoverPolicyTest {
         check(pid(h86,q86.replace("1.7.6","1.7.5"))<0, "code86 mismatched I/Q denied");
         check(pid(h86,q86.replace("mode=0","mode=1").replace("bottom_crtc=1","bottom_crtc=0"))<0,
                 "code86 public stop remains BOTH-only");
+        String h87 = H.replace("1.7.2", "1.7.7");
+        String q87 = Q.replace("1.7.2", "1.7.7") + ";lower_fault=0";
+        check(pid(h87,q87)==12000, "exact published code87 READY+BOTH without a lower fault is eligible");
+        check(pid(h87,q87.replace(";runtime_version=1.7.7", ""))<0, "code87 requires Q runtime identity");
+        check(pid(h87,q87.replace("1.7.7","1.7.6"))<0, "code87 mismatched I/Q denied");
+        check(pid(h87,q87.replace("mode=0","mode=1").replace("bottom_crtc=1","bottom_crtc=0"))<0,
+                "code87 public stop remains BOTH-only");
+        check(pid(h87,q87.replace("lower_fault=0","lower_fault=LATCHED"))<0,
+                "code87 with a latched lower failure is not transferred");
+        check(pid(h87,q87.replace("lower_fault=0","lower_fault=POISONED_KMSG_PRECURSOR"))<0,
+                "code87 with a poisoned lower link is not transferred");
+        check(pid(h87,q87.replace(";lower_fault=0",""))<0, "code87 must report its lower fault state");
+        check(pid(h87,q87+";lower_fault=0")<0, "code87 duplicate lower fault state denied");
+        check(pid(h86,q86+";lower_fault=POISONED_KMSG_PRECURSOR")==12000,
+                "code86 never reported a lower fault; its gate is unchanged");
         String h84 = H.replace("1.7.2", "1.7.4");
         String q84 = Q.replace("1.7.2", "1.7.4");
         check(pid(h84,q84)==12000, "published code84 ready+BOTH is eligible");
@@ -55,7 +70,7 @@ public final class LiveHandoverPolicyTest {
         check(pid(H.replace("1.7.2","1.7.1"),Q.replace(";runtime_version=1.7.2",""))<0,
                 "published code76 lacks Q runtime identity and cannot authorize live stop");
         check(pid(H.replace("1.7.2","1.7.1"),Q)<0,"I/Q version mismatch denied");
-        for (String version : new String[]{"1.7.0","1.7.2-rc1","1.7.7","1.7.6-rc1","1.7.6-recovery","1.7.60","1.7.5-rc1","1.7.5-recovery","1.7.50","1.7.4-rc1","1.7.4-recovery","1.7.40",
+        for (String version : new String[]{"1.7.0","1.7.2-rc1","1.7.8","1.7.7-rc1","1.7.7-recovery","1.7.70","1.7.6-rc1","1.7.6-recovery","1.7.60","1.7.5-rc1","1.7.5-recovery","1.7.50","1.7.4-rc1","1.7.4-recovery","1.7.40",
                 "1.7.3-recovery","1.7.2-hijacked","unknown"}) {
             check(pid(H.replace("1.7.2",version),Q.replace("1.7.2",version))<0,"unknown predecessor denied "+version);
         }

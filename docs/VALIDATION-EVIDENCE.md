@@ -1,5 +1,9 @@
 # Physical validation & performance evidence
 
+## Candidate: v1.7.8 / code88 (pending)
+
+[Candidate acceptance plan](VALIDATION-1.7.8-PENDING.md): published v1.7.7 as a live-transfer origin, refused while its lower-fault latch is set (#147), and only completed writes counted as bypass requests (#148). Host-tested with negative controls. C4, the live transfer from v1.7.7 with the interception armed, runs first. Physical acceptance NOT RUN.
+
 ## Current release: v1.7.7 / code87 (3 November 2026)
 
 [Release validation and physical rounds](VALIDATION-1.7.7-PENDING.md): the panel-RAM bypass interception (#139) and the poisoned-boot detection (#140), host-tested with negative controls. On 2026-10-29, an owner-supervised trial on v1.7.6 reproduced the blackout on demand: a refresh change while the lower panel was off. The same sequence with the interception (manual helpers) left the kernel clean. The stall latch did not contain the reproduced failure, so v1.7.6 stays a pre-release. Physical round 3 on the released APK passed C1–C3 and C5–C7. C4, the live transfer with the interception armed, can only run when the next release takes over from v1.7.7, so it moves to v1.7.8. The detection test D-1 and its cost D-2 were NOT RUN before publication (owner decision).

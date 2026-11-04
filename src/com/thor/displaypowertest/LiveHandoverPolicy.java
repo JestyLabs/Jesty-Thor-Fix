@@ -6,6 +6,10 @@ package com.thor.displaypowertest;
  * A version string, filesystem socket, or Binder submission alone is not proof.
  */
 public final class LiveHandoverPolicy {
+    /** Published origins whose snapshot has no lower_fault field; every later one must report "0". */
+    private static final java.util.List<String> BEFORE_LOWER_FAULT_FIELD = java.util.Arrays.asList(
+            "1.7.1", "1.7.2", "1.7.3", "1.7.4", "1.7.5", "1.7.6");
+
     private LiveHandoverPolicy() {}
 
     public static int safePid(String health, String snapshot, boolean displayFix,
@@ -66,8 +70,9 @@ public final class LiveHandoverPolicy {
         if (pid < 1) return reject(why, "PREVIOUS_IDENTITY", "");
         // Exact published predecessors only; never a broad version comparison.
         String version = field(health, "version");
-        if (!"1.7.6".equals(version) && !"1.7.5".equals(version) && !"1.7.4".equals(version) && !"1.7.3".equals(version)
-                && !"1.7.2".equals(version) && !"1.7.1".equals(version)) return reject(why, "VERSION", version);
+        if (!"1.7.7".equals(version) && !"1.7.6".equals(version) && !"1.7.5".equals(version) && !"1.7.4".equals(version)
+                && !"1.7.3".equals(version) && !"1.7.2".equals(version) && !"1.7.1".equals(version))
+            return reject(why, "VERSION", version);
         // I and Q must describe the same process generation, not a socket takeover.
         String runtimeVersion = field(snapshot, "runtime_version");
         boolean publishedCode76 = retainedProcess && "1.7.1".equals(version)
@@ -82,6 +87,11 @@ public final class LiveHandoverPolicy {
             return reject(why, "FIX_SNAPSHOT", field(snapshot, "fix"));
         if (!"0".equals(field(snapshot, "display_actions_held")))
             return reject(why, "ACTIONS_HELD", field(snapshot, "display_actions_held"));
+        // From 1.7.7 a lower-panel fault latch lives only in the predecessor's memory, and the
+        // successor's kernel reader starts at the end of the log: it would start unlatched and
+        // could power a poisoned panel on. Such a boot already needs a restart; never transfer it.
+        if (!BEFORE_LOWER_FAULT_FIELD.contains(version) && !"0".equals(field(snapshot, "lower_fault")))
+            return reject(why, "LOWER_FAULT", field(snapshot, "lower_fault"));
         if (!"CONFIRMED".equals(field(snapshot, "display_effective")))
             return reject(why, "DISPLAY_EFFECTIVE", field(snapshot, "display_effective"));
         if (!expected(field(snapshot, "cpu_fix_desired"), cpuFix))
