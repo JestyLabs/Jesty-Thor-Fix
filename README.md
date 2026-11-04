@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.5"><strong>Download v1.7.5</strong></a>
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.7"><strong>Download v1.7.7</strong></a>
   · <a href="#what-it-fixes">Features</a>
   · <a href="#measured-on-a-real-thor">Results</a>
   · <a href="#current-investigations">What's next</a>
@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.5"><img alt="Release v1.7.5" src="https://img.shields.io/badge/release-v1.7.5-F5C95D?style=for-the-badge"></a>
+  <a href="https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.7"><img alt="Release v1.7.7" src="https://img.shields.io/badge/release-v1.7.7-F5C95D?style=for-the-badge"></a>
   <img alt="AYN Thor" src="https://img.shields.io/badge/AYN-Thor-A78BFA?style=for-the-badge">
   <img alt="Android 13" src="https://img.shields.io/badge/Android-13-3DDC84?style=for-the-badge&logo=android&logoColor=white">
   <img alt="No Magisk or manual rooting" src="https://img.shields.io/badge/setup-no%20Magisk%20%2F%20manual%20rooting-16A34A?style=for-the-badge">
@@ -88,7 +88,7 @@ A simpler look at the **battery-draw readings visible in nine TOP-mode**. The ba
 
 ### Current investigations
 
-We are still looking into the following areas. **These are research, not advertised fixes in v1.7.5.**
+We are still looking into the following areas. **These are research, not advertised fixes in v1.7.7.**
 
 - **🖥️ Pre-existing Thor 120 Hz / screen tearing** — A device/firmware mixed-refresh problem **not introduced by Jesty Thor Fix**. We are investigating it, **not claiming a fix**. The physical cause and any safe remedy remain unproven. [Research #37](https://github.com/JestyLabs/Jesty-Thor-Fix/pull/37).
 - **🔌 Device-service reliability** — Investigating rare cases where Android temporarily loses access to a built-in device service, and ways to use this app to improve them.
@@ -98,17 +98,15 @@ Interested in future device support, including Retroid Pocket Duo? That's **rese
 
 ---
 
-### v1.7.6 pre-release
+### v1.7.7 update
 
-Available for testing (enable *Test pre-releases* in the app): the lower screen no longer stays on during sleep in BOTH when the system turns it off first, a held service transfer now records why, and after a stalled display call the lower screen stays off in BOTH until the next reboot or a manual fix toggle. Updating from 1.7.5 in TOP may ask for one normal restart. [Release notes](docs/RELEASE-NOTES-1.7.6.md) · [Validation](docs/VALIDATION-1.7.6-PENDING.md).
+The AYN firmware writes a panel setting on every refresh-rate change (Smooth Display). With the display fix on, the app now holds that write back and applies it only once the lower screen is on and has finished starting. Changing the refresh rate while the lower screen is off in TOP no longer breaks the lower screen until the next reboot; in an owner-supervised test that sequence reproduced the black screens on demand. If the lower screen still fails to start, the app keeps it off and asks for one restart instead of letting both screens fall into a black-screen loop. The underlying vendor display defect remains, and a lower screen that already failed in the current boot is not repaired until a restart.
 
-### v1.7.5 update
-
-Corrected containment status after unsuccessful retries and guarded service transfer from 1.7.1–1.7.4. Includes the TOP repair cancellation and display-stall containment delivered in 1.7.4. During containment the lower screen may remain off in BOTH; recovery on real hardware is still being evaluated. [Release notes](docs/RELEASE-NOTES-1.7.5.md) · [Blackout investigation and limits](docs/BLACKOUT-CONTAINMENT-1.7.4.md).
+Includes the [v1.7.6 changes](docs/RELEASE-NOTES-1.7.6.md). Updating from v1.7.6 transfers the background service without a restart; updating from 1.7.5 in TOP may ask for one normal restart. [Release notes](docs/RELEASE-NOTES-1.7.7.md) · [Validation](docs/VALIDATION-1.7.7-PENDING.md).
 
 ### How to use
 
-1. **[Download Jesty Thor Fix v1.7.5](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.5)** (official signed APK).
+1. **[Download Jesty Thor Fix v1.7.7](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/tag/v1.7.7)** (official signed APK).
 2. Install normally over the existing version **without uninstalling or clearing app data**; open **Jesty Thor Fix**.
 3. Allow the background service to transfer and confirm **ACTIVE** or **STOCK**. If transfer is unavailable, follow the app’s safe fallback guidance.
 4. Enable the controls you want. You can close the app; the fixes keep working in the background.
@@ -169,7 +167,7 @@ Jesty Thor Fix is free and open source. No features are locked behind donations.
 [Diagnostics RC validation](docs/APP-DIAGNOSTICS-RC-VALIDATION.md) · 
 [Compatibility](docs/COMPATIBILITY.md) · 
 [Benchmarks](docs/BENCHMARKS.md) · 
-[What's new in v1.7.5](docs/RELEASE-NOTES-1.7.5.md) ·
+[What's new in v1.7.7](docs/RELEASE-NOTES-1.7.7.md) ·
 [Build from source](docs/BUILD-AND-RELEASE.md) · 
 [Release integrity](docs/RELEASE-INTEGRITY.md)
 

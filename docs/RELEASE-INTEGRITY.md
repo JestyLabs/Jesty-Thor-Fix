@@ -1,5 +1,13 @@
 # Release integrity
 
+## 1.7.7 stable publication — 3 November 2026
+
+- Source/tag: `ab5126d0f21e6ac2220c8eb4fc581f1488a7fa9b`; package `com.thor.displaypowertest`, version 1.7.7/code87.
+- Official APK: [`Jesty-Thor-Fix-1.7.7.apk`](https://github.com/JestyLabs/Jesty-Thor-Fix/releases/download/v1.7.7/Jesty-Thor-Fix-1.7.7.apk), 9,315,803 bytes.
+- SHA-256: `3363f51a9b50c002626ce66e1ab38126f01c65f8a953db0b467770ef076cecfb`. Established signer (`727D4850…AD6FC`) verified with apksigner (v1, v2 and v3, one signer) on the signed candidate before install. GitHub's digest of the release asset equals the SHA-256 of that candidate, the APK that ran physical round 3; no separate download was made.
+- [Main CI/signing](https://github.com/JestyLabs/Jesty-Thor-Fix/actions/runs/41502611834), [CodeQL](https://github.com/JestyLabs/Jesty-Thor-Fix/actions/runs/41502582476) and [protected publication](https://github.com/JestyLabs/Jesty-Thor-Fix/actions/runs/41622630233) passed.
+- [Validation](VALIDATION-1.7.7-PENDING.md): physical round 3 on this APK passed C1–C3 and C5–C7. C4 needs a successor release and moves to v1.7.8; D-1 and D-2 were not run before publication (owner decision).
+
 ## 1.7.6 pre-release publication — 28 October 2026
 
 - Channel: **pre-release** (offered in the app only with *Test pre-releases* enabled). The current stable release remains v1.7.5/code85.
