@@ -553,6 +553,66 @@ public final class BypassRamInterceptorTest {
         finish();
     }
 
+    /**
+     * C6 on the Thor (2026-11-02): right after BYPASS_INTERCEPT_OFF the daemon logged a request
+     * with the real attribute unreachable ("real=?") and deferred it. AOSP delivers IN_IGNORED to
+     * the observer once its watch is removed (the likely cause: the event mask was not logged).
+     * Only a completed write may count as a request.
+     */
+    static void watchEvents() {
+        BypassRamInterceptor.Io runtime;
+        try {
+            java.lang.reflect.Constructor<BypassRamRuntime> make = BypassRamRuntime.class.getDeclaredConstructor();
+            make.setAccessible(true);
+            runtime = make.newInstance();
+        } catch (ReflectiveOperationException error) {
+            throw new AssertionError(error);
+        }
+        int[] writes = {0};
+        AutoCloseable watch = runtime.watch(BypassRamInterceptor.REQUEST, () -> writes[0]++);
+        android.os.FileObserver observer = android.os.FileObserver.last;
+        check(watch != null && observer != null && observer.watching
+                && BypassRamInterceptor.REQUEST.equals(observer.watchedPath), "BR-24 the request file is watched");
+        observer.onEvent(android.os.FileObserver.MODIFY, null);
+        observer.onEvent(android.os.FileObserver.CLOSE_WRITE, null);
+        check(writes[0] == 2, "BR-24a each write event is a request: " + writes[0]);
+        try { watch.close(); }
+        catch (Exception error) { throw new AssertionError(error); }
+        check(!observer.watching, "BR-24c close stops the watch");
+        // What the kernel sends once the watch is removed, or the filesystem goes away.
+        observer.onEvent(0x00008000, null);
+        observer.onEvent(0x00002000, null);
+        check(writes[0] == 2, "BR-24b IN_IGNORED and IN_UNMOUNT are not requests: " + writes[0]);
+    }
+
+    /** A request callback that reaches the worker after the fix-off unmount. */
+    static void callbackAfterOff() {
+        start(true);
+        Runnable late = io.watcher;
+        TestDisplayState.enabled = false;
+        sample();
+        check(io.watcher == null && !io.sysfs && "OFF".equals(DisplayHardware.lowerPanelStatus()),
+                "BR-25 fix off closed the watch and unmounted");
+        late.run();
+        check(count("BYPASS_REQUEST") == 0 && count("BYPASS_DEFERRED") == 0,
+                "BR-25b a callback after the interception closed is ignored: " + Log.LINES);
+        finish();
+    }
+
+    /** While draining, the newest request still wins: back to the real value means nothing to apply. */
+    static void requestWhileDraining() {
+        start(true);
+        switchMode("1");
+        io.framework("1");
+        TestDisplayState.enabled = false;
+        sample();
+        check("DRAINING".equals(DisplayHardware.lowerPanelStatus()), "BR-25c draining: " + DisplayHardware.lowerPanelStatus());
+        io.framework("0");
+        check(io.stores.isEmpty() && !io.bind && !io.sysfs && count("BYPASS_INTERCEPT_OFF cause=DRAINED") == 1,
+                "BR-25d a request written while draining still counts: " + io.stores + " " + DisplayHardware.lowerPanelStatus());
+        finish();
+    }
+
     static void status() {
         DisplayHardware.setLowerPanelListener(null);
         check("NONE".equals(DisplayHardware.lowerPanelStatus()), "BR-20 no listener: NONE");
@@ -593,6 +653,9 @@ public final class BypassRamInterceptorTest {
         cases.put("bindrace", BypassRamInterceptorTest::writeDuringBind);
         cases.put("kernelform", BypassRamInterceptorTest::kernelForm);
         cases.put("refused", BypassRamInterceptorTest::refusedWrites);
+        cases.put("watchevents", BypassRamInterceptorTest::watchEvents);
+        cases.put("afteroff", BypassRamInterceptorTest::callbackAfterOff);
+        cases.put("drainrequest", BypassRamInterceptorTest::requestWhileDraining);
         cases.put("status", BypassRamInterceptorTest::status);
         if (args.length == 1) {
             Runnable selected = cases.get(args[0]);

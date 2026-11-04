@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PKG = 'com.thor.displaypowertest.'
 CORE = ['DisplayActionCoordinator.java', 'DisplayHardware.java', 'DisplayDecisionModel.java',
         'DisplayGenerationModel.java', 'ThorHardwareProfile.java', 'BypassRamPolicy.java',
-        'BypassRamInterceptor.java']
+        'BypassRamInterceptor.java', 'BypassRamRuntime.java']
 # (id, file, before, after, check that must reject it)
 MUTANTS = [
     ('write-with-lower-off', 'BypassRamPolicy.java',
@@ -64,6 +64,13 @@ MUTANTS = [
      'else if ("DRAIN".equals(source) && lowerOnSince < 0L) lowerOnSince = now - SETTLE_MS;', 'BR-13f'),
     ('off-keeps-settle-time', 'BypassRamInterceptor.java',
      'if (!"On".equals(dpms)) lowerOnSince = -1L;', 'if (!"On".equals(dpms)) { }', 'BR-13g'),
+    ('any-watch-event-is-a-write', 'BypassRamRuntime.java',
+     'if ((event & WRITE_EVENTS) != 0) onWrite.run();', 'onWrite.run();', 'BR-24b'),
+    ('callback-after-close-accepted', 'BypassRamInterceptor.java',
+     '            if (state != State.ARMED && state != State.DRAINING) return;\n', '', 'BR-25b'),
+    ('draining-ignores-requests', 'BypassRamInterceptor.java',
+     'if (state != State.ARMED && state != State.DRAINING) return;',
+     'if (state != State.ARMED) return;', 'BR-25d'),
 ]
 
 
@@ -91,6 +98,8 @@ def main():
             path.write_text(content, encoding='utf-8')
             inputs.append(path)
         inputs += sorted((fixture / 'fixtures').rglob('*.java'))
+        # FileObserver and Os stand-ins for the runtime's request-file watch only.
+        inputs += sorted((fixture / 'bypass-runtime').rglob('*.java'))
         inputs.append(fixture / 'BypassRamInterceptorTest.java')
         compiled = subprocess.run(['javac', '-encoding', 'UTF-8', '-d', str(work), *map(str, inputs)],
                                   capture_output=True, text=True, timeout=120)
