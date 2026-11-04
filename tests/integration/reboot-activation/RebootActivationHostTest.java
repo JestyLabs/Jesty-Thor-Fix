@@ -123,12 +123,15 @@ public final class RebootActivationHostTest {
         FixtureState.reset("1.7.6");run("code86-same-kernel-handover",1,1,true);
         verifiedExitBeforeLaunch("code86");
         check(DaemonIdentity.RUNTIME_ID.equals(FixtureState.version),"code86 successor uses current product identity");
+        FixtureState.reset("1.7.7");run("code87-same-kernel-handover",1,1,true);
+        verifiedExitBeforeLaunch("code87");
+        check(DaemonIdentity.RUNTIME_ID.equals(FixtureState.version),"code87 successor uses current product identity");
         check(FixtureState.saved.containsKey("activation_v3_live_handover"),
                 "live proof is durable only after new runtime identity");
         run("live-proven-repeat-open-no-kill",0,0,true);
         FixtureState.reset("1.7.1");run("code76-bound-native-handover",1,1,true);
         verifiedExitBeforeLaunch("code76");
-        for(String old:new String[]{"1.7.1","1.7.2","1.7.3","1.7.4","1.7.5","1.7.6"}){
+        for(String old:new String[]{"1.7.1","1.7.2","1.7.3","1.7.4","1.7.5","1.7.6","1.7.7"}){
             FixtureState.reset(old);FixtureState.mode="1";FixtureState.bottom="0";
             run("confirmed-top-handover-"+old,1,1,true);
             verifiedExitBeforeLaunch("TOP-"+old);
@@ -139,7 +142,7 @@ public final class RebootActivationHostTest {
         run("top-no-exit-no-successor",1,0,false);
         FixtureState.reset("1.7.1");FixtureState.snapshotSuffix=";runtime_version=";
         run("code76-present-empty-Q-version-is-not-absence",0,0,false);
-        for(String old:new String[]{"1.7.1","1.7.2","1.7.3","1.7.4","1.7.5","1.7.6"}){
+        for(String old:new String[]{"1.7.1","1.7.2","1.7.3","1.7.4","1.7.5","1.7.6","1.7.7"}){
             FixtureState.reset(old);RetirementNative.available=false;
             run("native-unavailable-reboot-fallback-"+old,0,0,false);
             check(FixtureState.helperSubmissions==0,"unsupported native never submits helper");
@@ -149,6 +152,14 @@ public final class RebootActivationHostTest {
         FixtureState.reset("1.7.2");FixtureState.mode="1";
         run("top-with-active-lower-fails-closed",0,0,false);
         FixtureState.mode="0";run("later-both-retry-activates",1,1,true);
+        // A code87 lower fault latch lives only in that daemon; its boot keeps the restart fallback.
+        for(String fault:new String[]{"LATCHED","POISONED_KMSG_PRECURSOR",null}){
+            FixtureState.reset("1.7.7");FixtureState.lowerFault=fault;
+            run("code87-lower-fault-"+fault+"-held",0,0,false);
+            check("1.7.7".equals(FixtureState.version),"code87 with lower fault "+fault+" is refused inside the retained session and keeps running");
+            check(ticket().evidence()==RebootActivation.Evidence.RESTART_REQUIRED,
+                    "code87 with lower fault "+fault+" keeps the restart fallback");
+        }
         FixtureState.reset("1.7.2");FixtureState.bottom="0";
         run("dark-bottom-must-not-be-killed",0,0,false);
         FixtureState.reset("1.7.2");FixtureState.watcher="FAILED";

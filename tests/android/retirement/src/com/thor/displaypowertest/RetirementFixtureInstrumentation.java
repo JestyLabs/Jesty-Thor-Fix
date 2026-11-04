@@ -56,7 +56,8 @@ public final class RetirementFixtureInstrumentation extends Instrumentation {
             require("both".equals(mode) || "top".equals(mode), "Exact fixture mode required");
             require("1.7.1".equals(version) || "1.7.2".equals(version)
                     || "1.7.3".equals(version) || "1.7.4".equals(version)
-                    || "1.7.5".equals(version) || "1.7.6".equals(version), "Exact predecessor required");
+                    || "1.7.5".equals(version) || "1.7.6".equals(version)
+                    || "1.7.7".equals(version), "Exact predecessor required");
             context.getFilesDir();
             SharedPreferences preferences = context.getSharedPreferences("state", Context.MODE_PRIVATE);
             String stage = arguments.getString("stage", "");

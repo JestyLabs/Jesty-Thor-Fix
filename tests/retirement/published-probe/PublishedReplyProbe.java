@@ -48,6 +48,9 @@ final class DisplayActionCoordinator {
     static long observedGeneration = 1L;
     static String status() { return observedStatus; }
     static long generation() { return observedGeneration; }
+    // Read only by producers from code87, which report their lower fault latch.
+    static String observedLowerFault = "0";
+    static String lowerFailureState() { return observedLowerFault; }
     static String requestFix(boolean on) { throw new AssertionError("unexpected display effect"); }
 }
 final class WatcherSupervisor {
@@ -55,7 +58,10 @@ final class WatcherSupervisor {
     static long lastSampleAt() { return 100000L; }
 }
 final class WatcherCadence { static String snapshotFields() { return ";fixture_sample=1"; } }
-final class DisplayHardware { static String getProperty() { return "1"; } }
+final class DisplayHardware {
+    static String getProperty() { return "1"; }
+    static String lowerPanelStatus() { return "NONE"; }
+}
 final class LidGuard {
     static boolean observedEnabled;
     static String observedLid = "open";
