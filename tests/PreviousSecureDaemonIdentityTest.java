@@ -21,7 +21,12 @@ public final class PreviousSecureDaemonIdentityTest {
                 "approved published code83 can be identified before retained-process retirement");
         check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.7.4"), BOTH) == 11398,
                 "published code84 can be identified before retained-process retirement");
-        check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.7.7"), BOTH) < 0,
+        check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.7.7"), BOTH) == 11398,
+                "exact published code87 may be considered in BOTH");
+        check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.7.7"),
+                BOTH.replace("mode=0", "mode=1").replace("bottom_crtc=1", "bottom_crtc=0")) < 0,
+                "code87 public predecessor gate remains BOTH-only");
+        check(PreviousSecureDaemonIdentity.safePid(HEALTH.replace("1.5.3", "1.7.8"), BOTH) < 0,
                 "future/current candidate is not silently admitted as a published predecessor");
         for (String version : new String[]{"1.7.1-rc2", "1.7.1-rc3", "1.7.1-rc4"}) {
             String health = HEALTH.replace("1.5.3", version);

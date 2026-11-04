@@ -69,6 +69,8 @@ public final class RecoveryRetirementHostTest {
                 failed.replace(DaemonIdentity.RUNTIME_ID, "1.7.5"), failed, false, 0, inert);
         run("published-176-predecessor-is-not-same-version-recovery",
                 failed.replace(DaemonIdentity.RUNTIME_ID, "1.7.6"), failed, false, 0, inert);
+        run("published-177-predecessor-is-not-same-version-recovery",
+                failed.replace(DaemonIdentity.RUNTIME_ID, "1.7.7"), failed, false, 0, inert);
         run("claimed-pid", failed.replace("12000", "13000"), failed, false, 0, inert);
         run("wrong-intent", failed.replace("fix=1", "fix=0"), failed, false, 0, inert);
         run("starting-young", health("BOOT_HOLD").replace("90000", "89999"), failed, false, 0, inert);
